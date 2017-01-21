@@ -1,0 +1,24 @@
+
+
+!IFDEF MAKEVERBOSE
+QUIETCMD=
+CSCRIPT_VERBOSE=
+!ELSE
+QUIETCMD=@
+CSCRIPT_VERBOSE=//Nologo
+!ENDIF
+
+
+all:lsrunas\lsrunas.exe
+
+lsrunas\lsrunas.exe:extargslib
+	$(QUIETCMD)cd lsrunas && cscript.exe  $(CSCRIPT_VERBOSE) $(MAKEDIR)\runmake.vbs all && cd $(MAKEDIR)
+
+extargslib:check_git
+	$(QUIETCMD)git.exe clone https://github.com/jeppeter/extargslib.git extargslib
+
+check_git:
+	$(QUIETCMD)cscript.exe $(CSCRIPT_VERBOSE) $(MAKEDIR)\chkevn.vbs 
+
+clean:
+	$(QUIETCMD)cd lsrunas && cscript.exe $(CSCRIPT_VERBOSE) $(MAKEDIR)\runmake.vbs clean && cd $(MAKEDIR)
