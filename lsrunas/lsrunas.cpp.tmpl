@@ -1,0 +1,464 @@
+/***************************************
+*  command line for run as
+*
+***************************************/
+
+#include <stdio.h>
+#include <Windows.h>
+#include <win_args.h>
+#include <extargs.h>
+
+typedef struct __args_options {
+	char* m_username;
+	char* m_password;
+	char* m_domainname;
+	char* m_curdir;
+	char** m_ppenvs;
+
+	/*desktop name*/
+	char* m_desktopname;
+	char* m_title;
+	int m_xpos;
+	int m_ypos;
+	int m_xsize;
+	int m_ysize;
+	int m_xcountchars;
+	int m_ycountchars;
+
+	int m_foreblue;
+	int m_foregreen;
+	int m_forered;
+	int m_foreintensity;
+	int m_backblue;
+	int m_backgreen;
+	int m_backred;
+	int m_backintensity;
+
+	/*startinfo flags*/
+	int m_siforceonfeedback;
+	int m_siforceofffeedback;
+	int m_sipreventpinning;
+	int m_sirunfullscreen;
+	int m_sititleisappid;
+	int m_sititleisalinkname;
+	int m_siuntrustedsource;
+	int m_siusecountchars;
+	int m_siusefillattribute;
+	int m_siusehotkey;
+	int m_siuseposition;
+	int m_siuseshowwindow;
+	int m_siusesize;
+	int m_siusestdhandles;
+
+	/*
+		window show cmd
+		forceminimize             SW_FORCEMINIMIZE
+		hide                      SW_HIDE
+		maximize                  SW_MAXIMIZE
+		minimize                  SW_MINIMIZE
+		restore                   SW_RESTORE
+		show                      SW_SHOW
+		showdefault               SW_SHOWDEFAULT
+		showmaximized             SW_SHOWMAXIMIZED
+		showminimized             SW_SHOWMINIMIZED
+		showminnoactive           SW_SHOWMINNOACTIVE
+		showna                    SW_SHOWNA
+		shownoactive              SW_SHOWNOACTIVATE
+		shownormal                SW_SHOWNORMAL
+	*/
+	char* m_xwindowcmd;
+
+	char* m_stdinfile;
+	char* m_stdouutfile;
+	char* m_stderrfile;
+
+	/*append mode*/
+	char* m_appendstdoutfile;
+	char* m_appendstderrfile;
+
+	/*logon flags*/
+	int m_withprofile;
+	int m_netcredential;
+	/*create flags*/
+	int m_createdefaulterrormode;
+	int m_createnewconsole;
+	int m_createnewprocessgroup;
+	int m_createseperatewowvdm;
+	int m_createsuspended;
+	int m_createunicodeenvironment;
+	int m_createextendstartinfo;
+} args_options_t,*pargs_options_t;
+
+
+%EXTARGS_FREEFUNC%
+
+#define SPLIT_ENV_CHAR     0x3
+
+int login_user_create_process(int argc,char* argv[],pextargs_state_t pstate,args_options_t* popt)
+{
+	wchar_t *pwusername=NULL,*pwpassword=NULL,*pwdomain=NULL,*pwexename=NULL,*pwcmdline=NULL,*pwcurdir=NULL,*pwenvs=NULL;
+	int usernamesize=0,passwordsize=0,domainsize=0,exenamesize=0,wcmdlinesize=0,curdirsize=0,wenvsize=0;
+	wchar_t *pwfname=NULL;
+	int wfnamesize=0;
+	int ret,res;
+	int pid=-1;
+	int i;
+	char* pcmdline=NULL,*penvs=NULL;
+	int cmdlinesize=0,envsize=0;
+	LPSTARTUPINFOW psiw=NULL;
+	int siwsize=0;
+	LPPROCESS_INFORMATION ppi=NULL;
+	DWORD logonflags=0;
+	DWORD createflags =0;
+	BOOL bret;
+
+	if (popt->m_username) {
+		ret = AnsiToUni(popt->m_username,&pwusername,&usernamesize);
+		if (ret < 0) {
+			goto fail;
+		}
+	}
+
+	if (popt->m_password) {
+		ret = AnsiToUni(popt->m_password,&pwpassword,&passwordsize);
+		if (ret < 0) {
+			goto fail;
+		}
+	}
+
+	if (popt->m_domainname) {
+		ret = AnsiToUni(popt->m_domainname,&pwdomain,&domainsize);
+		if (ret < 0) {
+			goto fail;
+		}
+	}
+
+	if (popt->m_curdir) {
+		ret = AnsiToUni(popt->m_curdir,&pwcurdir,&curdirsize);
+		if (ret < 0) {
+			goto fail;
+		}
+	}
+
+	if (pextstate->idx < argc) {
+		ret = AnsiToUni(argv[pextstate->idx],&pwexename,&exenamesize);
+		if (ret < 0) {
+			goto fail;
+		}
+
+		ret = safe_snprintf(&pcmdline,&cmdlinesize,"\"%s\"",argv[pextstate->idx]);
+		if (ret < 0) {
+			goto fail;
+		}
+
+		i = pextstate->idx;
+		i ++;
+		while(i < argc) {
+			ret = append_safe_snprintf(&pcmdline,&cmdlinesize," \"%s\"",argv[i]);
+			if (ret < 0) {
+				goto fail;
+			}
+			i ++;
+		}
+
+	} else {
+		ret= AnsiToUni("cmd.exe",&pwexename,&exenamesize);
+		if (ret < 0) {
+			goto fail;
+		}
+		ret = safe_snprintf(&pcmdline,&cmdlinesize,"cmd.exe");
+		if (ret < 0) {
+			goto fail;
+		}
+	}
+	if (popt->m_ppenvs) {
+		for (i=0;popt->m_ppenvs[i];i++) {
+			if (i == 0) {
+				ret = append_safe_snprintf(&penvs,&envsize,"%s",popt->m_ppenvs[i]);	
+			} else {
+				ret = append_safe_snprintf(&penvs,&envsize,"%c%s",SPLIT_ENV_CHAR,popt->m_ppenvs[i]);
+			}
+			if (ret < 0){
+				goto fail;
+			}			
+		}
+		ret = append_safe_snprintf(&penvs,&envsize,"%c",SPLIT_ENV_CHAR);
+		if (ret < 0) {
+			goto fail;
+		}
+
+		ret = AnsiToUni(penvs,&pwenvs,&wenvsize);
+		if (ret < 0) {
+			goto fail;
+		}
+		for (i=0;pwenvs[i] != 0x0;i++) {
+			if (pwenvs[i] == (wchar_t) SPLIT_ENV_CHAR) {
+				pwenvs[i] = (wchar_t)0x0;
+			}
+		}
+	}
+
+	ret = AnsiToUni(pcmdline,&pwcmdline,&wcmdlinesize);
+	if (ret < 0) {
+		goto fail;
+	}
+
+	if (popt->m_withprofile) {
+		logonflags |= LOGON_WITH_PROFILE;
+	}
+
+	if (popt->m_netcredential) {
+		logonflags |= LOGON_NETCREDENTIALS_ONLY;
+	}
+
+	if (popt->m_createdefaulterrormode) {
+		createflags  |= CREATE_DEFAULT_ERROR_MODE;
+	}
+	if (popt->m_createnewconsole) {
+		createflags |= CREATE_NEW_CONSOLE;
+	}
+	if (popt->m_createnewprocessgroup) {
+		createflags |= CREATE_NEW_PROCESS_GROUP;
+	}
+
+	if (popt->m_createseperatewowvdm) {
+		createflags |= CREATE_SEPARATE_WOW_VDM;
+	}
+
+	if (popt->m_createsuspended) {
+		createflags |= CREATE_SUSPENDED;
+	}
+
+	if (popt->m_createunicodeenvironment) {
+		createflags |= CREATE_UNICODE_ENVIRONMENT;
+	}
+
+	if (popt->m_createextendstartinfo) {
+		createflags |= EXTENDED_STARTUPINFO_PRESENT;
+		siwsize = sizeof(STARTINFOEXW);
+	} else {
+		siwsize = sizeof(STARTPINFOW);
+	}
+	psiw = (LPSTARTUPINFOW) malloc(siwsize);
+	if (psiw == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(psiw,0,siwsize);
+	psiw->cb = siwsize;
+	psiw->lpReserved = NULL;
+	psiw->lpDesktop = NULL;
+	psiw->lpTitle = NULL;
+	psiw->dwX = 0;
+	psiw->dwY = 0;
+	psiw->dwXSize = 0;
+	psiw->dwYSize = 0;
+	psiw->dwXCountChars = 0;
+	psiw->dwYCountChars = 0;
+	psiw->dwFillAttribute = 0;
+	psiw->dwFlags = 0;
+	psiw->wShowWindow = 0;
+	psiw->cbReserved2 = 0;
+	psiw->lpReserved2 = NULL;
+	psiw->hStdInput = INVALID_HANDLE_VALUE;
+	psiw->hStdOutput = INVALID_HANDLE_VALUE;
+	psiw->hStdError = INVALID_HANDLE_VALUE;
+
+	if (popt->m_stdinfile != NULL  && psiw->m_hStdInput == INVALID_HANDLE_VALUE) {
+		ret = AnsiToUni(popt->m_stdinfile,&pwfname,&wfnamesize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		psiw->hStdInput = CreateFileW(pwfname,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,0,NULL);
+		if (psiw->hStdInput == INVALID_HANDLE_VALUE) {
+			GETERRNO(ret);
+			error_out("open (%s) error(%d)",popt->m_stdinfile,ret);
+			goto fail;
+		}
+		psiw->dwFlags |= STARTF_USESTDHANDLES;
+	}
+
+	if (popt->m_appendstdoutfile != NULL) {
+		ret =  AnsiToUni(popt->m_appendstdoutfile,&pwfname,&wfnamesize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		psiw->hStdOutput = CreateFileW(pwfname,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+		if (psiw->hStdOutput == INVALID_HANDLE_VALUE) {
+			GETERRNO(ret);
+			error_out("open (%s) error(%d)",popt->m_appendstdoutfile,ret);
+			goto fail;
+		}
+
+		psiw->dwFlags |= STARTF_USESTDHANDLES;
+	}
+
+	if (popt->m_stdouutfile != NULL && psiw->hStdOutput == INVALID_HANDLE_VALUE) {
+		ret = AnsiToUni(popt->m_stdouutfile,&pwfname,&wfnamesize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		psiw->hStdOutput = CreateFileW(pwfname,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_ALWAYS,0,NULL);
+		if (psiw->hStdOutput == INVALID_HANDLE_VALUE) {
+			GETERRNO(ret);
+			error_out("opne (%s) error(%d)",popt->m_stdouutfile,ret);
+			goto fail;
+		}
+
+		psiw->dwFlags |= STARTF_USESTDHANDLES;
+	}
+
+	if (popt->m_appendstderrfile != NULL) {
+		ret = AnsiToUni(popt->m_appendstderrfile,&pwfname,&wfnamesize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		psiw->hStdError = CreateFileW(pwfname,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,OPEN_ALWAYS,0,NULL);
+		if (psiw->hStdError == INVALID_HANDLE_VALUE) {
+			GETERRNO(ret);
+			error_out("open (%s) error(%d)",popt->m_appendstderrfile,ret);
+			goto fail;
+		}
+	}
+
+	if (popt->m_stderrfile != NULL && psiw->hStdError == INVALID_HANDLE_VALUE) {
+		ret = AnsiToUni(popt->m_stderrfile,&pwfname,&wfnamesize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		psiw->hStdError = CreateFileW(pwfname,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_ALWAYS,0,NULL);
+		if (psiw->hStdError == INVALID_HANDLE_VALUE) {
+			GETERRNO(ret);
+			error_out("opne (%s) error(%d)",popt->m_stderrfile,ret);
+			goto fail;
+			goto fail;
+		}
+
+		psiw->dwFlags |= STARTF_USESTDHANDLES;
+	}
+
+	if (popt->m_siforceonfeedback) {
+		psiw->dwFlags |= STARTF_FORCEONFEEDBACK;
+	}
+
+	
+
+
+	ppi = malloc(sizeof(PROCESS_INFORMATION));
+	if (ppi == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(ppi,0,sizeof(*ppi));
+
+	bret = CreateProcessWithLogonW(pwusername,
+			pwpassword,
+			pwdomain,
+			logonflags,
+			pwexename,
+			pwcmdline,
+			createflags,
+			pwenvs,
+			pwcurdir,
+			psiw,
+			ppi);
+	if (!bret){
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+
+
+	return pid;
+fail:
+	if (psiw) {
+		i = 0;
+		AnsiToUni(NULL,&(psiw->lpTitle),&i);
+		AnsiToUni(NULL,&(psiw->lpDesktop),&i);
+
+		if (psiw->hStdInput != INVALID_HANDLE_VALUE) {
+			bret = CloseHandle(psiw->hStdInput);
+			if (!bret) {
+				GETERRNO(res);
+				error_out("close input error(%d)",res);
+			}
+		}
+		psiw->hStdInput = INVALID_HANDLE_VALUE;
+
+		if (psiw->hStdOutput != INVALID_HANDLE_VALUE) {
+			bret = CloseHandle(psiw->hStdOutput);
+			if (!bret){
+				GETERRNO(res);
+				error_out("close output error(%d)",res);
+			}
+		}
+		psiw->hStdOutput = INVALID_HANDLE_VALUE;
+
+		if (psiw->hStdError != INVALID_HANDLE_VALUE) {
+			bret = CloseHandle(psiw->hStdError);
+			if (!bret) {
+				GETERRNO(res);
+				error_out("close stderr error(%d)",res);
+			}
+		}
+		psiw->hStdError = INVALID_HANDLE_VALUE;
+
+		free(psiw);
+	}
+	psiw = NULL;
+	if (ppi) {
+		free(ppi);
+	}
+	ppi = NULL;
+	safe_snprintf(NULL,&pcmdline,&cmdlinesize);
+	AnsiToUni(NULL,&pwfname,&wfnamesize);
+	AnsiToUni(NULL,&pwcmdline,&wcmdlinesize);
+	AnsiToUni(NULL,&pwcurdir,&curdirsize);
+	AnsiToUni(NULL,&pwexename,&exenamesize);
+	AnsiToUni(NULL,&pwusername,&usernamesize);
+	AnsiToUni(NULL,&pwpassword,&passwordsize);
+	AnsiToUni(NULL,&pwdomain,&domainsize);
+	return ret;
+
+}
+
+
+int _tmain(int argc,TCHAR* argv[])
+{
+	char** args=NULL;
+	int ret;
+	args_options_t argsoption;
+	pextargs_state_t pextstate=NULL;
+
+	memset(&argsoption,0,sizeof(&argsoption));
+	args = copy_args(argc,argv);
+	if (args == NULL) {
+		GETERRNO(ret);
+		error_out("can not get args %d",ret);
+		goto out;
+	}
+
+	ret = EXTARGS_PARSE(argc,args,&argsoption,pextstate);
+	if (ret < 0) {
+		goto out;
+	}
+
+
+
+
+out:
+	free_args(&args);
+	free_extargs_state(&pextstate);
+	release_extargs_output(&argsoption);
+	return ret;
+}
