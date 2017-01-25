@@ -761,7 +761,7 @@ void debug_buffer_format(args_options_t* popt,const char* file,int lineno,void* 
 	if (popt->m_verbose >= 3) {
 		fprintf(stderr, "[%s:%d] ",file,lineno);
 	}
-	fprintf(stderr, " %p size(0x%x:%d)", ptr8,size,size);
+	fprintf(stderr, "ptr(%p) size(0x%x:%d)", ptr8,size,size);
 	if (fmt != NULL) {
 		va_list ap;
 		va_start(ap,fmt);
@@ -1178,8 +1178,6 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	pid =(int) ppi->dwProcessId;
-	DEBUG_FORMAT("proc id %d",pid);
-
 
 	if (pthreadattr) {
 		DeleteProcThreadAttributeList(pthreadattr);
