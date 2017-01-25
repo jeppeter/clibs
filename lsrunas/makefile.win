@@ -53,6 +53,7 @@ REL_CFLAGS =
 DBG_CFLAGS = /Zi /Od 
 
 INC_LDFLAGS = "$(TOPDIR)\extargslib\src\extargslib.lib" "$(TOPDIR)\winlib\winlib.lib" Advapi32.lib
+#INC_LDFLAGS = "$(TOPDIR)\winlib\winlib.lib" Advapi32.lib
 REL_LDFLAGS = 
 
 CFLAGS  = $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(INC_CFLAGS) $(COM_CFLAGS) $(REL_CFLAGS) $(DBG_CFLAGS)
@@ -85,13 +86,11 @@ lsrunas.exe:$(OBJECTS)  $(TOPDIR)\extargslib\src\extargslib.lib $(TOPDIR)\winlib
 
 
 .cpp.obj:
-	$(QUIETCMD)echo "compile $< -o $@"
 	$(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
 
 lsrunas.cpp:lsrunas.cpp.tmpl $(TOPDIR)\extargslib\coutput.py
 	$(QUIETCMD)$(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas.json -i $(CURDIR)\lsrunas.cpp.tmpl cmdstruct | \
 	 $(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas.json -i - -o $(CURDIR)\lsrunas.cpp freefunc
-	$(QUIETCMD)echo "output $@"
 
 $(TOPDIR)\extargslib\coutput.py:$(TOPDIR)\extargslib
 
@@ -102,6 +101,9 @@ $(TOPDIR)\extargslib\src\extargslib.dll: $(TOPDIR)\extargslib
 	$(QUIETCMD) (cd $(TOPDIR)\extargslib\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win EXTARGSLIB_STATICLIB=$(EXTARGSLIB_VALUE) all && cd $(CURDIR))  || cd $(CURDIR)	
 
 $(TOPDIR)\winlib\winlib.lib:
+	$(QUIETCMD) (cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win WINLIB_STATICLIB=$(WINLIB_VALUE) all && cd $(CURDIR))  || cd $(CURDIR)
+
+$(TOPDIR)\winlib\winlib.dll:
 	$(QUIETCMD) (cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win WINLIB_STATICLIB=$(WINLIB_VALUE) all && cd $(CURDIR))  || cd $(CURDIR)
 
 $(TOPDIR)\extargslib:
