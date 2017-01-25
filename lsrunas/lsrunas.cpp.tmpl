@@ -42,13 +42,7 @@ typedef struct __args_options {
 	int m_sititleisappid;
 	int m_sititleisalinkname;
 	int m_siuntrustedsource;
-	int m_siusecountchars;
-	int m_siusefillattribute;
 	int m_siusehotkey;
-	int m_siuseposition;
-	int m_siuseshowwindow;
-	int m_siusesize;
-	int m_siusestdhandles;
 
 	/*
 		window show cmd
@@ -86,75 +80,709 @@ typedef struct __args_options {
 	int m_createseperatewowvdm;
 	int m_createsuspended;
 	int m_createunicodeenvironment;
-	int m_createextendstartinfo;
-} args_options_t,*pargs_options_t;
+
+	/*this is the thread attribute */
+	char* m_thrattrgroupaff;
+	char* m_thrattridealprocess;
+	char* m_thrattrmitigationpolicy;
+	char* m_thrattrparentprocess;
+	char* m_thrattrpreferrednode;
+	char* m_thrattrumsthread;
+	char* m_thrattrproctionlevel;
+	char* m_thrattrchildprocesspolicy;
+} args_options_t, *pargs_options_t;
 
 
-%EXTARGS_FREEFUNC%
+% EXTARGS_FREEFUNC %
+
+% EXTARGS_CMDSTRUCT %
 
 #define SPLIT_ENV_CHAR     0x3
+#define SW_ERROR_CODE      0xffffffffUL
 
-int login_user_create_process(int argc,char* argv[],pextargs_state_t pstate,args_options_t* popt)
+struct __show_window {
+	DWORD m_showflags;
+	const char* m_showcmd;
+};
+
+typedef struct __show_window show_window_t;
+
+static show_window_t st_showcmd [] = {
+	{SW_FORCEMINIMIZE             , "forceminimize"            } ,
+	{SW_HIDE                      , "hide"                     } ,
+	{SW_MAXIMIZE                  , "maximize"                 } ,
+	{SW_MINIMIZE                  , "minimize"                 } ,
+	{SW_RESTORE                   , "restore"                  } ,
+	{SW_SHOW                      , "show"                     } ,
+	{SW_SHOWDEFAULT               , "showdefault"              } ,
+	{SW_SHOWMAXIMIZED             , "showmaximized"            } ,
+	{SW_SHOWMINIMIZED             , "showminimized"            } ,
+	{SW_SHOWMINNOACTIVE           , "showminnoactive"          } ,
+	{SW_SHOWNA                    , "showna"                   } ,
+	{SW_SHOWNOACTIVATE            , "shownoactive"             } ,
+	{SW_SHOWNORMAL                , "shownormal"               } ,
+	{SW_ERROR_CODE                , NULL}
+};
+
+typedef struct __thread_attribute {
+	PUMS_CONTEXT m_pumscontext;
+	PUMS_COMPLETION_LIST m_pumscompletion;
+	HANDLE m_hparentproc;
+} thread_attribute_t, *pthread_attribute_t;
+
+DWORD get_show_window(const char* showwindow)
 {
-	wchar_t *pwusername=NULL,*pwpassword=NULL,*pwdomain=NULL,*pwexename=NULL,*pwcmdline=NULL,*pwcurdir=NULL,*pwenvs=NULL;
-	int usernamesize=0,passwordsize=0,domainsize=0,exenamesize=0,wcmdlinesize=0,curdirsize=0,wenvsize=0;
-	wchar_t *pwfname=NULL;
-	int wfnamesize=0;
-	int ret,res;
-	int pid=-1;
+	DWORD dret = SW_ERROR_CODE;
 	int i;
-	char* pcmdline=NULL,*penvs=NULL;
-	int cmdlinesize=0,envsize=0;
-	LPSTARTUPINFOW psiw=NULL;
-	int siwsize=0;
-	LPPROCESS_INFORMATION ppi=NULL;
-	DWORD logonflags=0;
-	DWORD createflags =0;
+	for (i = 0; st_showcmd[i].m_showcmd != NULL ; i++) {
+		if (strcmp(showwindow, st_showcmd[i].m_showcmd) == 0) {
+			dret = st_showcmd[i].m_showflags;
+			break;
+		}
+	}
+	return dret;
+}
+
+pthread_attribute_t __alloc_thread_attribute()
+{
+	pthread_attribute_t pattr = NULL;
+	pattr = malloc(sizeof(*pattr));
+	if (pattr) {
+		memset(pattr, 0, sizeof(*pattr));
+		pattr->m_hparentproc = INVALID_HANDLE_VALUE;
+	}
+	return pattr;
+}
+
+void __dealloc_thread_attribute(pthread_attribute_t* ppattr)
+{
+	pthread_attribute_t pattr = NULL;
 	BOOL bret;
+	int res;
+	if (ppattr && *ppattr) {
+		pattr = *ppattr;
+		if (pattr->m_pumscontext) {
+			bret = DeleteUmsThreadContext(pattr->m_pumscontext);
+			if (!bret) {
+				GETERRNO(res);
+				error_out("can not delete ums context error(%d)", res);
+			}
+		}
+		pattr->m_pumscontext = NULL;
+		if (pattr->m_pumscompletion) {
+			bret = DeleteUmsCompletionList(pattr->m_pumscompletion);
+			if (!bret) {
+				GETERRNO(res);
+				error_out("can not delete usm completion error(%d)", res);
+			}
+		}
+		pattr->m_pumscompletion = NULL;
+
+		if (pattr->m_hparentproc != INVALID_HANDLE_VALUE) {
+			bret = CloseHandle(pattr->m_hparentproc);
+			if (!bret) {
+				GETERRNO(ret);
+				error_out("close %p error(%d)", pattr->m_hparentproc, ret);
+			}
+		}
+		pattr->m_hparentproc = INVALID_HANDLE_VALUE;
+		free(pattr);
+		pattr = NULL;
+		*ppattr = NULL;
+	}
+	return ;
+}
+
+int __update_ums(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* umscommand, pthread_attribute_t pattr)
+{
+	int ret = 0;
+	UMS_CREATE_THREAD_ATTRIBUTES umsattr;
+
+	if (umscommand != NULL) {
+		if (pthreadattr == NULL || pattr == NULL) {
+			ret = -ERROR_INVALID_PARAMETER;
+			goto fail;
+		}
+		ret = 0;
+		if (strcmp(umscommand, "version") == 0) {
+			bret = CreateUmsThreadContext(&(pattr->m_pumscontext));
+			if (!bret) {
+				GETERRNO(ret);
+				error_out("can not create ums thread context error(%d)", ret);
+				goto fail;
+			}
+
+			bret = CreateUmsCompletionList(&(pattr->m_pumscompletion));
+			if (!bret) {
+				GETERRNO(ret);
+				error_out("can not create ums completion error(%d)", ret);
+				goto fail;
+			}
+
+			memset(&umsattr, 0, sizeof(umsattr));
+			umsattr.UmsVersion = UMS_VERSION;
+			umsattr.UmsContext = pattr->m_pumscontext;
+			umsattr.UmsCompletionList = pattr->m_pumscompletion;
+
+			bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_UMS_THREAD, &umsattr, sizeof(umsattr), NULL, NULL);
+			if (!bret) {
+				GETERRNO(ret);
+				error_out("update ums thread error(%d)", ret);
+				goto fail;
+			}
+			ret = 1;
+
+		} else {
+			ret =  -ERROR_INVALID_PARAMETER;
+			goto fail;
+		}
+	}
+
+	return ret;
+fail:
+	SETERRNO(-ret);
+	return ret;
+}
+
+int __update_group_aff(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* grpaff, pthread_attribute_t pattr)
+{
+	int ret = 0;
+	BOOL bret;
+	char* pcurptr;
+	GROUP_AFFINITY groupaff;
+	int setmask = 0;
+	int setgroup = 0;
+	char* pendptr;
+	uint64_t num64;
+	if (grpaff != NULL) {
+		memset(&groupaff, 0, sizeof(groupaff));
+		pcurptr = grpaff;
+		while (*pcurptr != 0) {
+			if (strncmp(pcurptr, "mask=", 5) == 0 ) {
+				pcurptr += 5;
+				ret = parse_number(pcurptr, &num64, &pendptr);
+				if (ret < 0 || pcurptr == pendptr) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				groupaff.Mask = num64;
+				setmask = 1;
+				pcurptr = pendptr;
+			} else if (strcmp(pcurptr, "group=", 6) == 0) {
+				pcurptr += 6;
+				ret = parse_number(pcurptr, &num64, &pendptr);
+				if (ret < 0 || pcurptr == pendptr) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				groupaff.Group = num64;
+				setgroup = 1;
+				pcurptr = pendptr;
+			} else {
+				if (setmask == 0) {
+					ret = parse_number(pcurptr, &num64, &pendptr);
+					if (ret < 0 || pcurptr == pendptr) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					groupaff.Mask = num64;
+					setmask = 1;
+					pcurptr = pendptr;
+				} else if (setgroup == 0) {
+					ret = parse_number(pcurptr, &num64, &pendptr);
+					if (ret < 0 || pcurptr == pendptr) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					groupaff.Group = num64;
+					setgroup = 1;
+					pcurptr = pendptr;
+				} else {
+					ret = parse_number(pcurptr, &num64, &pendptr);
+					if (ret < 0 || pcurptr == pendptr) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					pcurptr = pendptr;
+				}
+			}
+			while (*pcurptr == ',' ||
+			        *pcurptr == ' ' ||
+			        *pcurptr == '\t') {
+				pcurptr ++;
+			}
+		}
+
+		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_GROUP_AFFINITY, &groupaff, sizeof(groupaff), NULL, NULL);
+		if (!bret) {
+			GETERRNO(ret);
+			error_out("can not update group aff (%s) error(%d)", grpaff, ret);
+			goto fail;
+		}
+		ret = 1;
+	}
+	return ret;
+fail:
+	SETERRNO(-ret);
+	return ret;
+}
+
+int __update_ideal_process(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* idealprocess, pthread_attribute_t pattr)
+{
+	int ret = 0;
+	BOOL bret;
+	PROCESSOR_NUMBER procnumber;
+	char* pcurptr = NULL;
+	char* pendptr;
+	uint64_t num64;
+	int setgroup = 0;
+	int setnumber = 0;
+	if (idealprocess != NULL) {
+		pcurptr = idealprocess;
+		memset(&procnumber, 0, sizeof(procnumber));
+		while (*pcurptr != 0) {
+			if (strncmp(pcurptr, "group=", 6) == 0) {
+				pcurptr += 6;
+				ret = parse_number(pcurptr, &num64, &pendptr);
+				if (ret < 0 || pcurptr == pendptr) {
+					GETERRNO(ret);
+					error_out("(%s) not valid", pcurptr);
+					goto fail;
+				}
+				procnumber.Group = num64;
+				pcurptr = pendptr;
+				setgroup = 1;
+			} else if (strncmp(pcurptr, "number=", 6) == 0) {
+				pcurptr += 6;
+				ret = parse_number(pcurptr, &num64, &pendptr);
+				if (ret < 0 || pcurptr == pendptr) {
+					GETERRNO(ret);
+					error_out("(%s) not valid", pcurptr);
+					goto fail;
+				}
+				procnumber.Number = num64;
+				pcurptr = pendptr;
+				setnumber = 1;
+			} else {
+				if (setgroup == 0) {
+					pcurptr += 6;
+					ret = parse_number(pcurptr, &num64, &pendptr);
+					if (ret < 0 || pcurptr == pendptr) {
+						GETERRNO(ret);
+						error_out("(%s) not valid", pcurptr);
+						goto fail;
+					}
+					procnumber.Group = num64;
+					pcurptr = pendptr;
+					setgroup = 1;
+				} else if (setnumber == 0) {
+					pcurptr += 6;
+					ret = parse_number(pcurptr, &num64, &pendptr);
+					if (ret < 0 || pcurptr == pendptr) {
+						GETERRNO(ret);
+						error_out("(%s) not valid", pcurptr);
+						goto fail;
+					}
+					procnumber.Number = num64;
+					pcurptr = pendptr;
+					setnumber = 1;
+				} else {
+					ret = parse_number(pcurptr, &num64, &pendptr);
+					if (ret < 0 || pcurptr == pendptr) {
+						GETERRNO(ret);
+						error_out("(%s) not valid", pcurptr);
+						goto fail;
+					}
+					pcurptr = pendptr;
+				}
+			}
+			while (*pcurptr == ',' ||
+			        *pcurptr == ' ' ||
+			        *pcurptr == '\t') {
+				pcurptr ++;
+			}
+		}
+		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_IDEAL_PROCESSOR, &procnumber, sizeof(procnumber), NULL, NULL);
+		if (!bret) {
+			GETERRNO(ret);
+			error_out("can not update ideal process (%s) error(%d)", idealprocess, ret);
+			goto fail;
+		}
+		ret =  1;
+	}
+	return ret;
+fail:
+	SETERRNO(-ret);
+	return ret;
+}
+
+typedef struct __mitigation_policy_cmd {
+	DWORD64 m_policy;
+	const char* m_cmd;
+} mitigation_policy_t, *pmitigation_policy_t;
+
+static mitigation_policy_t st_policies [] = {
+	{PROCESS_CREATION_MITIGATION_POLICY_DEP_ENABLE                                        , "depenable"                        },
+	{PROCESS_CREATION_MITIGATION_POLICY_DEP_ATL_THUNK_ENABLE                              , "depaltthunkenable"                },
+	{PROCESS_CREATION_MITIGATION_POLICY_SEHOP_ENABLE                                      , "sehopenable"                      },
+	{PROCESS_CREATION_MITIGATION_POLICY_FORCE_RELOCATE_IMAGES_ALWAYS_ON                   , "relimgalwayson"                   },
+	{PROCESS_CREATION_MITIGATION_POLICY_FORCE_RELOCATE_IMAGES_ALWAYS_OFF                  , "relimgalwaysoff"                  },
+	{PROCESS_CREATION_MITIGATION_POLICY_FORCE_RELOCATE_IMAGES_ALWAYS_ON_REQ_RELOCS        , "relimgalwaysreqrelocs"            },
+	{PROCESS_CREATION_MITIGATION_POLICY_HEAP_TERMINATE_ALWAYS_ON                          , "heaptermalwayson"                 },
+	{PROCESS_CREATION_MITIGATION_POLICY_HEAP_TERMINATE_ALWAYS_OFF                         , "heaptermalwaysoff"                },
+	{PROCESS_CREATION_MITIGATION_POLICY_BOTTOM_UP_ASLR_ALWAYS_ON                          , "aslralwayson"                     },
+	{PROCESS_CREATION_MITIGATION_POLICY_BOTTOM_UP_ASLR_ALWAYS_OFF                         , "aslralwaysoff"                    },
+	{PROCESS_CREATION_MITIGATION_POLICY_HIGH_ENTROPY_ASLR_ALWAYS_ON                       , "highaslron"                       },
+	{PROCESS_CREATION_MITIGATION_POLICY_HIGH_ENTROPY_ASLR_ALWAYS_OFF                      , "highaslroff"                      },
+	{PROCESS_CREATION_MITIGATION_POLICY_STRICT_HANDLE_CHECKS_ALWAYS_ON                    , "handlecheckon"                    },
+	{PROCESS_CREATION_MITIGATION_POLICY_STRICT_HANDLE_CHECKS_ALWAYS_OFF                   , "handlecheckoff"                   },
+	{PROCESS_CREATION_MITIGATION_POLICY_WIN32K_SYSTEM_CALL_DISABLE_ALWAYS_ON              , "win32callon"                      },
+	{PROCESS_CREATION_MITIGATION_POLICY_WIN32K_SYSTEM_CALL_DISABLE_ALWAYS_OFF             , "win32calloff"                     },
+	{PROCESS_CREATION_MITIGATION_POLICY_EXTENSION_POINT_DISABLE_ALWAYS_ON                 , "extdison"                         },
+	{PROCESS_CREATION_MITIGATION_POLICY_EXTENSION_POINT_DISABLE_ALWAYS_OFF                , "extdisoff"                        },
+	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_MASK                        , "dyncodemask"                      },
+	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_DEFER                       , "dyncodedefer"                     },
+	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_ON                   , "dyncodeon"                        },
+	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_OFF                  , "dyncodeoff"                       },
+	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_ON_ALLOW_OPT_OUT     , "dyncodeoptouut"                   },
+	{PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_MASK                                 , "fontdismask"                      },
+	{PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_DEFER                                , "fontdisdefer"                     },
+	{PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_ALWAYS_ON                            , "fontdison"                        },
+	{PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_ALWAYS_OFF                           , "fontdisoff"                       },
+	{PROCESS_CREATION_MITIGATION_POLICY_AUDIT_NONSYSTEM_FONTS                             , "auditnonsysfont"                  },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_MASK                         , "imgldmask"                        },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_DEFER                        , "imglddefer"                       },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_ALWAYS_ON                    , "imgldon"                          },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_ALWAYS_OFF                   , "imgldoff"                         },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_RESERVED                     , "imgldreserve"                     },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_MASK                      , "imgldlowmask"                     },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_DEFER                     , "imgldlowdefer"                    },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_ON                 , "imgldlowon"                       },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_OFF                , "imgldlowoff"                      },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_RESERVED                  , "imgldlowreserve"                  },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_MASK                   , "imgldsys32mask"                   },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_DEFER                  , "imgldsys32defer"                  },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON              , "imgldsys32on"                     },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_OFF             , "imgldsys32off"                    },
+	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_RESERVED               , "imgldsys32reserve"                },
+	{0                                                                                    , NULL                               }
+};
+
+int __get_mitigation_policy(const char* policy, DWORD64* pdret64)
+{
+	int i = 0;
+	size_t len = 0;
+
+	for (i = 0; st_policies[i].m_cmd != NULL ; i ++) {
+		len = strlen(st_policies[i].m_cmd);
+		if (strncmp(policy, st_policies[i].m_cmd, len) == 0) {
+			dret64 = st_policies[i].m_policy;
+			*pdret64 = dret64;
+			return len;
+		}
+	}
+	return -1;
+}
+
+int __update_mitigation_policy(LPPROC_THREAD_ATTRIBUTE_LIST  pthreadattr, const char* mitigationpolicy, pthread_attribute_t pattr)
+{
+	int ret = 0;
+	char* pcurptr;
+	DWORD64 policy = 0, dret64;
+
+
+	if (mitigationpolicy != NULL) {
+		pcurptr = mitigationpolicy;
+		while (*pcurptr != 0) {
+			ret = __get_mitigation_policy(pcurptr, &dret64);
+			if (ret < 0) {
+				ret = -ERROR_INVALID_PARAMETER;
+				error_out("(%s) not valid", pcurptr);
+				goto fail;
+			}
+			policy |= dret64;
+			pcurptr += ret;
+			while ( *pcurptr == ',' ||
+			        *pcurptr == '|' ||
+			        *pcurptr == ' ' ||
+			        *pcurptr == '\t') {
+				pcurptr ++;
+			}
+		}
+
+		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY, &policy, sizeof(policy), NULL, NULL);
+		if (!bret) {
+			GETERRNO(ret);
+			error_out("(%s) update policy error(%d)", mitigationpolicy, ret);
+			goto fail;
+		}
+		ret = 1;
+	}
+
+	return ret;
+fail:
+	SETERRNO(-ret);
+	return ret;
+}
+
+int __update_parent_process(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* parentproc, pthread_attribute_t pattr)
+{
+	int ret = 0;
+	uint64_t num64;
+	char* pendptr;
+
+	if (parentproc != NULL) {
+		if (pattr == NULL || pattr->m_hparentproc != INVALID_HANDLE_VALUE) {
+			ret = -ERROR_INVALID_PARAMETER;
+			goto fail;
+		}
+		ret = parse_number(parentproc, &num64, &pendptr);
+		if (ret < 0 || parentproc == pendptr) {
+			GETERRNO(ret);
+			error_out("(%s) not valid parent process", parentproc, ret);
+			goto fail;
+		}
+
+		pattr->m_hparentproc = OpenProcess(PROCESS_ALL_ACCESS, FALSE, num64);
+		if (pattr->m_hparentproc == INVALID_HANDLE_VALUE) {
+			GETERRNO(ret);
+			error_out("can not open(%lld) error(%d)", num64, ret);
+			goto fail;
+		}
+		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, &(pattr->m_hparentproc), sizeof(pattr->m_hparentproc), NULL, NULL);
+		if (!bret) {
+			GETERRNO(ret);
+			error_out("can not update parent process(%s) error(%d)", parentproc, ret);
+			goto fail;
+		}
+		ret =  1;
+	}
+	return ret;
+fail:
+	SETERRNO(-ret);
+	return ret;
+}
+
+int __update_prefer_node(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* prefernode, pthread_attribute_t pattr)
+{
+	int ret = 0;
+	char* pendptr;
+	uint64_t num64;
+	DWORD dret;
+	if (prefernode != NULL) {
+		ret = parse_number(prefernode, &num64, &pendptr);
+		if (ret < 0 || pendptr == prefernode || *pendptr != 0x) {
+			GETERRNO(ret);
+			error_out("(%s) not valid prefernode", prefernode);
+			goto fail;
+		}
+
+		dret = num64;
+		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_PREFERRED_NODE , &dret, sizeof(dret), NULL, NULL);
+		if (!bret) {
+			GETERRNO(ret);
+			error_out("update (%s) prefernode error(%d)", prefernode, ret);
+			goto fail;
+		}
+		ret = 1;
+	}
+	return ret;
+fail:
+	SETERRNO(-ret);
+	return ret;
+}
+
+int __update_protection_level(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr,const char* protectionlevel,pthread_attribute_t pattr)
+{
+	int ret = 0;
+	DWORD dret;
+	BOOL bret;
+	if (protectionlevel != NULL) {
+		if (strcmp(protectionlevel,"same") == 0) {
+			dret = PROTECTION_LEVEL_SAME;
+		} else {
+			ret = -ERROR_INVALID_PARAMETER;
+			error_out("(%s) not valid protection level",protectionlevel);
+			goto fail;
+		}
+		bret = UpdateProcThreadAttribute(pthreadattr,0,PROC_THREAD_ATTRIBUTE_PROTECTION_LEVEL,&dret,sizeof(dret),NULL,NULL);
+		if (!bret) {
+			GETERRNO(ret);
+			error_out("update protection level(%s) error(%d)",protectionlevel,ret);
+			goto fail;
+		}
+		ret = 1;
+	}
+	return ret;
+fail:
+	SETERRNO(-ret);
+	return ret;
+}
+
+int __update_thread_attribute(args_options_t *popt,LPPROC_THREAD_ATTRIBUTE_LIST *ppthreadattr,pthread_attribute_t* ppattr)
+{
+	LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr=NULL;
+	pthread_attribute_t pattr= NULL;
+	int maxattrs = 0;
+	SIZE_T attrsize=0;
+	if (popt->m_thrattrgroupaff != NULL || popt->m_thrattridealprocess != NULL ||
+		popt->m_thrattrmitigationpolicy != NULL || popt->m_thrattrparentprocess != NULL || 
+		popt->m_thrattrpreferrednode != NULL || popt->m_thrattrumsthread != NULL || 
+		popt->m_thrattrproctionlevel != NULL || popt->m_thrattrchildprocesspolicy != NULL) {
+		pattr = __alloc_thread_attribute();
+		if (pthreadattr == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		if (popt->m_thrattrgroupaff) {
+			maxattrs ++;
+		}
+		if (popt->m_thrattridealprocess) {
+			maxattrs ++;
+		}
+		if (popt->m_thrattrmitigationpolicy) {
+			maxattrs ++;
+		}
+		if (popt->m_thrattrparentprocess) {
+			maxattrs ++;
+		}
+		if (popt->m_thrattrpreferrednode) {
+			maxattrs ++;
+		}
+		if (popt->m_thrattrumsthread) {
+			maxattrs ++;
+		}
+		if (popt->m_thrattrproctionlevel) {
+			maxattrs ++;
+		}
+		if (popt->m_thrattrchildprocesspolicy) {
+			maxattrs ++;
+		}
+
+		SETERRNO(0);
+		InitializeProcThreadAttributeList(NULL,maxattrs,0,&attrsize);
+		GETERRNO_DIRECT(ret);
+		if (ret != -ERROR_INSUFFICIENT_BUFFER) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		pthreadattr = malloc(attrsize);
+		if (pthreadattr == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		bret = InitializeProcThreadAttributeList(pthreadattr,maxattrs,0,&attrsize);
+		if (!bret) {
+			GETERRNO(ret);			
+			goto fail;
+		}
+
+		ret = __update_ums(pthreadattr,popt->m_thrattrumsthread,pattr);
+		if (ret < 0){
+			goto fail;
+		}
+
+		ret = __update_protection_level(pthreadattr,popt->m_thrattrproctionlevel,pattr);
+		if (ret < 0) {
+			goto fail;
+		}
+
+		ret = __update_prefer_node(pthreadattr,popt->m_thrattrpreferrednode,pattr);
+		if (ret < 0) {
+			goto fail;
+		}
+
+		ret = __update_parent_process(pthreadattr,popt->m_thrattrparentprocess,pattr);
+		if (ret < 0) {
+			goto fail;
+		}
+
+		ret = __update_mitigation_policy(pthreadattr,popt->m_thrattrmitigationpolicy,pattr);
+		if (ret < 0) {
+			goto fail;
+		}
+
+		ret = __update_group_aff(pthreadattr,popt->m_thrattrgroupaff,pattr);
+		if (ret < 0) {
+			goto fail;
+		}
+	}
+	*ppthreadattr = pthreadattr;
+	*ppattr = pattr;
+	return maxattrs;
+fail:
+	if (pthreadattr != NULL) {
+		DeleteProcThreadAttributeList(pthreadattr);
+	}
+	__dealloc_thread_attribute(&pattr);
+	return ret;
+
+}
+
+int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, args_options_t* popt)
+{
+	wchar_t *pwusername = NULL, *pwpassword = NULL, *pwdomain = NULL, *pwexename = NULL, *pwcmdline = NULL, *pwcurdir = NULL, *pwenvs = NULL;
+	int usernamesize = 0, passwordsize = 0, domainsize = 0, exenamesize = 0, wcmdlinesize = 0, curdirsize = 0, wenvsize = 0;
+	wchar_t *pwfname = NULL;
+	int wfnamesize = 0;
+	int ret, res;
+	int pid = -1;
+	int i;
+	char* pcmdline = NULL, *penvs = NULL;
+	int cmdlinesize = 0, envsize = 0;
+	LPSTARTUPINFOW psiw = NULL;
+	LPSTARTUPINFOEXW psixw=NULL;
+	int siwsize = 0;
+	LPPROCESS_INFORMATION ppi = NULL;
+	DWORD logonflags = 0;
+	DWORD createflags = 0;
+	BOOL bret;
+	LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr=NULL;
+	pthread_attribute_t pattr=NULL;
 
 	if (popt->m_username) {
-		ret = AnsiToUni(popt->m_username,&pwusername,&usernamesize);
+		ret = AnsiToUni(popt->m_username, &pwusername, &usernamesize);
 		if (ret < 0) {
 			goto fail;
 		}
 	}
 
 	if (popt->m_password) {
-		ret = AnsiToUni(popt->m_password,&pwpassword,&passwordsize);
+		ret = AnsiToUni(popt->m_password, &pwpassword, &passwordsize);
 		if (ret < 0) {
 			goto fail;
 		}
 	}
 
 	if (popt->m_domainname) {
-		ret = AnsiToUni(popt->m_domainname,&pwdomain,&domainsize);
+		ret = AnsiToUni(popt->m_domainname, &pwdomain, &domainsize);
 		if (ret < 0) {
 			goto fail;
 		}
 	}
 
 	if (popt->m_curdir) {
-		ret = AnsiToUni(popt->m_curdir,&pwcurdir,&curdirsize);
+		ret = AnsiToUni(popt->m_curdir, &pwcurdir, &curdirsize);
 		if (ret < 0) {
 			goto fail;
 		}
 	}
 
 	if (pextstate->idx < argc) {
-		ret = AnsiToUni(argv[pextstate->idx],&pwexename,&exenamesize);
+		ret = AnsiToUni(argv[pextstate->idx], &pwexename, &exenamesize);
 		if (ret < 0) {
 			goto fail;
 		}
 
-		ret = safe_snprintf(&pcmdline,&cmdlinesize,"\"%s\"",argv[pextstate->idx]);
+		ret = safe_snprintf(&pcmdline, &cmdlinesize, "\"%s\"", argv[pextstate->idx]);
 		if (ret < 0) {
 			goto fail;
 		}
 
 		i = pextstate->idx;
 		i ++;
-		while(i < argc) {
-			ret = append_safe_snprintf(&pcmdline,&cmdlinesize," \"%s\"",argv[i]);
+		while (i < argc) {
+			ret = append_safe_snprintf(&pcmdline, &cmdlinesize, " \"%s\"", argv[i]);
 			if (ret < 0) {
 				goto fail;
 			}
@@ -162,43 +790,43 @@ int login_user_create_process(int argc,char* argv[],pextargs_state_t pstate,args
 		}
 
 	} else {
-		ret= AnsiToUni("cmd.exe",&pwexename,&exenamesize);
+		ret = AnsiToUni("cmd.exe", &pwexename, &exenamesize);
 		if (ret < 0) {
 			goto fail;
 		}
-		ret = safe_snprintf(&pcmdline,&cmdlinesize,"cmd.exe");
+		ret = safe_snprintf(&pcmdline, &cmdlinesize, "cmd.exe");
 		if (ret < 0) {
 			goto fail;
 		}
 	}
 	if (popt->m_ppenvs) {
-		for (i=0;popt->m_ppenvs[i];i++) {
+		for (i = 0; popt->m_ppenvs[i]; i++) {
 			if (i == 0) {
-				ret = append_safe_snprintf(&penvs,&envsize,"%s",popt->m_ppenvs[i]);	
+				ret = append_safe_snprintf(&penvs, &envsize, "%s", popt->m_ppenvs[i]);
 			} else {
-				ret = append_safe_snprintf(&penvs,&envsize,"%c%s",SPLIT_ENV_CHAR,popt->m_ppenvs[i]);
+				ret = append_safe_snprintf(&penvs, &envsize, "%c%s", SPLIT_ENV_CHAR, popt->m_ppenvs[i]);
 			}
-			if (ret < 0){
+			if (ret < 0) {
 				goto fail;
-			}			
+			}
 		}
-		ret = append_safe_snprintf(&penvs,&envsize,"%c",SPLIT_ENV_CHAR);
+		ret = append_safe_snprintf(&penvs, &envsize, "%c", SPLIT_ENV_CHAR);
 		if (ret < 0) {
 			goto fail;
 		}
 
-		ret = AnsiToUni(penvs,&pwenvs,&wenvsize);
+		ret = AnsiToUni(penvs, &pwenvs, &wenvsize);
 		if (ret < 0) {
 			goto fail;
 		}
-		for (i=0;pwenvs[i] != 0x0;i++) {
+		for (i = 0; pwenvs[i] != 0x0; i++) {
 			if (pwenvs[i] == (wchar_t) SPLIT_ENV_CHAR) {
 				pwenvs[i] = (wchar_t)0x0;
 			}
 		}
 	}
 
-	ret = AnsiToUni(pcmdline,&pwcmdline,&wcmdlinesize);
+	ret = AnsiToUni(pcmdline, &pwcmdline, &wcmdlinesize);
 	if (ret < 0) {
 		goto fail;
 	}
@@ -232,19 +860,22 @@ int login_user_create_process(int argc,char* argv[],pextargs_state_t pstate,args
 	if (popt->m_createunicodeenvironment) {
 		createflags |= CREATE_UNICODE_ENVIRONMENT;
 	}
-
-	if (popt->m_createextendstartinfo) {
-		createflags |= EXTENDED_STARTUPINFO_PRESENT;
+	ret = __update_thread_attribute(popt,&pthreadattr,&pattr);
+	if (ret < 0) {
+		goto fail;
+	} else if (ret > 0) {
 		siwsize = sizeof(STARTINFOEXW);
+		createflags |= EXTENDED_STARTUPINFO_PRESENT;
 	} else {
 		siwsize = sizeof(STARTPINFOW);
 	}
+
 	psiw = (LPSTARTUPINFOW) malloc(siwsize);
 	if (psiw == NULL) {
 		GETERRNO(ret);
 		goto fail;
 	}
-	memset(psiw,0,siwsize);
+	memset(psiw, 0, siwsize);
 	psiw->cb = siwsize;
 	psiw->lpReserved = NULL;
 	psiw->lpDesktop = NULL;
@@ -264,32 +895,53 @@ int login_user_create_process(int argc,char* argv[],pextargs_state_t pstate,args
 	psiw->hStdOutput = INVALID_HANDLE_VALUE;
 	psiw->hStdError = INVALID_HANDLE_VALUE;
 
+	if (pthreadattr != NULL) {
+		psixw = (LPSTARTUPINFOEXW) psiw;
+		psixw->lpAttributeList = pthreadattr;
+	}
+
+	if (popt->m_desktopname) {
+		i = 0;
+		ret = AnsiToUni(popt->m_desktopname, &(psiw->lpDesktop), &i);
+		if (ret < 0) {
+			goto fail;
+		}
+	}
+
+	if (popt->m_title) {
+		i = 0;
+		ret = AnsiToUni(popt->m_title, &(psiw->lpTitle), &i);
+		if (ret < 0) {
+			goto fail;
+		}
+	}
+
 	if (popt->m_stdinfile != NULL  && psiw->m_hStdInput == INVALID_HANDLE_VALUE) {
-		ret = AnsiToUni(popt->m_stdinfile,&pwfname,&wfnamesize);
+		ret = AnsiToUni(popt->m_stdinfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
-		psiw->hStdInput = CreateFileW(pwfname,GENERIC_READ,FILE_SHARE_READ,NULL,OPEN_EXISTING,0,NULL);
+		psiw->hStdInput = CreateFileW(pwfname, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 		if (psiw->hStdInput == INVALID_HANDLE_VALUE) {
 			GETERRNO(ret);
-			error_out("open (%s) error(%d)",popt->m_stdinfile,ret);
+			error_out("open (%s) error(%d)", popt->m_stdinfile, ret);
 			goto fail;
 		}
 		psiw->dwFlags |= STARTF_USESTDHANDLES;
 	}
 
 	if (popt->m_appendstdoutfile != NULL) {
-		ret =  AnsiToUni(popt->m_appendstdoutfile,&pwfname,&wfnamesize);
+		ret =  AnsiToUni(popt->m_appendstdoutfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
-		psiw->hStdOutput = CreateFileW(pwfname,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+		psiw->hStdOutput = CreateFileW(pwfname, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		if (psiw->hStdOutput == INVALID_HANDLE_VALUE) {
 			GETERRNO(ret);
-			error_out("open (%s) error(%d)",popt->m_appendstdoutfile,ret);
+			error_out("open (%s) error(%d)", popt->m_appendstdoutfile, ret);
 			goto fail;
 		}
 
@@ -297,16 +949,16 @@ int login_user_create_process(int argc,char* argv[],pextargs_state_t pstate,args
 	}
 
 	if (popt->m_stdouutfile != NULL && psiw->hStdOutput == INVALID_HANDLE_VALUE) {
-		ret = AnsiToUni(popt->m_stdouutfile,&pwfname,&wfnamesize);
+		ret = AnsiToUni(popt->m_stdouutfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
-		psiw->hStdOutput = CreateFileW(pwfname,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_ALWAYS,0,NULL);
+		psiw->hStdOutput = CreateFileW(pwfname, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, 0, NULL);
 		if (psiw->hStdOutput == INVALID_HANDLE_VALUE) {
 			GETERRNO(ret);
-			error_out("opne (%s) error(%d)",popt->m_stdouutfile,ret);
+			error_out("opne (%s) error(%d)", popt->m_stdouutfile, ret);
 			goto fail;
 		}
 
@@ -314,31 +966,31 @@ int login_user_create_process(int argc,char* argv[],pextargs_state_t pstate,args
 	}
 
 	if (popt->m_appendstderrfile != NULL) {
-		ret = AnsiToUni(popt->m_appendstderrfile,&pwfname,&wfnamesize);
+		ret = AnsiToUni(popt->m_appendstderrfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
-		psiw->hStdError = CreateFileW(pwfname,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,OPEN_ALWAYS,0,NULL);
+		psiw->hStdError = CreateFileW(pwfname, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, 0, NULL);
 		if (psiw->hStdError == INVALID_HANDLE_VALUE) {
 			GETERRNO(ret);
-			error_out("open (%s) error(%d)",popt->m_appendstderrfile,ret);
+			error_out("open (%s) error(%d)", popt->m_appendstderrfile, ret);
 			goto fail;
 		}
 	}
 
 	if (popt->m_stderrfile != NULL && psiw->hStdError == INVALID_HANDLE_VALUE) {
-		ret = AnsiToUni(popt->m_stderrfile,&pwfname,&wfnamesize);
+		ret = AnsiToUni(popt->m_stderrfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
-		psiw->hStdError = CreateFileW(pwfname,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_ALWAYS,0,NULL);
+		psiw->hStdError = CreateFileW(pwfname, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, 0, NULL);
 		if (psiw->hStdError == INVALID_HANDLE_VALUE) {
 			GETERRNO(ret);
-			error_out("opne (%s) error(%d)",popt->m_stderrfile,ret);
+			error_out("opne (%s) error(%d)", popt->m_stderrfile, ret);
 			goto fail;
 			goto fail;
 		}
@@ -350,7 +1002,93 @@ int login_user_create_process(int argc,char* argv[],pextargs_state_t pstate,args
 		psiw->dwFlags |= STARTF_FORCEONFEEDBACK;
 	}
 
-	
+	if (popt->m_siforceofffeedback) {
+		psiw->dwFlags |= STARTF_FORCEOFFFEEDBACK;
+	}
+
+	if (popt->m_sipreventpinning) {
+		psiw->dwFlags |= STARTF_PREVENTPINNING;
+	}
+
+	if (popt->m_sirunfullscreen) {
+		psiw->dwFlags |= STARTF_RUNFULLSCREEN;
+	}
+
+	if (popt->m_sititleisappid) {
+		psiw->dwFlags |= STARTF_TITLEISAPPID;
+	}
+
+	if (popt->m_sititleisalinkname) {
+		psiw->dwFlags |= STARTF_TITLEISLINKNAME;
+	}
+
+	if (popt->m_siuntrustedsource) {
+		psiw->dwFlags |= STARTF_UNTRUSTEDSOURCE;
+	}
+
+	if (popt->m_xcountchars != 0 ||
+	        popt->m_ycountchars != 0) {
+		psiw->dwFlags |= STARTF_USECOUNTCHARS;
+		psiw->dwXCountChars = popt->m_xcountchars;
+		psiw->dwYCountChars = popt->m_ycountchars;
+	}
+
+	if (popt->m_forered || popt->m_foreblue || popt->m_foregreen || popt->m_foreintensity
+	        || popt->m_backred || popt->m_backblue || popt->m_foregreen || popt->m_foreintensity) {
+		psiw->dwFlags |= STARTF_USEFILLATTRIBUTE;
+		psiw->dwFillAttribute = 0;
+		if (popt->m_forered) {
+			psiw->dwFillAttribute |= FOREGROUND_RED;
+		}
+		if (popt->m_foreblue) {
+			psiw->dwFillAttribute |= FOREGROUND_BLUE;
+		}
+		if (popt->m_foregreen) {
+			psiw->dwFillAttribute |= FOREGROUND_GREEN;
+		}
+		if (popt->m_foreintensity) {
+			psiw->dwFillAttribute |= FOREGROUND_INTENSITY;
+		}
+		if (popt->m_backred) {
+			psiw->dwFillAttribute |= BACKGROUND_RED;
+		}
+		if (popt->m_backblue) {
+			psiw->dwFillAttribute |= BACKGROUND_BLUE;
+		}
+		if (popt->m_backgreen) {
+			psiw->dwFillAttribute |= BACKGROUND_GREEN;
+		}
+		if (popt->m_backintensity) {
+			psiw->dwFillAttribute |= BACKGROUND_INTENSITY;
+		}
+	}
+
+	if (popt->m_siusehotkey) {
+		psiw->dwFlags |= STARTF_USEHOTKEY;
+	}
+
+	if (popt->m_xpos != 0 || popt->m_ypos != 0) {
+		psiw->dwFlags |= STARTF_USEPOSITION;
+		psiw->dwX = popt->m_xpos;
+		psiw->dwY = popt->m_ypos;
+	}
+
+	if (popt->m_xwindowcmd != NULL) {
+		psiw->dwFlags |= STARTF_USESHOWWINDOW;
+		psiw->wShowWindow = get_show_window(popt->m_xwindowcmd);
+		if (psiw->wShowWindow == SW_ERROR_CODE) {
+			ret = -ERROR_INVALID_PARAMETER;
+			error_out("(%s) not valid show window", popt->m_xwindowcmd);
+			goto fail;
+		}
+	}
+
+	if (popt->m_xsize != 0 || popt->m_ysize != 0) {
+		psiw->dwFlags |= STARTF_USESIZE;
+		psiw->dwXSize = popt->m_xsize;
+		psiw->dwYSize = popt->m_ysize;
+	}
+
 
 
 	ppi = malloc(sizeof(PROCESS_INFORMATION));
@@ -358,48 +1096,56 @@ int login_user_create_process(int argc,char* argv[],pextargs_state_t pstate,args
 		GETERRNO(ret);
 		goto fail;
 	}
-	memset(ppi,0,sizeof(*ppi));
+	memset(ppi, 0, sizeof(*ppi));
 
 	bret = CreateProcessWithLogonW(pwusername,
-			pwpassword,
-			pwdomain,
-			logonflags,
-			pwexename,
-			pwcmdline,
-			createflags,
-			pwenvs,
-			pwcurdir,
-			psiw,
-			ppi);
-	if (!bret){
+	                               pwpassword,
+	                               pwdomain,
+	                               logonflags,
+	                               pwexename,
+	                               pwcmdline,
+	                               createflags,
+	                               pwenvs,
+	                               pwcurdir,
+	                               psiw,
+	                               ppi);
+	if (!bret) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
+	pid = ppi->dwProcessId;
 
 
-
-	return pid;
-fail:
+	if (pthreadattr) {
+		bret = DeleteProcThreadAttributeList(pthreadattr);
+		if (!bret) {
+			GETERRNO(res);
+			error_out("can not delete proc thread attr list error(%d)",res);
+		}
+	}
+	pthreadattr = NULL;
+	__dealloc_thread_attribute(&pattr);
 	if (psiw) {
-		i = 0;
-		AnsiToUni(NULL,&(psiw->lpTitle),&i);
-		AnsiToUni(NULL,&(psiw->lpDesktop),&i);
+		i = 1;
+		AnsiToUni(NULL, &(psiw->lpTitle), &i);
+		i = 1;
+		AnsiToUni(NULL, &(psiw->lpDesktop), &i);
 
 		if (psiw->hStdInput != INVALID_HANDLE_VALUE) {
 			bret = CloseHandle(psiw->hStdInput);
 			if (!bret) {
 				GETERRNO(res);
-				error_out("close input error(%d)",res);
+				error_out("close input error(%d)", res);
 			}
 		}
 		psiw->hStdInput = INVALID_HANDLE_VALUE;
 
 		if (psiw->hStdOutput != INVALID_HANDLE_VALUE) {
 			bret = CloseHandle(psiw->hStdOutput);
-			if (!bret){
+			if (!bret) {
 				GETERRNO(res);
-				error_out("close output error(%d)",res);
+				error_out("close output error(%d)", res);
 			}
 		}
 		psiw->hStdOutput = INVALID_HANDLE_VALUE;
@@ -408,7 +1154,7 @@ fail:
 			bret = CloseHandle(psiw->hStdError);
 			if (!bret) {
 				GETERRNO(res);
-				error_out("close stderr error(%d)",res);
+				error_out("close stderr error(%d)", res);
 			}
 		}
 		psiw->hStdError = INVALID_HANDLE_VALUE;
@@ -420,42 +1166,104 @@ fail:
 		free(ppi);
 	}
 	ppi = NULL;
-	safe_snprintf(NULL,&pcmdline,&cmdlinesize);
-	AnsiToUni(NULL,&pwfname,&wfnamesize);
-	AnsiToUni(NULL,&pwcmdline,&wcmdlinesize);
-	AnsiToUni(NULL,&pwcurdir,&curdirsize);
-	AnsiToUni(NULL,&pwexename,&exenamesize);
-	AnsiToUni(NULL,&pwusername,&usernamesize);
-	AnsiToUni(NULL,&pwpassword,&passwordsize);
-	AnsiToUni(NULL,&pwdomain,&domainsize);
+	safe_snprintf(&pcmdline, &cmdlinesize, NULL);
+	AnsiToUni(NULL, &pwfname, &wfnamesize);
+	AnsiToUni(NULL, &pwcmdline, &wcmdlinesize);
+	AnsiToUni(NULL, &pwcurdir, &curdirsize);
+	AnsiToUni(NULL, &pwexename, &exenamesize);
+	AnsiToUni(NULL, &pwusername, &usernamesize);
+	AnsiToUni(NULL, &pwpassword, &passwordsize);
+	AnsiToUni(NULL, &pwdomain, &domainsize);
+	return pid;
+fail:
+	if (pthreadattr) {
+		bret = DeleteProcThreadAttributeList(pthreadattr);
+		if (!bret) {
+			GETERRNO(res);
+			error_out("can not delete proc thread attr list error(%d)",res);
+		}
+	}
+	pthreadattr = NULL;
+	__dealloc_thread_attribute(&pattr);
+	if (psiw) {
+		i = 1;
+		AnsiToUni(NULL, &(psiw->lpTitle), &i);
+		i = 1;
+		AnsiToUni(NULL, &(psiw->lpDesktop), &i);
+
+		if (psiw->hStdInput != INVALID_HANDLE_VALUE) {
+			bret = CloseHandle(psiw->hStdInput);
+			if (!bret) {
+				GETERRNO(res);
+				error_out("close input error(%d)", res);
+			}
+		}
+		psiw->hStdInput = INVALID_HANDLE_VALUE;
+
+		if (psiw->hStdOutput != INVALID_HANDLE_VALUE) {
+			bret = CloseHandle(psiw->hStdOutput);
+			if (!bret) {
+				GETERRNO(res);
+				error_out("close output error(%d)", res);
+			}
+		}
+		psiw->hStdOutput = INVALID_HANDLE_VALUE;
+
+		if (psiw->hStdError != INVALID_HANDLE_VALUE) {
+			bret = CloseHandle(psiw->hStdError);
+			if (!bret) {
+				GETERRNO(res);
+				error_out("close stderr error(%d)", res);
+			}
+		}
+		psiw->hStdError = INVALID_HANDLE_VALUE;
+
+		free(psiw);
+	}
+	psiw = NULL;
+	if (ppi) {
+		free(ppi);
+	}
+	ppi = NULL;
+	safe_snprintf(&pcmdline, &cmdlinesize, NULL);
+	AnsiToUni(NULL, &pwfname, &wfnamesize);
+	AnsiToUni(NULL, &pwcmdline, &wcmdlinesize);
+	AnsiToUni(NULL, &pwcurdir, &curdirsize);
+	AnsiToUni(NULL, &pwexename, &exenamesize);
+	AnsiToUni(NULL, &pwusername, &usernamesize);
+	AnsiToUni(NULL, &pwpassword, &passwordsize);
+	AnsiToUni(NULL, &pwdomain, &domainsize);
 	return ret;
 
 }
 
 
-int _tmain(int argc,TCHAR* argv[])
+int _tmain(int argc, TCHAR* argv[])
 {
-	char** args=NULL;
+	char** args = NULL;
 	int ret;
 	args_options_t argsoption;
-	pextargs_state_t pextstate=NULL;
+	pextargs_state_t pextstate = NULL;
 
-	memset(&argsoption,0,sizeof(&argsoption));
-	args = copy_args(argc,argv);
+	memset(&argsoption, 0, sizeof(&argsoption));
+	args = copy_args(argc, argv);
 	if (args == NULL) {
 		GETERRNO(ret);
-		error_out("can not get args %d",ret);
+		error_out("can not get args %d", ret);
 		goto out;
 	}
 
-	ret = EXTARGS_PARSE(argc,args,&argsoption,pextstate);
+	ret = EXTARGS_PARSE(argc, args, &argsoption, pextstate);
 	if (ret < 0) {
 		goto out;
 	}
 
-
-
-
+	ret = login_user_create_process(argc, args, pextstate, &argsoption);
+	if (ret < 0) {
+		goto out;
+	}
+	fprintf(stdout, "create (%d)\n", ret);
+	ret = 0;
 out:
 	free_args(&args);
 	free_extargs_state(&pextstate);
