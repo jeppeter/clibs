@@ -6,7 +6,8 @@ CC      = cl.exe
 LD      = link.exe
 AR      = lib.exe
 RM      = del
-PYTHON  = python
+PYTHON  = python.exe
+GIT     = git.exe
 
 !IFDEF MAKEVERBOSE
 !IF $(MAKEVERBOSE) != 0
@@ -14,41 +15,44 @@ QUIETCMD=
 NOLOGO_CFLAGS=
 NOLOGO_LDFLAGS=
 NOLOGO_MAKEFLAGS=
+GIT_VERBOSE=
 !ELSE
 QUIETCMD=@
 NOLOGO_CFLAGS=/nologo
 NOLOGO_LDFLAGS=/nologo
 NOLOGO_MAKEFLAGS=/NOLOGO
+GIT_VERBOSE=--quiet
 !ENDIF
 !ELSE
 QUIETCMD=@
 NOLOGO_CFLAGS=/nologo
 NOLOGO_LDFLAGS=/nologo
 NOLOGO_MAKEFLAGS=/NOLOGO
+GIT_VERBOSE=--quiet
 !ENDIF
 
 !IFDEF STATICLIB
 !IF $(STATICLIB) != 0
-STATIC_LIB_CFLAGS=-DEXTARGS_STATIC_EXPORT /MD
+STATIC_LIB_CFLAGS=-DEXTARGS_STATIC_EXPORT -DWINLIB_STATIC_EXPORT /MD
 EXTARGSLIB_VALUE=1
 WINLIB_VALUE=1
 !ELSE
-STATIC_LIB_CFLAGS=-DEXTARGS_DLL_IMPORT /MD
+STATIC_LIB_CFLAGS=-DEXTARGS_DLL_IMPORT -DWINLIB_DLL_IMPORT /MD
 EXTARGSLIB_VALUE=0
 WINLIB_VALUE=0
 !ENDIF
 !ELSE
-STATIC_LIB_CFLAGS=-DEXTARGS_DLL_IMPORT /MD
+STATIC_LIB_CFLAGS=-DEXTARGS_DLL_IMPORT -DWINLIB_DLL_IMPORT /MD
 EXTARGSLIB_VALUE=0
 WINLIB_VALUE=0
 !ENDIF
 
-INC_CFLAGS = /I"$(TOPDIR)\extargslib\src"
-COM_CFLAGS = /Wall 
+INC_CFLAGS = /I"$(TOPDIR)\extargslib\src" /I"$(TOPDIR)\winlib"
+COM_CFLAGS = /Wall /wd"4820" /wd"4668" /wd"4127" 
 REL_CFLAGS = 
 DBG_CFLAGS = /Zi /Od 
 
-INC_LDFLAGS = "$(TOPDIR)\extargslib\src\extargslib.lib" "$(TOPDIR)\winlib\winlib.lib"
+INC_LDFLAGS = "$(TOPDIR)\extargslib\src\extargslib.lib" "$(TOPDIR)\winlib\winlib.lib" Advapi32.lib
 REL_LDFLAGS = 
 
 CFLAGS  = $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(INC_CFLAGS) $(COM_CFLAGS) $(REL_CFLAGS) $(DBG_CFLAGS)
@@ -61,44 +65,53 @@ all:lsrunas.exe
 
 !IFDEF STATICLIB
 !IF $(STATICLIB) != 0
-opttest.exe:$(OBJECTS) $(TOPDIR)\extargslib\src\extargslib.lib $(TOPDIR)\winlib\winlib.lib
-	$(QUIETCMD) echo "call static"
+lsrunas.exe:$(OBJECTS) $(TOPDIR)\extargslib\src\extargslib.lib $(TOPDIR)\winlib\winlib.lib
+	$(QUIETCMD) echo "call static $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@  $(LDFLAGS)  $(OBJECTS)
 	$(QUIETCMD)echo "use static lib"
 !ELSE
-opttest.exe:$(OBJECTS)  $(TOPDIR)\extargslib\src\extargslib.lib $(TOPDIR)\winlib\winlib.lib
-	$(QUIETCMD) echo "call dynamic"
+lsrunas.exe:$(OBJECTS)  $(TOPDIR)\extargslib\src\extargslib.lib $(TOPDIR)\winlib\winlib.lib
+	$(QUIETCMD) echo "call dynamic $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
 	$(QUIETCMD)echo "use dynamic lib"
 !ENDIF	
 
 !ELSE
-opttest.exe:$(OBJECTS)  $(TOPDIR)\extargslib\src\extargslib.lib $(TOPDIR)\winlib\winlib.lib
-	$(QUIETCMD) echo "call dynamic"
+lsrunas.exe:$(OBJECTS)  $(TOPDIR)\extargslib\src\extargslib.lib $(TOPDIR)\winlib\winlib.lib
+	$(QUIETCMD) echo "call dynamic $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
 	$(QUIETCMD)echo "use dynamic lib"
 !ENDIF
 
+
 .cpp.obj:
+	$(QUIETCMD)echo "compile $< -o $@"
 	$(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
 
-lsrunas.cpp:lsrunas.cpp.tmpl
+lsrunas.cpp:lsrunas.cpp.tmpl $(TOPDIR)\extargslib\coutput.py
 	$(QUIETCMD)$(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas.json -i $(CURDIR)\lsrunas.cpp.tmpl cmdstruct | \
-	 $(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas.json -o $(CURDIR)\lsrunas.cpp freefunc
+	 $(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas.json -i - -o $(CURDIR)\lsrunas.cpp freefunc
+	$(QUIETCMD)echo "output $@"
 
-$(TOPDIR)\extargslib\src\extargslib.lib:
+$(TOPDIR)\extargslib\coutput.py:$(TOPDIR)\extargslib
+
+$(TOPDIR)\extargslib\src\extargslib.lib: $(TOPDIR)\extargslib
 	$(QUIETCMD) (cd $(TOPDIR)\extargslib\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win EXTARGSLIB_STATICLIB=$(EXTARGSLIB_VALUE) all && cd $(CURDIR))  || cd $(CURDIR)
 
-$(TOPDIR)\extargslib\src\extargslib.dll:
+$(TOPDIR)\extargslib\src\extargslib.dll: $(TOPDIR)\extargslib
 	$(QUIETCMD) (cd $(TOPDIR)\extargslib\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win EXTARGSLIB_STATICLIB=$(EXTARGSLIB_VALUE) all && cd $(CURDIR))  || cd $(CURDIR)	
 
 $(TOPDIR)\winlib\winlib.lib:
 	$(QUIETCMD) (cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win WINLIB_STATICLIB=$(WINLIB_VALUE) all && cd $(CURDIR))  || cd $(CURDIR)
 
+$(TOPDIR)\extargslib:
+	$(QUIETCMD) (cd $(TOPDIR) && $(GIT) clone $(GIT_VERBOSE) https://github.com/jeppeter/extargslib.git extargslib && cd $(CURDIR)) || cd $(CURDIR)
+
 clean_lib:
-	$(QUIETCMD) (cd $(TOPDIR)\extargslib\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd $(CURDIR)) || cd $(CURDIR)
+	$(QUIETCMD) if EXIST $(TOPDIR)\extargslib (cd $(TOPDIR)\extargslib\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd $(CURDIR)) 
 	$(QUIETCMD) (cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd $(CURDIR)) || cd $(CURDIR)
 
 clean:clean_lib
-	$(QUIETCMD) $(RM) *.exe lsrunas.cpp *.obj 2>NUL
+	$(QUIETCMD) $(RM) *.exe *.obj 2>NUL
 	$(QUIETCMD) $(RM) *.pdb *.ilk 2>NUL
+	$(QUIETCMD) $(RM) lsrunas.cpp 2>NUL

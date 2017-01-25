@@ -2,11 +2,20 @@
 *  command line for run as
 *
 ***************************************/
+#define WINVER 0x600
 
 #include <stdio.h>
 #include <Windows.h>
+#include <win_err.h>
 #include <win_args.h>
+#include <strop.h>
+#include <win_uniansi.h>
 #include <extargs.h>
+#include <Windows.h>
+
+#ifndef STARTF_UNTRUSTEDSOURCE 
+#define STARTF_UNTRUSTEDSOURCE  0x00008000
+#endif
 
 typedef struct __args_options {
 	char* m_username;
@@ -93,15 +102,15 @@ typedef struct __args_options {
 } args_options_t, *pargs_options_t;
 
 
-% EXTARGS_FREEFUNC %
+%EXTARGS_FREEFUNC%
 
-% EXTARGS_CMDSTRUCT %
+%EXTARGS_CMDSTRUCT%
 
 #define SPLIT_ENV_CHAR     0x3
-#define SW_ERROR_CODE      0xffffffffUL
+#define SW_ERROR_CODE      0xffffUL
 
 struct __show_window {
-	DWORD m_showflags;
+	WORD m_showflags;
 	const char* m_showcmd;
 };
 
@@ -130,9 +139,9 @@ typedef struct __thread_attribute {
 	HANDLE m_hparentproc;
 } thread_attribute_t, *pthread_attribute_t;
 
-DWORD get_show_window(const char* showwindow)
+WORD get_show_window(const char* showwindow)
 {
-	DWORD dret = SW_ERROR_CODE;
+	WORD dret = SW_ERROR_CODE;
 	int i;
 	for (i = 0; st_showcmd[i].m_showcmd != NULL ; i++) {
 		if (strcmp(showwindow, st_showcmd[i].m_showcmd) == 0) {
@@ -146,7 +155,7 @@ DWORD get_show_window(const char* showwindow)
 pthread_attribute_t __alloc_thread_attribute()
 {
 	pthread_attribute_t pattr = NULL;
-	pattr = malloc(sizeof(*pattr));
+	pattr = (pthread_attribute_t) malloc(sizeof(*pattr));
 	if (pattr) {
 		memset(pattr, 0, sizeof(*pattr));
 		pattr->m_hparentproc = INVALID_HANDLE_VALUE;
@@ -181,8 +190,8 @@ void __dealloc_thread_attribute(pthread_attribute_t* ppattr)
 		if (pattr->m_hparentproc != INVALID_HANDLE_VALUE) {
 			bret = CloseHandle(pattr->m_hparentproc);
 			if (!bret) {
-				GETERRNO(ret);
-				error_out("close %p error(%d)", pattr->m_hparentproc, ret);
+				GETERRNO(res);
+				error_out("close %p error(%d)", pattr->m_hparentproc, res);
 			}
 		}
 		pattr->m_hparentproc = INVALID_HANDLE_VALUE;
@@ -197,6 +206,7 @@ int __update_ums(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* umscomman
 {
 	int ret = 0;
 	UMS_CREATE_THREAD_ATTRIBUTES umsattr;
+	BOOL bret;
 
 	if (umscommand != NULL) {
 		if (pthreadattr == NULL || pattr == NULL) {
@@ -255,8 +265,9 @@ int __update_group_aff(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* grp
 	char* pendptr;
 	uint64_t num64;
 	if (grpaff != NULL) {
+		pattr = pattr;
 		memset(&groupaff, 0, sizeof(groupaff));
-		pcurptr = grpaff;
+		pcurptr = (char*)grpaff;
 		while (*pcurptr != 0) {
 			if (strncmp(pcurptr, "mask=", 5) == 0 ) {
 				pcurptr += 5;
@@ -268,14 +279,14 @@ int __update_group_aff(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* grp
 				groupaff.Mask = num64;
 				setmask = 1;
 				pcurptr = pendptr;
-			} else if (strcmp(pcurptr, "group=", 6) == 0) {
+			} else if (strncmp(pcurptr, "group=", 6) == 0) {
 				pcurptr += 6;
 				ret = parse_number(pcurptr, &num64, &pendptr);
 				if (ret < 0 || pcurptr == pendptr) {
 					GETERRNO(ret);
 					goto fail;
 				}
-				groupaff.Group = num64;
+				groupaff.Group = (WORD)num64;
 				setgroup = 1;
 				pcurptr = pendptr;
 			} else {
@@ -294,7 +305,7 @@ int __update_group_aff(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* grp
 						GETERRNO(ret);
 						goto fail;
 					}
-					groupaff.Group = num64;
+					groupaff.Group = (WORD)num64;
 					setgroup = 1;
 					pcurptr = pendptr;
 				} else {
@@ -338,7 +349,8 @@ int __update_ideal_process(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char*
 	int setgroup = 0;
 	int setnumber = 0;
 	if (idealprocess != NULL) {
-		pcurptr = idealprocess;
+		pattr = pattr;
+		pcurptr = (char*)idealprocess;
 		memset(&procnumber, 0, sizeof(procnumber));
 		while (*pcurptr != 0) {
 			if (strncmp(pcurptr, "group=", 6) == 0) {
@@ -349,7 +361,7 @@ int __update_ideal_process(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char*
 					error_out("(%s) not valid", pcurptr);
 					goto fail;
 				}
-				procnumber.Group = num64;
+				procnumber.Group = (WORD)num64;
 				pcurptr = pendptr;
 				setgroup = 1;
 			} else if (strncmp(pcurptr, "number=", 6) == 0) {
@@ -360,7 +372,7 @@ int __update_ideal_process(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char*
 					error_out("(%s) not valid", pcurptr);
 					goto fail;
 				}
-				procnumber.Number = num64;
+				procnumber.Number = (BYTE)num64;
 				pcurptr = pendptr;
 				setnumber = 1;
 			} else {
@@ -372,7 +384,7 @@ int __update_ideal_process(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char*
 						error_out("(%s) not valid", pcurptr);
 						goto fail;
 					}
-					procnumber.Group = num64;
+					procnumber.Group = (WORD)num64;
 					pcurptr = pendptr;
 					setgroup = 1;
 				} else if (setnumber == 0) {
@@ -383,7 +395,7 @@ int __update_ideal_process(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char*
 						error_out("(%s) not valid", pcurptr);
 						goto fail;
 					}
-					procnumber.Number = num64;
+					procnumber.Number = (BYTE)num64;
 					pcurptr = pendptr;
 					setnumber = 1;
 				} else {
@@ -422,50 +434,50 @@ typedef struct __mitigation_policy_cmd {
 } mitigation_policy_t, *pmitigation_policy_t;
 
 static mitigation_policy_t st_policies [] = {
-	{PROCESS_CREATION_MITIGATION_POLICY_DEP_ENABLE                                        , "depenable"                        },
-	{PROCESS_CREATION_MITIGATION_POLICY_DEP_ATL_THUNK_ENABLE                              , "depaltthunkenable"                },
-	{PROCESS_CREATION_MITIGATION_POLICY_SEHOP_ENABLE                                      , "sehopenable"                      },
-	{PROCESS_CREATION_MITIGATION_POLICY_FORCE_RELOCATE_IMAGES_ALWAYS_ON                   , "relimgalwayson"                   },
-	{PROCESS_CREATION_MITIGATION_POLICY_FORCE_RELOCATE_IMAGES_ALWAYS_OFF                  , "relimgalwaysoff"                  },
-	{PROCESS_CREATION_MITIGATION_POLICY_FORCE_RELOCATE_IMAGES_ALWAYS_ON_REQ_RELOCS        , "relimgalwaysreqrelocs"            },
-	{PROCESS_CREATION_MITIGATION_POLICY_HEAP_TERMINATE_ALWAYS_ON                          , "heaptermalwayson"                 },
-	{PROCESS_CREATION_MITIGATION_POLICY_HEAP_TERMINATE_ALWAYS_OFF                         , "heaptermalwaysoff"                },
-	{PROCESS_CREATION_MITIGATION_POLICY_BOTTOM_UP_ASLR_ALWAYS_ON                          , "aslralwayson"                     },
-	{PROCESS_CREATION_MITIGATION_POLICY_BOTTOM_UP_ASLR_ALWAYS_OFF                         , "aslralwaysoff"                    },
-	{PROCESS_CREATION_MITIGATION_POLICY_HIGH_ENTROPY_ASLR_ALWAYS_ON                       , "highaslron"                       },
-	{PROCESS_CREATION_MITIGATION_POLICY_HIGH_ENTROPY_ASLR_ALWAYS_OFF                      , "highaslroff"                      },
-	{PROCESS_CREATION_MITIGATION_POLICY_STRICT_HANDLE_CHECKS_ALWAYS_ON                    , "handlecheckon"                    },
-	{PROCESS_CREATION_MITIGATION_POLICY_STRICT_HANDLE_CHECKS_ALWAYS_OFF                   , "handlecheckoff"                   },
-	{PROCESS_CREATION_MITIGATION_POLICY_WIN32K_SYSTEM_CALL_DISABLE_ALWAYS_ON              , "win32callon"                      },
-	{PROCESS_CREATION_MITIGATION_POLICY_WIN32K_SYSTEM_CALL_DISABLE_ALWAYS_OFF             , "win32calloff"                     },
-	{PROCESS_CREATION_MITIGATION_POLICY_EXTENSION_POINT_DISABLE_ALWAYS_ON                 , "extdison"                         },
-	{PROCESS_CREATION_MITIGATION_POLICY_EXTENSION_POINT_DISABLE_ALWAYS_OFF                , "extdisoff"                        },
-	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_MASK                        , "dyncodemask"                      },
-	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_DEFER                       , "dyncodedefer"                     },
-	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_ON                   , "dyncodeon"                        },
-	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_OFF                  , "dyncodeoff"                       },
-	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_ON_ALLOW_OPT_OUT     , "dyncodeoptouut"                   },
-	{PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_MASK                                 , "fontdismask"                      },
-	{PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_DEFER                                , "fontdisdefer"                     },
-	{PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_ALWAYS_ON                            , "fontdison"                        },
-	{PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_ALWAYS_OFF                           , "fontdisoff"                       },
-	{PROCESS_CREATION_MITIGATION_POLICY_AUDIT_NONSYSTEM_FONTS                             , "auditnonsysfont"                  },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_MASK                         , "imgldmask"                        },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_DEFER                        , "imglddefer"                       },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_ALWAYS_ON                    , "imgldon"                          },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_ALWAYS_OFF                   , "imgldoff"                         },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_RESERVED                     , "imgldreserve"                     },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_MASK                      , "imgldlowmask"                     },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_DEFER                     , "imgldlowdefer"                    },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_ON                 , "imgldlowon"                       },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_OFF                , "imgldlowoff"                      },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_RESERVED                  , "imgldlowreserve"                  },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_MASK                   , "imgldsys32mask"                   },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_DEFER                  , "imgldsys32defer"                  },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON              , "imgldsys32on"                     },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_OFF             , "imgldsys32off"                    },
-	{PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_RESERVED               , "imgldsys32reserve"                },
-	{0                                                                                    , NULL                               }
+	{PROCESS_CREATION_MITIGATION_POLICY_DEP_ENABLE                                                                     , "depenable"                        },
+	{PROCESS_CREATION_MITIGATION_POLICY_DEP_ATL_THUNK_ENABLE                                                           , "depaltthunkenable"                },
+	{PROCESS_CREATION_MITIGATION_POLICY_SEHOP_ENABLE                                                                   , "sehopenable"                      },
+	{PROCESS_CREATION_MITIGATION_POLICY_FORCE_RELOCATE_IMAGES_ALWAYS_ON                                                , "relimgalwayson"                   },
+	{PROCESS_CREATION_MITIGATION_POLICY_FORCE_RELOCATE_IMAGES_ALWAYS_OFF                                               , "relimgalwaysoff"                  },
+	{PROCESS_CREATION_MITIGATION_POLICY_FORCE_RELOCATE_IMAGES_ALWAYS_ON_REQ_RELOCS                                     , "relimgalwaysreqrelocs"            },
+	{PROCESS_CREATION_MITIGATION_POLICY_HEAP_TERMINATE_ALWAYS_ON                                                       , "heaptermalwayson"                 },
+	{PROCESS_CREATION_MITIGATION_POLICY_HEAP_TERMINATE_ALWAYS_OFF                                                      , "heaptermalwaysoff"                },
+	{PROCESS_CREATION_MITIGATION_POLICY_BOTTOM_UP_ASLR_ALWAYS_ON                                                       , "aslralwayson"                     },
+	{PROCESS_CREATION_MITIGATION_POLICY_BOTTOM_UP_ASLR_ALWAYS_OFF                                                      , "aslralwaysoff"                    },
+	{PROCESS_CREATION_MITIGATION_POLICY_HIGH_ENTROPY_ASLR_ALWAYS_ON                                                    , "highaslron"                       },
+	{PROCESS_CREATION_MITIGATION_POLICY_HIGH_ENTROPY_ASLR_ALWAYS_OFF                                                   , "highaslroff"                      },
+	{PROCESS_CREATION_MITIGATION_POLICY_STRICT_HANDLE_CHECKS_ALWAYS_ON                                                 , "handlecheckon"                    },
+	{PROCESS_CREATION_MITIGATION_POLICY_STRICT_HANDLE_CHECKS_ALWAYS_OFF                                                , "handlecheckoff"                   },
+	{PROCESS_CREATION_MITIGATION_POLICY_WIN32K_SYSTEM_CALL_DISABLE_ALWAYS_ON                                           , "win32callon"                      },
+	{PROCESS_CREATION_MITIGATION_POLICY_WIN32K_SYSTEM_CALL_DISABLE_ALWAYS_OFF                                          , "win32calloff"                     },
+	{PROCESS_CREATION_MITIGATION_POLICY_EXTENSION_POINT_DISABLE_ALWAYS_ON                                              , "extdison"                         },
+	{PROCESS_CREATION_MITIGATION_POLICY_EXTENSION_POINT_DISABLE_ALWAYS_OFF                                             , "extdisoff"                        },
+	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_MASK                                                     , "dyncodemask"                      },
+	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_DEFER                                                    , "dyncodedefer"                     },
+	{(0x1ui64 << 36) /*PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_ON*/                            , "dyncodeon"                        }, 
+	{PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_OFF                                               , "dyncodeoff"                       },
+	{(0x3ui64 << 36) /*PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_ON_ALLOW_OPT_OUT*/              , "dyncodeoptouut"                   },
+	{(0x3ui64 << 48) /*PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_MASK*/                                          , "fontdismask"                      },
+	{(0x0ui64 << 48) /*PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_DEFER*/                                         , "fontdisdefer"                     },
+	{(0x1ui64 << 48) /*PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_ALWAYS_ON*/                                     , "fontdison"                        },
+	{(0x2ui64 << 48) /*PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_ALWAYS_OFF*/                                    , "fontdisoff"                       },
+	{(0x3ui64 << 48) /*PROCESS_CREATION_MITIGATION_POLICY_AUDIT_NONSYSTEM_FONTS*/                                      , "auditnonsysfont"                  },
+	{(0x3ui64 << 52) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_MASK*/                                  , "imgldmask"                        },
+	{(0x0ui64 << 52) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_DEFER*/                                 , "imglddefer"                       },
+	{(0x1ui64 << 52) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_ALWAYS_ON*/                             , "imgldon"                          },
+	{(0x2ui64 << 52) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_ALWAYS_OFF*/                            , "imgldoff"                         },
+	{(0x3ui64 << 52) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_REMOTE_RESERVED*/                              , "imgldreserve"                     },
+	{(0x3ui64 << 56) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_MASK*/                               , "imgldlowmask"                     },
+	{(0x0ui64 << 56) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_DEFER*/                              , "imgldlowdefer"                    },
+	{(0x1ui64 << 56) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_ON*/                          , "imgldlowon"                       },
+	{(0x2ui64 << 56) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_ALWAYS_OFF*/                         , "imgldlowoff"                      },
+	{(0x3ui64 << 56) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_NO_LOW_LABEL_RESERVED*/                           , "imgldlowreserve"                  },
+	{(0x3ui64 << 60) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_MASK*/                            , "imgldsys32mask"                   },
+	{(0x0ui64 << 60) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_DEFER*/                           , "imgldsys32defer"                  },
+	{(0x1ui64 << 60) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON*/                       , "imgldsys32on"                     },
+	{(0x2ui64 << 60) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_OFF*/                      , "imgldsys32off"                    },
+	{(0x3ui64 << 60) /*PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_RESERVED*/                        , "imgldsys32reserve"                },
+	{0                                                                                                                 , NULL                               }
 };
 
 int __get_mitigation_policy(const char* policy, DWORD64* pdret64)
@@ -476,9 +488,8 @@ int __get_mitigation_policy(const char* policy, DWORD64* pdret64)
 	for (i = 0; st_policies[i].m_cmd != NULL ; i ++) {
 		len = strlen(st_policies[i].m_cmd);
 		if (strncmp(policy, st_policies[i].m_cmd, len) == 0) {
-			dret64 = st_policies[i].m_policy;
-			*pdret64 = dret64;
-			return len;
+			*pdret64 = st_policies[i].m_policy;
+			return (int)len;
 		}
 	}
 	return -1;
@@ -489,10 +500,11 @@ int __update_mitigation_policy(LPPROC_THREAD_ATTRIBUTE_LIST  pthreadattr, const 
 	int ret = 0;
 	char* pcurptr;
 	DWORD64 policy = 0, dret64;
-
+	BOOL bret;
 
 	if (mitigationpolicy != NULL) {
-		pcurptr = mitigationpolicy;
+		pattr = pattr;
+		pcurptr = (char*)mitigationpolicy;
 		while (*pcurptr != 0) {
 			ret = __get_mitigation_policy(pcurptr, &dret64);
 			if (ret < 0) {
@@ -530,20 +542,21 @@ int __update_parent_process(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char
 	int ret = 0;
 	uint64_t num64;
 	char* pendptr;
+	BOOL bret;
 
 	if (parentproc != NULL) {
 		if (pattr == NULL || pattr->m_hparentproc != INVALID_HANDLE_VALUE) {
 			ret = -ERROR_INVALID_PARAMETER;
 			goto fail;
 		}
-		ret = parse_number(parentproc, &num64, &pendptr);
-		if (ret < 0 || parentproc == pendptr) {
+		ret = parse_number((char*)parentproc, &num64, &pendptr);
+		if (ret < 0 || parentproc == pendptr || *pendptr != '\0') {
 			GETERRNO(ret);
 			error_out("(%s) not valid parent process", parentproc, ret);
 			goto fail;
 		}
 
-		pattr->m_hparentproc = OpenProcess(PROCESS_ALL_ACCESS, FALSE, num64);
+		pattr->m_hparentproc = OpenProcess(PROCESS_ALL_ACCESS, FALSE, (DWORD)num64);
 		if (pattr->m_hparentproc == INVALID_HANDLE_VALUE) {
 			GETERRNO(ret);
 			error_out("can not open(%lld) error(%d)", num64, ret);
@@ -569,15 +582,17 @@ int __update_prefer_node(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* p
 	char* pendptr;
 	uint64_t num64;
 	DWORD dret;
+	BOOL bret;
 	if (prefernode != NULL) {
-		ret = parse_number(prefernode, &num64, &pendptr);
-		if (ret < 0 || pendptr == prefernode || *pendptr != 0x) {
+		pattr = pattr;
+		ret = parse_number((char*)prefernode, &num64, &pendptr);
+		if (ret < 0 || pendptr == prefernode || *pendptr != 0x0) {
 			GETERRNO(ret);
 			error_out("(%s) not valid prefernode", prefernode);
 			goto fail;
 		}
 
-		dret = num64;
+		dret = (DWORD)num64;
 		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_PREFERRED_NODE , &dret, sizeof(dret), NULL, NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -598,6 +613,7 @@ int __update_protection_level(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr,const cha
 	DWORD dret;
 	BOOL bret;
 	if (protectionlevel != NULL) {
+		pattr = pattr;
 		if (strcmp(protectionlevel,"same") == 0) {
 			dret = PROTECTION_LEVEL_SAME;
 		} else {
@@ -623,8 +639,10 @@ int __update_thread_attribute(args_options_t *popt,LPPROC_THREAD_ATTRIBUTE_LIST 
 {
 	LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr=NULL;
 	pthread_attribute_t pattr= NULL;
-	int maxattrs = 0;
+	DWORD maxattrs = 0;
 	SIZE_T attrsize=0;
+	int ret;
+	BOOL bret;
 	if (popt->m_thrattrgroupaff != NULL || popt->m_thrattridealprocess != NULL ||
 		popt->m_thrattrmitigationpolicy != NULL || popt->m_thrattrparentprocess != NULL || 
 		popt->m_thrattrpreferrednode != NULL || popt->m_thrattrumsthread != NULL || 
@@ -666,7 +684,7 @@ int __update_thread_attribute(args_options_t *popt,LPPROC_THREAD_ATTRIBUTE_LIST 
 			GETERRNO(ret);
 			goto fail;
 		}
-		pthreadattr = malloc(attrsize);
+		pthreadattr = (LPPROC_THREAD_ATTRIBUTE_LIST)malloc(attrsize);
 		if (pthreadattr == NULL) {
 			GETERRNO(ret);
 			goto fail;
@@ -709,7 +727,7 @@ int __update_thread_attribute(args_options_t *popt,LPPROC_THREAD_ATTRIBUTE_LIST 
 	}
 	*ppthreadattr = pthreadattr;
 	*ppattr = pattr;
-	return maxattrs;
+	return (int) maxattrs;
 fail:
 	if (pthreadattr != NULL) {
 		DeleteProcThreadAttributeList(pthreadattr);
@@ -719,7 +737,7 @@ fail:
 
 }
 
-int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, args_options_t* popt)
+int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate, args_options_t* popt)
 {
 	wchar_t *pwusername = NULL, *pwpassword = NULL, *pwdomain = NULL, *pwexename = NULL, *pwcmdline = NULL, *pwcurdir = NULL, *pwenvs = NULL;
 	int usernamesize = 0, passwordsize = 0, domainsize = 0, exenamesize = 0, wcmdlinesize = 0, curdirsize = 0, wenvsize = 0;
@@ -732,7 +750,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 	int cmdlinesize = 0, envsize = 0;
 	LPSTARTUPINFOW psiw = NULL;
 	LPSTARTUPINFOEXW psixw=NULL;
-	int siwsize = 0;
+	size_t siwsize = 0;
 	LPPROCESS_INFORMATION ppi = NULL;
 	DWORD logonflags = 0;
 	DWORD createflags = 0;
@@ -741,40 +759,40 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 	pthread_attribute_t pattr=NULL;
 
 	if (popt->m_username) {
-		ret = AnsiToUni(popt->m_username, &pwusername, &usernamesize);
+		ret = AnsiToUnicode(popt->m_username, &pwusername, &usernamesize);
 		if (ret < 0) {
 			goto fail;
 		}
 	}
 
 	if (popt->m_password) {
-		ret = AnsiToUni(popt->m_password, &pwpassword, &passwordsize);
+		ret = AnsiToUnicode(popt->m_password, &pwpassword, &passwordsize);
 		if (ret < 0) {
 			goto fail;
 		}
 	}
 
 	if (popt->m_domainname) {
-		ret = AnsiToUni(popt->m_domainname, &pwdomain, &domainsize);
+		ret = AnsiToUnicode(popt->m_domainname, &pwdomain, &domainsize);
 		if (ret < 0) {
 			goto fail;
 		}
 	}
 
 	if (popt->m_curdir) {
-		ret = AnsiToUni(popt->m_curdir, &pwcurdir, &curdirsize);
+		ret = AnsiToUnicode(popt->m_curdir, &pwcurdir, &curdirsize);
 		if (ret < 0) {
 			goto fail;
 		}
 	}
 
 	if (pextstate->idx < argc) {
-		ret = AnsiToUni(argv[pextstate->idx], &pwexename, &exenamesize);
+		ret = AnsiToUnicode(argv[pextstate->idx], &pwexename, &exenamesize);
 		if (ret < 0) {
 			goto fail;
 		}
 
-		ret = safe_snprintf(&pcmdline, &cmdlinesize, "\"%s\"", argv[pextstate->idx]);
+		ret = snprintf_safe(&pcmdline, &cmdlinesize, "\"%s\"", argv[pextstate->idx]);
 		if (ret < 0) {
 			goto fail;
 		}
@@ -782,7 +800,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 		i = pextstate->idx;
 		i ++;
 		while (i < argc) {
-			ret = append_safe_snprintf(&pcmdline, &cmdlinesize, " \"%s\"", argv[i]);
+			ret = append_snprintf_safe(&pcmdline, &cmdlinesize, " \"%s\"", argv[i]);
 			if (ret < 0) {
 				goto fail;
 			}
@@ -790,11 +808,11 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 		}
 
 	} else {
-		ret = AnsiToUni("cmd.exe", &pwexename, &exenamesize);
+		ret = AnsiToUnicode("cmd.exe", &pwexename, &exenamesize);
 		if (ret < 0) {
 			goto fail;
 		}
-		ret = safe_snprintf(&pcmdline, &cmdlinesize, "cmd.exe");
+		ret = snprintf_safe(&pcmdline, &cmdlinesize, "cmd.exe");
 		if (ret < 0) {
 			goto fail;
 		}
@@ -802,20 +820,20 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 	if (popt->m_ppenvs) {
 		for (i = 0; popt->m_ppenvs[i]; i++) {
 			if (i == 0) {
-				ret = append_safe_snprintf(&penvs, &envsize, "%s", popt->m_ppenvs[i]);
+				ret = append_snprintf_safe(&penvs, &envsize, "%s", popt->m_ppenvs[i]);
 			} else {
-				ret = append_safe_snprintf(&penvs, &envsize, "%c%s", SPLIT_ENV_CHAR, popt->m_ppenvs[i]);
+				ret = append_snprintf_safe(&penvs, &envsize, "%c%s", SPLIT_ENV_CHAR, popt->m_ppenvs[i]);
 			}
 			if (ret < 0) {
 				goto fail;
 			}
 		}
-		ret = append_safe_snprintf(&penvs, &envsize, "%c", SPLIT_ENV_CHAR);
+		ret = append_snprintf_safe(&penvs, &envsize, "%c", SPLIT_ENV_CHAR);
 		if (ret < 0) {
 			goto fail;
 		}
 
-		ret = AnsiToUni(penvs, &pwenvs, &wenvsize);
+		ret = AnsiToUnicode(penvs, &pwenvs, &wenvsize);
 		if (ret < 0) {
 			goto fail;
 		}
@@ -826,7 +844,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 		}
 	}
 
-	ret = AnsiToUni(pcmdline, &pwcmdline, &wcmdlinesize);
+	ret = AnsiToUnicode(pcmdline, &pwcmdline, &wcmdlinesize);
 	if (ret < 0) {
 		goto fail;
 	}
@@ -864,10 +882,10 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 	if (ret < 0) {
 		goto fail;
 	} else if (ret > 0) {
-		siwsize = sizeof(STARTINFOEXW);
+		siwsize = sizeof(STARTUPINFOEXW);
 		createflags |= EXTENDED_STARTUPINFO_PRESENT;
 	} else {
-		siwsize = sizeof(STARTPINFOW);
+		siwsize = sizeof(STARTUPINFOW);
 	}
 
 	psiw = (LPSTARTUPINFOW) malloc(siwsize);
@@ -876,7 +894,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 		goto fail;
 	}
 	memset(psiw, 0, siwsize);
-	psiw->cb = siwsize;
+	psiw->cb = (DWORD)siwsize;
 	psiw->lpReserved = NULL;
 	psiw->lpDesktop = NULL;
 	psiw->lpTitle = NULL;
@@ -902,7 +920,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 
 	if (popt->m_desktopname) {
 		i = 0;
-		ret = AnsiToUni(popt->m_desktopname, &(psiw->lpDesktop), &i);
+		ret = AnsiToUnicode(popt->m_desktopname, &(psiw->lpDesktop), &i);
 		if (ret < 0) {
 			goto fail;
 		}
@@ -910,14 +928,14 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 
 	if (popt->m_title) {
 		i = 0;
-		ret = AnsiToUni(popt->m_title, &(psiw->lpTitle), &i);
+		ret = AnsiToUnicode(popt->m_title, &(psiw->lpTitle), &i);
 		if (ret < 0) {
 			goto fail;
 		}
 	}
 
-	if (popt->m_stdinfile != NULL  && psiw->m_hStdInput == INVALID_HANDLE_VALUE) {
-		ret = AnsiToUni(popt->m_stdinfile, &pwfname, &wfnamesize);
+	if (popt->m_stdinfile != NULL  && psiw->hStdInput == INVALID_HANDLE_VALUE) {
+		ret = AnsiToUnicode(popt->m_stdinfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -932,7 +950,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 	}
 
 	if (popt->m_appendstdoutfile != NULL) {
-		ret =  AnsiToUni(popt->m_appendstdoutfile, &pwfname, &wfnamesize);
+		ret =  AnsiToUnicode(popt->m_appendstdoutfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -949,7 +967,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 	}
 
 	if (popt->m_stdouutfile != NULL && psiw->hStdOutput == INVALID_HANDLE_VALUE) {
-		ret = AnsiToUni(popt->m_stdouutfile, &pwfname, &wfnamesize);
+		ret = AnsiToUnicode(popt->m_stdouutfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -966,7 +984,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 	}
 
 	if (popt->m_appendstderrfile != NULL) {
-		ret = AnsiToUni(popt->m_appendstderrfile, &pwfname, &wfnamesize);
+		ret = AnsiToUnicode(popt->m_appendstderrfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -981,7 +999,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 	}
 
 	if (popt->m_stderrfile != NULL && psiw->hStdError == INVALID_HANDLE_VALUE) {
-		ret = AnsiToUni(popt->m_stderrfile, &pwfname, &wfnamesize);
+		ret = AnsiToUnicode(popt->m_stderrfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -1029,8 +1047,8 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 	if (popt->m_xcountchars != 0 ||
 	        popt->m_ycountchars != 0) {
 		psiw->dwFlags |= STARTF_USECOUNTCHARS;
-		psiw->dwXCountChars = popt->m_xcountchars;
-		psiw->dwYCountChars = popt->m_ycountchars;
+		psiw->dwXCountChars = (DWORD)popt->m_xcountchars;
+		psiw->dwYCountChars = (DWORD)popt->m_ycountchars;
 	}
 
 	if (popt->m_forered || popt->m_foreblue || popt->m_foregreen || popt->m_foreintensity
@@ -1069,8 +1087,8 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 
 	if (popt->m_xpos != 0 || popt->m_ypos != 0) {
 		psiw->dwFlags |= STARTF_USEPOSITION;
-		psiw->dwX = popt->m_xpos;
-		psiw->dwY = popt->m_ypos;
+		psiw->dwX = (DWORD)popt->m_xpos;
+		psiw->dwY = (DWORD)popt->m_ypos;
 	}
 
 	if (popt->m_xwindowcmd != NULL) {
@@ -1085,13 +1103,13 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 
 	if (popt->m_xsize != 0 || popt->m_ysize != 0) {
 		psiw->dwFlags |= STARTF_USESIZE;
-		psiw->dwXSize = popt->m_xsize;
-		psiw->dwYSize = popt->m_ysize;
+		psiw->dwXSize = (DWORD)popt->m_xsize;
+		psiw->dwYSize = (DWORD)popt->m_ysize;
 	}
 
 
 
-	ppi = malloc(sizeof(PROCESS_INFORMATION));
+	ppi = (LPPROCESS_INFORMATION)malloc(sizeof(PROCESS_INFORMATION));
 	if (ppi == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -1114,23 +1132,19 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 		goto fail;
 	}
 
-	pid = ppi->dwProcessId;
+	pid =(int) ppi->dwProcessId;
 
 
 	if (pthreadattr) {
-		bret = DeleteProcThreadAttributeList(pthreadattr);
-		if (!bret) {
-			GETERRNO(res);
-			error_out("can not delete proc thread attr list error(%d)",res);
-		}
+		DeleteProcThreadAttributeList(pthreadattr);
 	}
 	pthreadattr = NULL;
 	__dealloc_thread_attribute(&pattr);
 	if (psiw) {
 		i = 1;
-		AnsiToUni(NULL, &(psiw->lpTitle), &i);
+		AnsiToUnicode(NULL, &(psiw->lpTitle), &i);
 		i = 1;
-		AnsiToUni(NULL, &(psiw->lpDesktop), &i);
+		AnsiToUnicode(NULL, &(psiw->lpDesktop), &i);
 
 		if (psiw->hStdInput != INVALID_HANDLE_VALUE) {
 			bret = CloseHandle(psiw->hStdInput);
@@ -1166,30 +1180,26 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pstate, a
 		free(ppi);
 	}
 	ppi = NULL;
-	safe_snprintf(&pcmdline, &cmdlinesize, NULL);
-	AnsiToUni(NULL, &pwfname, &wfnamesize);
-	AnsiToUni(NULL, &pwcmdline, &wcmdlinesize);
-	AnsiToUni(NULL, &pwcurdir, &curdirsize);
-	AnsiToUni(NULL, &pwexename, &exenamesize);
-	AnsiToUni(NULL, &pwusername, &usernamesize);
-	AnsiToUni(NULL, &pwpassword, &passwordsize);
-	AnsiToUni(NULL, &pwdomain, &domainsize);
+	snprintf_safe(&pcmdline, &cmdlinesize, NULL);
+	AnsiToUnicode(NULL, &pwfname, &wfnamesize);
+	AnsiToUnicode(NULL, &pwcmdline, &wcmdlinesize);
+	AnsiToUnicode(NULL, &pwcurdir, &curdirsize);
+	AnsiToUnicode(NULL, &pwexename, &exenamesize);
+	AnsiToUnicode(NULL, &pwusername, &usernamesize);
+	AnsiToUnicode(NULL, &pwpassword, &passwordsize);
+	AnsiToUnicode(NULL, &pwdomain, &domainsize);
 	return pid;
 fail:
 	if (pthreadattr) {
-		bret = DeleteProcThreadAttributeList(pthreadattr);
-		if (!bret) {
-			GETERRNO(res);
-			error_out("can not delete proc thread attr list error(%d)",res);
-		}
+		DeleteProcThreadAttributeList(pthreadattr);
 	}
 	pthreadattr = NULL;
 	__dealloc_thread_attribute(&pattr);
 	if (psiw) {
 		i = 1;
-		AnsiToUni(NULL, &(psiw->lpTitle), &i);
+		AnsiToUnicode(NULL, &(psiw->lpTitle), &i);
 		i = 1;
-		AnsiToUni(NULL, &(psiw->lpDesktop), &i);
+		AnsiToUnicode(NULL, &(psiw->lpDesktop), &i);
 
 		if (psiw->hStdInput != INVALID_HANDLE_VALUE) {
 			bret = CloseHandle(psiw->hStdInput);
@@ -1225,14 +1235,14 @@ fail:
 		free(ppi);
 	}
 	ppi = NULL;
-	safe_snprintf(&pcmdline, &cmdlinesize, NULL);
-	AnsiToUni(NULL, &pwfname, &wfnamesize);
-	AnsiToUni(NULL, &pwcmdline, &wcmdlinesize);
-	AnsiToUni(NULL, &pwcurdir, &curdirsize);
-	AnsiToUni(NULL, &pwexename, &exenamesize);
-	AnsiToUni(NULL, &pwusername, &usernamesize);
-	AnsiToUni(NULL, &pwpassword, &passwordsize);
-	AnsiToUni(NULL, &pwdomain, &domainsize);
+	snprintf_safe(&pcmdline, &cmdlinesize, NULL);
+	AnsiToUnicode(NULL, &pwfname, &wfnamesize);
+	AnsiToUnicode(NULL, &pwcmdline, &wcmdlinesize);
+	AnsiToUnicode(NULL, &pwcurdir, &curdirsize);
+	AnsiToUnicode(NULL, &pwexename, &exenamesize);
+	AnsiToUnicode(NULL, &pwusername, &usernamesize);
+	AnsiToUnicode(NULL, &pwpassword, &passwordsize);
+	AnsiToUnicode(NULL, &pwdomain, &domainsize);
 	return ret;
 
 }

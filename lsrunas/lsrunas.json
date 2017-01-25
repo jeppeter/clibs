@@ -42,7 +42,6 @@
     "createseperatewowvdm<m_createseperatewowvdm>" : false,
     "createsuspended<m_createsuspended>" : false,
     "createunicodeenvironment<m_createunicodeenvironment>" : false,
-    "createstartinfoextend<m_createextendstartinfo>" : false,
     "thrattrgroupaff<m_thrattrgroupaff>##group for affinity set format[(mask=),(group=)]##" : null,
     "thrattridealprocess<m_thrattridealprocess>##ideal group set format[(group=),(number=)]##" : null,
     "thrattrmitigationpolicy<m_thrattrmitigationpolicy>##cat be one or number of value (depenable|depaltthunkenable|sehopenable|relimgalwayson|relimgalwaysoff|relimgalwaysreqrelocs|heaptermalwayson|heaptermalwaysoff|aslralwayson|aslralwaysoff|highaslron|highaslroff|handlecheckon|handlecheckoff|win32callon|win32calloff|extdison|extdisoff|dyncodemask|dyncodedefer|dyncodeon|dyncodeoff|dyncodeoptouut|fontdismask|fontdisdefer|fontdison|fontdisoff|auditnonsysfont|imgldmask|imglddefer|imgldon|imgldoff|imgldreserve|imgldlowmask|imgldlowdefer|imgldlowon|imgldlowoff|imgldlowreserve|imgldsys32mask|imgldsys32defer|imgldsys32on|imgldsys32off|imgldsys32reserve)##"  : null,
