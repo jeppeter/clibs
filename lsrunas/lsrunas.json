@@ -1,4 +1,5 @@
 {
+    "verbose|v<m_verbose>" : "+",
     "username|u<m_username>" : null,
     "password|p<m_password>" : null,
     "domain|d<m_domainname>" : null,
@@ -34,7 +35,7 @@
     "stderrfile<m_stderrfile>" : null,
     "appendstdout<m_appendstdoutfile>" : null,
     "appendstderr<m_appendstderrfile>" : null,
-    "logonwithprofile<m_withprofile>##to call with login profile calling before call command##" : false,
+    "logonwithprofile<m_withprofile>##to call with login profile calling before call command##" : true,
     "logonnetcredential<m_netcredential>" : false,
     "createdefaulterrormode<m_createdefaulterrormode>" : false,
     "createnewconsole<m_createnewconsole>" : false,

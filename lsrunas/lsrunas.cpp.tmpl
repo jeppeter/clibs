@@ -18,6 +18,7 @@
 #endif
 
 typedef struct __args_options {
+	int m_verbose;
 	char* m_username;
 	char* m_password;
 	char* m_domainname;
@@ -737,6 +738,23 @@ fail:
 
 }
 
+void debug_format(args_options_t* popt,const char* file,int lineno,const char* fmt,...)
+{
+	if (popt->m_verbose >= 3) {
+		fprintf(stderr, "[%s:%d] ",file,lineno);
+	}
+
+	if (popt->m_verbose >= 1) {
+		va_list ap;
+		va_start(ap,fmt);
+		vfprintf(stderr,fmt,ap);
+		fprintf(stderr, "\n");
+	}
+	return;
+}
+
+#define DEBUG_FORMAT(...)  debug_format(popt,__FILE__,__LINE__,__VA_ARGS__)
+
 int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate, args_options_t* popt)
 {
 	wchar_t *pwusername = NULL, *pwpassword = NULL, *pwdomain = NULL, *pwexename = NULL, *pwcmdline = NULL, *pwcurdir = NULL, *pwenvs = NULL;
@@ -758,6 +776,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr=NULL;
 	pthread_attribute_t pattr=NULL;
 
+	DEBUG_FORMAT(" ");
 	if (popt->m_username) {
 		ret = AnsiToUnicode(popt->m_username, &pwusername, &usernamesize);
 		if (ret < 0) {
@@ -765,6 +784,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 		}
 	}
 
+	DEBUG_FORMAT(" ");
 	if (popt->m_password) {
 		ret = AnsiToUnicode(popt->m_password, &pwpassword, &passwordsize);
 		if (ret < 0) {
@@ -787,11 +807,6 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (pextstate->idx < argc) {
-		ret = AnsiToUnicode(argv[pextstate->idx], &pwexename, &exenamesize);
-		if (ret < 0) {
-			goto fail;
-		}
-
 		ret = snprintf_safe(&pcmdline, &cmdlinesize, "\"%s\"", argv[pextstate->idx]);
 		if (ret < 0) {
 			goto fail;
@@ -808,10 +823,6 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 		}
 
 	} else {
-		ret = AnsiToUnicode("cmd.exe", &pwexename, &exenamesize);
-		if (ret < 0) {
-			goto fail;
-		}
 		ret = snprintf_safe(&pcmdline, &cmdlinesize, "cmd.exe");
 		if (ret < 0) {
 			goto fail;
@@ -844,6 +855,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 		}
 	}
 
+	DEBUG_FORMAT("pcmdline [%s]",pcmdline);
 	ret = AnsiToUnicode(pcmdline, &pwcmdline, &wcmdlinesize);
 	if (ret < 0) {
 		goto fail;
@@ -1116,6 +1128,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 	memset(ppi, 0, sizeof(*ppi));
 
+
 	bret = CreateProcessWithLogonW(pwusername,
 	                               pwpassword,
 	                               pwdomain,
@@ -1255,6 +1268,7 @@ int _tmain(int argc, TCHAR* argv[])
 	args_options_t argsoption;
 	pextargs_state_t pextstate = NULL;
 
+	fprintf(stderr, "argc %d\n", argc);
 	memset(&argsoption, 0, sizeof(&argsoption));
 	args = copy_args(argc, argv);
 	if (args == NULL) {
@@ -1262,11 +1276,13 @@ int _tmain(int argc, TCHAR* argv[])
 		error_out("can not get args %d", ret);
 		goto out;
 	}
-
+	fprintf(stderr, "will parse\n");
 	ret = EXTARGS_PARSE(argc, args, &argsoption, pextstate);
 	if (ret < 0) {
+		fprintf(stderr,"could not parse error(%d)",ret);
 		goto out;
 	}
+	fprintf(stderr, "parsed %d\n",argc);
 
 	ret = login_user_create_process(argc, args, pextstate, &argsoption);
 	if (ret < 0) {
