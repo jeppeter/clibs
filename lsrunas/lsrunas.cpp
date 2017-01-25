@@ -102,6 +102,54 @@ typedef struct __args_options {
 	char* m_thrattrchildprocesspolicy;
 } args_options_t, *pargs_options_t;
 
+#define DEBUG_FORMAT(...)  debug_format(popt,__FILE__,__LINE__,__VA_ARGS__)
+#define DEBUG_FORMAT_BUFFER(ptr,size,...) debug_buffer_format(popt,__FILE__,__LINE__,ptr,size,__VA_ARGS__)
+
+void debug_format(args_options_t* popt,const char* file,int lineno,const char* fmt,...)
+{
+	if (popt->m_verbose >= 3) {
+		fprintf(stderr, "[%s:%d] ",file,lineno);
+	}
+
+	if (popt->m_verbose >= 1) {
+		va_list ap;
+		va_start(ap,fmt);
+		vfprintf(stderr,fmt,ap);
+		fprintf(stderr, "\n");
+	}
+	return;
+}
+
+void debug_buffer_format(args_options_t* popt,const char* file,int lineno,void* ptr,unsigned int size,const char* fmt,...)
+{
+	unsigned int i;
+	unsigned char* ptr8 = (unsigned char*) ptr;
+	if (popt->m_verbose == 0) {
+		return;
+	}
+	if (popt->m_verbose >= 3) {
+		fprintf(stderr, "[%s:%d] ",file,lineno);
+	}
+	fprintf(stderr, "ptr(%p) size(0x%x:%d)", ptr8,size,size);
+	if (fmt != NULL) {
+		va_list ap;
+		va_start(ap,fmt);
+		vfprintf(stderr, fmt,ap);
+	}
+
+
+	if (popt->m_verbose >= 3) {
+		for (i=0;i<size;i++){
+			if ((i % 16) == 0) {
+				fprintf(stderr, "\n0x%08x",i);
+			}
+			fprintf(stderr, " 0x%2x",ptr8[i]);
+		}
+	}
+	fprintf(stderr, "\n");
+	return;
+}
+
 
 #include "args_options.cpp"
 
@@ -201,7 +249,7 @@ void __dealloc_thread_attribute(pthread_attribute_t* ppattr)
 	return ;
 }
 
-int __update_ums(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* umscommand, pthread_attribute_t pattr)
+int __update_ums(args_options_t* popt,LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* umscommand, pthread_attribute_t pattr)
 {
 	int ret = 0;
 	UMS_CREATE_THREAD_ATTRIBUTES umsattr;
@@ -228,6 +276,8 @@ int __update_ums(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* umscomman
 				goto fail;
 			}
 
+			DEBUG_FORMAT("umscontext %p usmcompletion %p",pattr->m_pumscontext,pattr->m_pumscompletion);
+
 			memset(&umsattr, 0, sizeof(umsattr));
 			umsattr.UmsVersion = UMS_VERSION;
 			umsattr.UmsContext = pattr->m_pumscontext;
@@ -253,7 +303,7 @@ fail:
 	return ret;
 }
 
-int __update_group_aff(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* grpaff, pthread_attribute_t pattr)
+int __update_group_aff(args_options_t* popt,LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* grpaff, pthread_attribute_t pattr)
 {
 	int ret = 0;
 	BOOL bret;
@@ -323,6 +373,7 @@ int __update_group_aff(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* grp
 			}
 		}
 
+		DEBUG_FORMAT("(%s) Group %d Mask %d",grpaff,groupaff.Group,groupaff.Mask);
 		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_GROUP_AFFINITY, &groupaff, sizeof(groupaff), NULL, NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -337,7 +388,7 @@ fail:
 	return ret;
 }
 
-int __update_ideal_process(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* idealprocess, pthread_attribute_t pattr)
+int __update_ideal_process(args_options_t* popt,LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* idealprocess, pthread_attribute_t pattr)
 {
 	int ret = 0;
 	BOOL bret;
@@ -413,6 +464,7 @@ int __update_ideal_process(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char*
 				pcurptr ++;
 			}
 		}
+		DEBUG_FORMAT("(%s) Group %d Number %d",idealprocess,procnumber.Group,procnumber.Number);
 		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_IDEAL_PROCESSOR, &procnumber, sizeof(procnumber), NULL, NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -494,7 +546,7 @@ int __get_mitigation_policy(const char* policy, DWORD64* pdret64)
 	return -1;
 }
 
-int __update_mitigation_policy(LPPROC_THREAD_ATTRIBUTE_LIST  pthreadattr, const char* mitigationpolicy, pthread_attribute_t pattr)
+int __update_mitigation_policy(args_options_t* popt,LPPROC_THREAD_ATTRIBUTE_LIST  pthreadattr, const char* mitigationpolicy, pthread_attribute_t pattr)
 {
 	int ret = 0;
 	char* pcurptr;
@@ -521,6 +573,7 @@ int __update_mitigation_policy(LPPROC_THREAD_ATTRIBUTE_LIST  pthreadattr, const 
 			}
 		}
 
+		DEBUG_FORMAT("(%s) policy 0x%llx",mitigationpolicy,policy);
 		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY, &policy, sizeof(policy), NULL, NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -536,7 +589,7 @@ fail:
 	return ret;
 }
 
-int __update_parent_process(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* parentproc, pthread_attribute_t pattr)
+int __update_parent_process(args_options_t* popt,LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* parentproc, pthread_attribute_t pattr)
 {
 	int ret = 0;
 	uint64_t num64;
@@ -561,6 +614,7 @@ int __update_parent_process(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char
 			error_out("can not open(%lld) error(%d)", num64, ret);
 			goto fail;
 		}
+		DEBUG_FORMAT("(%s) %lld",parentproc,num64);
 		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, &(pattr->m_hparentproc), sizeof(pattr->m_hparentproc), NULL, NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -575,7 +629,7 @@ fail:
 	return ret;
 }
 
-int __update_prefer_node(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* prefernode, pthread_attribute_t pattr)
+int __update_prefer_node(args_options_t* popt,LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* prefernode, pthread_attribute_t pattr)
 {
 	int ret = 0;
 	char* pendptr;
@@ -592,6 +646,7 @@ int __update_prefer_node(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* p
 		}
 
 		dret = (DWORD)num64;
+		DEBUG_FORMAT("(%s) prefernode %d",prefernode,dret);
 		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_PREFERRED_NODE , &dret, sizeof(dret), NULL, NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -606,7 +661,7 @@ fail:
 	return ret;
 }
 
-int __update_protection_level(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr,const char* protectionlevel,pthread_attribute_t pattr)
+int __update_protection_level(args_options_t* popt,LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr,const char* protectionlevel,pthread_attribute_t pattr)
 {
 	int ret = 0;
 	DWORD dret;
@@ -620,6 +675,7 @@ int __update_protection_level(LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr,const cha
 			error_out("(%s) not valid protection level",protectionlevel);
 			goto fail;
 		}
+		DEBUG_FORMAT("(%s) protectionlevel %ld",protectionlevel,dret);
 		bret = UpdateProcThreadAttribute(pthreadattr,0,PROC_THREAD_ATTRIBUTE_PROTECTION_LEVEL,&dret,sizeof(dret),NULL,NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -694,32 +750,32 @@ int __update_thread_attribute(args_options_t *popt,LPPROC_THREAD_ATTRIBUTE_LIST 
 			goto fail;
 		}
 
-		ret = __update_ums(pthreadattr,popt->m_thrattrumsthread,pattr);
+		ret = __update_ums(popt,pthreadattr,popt->m_thrattrumsthread,pattr);
 		if (ret < 0){
 			goto fail;
 		}
 
-		ret = __update_protection_level(pthreadattr,popt->m_thrattrproctionlevel,pattr);
+		ret = __update_protection_level(popt,pthreadattr,popt->m_thrattrproctionlevel,pattr);
 		if (ret < 0) {
 			goto fail;
 		}
 
-		ret = __update_prefer_node(pthreadattr,popt->m_thrattrpreferrednode,pattr);
+		ret = __update_prefer_node(popt,pthreadattr,popt->m_thrattrpreferrednode,pattr);
 		if (ret < 0) {
 			goto fail;
 		}
 
-		ret = __update_parent_process(pthreadattr,popt->m_thrattrparentprocess,pattr);
+		ret = __update_parent_process(popt,pthreadattr,popt->m_thrattrparentprocess,pattr);
 		if (ret < 0) {
 			goto fail;
 		}
 
-		ret = __update_mitigation_policy(pthreadattr,popt->m_thrattrmitigationpolicy,pattr);
+		ret = __update_mitigation_policy(popt,pthreadattr,popt->m_thrattrmitigationpolicy,pattr);
 		if (ret < 0) {
 			goto fail;
 		}
 
-		ret = __update_group_aff(pthreadattr,popt->m_thrattrgroupaff,pattr);
+		ret = __update_group_aff(popt,pthreadattr,popt->m_thrattrgroupaff,pattr);
 		if (ret < 0) {
 			goto fail;
 		}
@@ -736,53 +792,7 @@ fail:
 
 }
 
-void debug_format(args_options_t* popt,const char* file,int lineno,const char* fmt,...)
-{
-	if (popt->m_verbose >= 3) {
-		fprintf(stderr, "[%s:%d] ",file,lineno);
-	}
 
-	if (popt->m_verbose >= 1) {
-		va_list ap;
-		va_start(ap,fmt);
-		vfprintf(stderr,fmt,ap);
-		fprintf(stderr, "\n");
-	}
-	return;
-}
-
-void debug_buffer_format(args_options_t* popt,const char* file,int lineno,void* ptr,unsigned int size,const char* fmt,...)
-{
-	unsigned int i;
-	unsigned char* ptr8 = (unsigned char*) ptr;
-	if (popt->m_verbose == 0) {
-		return;
-	}
-	if (popt->m_verbose >= 3) {
-		fprintf(stderr, "[%s:%d] ",file,lineno);
-	}
-	fprintf(stderr, "ptr(%p) size(0x%x:%d)", ptr8,size,size);
-	if (fmt != NULL) {
-		va_list ap;
-		va_start(ap,fmt);
-		vfprintf(stderr, fmt,ap);
-	}
-
-
-	if (popt->m_verbose >= 3) {
-		for (i=0;i<size;i++){
-			if ((i % 16) == 0) {
-				fprintf(stderr, "\n0x%08x",i);
-			}
-			fprintf(stderr, " 0x%2x",ptr8[i]);
-		}
-	}
-	fprintf(stderr, "\n");
-	return;
-}
-
-#define DEBUG_FORMAT(...)  debug_format(popt,__FILE__,__LINE__,__VA_ARGS__)
-#define DEBUG_FORMAT_BUFFER(ptr,size,...) debug_buffer_format(popt,__FILE__,__LINE__,ptr,size,__VA_ARGS__)
 
 int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate, args_options_t* popt)
 {
@@ -822,6 +832,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_domainname) {
+		DEBUG_FORMAT("m_domainname %s",popt->m_domainname);
 		ret = AnsiToUnicode(popt->m_domainname, &pwdomain, &domainsize);
 		if (ret < 0) {
 			goto fail;
@@ -829,6 +840,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_curdir) {
+		DEBUG_FORMAT("m_curdir %s",popt->m_curdir);
 		ret = AnsiToUnicode(popt->m_curdir, &pwcurdir, &curdirsize);
 		if (ret < 0) {
 			goto fail;
@@ -872,6 +884,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 		if (ret < 0) {
 			goto fail;
 		}
+		DEBUG_FORMAT_BUFFER(penvs,(unsigned int)(strlen(penvs) + 1),"penvs [%s]",penvs);
 
 		ret = AnsiToUnicode(penvs, &pwenvs, &wenvsize);
 		if (ret < 0) {
