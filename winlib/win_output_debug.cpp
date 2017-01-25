@@ -110,6 +110,84 @@ out:
     return ;
 }
 
+void ConsoleOutString(const char* file, int lineno, const char* fmt, ...)
+{
+    char* pFmt = NULL;
+    char* pLine = NULL;
+    char* pWhole = NULL;
+    va_list ap;
+    size_t alloclen = 1024;
+    int ret;
+
+try_again:
+    if (pFmt) {
+        //delete [] pFmt;
+        free(pFmt);
+    }
+    pFmt = NULL;
+    if (pLine) {
+        //delete [] pLine;
+        free(pLine);
+    }
+    pLine = NULL;
+    if (pWhole) {
+        //delete [] pWhole;
+        free(pWhole);
+    }
+    pWhole = NULL;
+
+    pFmt = (char*)malloc(alloclen);
+    pLine = (char*)malloc(alloclen);
+    pWhole = (char*)malloc((alloclen*2));
+    if (pFmt == NULL || pLine == NULL || pWhole == NULL){
+        goto out;
+    }
+    memset(pFmt,0,alloclen);
+    memset(pLine,0,alloclen);
+    memset(pWhole,0,alloclen*2);
+
+    ret = _snprintf_s(pLine, alloclen, alloclen - 1, "%s:%d:time(0x%08x)\t", file, lineno, GetTickCount());
+    if (ret < 0 || ret >= (int)(alloclen - 1)) {
+        alloclen <<= 1;
+        goto try_again;
+    }
+    va_start(ap, fmt);
+    ret = _vsnprintf_s(pFmt, alloclen, alloclen - 1, fmt, ap);
+    if (ret < 0 || ret >= (int)(alloclen - 1)) {
+        alloclen <<= 1;
+        goto try_again;
+    }
+    strcpy_s(pWhole, alloclen * 2, pLine);
+    strcat_s(pWhole, alloclen * 2, pFmt);
+    strcat_s(pWhole, alloclen * 2, "\n");
+    ret = (int) strlen(pWhole) + 1;
+    if (ret >= (int)(alloclen * 2 - 1)) {
+        alloclen <<= 1;
+        goto try_again;
+    }
+
+    fprintf(stderr, "%s",pWhole);
+    fflush(stderr);
+out:
+    if (pFmt) {
+        //delete [] pFmt;
+        free(pFmt);
+    }
+    pFmt = NULL;
+    if (pLine) {
+        //delete [] pLine;
+        free(pLine);
+    }
+    pLine = NULL;
+    if (pWhole) {
+        //delete [] pWhole;
+        free(pWhole);
+    }
+    pWhole = NULL;
+
+    return ;
+}
+
 
 void DebugBufferFmt(const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
 {
@@ -163,6 +241,66 @@ void DebugBufferFmt(const char* file, int lineno, unsigned char* pBuffer, int bu
         pCur = pLine;
         formedlen = 0;
     }
+
+    delete [] pLine;
+    pLine = NULL;
+    return ;
+}
+
+
+void ConsoleBufferFmt(const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
+{
+    size_t fmtlen = 2000;
+    char*pLine = NULL, *pCur;
+    int formedlen;
+    int ret;
+    int i;
+    pLine = new char[fmtlen];
+    pCur = pLine;
+    formedlen = 0;
+
+    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "[%s:%d:time(0x%08x)]\tbuffer %p (%d)", file, lineno, GetTickCount(), pBuffer, buflen);
+    pCur += ret;
+    formedlen += ret;
+
+    if (fmt) {
+        va_list ap;
+        va_start(ap, fmt);
+        ret = _vsnprintf_s(pCur, (size_t)(fmtlen - formedlen), (size_t)(formedlen - formedlen - 1), fmt, ap);
+        pCur += ret;
+        formedlen += ret;
+    }
+
+    for (i = 0; i < buflen; i++) {
+        if ((formedlen + 100) > (int)fmtlen) {
+            fprintf(stderr, "%s",pLine);
+            pCur = pLine;
+            formedlen = 0;
+        }
+        if ((i % 16) == 0) {
+            ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "\n");
+            fprintf(stderr, "%s",pLine );
+            pCur = pLine;
+            formedlen = 0;
+            ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "[0x%08x]\t", i);
+            pCur += ret;
+            formedlen += ret;
+        }
+
+        ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "0x%02x ", pBuffer[i]);
+        pCur += ret;
+        formedlen += ret;
+    }
+    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "\n");
+    pCur += ret;
+    formedlen += ret;
+
+    if (formedlen > 0) {
+        fprintf(stderr, "%s",pLine);
+        pCur = pLine;
+        formedlen = 0;
+    }
+    fflush(stderr);
 
     delete [] pLine;
     pLine = NULL;

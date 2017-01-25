@@ -88,9 +88,11 @@ lsrunas.exe:$(OBJECTS)  $(TOPDIR)\extargslib\src\extargslib.lib $(TOPDIR)\winlib
 .cpp.obj:
 	$(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
 
-lsrunas.cpp:lsrunas.cpp.tmpl $(TOPDIR)\extargslib\coutput.py
-	$(QUIETCMD)$(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas.json -i $(CURDIR)\lsrunas.cpp.tmpl cmdstruct | \
-	 $(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas.json -i - -o $(CURDIR)\lsrunas.cpp freefunc
+lsrunas.cpp:args_options.cpp
+
+args_options.cpp:args_options.cpp.tmpl $(TOPDIR)\extargslib\coutput.py
+	$(QUIETCMD)$(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas.json -i $(CURDIR)\args_options.cpp.tmpl cmdstruct | \
+	 $(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas.json -i - -o $(CURDIR)\args_options.cpp freefunc
 
 $(TOPDIR)\extargslib\coutput.py:$(TOPDIR)\extargslib
 
@@ -116,4 +118,4 @@ clean_lib:
 clean:clean_lib
 	$(QUIETCMD) $(RM) *.exe *.obj 2>NUL
 	$(QUIETCMD) $(RM) *.pdb *.ilk 2>NUL
-	$(QUIETCMD) $(RM) lsrunas.cpp 2>NUL
+	$(QUIETCMD) $(RM) args_options.cpp 2>NUL

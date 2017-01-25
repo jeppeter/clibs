@@ -103,9 +103,7 @@ typedef struct __args_options {
 } args_options_t, *pargs_options_t;
 
 
-%EXTARGS_FREEFUNC%
-
-%EXTARGS_CMDSTRUCT%
+#include "args_options.cpp"
 
 #define SPLIT_ENV_CHAR     0x3
 #define SW_ERROR_CODE      0xffffUL
@@ -753,7 +751,38 @@ void debug_format(args_options_t* popt,const char* file,int lineno,const char* f
 	return;
 }
 
+void debug_buffer_format(args_options_t* popt,const char* file,int lineno,void* ptr,unsigned int size,const char* fmt,...)
+{
+	unsigned int i;
+	unsigned char* ptr8 = (unsigned char*) ptr;
+	if (popt->m_verbose == 0) {
+		return;
+	}
+	if (popt->m_verbose >= 3) {
+		fprintf(stderr, "[%s:%d] ",file,lineno);
+	}
+	fprintf(stderr, " %p size(0x%x:%d)", ptr8,size,size);
+	if (fmt != NULL) {
+		va_list ap;
+		va_start(ap,fmt);
+		vfprintf(stderr, fmt,ap);
+	}
+
+
+	if (popt->m_verbose >= 3) {
+		for (i=0;i<size;i++){
+			if ((i % 16) == 0) {
+				fprintf(stderr, "\n0x%08x",i);
+			}
+			fprintf(stderr, " 0x%2x",ptr8[i]);
+		}
+	}
+	fprintf(stderr, "\n");
+	return;
+}
+
 #define DEBUG_FORMAT(...)  debug_format(popt,__FILE__,__LINE__,__VA_ARGS__)
+#define DEBUG_FORMAT_BUFFER(ptr,size,...) debug_buffer_format(popt,__FILE__,__LINE__,ptr,size,__VA_ARGS__)
 
 int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate, args_options_t* popt)
 {
@@ -776,16 +805,16 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr=NULL;
 	pthread_attribute_t pattr=NULL;
 
-	DEBUG_FORMAT(" ");
 	if (popt->m_username) {
+		DEBUG_FORMAT("m_username %s",popt->m_username);
 		ret = AnsiToUnicode(popt->m_username, &pwusername, &usernamesize);
 		if (ret < 0) {
 			goto fail;
 		}
 	}
 
-	DEBUG_FORMAT(" ");
 	if (popt->m_password) {
+		DEBUG_FORMAT("m_password %s",popt->m_password);
 		ret = AnsiToUnicode(popt->m_password, &pwpassword, &passwordsize);
 		if (ret < 0) {
 			goto fail;
@@ -855,7 +884,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 		}
 	}
 
-	DEBUG_FORMAT("pcmdline [%s]",pcmdline);
+	DEBUG_FORMAT("pcmdline [%s] pwexename %p",pcmdline, pwexename);
 	ret = AnsiToUnicode(pcmdline, &pwcmdline, &wcmdlinesize);
 	if (ret < 0) {
 		goto fail;
@@ -1128,10 +1157,12 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 	memset(ppi, 0, sizeof(*ppi));
 
+	DEBUG_FORMAT("logonflags 0x%08x createflags 0x%08x",logonflags,createflags);
+	DEBUG_FORMAT_BUFFER(psiw,(unsigned int)siwsize,"startupinfo");
 
 	bret = CreateProcessWithLogonW(pwusername,
-	                               pwpassword,
 	                               pwdomain,
+	                               pwpassword,
 	                               logonflags,
 	                               pwexename,
 	                               pwcmdline,
@@ -1142,10 +1173,12 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	                               ppi);
 	if (!bret) {
 		GETERRNO(ret);
+		error_out("create error(%d)",ret);
 		goto fail;
 	}
 
 	pid =(int) ppi->dwProcessId;
+	DEBUG_FORMAT("proc id %d",pid);
 
 
 	if (pthreadattr) {
@@ -1267,22 +1300,21 @@ int _tmain(int argc, TCHAR* argv[])
 	int ret;
 	args_options_t argsoption;
 	pextargs_state_t pextstate = NULL;
+	
+	memset(&argsoption, 0, sizeof(argsoption));
 
-	fprintf(stderr, "argc %d\n", argc);
-	memset(&argsoption, 0, sizeof(&argsoption));
 	args = copy_args(argc, argv);
 	if (args == NULL) {
 		GETERRNO(ret);
 		error_out("can not get args %d", ret);
 		goto out;
 	}
-	fprintf(stderr, "will parse\n");
 	ret = EXTARGS_PARSE(argc, args, &argsoption, pextstate);
+	//ret = parse_param_smart(argc, args, st_main_cmds, &argsoption, &pextstate, NULL, NULL);
 	if (ret < 0) {
 		fprintf(stderr,"could not parse error(%d)",ret);
 		goto out;
 	}
-	fprintf(stderr, "parsed %d\n",argc);
 
 	ret = login_user_create_process(argc, args, pextstate, &argsoption);
 	if (ret < 0) {
