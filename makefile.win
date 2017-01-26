@@ -12,13 +12,13 @@ CSCRIPT_VERBOSE=//Nologo
 all:lsrunas\lsrunas.exe
 
 lsrunas\lsrunas.exe:extargslib
-	$(QUIETCMD)cd lsrunas && cscript.exe  $(CSCRIPT_VERBOSE) $(MAKEDIR)\runmake.vbs all && cd $(MAKEDIR)
+	$(QUIETCMD)cd lsrunas && cscript.exe  $(CSCRIPT_VERBOSE) $(MAKEDIR)\runmake.vbs makefile.win all && cd $(MAKEDIR)
 
 extargslib:check_git
-	$(QUIETCMD)git.exe clone https://github.com/jeppeter/extargslib.git extargslib
+	$(QUIETCMD) If not EXIST $@ (git.exe clone https://github.com/jeppeter/extargslib.git extargslib)
 
 check_git:
-	$(QUIETCMD)cscript.exe $(CSCRIPT_VERBOSE) $(MAKEDIR)\chkevn.vbs 
+	$(QUIETCMD)cscript.exe $(CSCRIPT_VERBOSE) $(MAKEDIR)\check_env.vbs git 1.8
 
 clean:
-	$(QUIETCMD)cd lsrunas && cscript.exe $(CSCRIPT_VERBOSE) $(MAKEDIR)\runmake.vbs clean && cd $(MAKEDIR)
+	$(QUIETCMD)cd lsrunas && cscript.exe $(CSCRIPT_VERBOSE) $(MAKEDIR)\runmake.vbs makefile.win clean && cd $(MAKEDIR)
