@@ -13,6 +13,12 @@
 #include <extargs.h>
 #include <Windows.h>
 
+#if defined(_WIN64)
+#define  _USE_UMS_MODE      1
+#else
+#undef   _USE_UMS_MODE
+#endif
+
 #ifndef STARTF_UNTRUSTEDSOURCE
 #define STARTF_UNTRUSTEDSOURCE  0x00008000
 #endif
@@ -97,7 +103,9 @@ typedef struct __args_options {
 	char* m_thrattrmitigationpolicy;
 	char* m_thrattrparentprocess;
 	char* m_thrattrpreferrednode;
+#if defined(_USE_UMS_MODE)
 	char* m_thrattrumsthread;
+#endif	
 	char* m_thrattrproctionlevel;
 	char* m_thrattrchildprocesspolicy;
 } args_options_t, *pargs_options_t;
@@ -162,7 +170,13 @@ void debug_buffer_format(args_options_t* popt, const char* file, int lineno, voi
 }
 
 
-#include "args_options.cpp"
+#if defined(_WIN64)
+#include "args_options64.cpp"
+#elif defined(_WIN32)
+#include "args_options32.cpp"
+#else
+#error "not defined _WIN32 or _WIN64"
+#endif
 
 #define SPLIT_ENV_CHAR     0x3
 #define SW_ERROR_CODE      0xffffUL
@@ -192,8 +206,10 @@ static show_window_t st_showcmd [] = {
 };
 
 typedef struct __thread_attribute {
+#if defined(_USE_UMS_MODE)	
 	PUMS_CONTEXT m_pumscontext;
 	PUMS_COMPLETION_LIST m_pumscompletion;
+#endif	
 	HANDLE m_hparentproc;
 } thread_attribute_t, *pthread_attribute_t;
 
@@ -228,6 +244,7 @@ void __dealloc_thread_attribute(pthread_attribute_t* ppattr)
 	int res;
 	if (ppattr && *ppattr) {
 		pattr = *ppattr;
+#if defined(_USE_UMS_MODE)		
 		if (pattr->m_pumscontext) {
 			bret = DeleteUmsThreadContext(pattr->m_pumscontext);
 			if (!bret) {
@@ -244,6 +261,7 @@ void __dealloc_thread_attribute(pthread_attribute_t* ppattr)
 			}
 		}
 		pattr->m_pumscompletion = NULL;
+#endif
 
 		if (pattr->m_hparentproc != INVALID_HANDLE_VALUE) {
 			bret = CloseHandle(pattr->m_hparentproc);
@@ -260,6 +278,7 @@ void __dealloc_thread_attribute(pthread_attribute_t* ppattr)
 	return ;
 }
 
+#if defined(_USE_UMS_MODE)
 int __update_ums(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* umscommand, pthread_attribute_t pattr)
 {
 	int ret = 0;
@@ -313,6 +332,7 @@ fail:
 	SETERRNO(-ret);
 	return ret;
 }
+#endif
 
 int __update_group_aff(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr, const char* grpaff, pthread_attribute_t pattr)
 {
@@ -336,7 +356,7 @@ int __update_group_aff(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST pthrea
 					GETERRNO(ret);
 					goto fail;
 				}
-				groupaff.Mask = num64;
+				groupaff.Mask = (KAFFINITY)num64;
 				setmask = 1;
 				pcurptr = pendptr;
 			} else if (strncmp(pcurptr, "group=", 6) == 0) {
@@ -356,7 +376,7 @@ int __update_group_aff(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST pthrea
 						GETERRNO(ret);
 						goto fail;
 					}
-					groupaff.Mask = num64;
+					groupaff.Mask = (KAFFINITY)num64;
 					setmask = 1;
 					pcurptr = pendptr;
 				} else if (setgroup == 0) {
@@ -711,7 +731,10 @@ int __update_thread_attribute(args_options_t *popt, LPPROC_THREAD_ATTRIBUTE_LIST
 	BOOL bret;
 	if (popt->m_thrattrgroupaff != NULL || popt->m_thrattridealprocess != NULL ||
 	        popt->m_thrattrmitigationpolicy != NULL || popt->m_thrattrparentprocess != NULL ||
-	        popt->m_thrattrpreferrednode != NULL || popt->m_thrattrumsthread != NULL ||
+	        popt->m_thrattrpreferrednode != NULL || 
+#if defined(_USE_UMS_MODE)
+	        popt->m_thrattrumsthread != NULL ||
+#endif
 	        popt->m_thrattrproctionlevel != NULL || popt->m_thrattrchildprocesspolicy != NULL) {
 		pattr = __alloc_thread_attribute();
 		if (pthreadattr == NULL) {
@@ -733,9 +756,11 @@ int __update_thread_attribute(args_options_t *popt, LPPROC_THREAD_ATTRIBUTE_LIST
 		if (popt->m_thrattrpreferrednode) {
 			maxattrs ++;
 		}
+#if defined(_USE_UMS_MODE)		
 		if (popt->m_thrattrumsthread) {
 			maxattrs ++;
 		}
+#endif
 		if (popt->m_thrattrproctionlevel) {
 			maxattrs ++;
 		}
@@ -761,11 +786,12 @@ int __update_thread_attribute(args_options_t *popt, LPPROC_THREAD_ATTRIBUTE_LIST
 			goto fail;
 		}
 
+#if defined(_USE_UMS_MODE)
 		ret = __update_ums(popt, pthreadattr, popt->m_thrattrumsthread, pattr);
 		if (ret < 0) {
 			goto fail;
 		}
-
+#endif
 		ret = __update_protection_level(popt, pthreadattr, popt->m_thrattrproctionlevel, pattr);
 		if (ret < 0) {
 			goto fail;
