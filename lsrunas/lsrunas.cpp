@@ -13,6 +13,8 @@
 #include <extargs.h>
 #include <Windows.h>
 
+#define  __LSRUNAS_VERSION__             "0.1.2"
+
 #if defined(_WIN64)
 #define  _USE_UMS_MODE      1
 #else
@@ -25,6 +27,7 @@
 
 typedef struct __args_options {
 	int m_verbose;
+	int m_version;
 	char* m_username;
 	char* m_password;
 	char* m_domainname;
@@ -851,6 +854,8 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	BOOL bret;
 	LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr = NULL;
 	pthread_attribute_t pattr = NULL;
+	argc = argc;
+	argv = argv;
 
 	if (popt->m_username) {
 		DEBUG_FORMAT("m_username %s", popt->m_username);
@@ -884,22 +889,27 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 		}
 	}
 
-	if (pextstate->idx < argc) {
-		ret = snprintf_safe(&pcmdline, &cmdlinesize, "\"%s\"", argv[pextstate->idx]);
-		if (ret < 0) {
-			goto fail;
-		}
-
-		i = pextstate->idx;
-		i ++;
-		while (i < argc) {
-			ret = append_snprintf_safe(&pcmdline, &cmdlinesize, " \"%s\"", argv[i]);
+	if (pextstate->leftargs != NULL) {
+		for (i=0;;i++) {
+			if (pextstate->leftargs[i] == NULL) {
+				break;
+			}
+			if (i == 0) {
+				ret = snprintf_safe(&pcmdline,&cmdlinesize,"\"%s\"",pextstate->leftargs[i]);
+			} else {
+				ret = append_snprintf_safe(&pcmdline,&cmdlinesize," \"%s\"",pextstate->leftargs[i]);
+			}
 			if (ret < 0) {
 				goto fail;
 			}
-			i ++;
 		}
-
+		/*if it is */
+		if (i == 0) {			
+			ret = snprintf_safe(&pcmdline, &cmdlinesize, "cmd.exe");
+			if (ret < 0) {
+				goto fail;
+			}
+		}
 	} else {
 		ret = snprintf_safe(&pcmdline, &cmdlinesize, "cmd.exe");
 		if (ret < 0) {
@@ -1434,6 +1444,12 @@ int _tmain(int argc, TCHAR* argv[])
 		goto out;
 	}
 
+	if (argsoption.m_version != 0) {
+		fprintf(stdout,"lsrunas version %s\n",__LSRUNAS_VERSION__);
+		ret = 0;
+		goto out;
+	}
+
 	ret = login_user_create_process(argc, args, pextstate, &argsoption);
 	if (ret < 0) {
 		goto out;
@@ -1444,5 +1460,6 @@ out:
 	free_args(&args);
 	free_extargs_state(&pextstate);
 	release_extargs_output(&argsoption);
+	extargs_deinit();
 	return ret;
 }

@@ -49,7 +49,7 @@ WINLIB_VALUE=0
 !ENDIF
 
 INC_CFLAGS = /I"$(TOPDIR)\extargslib\src" /I"$(TOPDIR)\winlib"
-COM_CFLAGS = /Wall /wd"4820" /wd"4668" /wd"4127" 
+COM_CFLAGS = /Wall /wd"4820" /wd"4668" /wd"4127" /wd"4510" /wd"4512" /wd"4610"
 REL_CFLAGS = 
 DBG_CFLAGS = /Zi /Od 
 

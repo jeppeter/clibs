@@ -1,5 +1,6 @@
 {
     "verbose|v<m_verbose>" : "+",
+    "version|V<m_version>" : false,
     "username|u<m_username>" : null,
     "password|p<m_password>" : null,
     "domain|d<m_domainname>" : null,
