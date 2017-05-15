@@ -169,8 +169,6 @@ int read_file_encoded(char* infile,char** ppoutbuf,int *bufsize)
 			goto fail;
 		}
 	}
-	DEBUG_BUFFER_FMT(preadbuf,filelen,"[%s] content",infile);
-
 
 
 	if (filelen > 2 && preadbuf[0] == 0xff && preadbuf[1] == 0xfe) {
@@ -179,14 +177,12 @@ int read_file_encoded(char* infile,char** ppoutbuf,int *bufsize)
 		curbuf = (char*)preadbuf;
 	}
 	pwbuf = (wchar_t*)curbuf;
-	DEBUG_BUFFER_FMT(curbuf,filelen,"filelen %d [0] 0x%02x [1] 0x%02x",filelen,preadbuf[0],preadbuf[1]);
 
 	ret = UnicodeToAnsi(pwbuf,&transbuf,&transsize);
 	if (ret < 0) {
 		goto fail;
 	}
 	retlen = ret;
-	DEBUG_BUFFER_FMT(transbuf,transsize,"trans ret %d",ret);
 
 	if (retlen > retsize || pretbuf == NULL) {
 		retsize = retlen;
@@ -199,7 +195,7 @@ int read_file_encoded(char* infile,char** ppoutbuf,int *bufsize)
 	}
 
 	if (retlen > 0) {
-		memcpy(preadbuf,transbuf,(size_t)retlen);
+		memcpy(pretbuf,transbuf,(size_t)retlen);
 	}
 
 	if (*ppoutbuf && *ppoutbuf != pretbuf) {
