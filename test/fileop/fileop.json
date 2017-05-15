@@ -1,0 +1,9 @@
+{
+    "verbose|v<m_verbose>" : "+",
+    "mktemp<mktemp_handler>" : {
+        "$" : "+"
+    },
+    "readencode<readencode_handler>" : {
+        "$" : "+"
+    }
+}

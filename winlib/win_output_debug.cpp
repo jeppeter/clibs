@@ -69,7 +69,7 @@ try_again:
     memset(pLine,0,alloclen);
     memset(pWhole,0,alloclen*2);
 
-    ret = _snprintf_s(pLine, alloclen, alloclen - 1, "%s:%d:time(0x%08x)\t", file, lineno, GetTickCount());
+    ret = _snprintf_s(pLine, alloclen, alloclen - 1, "%s:%d:time(0x%08x)\t", file, lineno, (unsigned int)GetTickCount());
     if (ret < 0 || ret >= (int)(alloclen - 1)) {
         alloclen <<= 1;
         goto try_again;
@@ -146,7 +146,7 @@ try_again:
     memset(pLine,0,alloclen);
     memset(pWhole,0,alloclen*2);
 
-    ret = _snprintf_s(pLine, alloclen, alloclen - 1, "%s:%d:time(0x%08x)\t", file, lineno, GetTickCount());
+    ret = _snprintf_s(pLine, alloclen, alloclen - 1, "%s:%d:time(0x%08x)\t", file, lineno, (unsigned int)GetTickCount());
     if (ret < 0 || ret >= (int)(alloclen - 1)) {
         alloclen <<= 1;
         goto try_again;
@@ -200,7 +200,7 @@ void DebugBufferFmt(const char* file, int lineno, unsigned char* pBuffer, int bu
     pCur = pLine;
     formedlen = 0;
 
-    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "[%s:%d:time(0x%08x)]\tbuffer %p (%d)", file, lineno, GetTickCount(), pBuffer, buflen);
+    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "[%s:%d:time(0x%08x)]\tbuffer %p (%d)", file, lineno,(unsigned int) GetTickCount(), pBuffer, buflen);
     pCur += ret;
     formedlen += ret;
 
@@ -259,7 +259,7 @@ void ConsoleBufferFmt(const char* file, int lineno, unsigned char* pBuffer, int 
     pCur = pLine;
     formedlen = 0;
 
-    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "[%s:%d:time(0x%08x)]\tbuffer %p (%d)", file, lineno, GetTickCount(), pBuffer, buflen);
+    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "[%s:%d:time(0x%08x)]\tbuffer %p (%d)", file, lineno,(unsigned int)GetTickCount(), pBuffer, buflen);
     pCur += ret;
     formedlen += ret;
 

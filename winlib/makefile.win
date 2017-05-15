@@ -39,7 +39,7 @@ UNICODE_CFLAGS=
 !ENDIF
 
 INC_CFLAGS = "/I$(MAKEDIR)"
-COM_CFLAGS =  /Wall /wd"4820" /wd"4668" /wd"4127"
+COM_CFLAGS =  /Wall /wd"4820" /wd"4668" /wd"4127" /wd"4710" /wd"4996"
 REL_CFLAGS = 
 DBG_CFLAGS = /Zi /Od 
 
@@ -50,7 +50,7 @@ CFLAGS  = $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(UNICODE_CFLAGS) $(INC_CFLAGS) 
 LDFLAGS = $(NOLOGO_LDFLAGS) $(REL_LDFLAGS)
 ARFLAGS = /NOLOGO /WX $(NOLOGO_ARFLAGS)
 
-LIB_SOURCE = win_output_debug.cpp win_uniansi.cpp win_args.cpp win_strop.cpp
+LIB_SOURCE = win_output_debug.cpp win_uniansi.cpp win_args.cpp win_strop.cpp win_fileop.cpp
 LIB_OBJECTS = $(LIB_SOURCE:.cpp=.obj)
 OBJECTS = $(LIB_OBJECTS)
 
