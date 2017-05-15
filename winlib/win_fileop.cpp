@@ -14,6 +14,8 @@ int mktempfile_safe(char* inputtemplate,char**ppoutput,int* bufsize)
 	int templen=0;
 	size_t sz=0;
 	errno_t err;
+	char* plastpart=NULL;
+	char* 
 
 	if (inputtemplate == NULL) {
 		if (ppoutput != NULL && *ppoutput != NULL) {
@@ -34,8 +36,15 @@ int mktempfile_safe(char* inputtemplate,char**ppoutput,int* bufsize)
 	}
 	retlen = *bufsize;
 	pretout = *ppoutput;
+	plastpart = strrchr(inputtemplate,'\\');
+	if (plastpart == NULL) {
+		plastpart = inputtemplate;
+	} else {
+		plastpart ++;
+	}
 
-	templen = (int)strlen(inputtemplate) + 1;
+
+	templen = (int)strlen(plastpart) + 1;
 	if (templen > (retlen-TEMP_XSIZE) || pretout == NULL){
 		retlen = templen+TEMP_XSIZE;
 		pretout = (char*)malloc((size_t)retlen);
