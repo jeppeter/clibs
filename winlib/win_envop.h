@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-
+WINLIB_API int get_env_variable(char* envvar,char** ppenvval,int* pvalsize);
 
 #ifdef __cplusplus
 };
