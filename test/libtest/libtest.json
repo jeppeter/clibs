@@ -5,5 +5,8 @@
     },
     "readencode<readencode_handler>" : {
         "$" : "+"
+    },
+    "pidargv<pidargv_handler>" : {
+        "$" : "+"
     }
 }

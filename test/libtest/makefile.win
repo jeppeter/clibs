@@ -63,23 +63,23 @@ LDFLAGS = $(NOLOGO_LDFLAGS) $(INC_LDFLAGS) $(REL_LDFLAGS)
 SOURCES=main.cpp
 OBJECTS=$(SOURCES:.cpp=.obj)
 
-all:fileop.exe
+all:libtest.exe
 
 !IFDEF STATICLIB
 !IF $(STATICLIB) != 0
-fileop.exe:$(OBJECTS) $(TOPDIR)\extargslib\src\extargslib.lib $(TOPDIR)\winlib\winlib.lib
+libtest.exe:$(OBJECTS) $(TOPDIR)\extargslib\src\extargslib.lib $(TOPDIR)\winlib\winlib.lib
 	$(QUIETCMD) echo "call static $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@  $(LDFLAGS)  $(OBJECTS)
 	$(QUIETCMD)echo "use static lib"
 !ELSE
-fileop.exe:$(OBJECTS)  extargslib.dll winlib.dll
+libtest.exe:$(OBJECTS)  extargslib.dll winlib.dll
 	$(QUIETCMD) echo "call dynamic $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
 	$(QUIETCMD)echo "use dynamic lib"
 !ENDIF	
 
 !ELSE
-fileop.exe:$(OBJECTS)  extargslib.dll winlib.dll
+libtest.exe:$(OBJECTS)  extargslib.dll winlib.dll
 	$(QUIETCMD) echo "call dynamic $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
 	$(QUIETCMD)echo "use dynamic lib"
@@ -91,9 +91,9 @@ fileop.exe:$(OBJECTS)  extargslib.dll winlib.dll
 
 main.cpp:args_options.cpp
 
-args_options.cpp:args_options.cpp.tmpl fileop.json $(TOPDIR)\extargslib\coutput.py
-	$(QUIETCMD)$(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\fileop.json -i $(CURDIR)\args_options.cpp.tmpl cmdstruct | \
-	 $(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\fileop.json -i - -o $(CURDIR)\args_options.cpp freefunc
+args_options.cpp:args_options.cpp.tmpl libtest.json $(TOPDIR)\extargslib\coutput.py
+	$(QUIETCMD)$(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\libtest.json -i $(CURDIR)\args_options.cpp.tmpl cmdstruct | \
+	 $(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\libtest.json -i - -o $(CURDIR)\args_options.cpp freefunc
 
 $(TOPDIR)\extargslib\coutput.py:$(TOPDIR)\extargslib
 

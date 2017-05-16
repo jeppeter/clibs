@@ -3,6 +3,7 @@
 #include <win_args.h>
 #include <extargs.h>
 #include <win_err.h>
+#include <win_proc.h>
 
 typedef struct __args_options {
 	int m_verbose;
@@ -10,6 +11,7 @@ typedef struct __args_options {
 
 int mktemp_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 int readencode_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
+int pidargv_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
 
@@ -60,6 +62,36 @@ int readencode_handler(int argc,char* argv[],pextargs_state_t parsestate, void* 
 out:
 	read_file_encoded(NULL,&templstr,&templsize);
 	return ret;
+}
+
+int pidargv_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt)
+{
+	char** ppargv=NULL;
+	int argvsize=0;
+	int pid=-1;
+	int ret = 0;
+	int totalret = 0;
+	int i,j;
+	argv = argv;
+	argc = argc;
+	popt = popt;
+	if (parsestate->leftargs != NULL) {
+		for (i=0;parsestate->leftargs[i]!= NULL;i++) {
+			pid = atoi(parsestate->leftargs[i]);
+			ret = get_pid_argv(pid,&ppargv,&argvsize);
+			if (ret < 0) {
+				fprintf(stderr, "can not get [%d] error[%d]\n",pid,ret);
+				totalret = ret;
+				continue;
+			}
+			for (j=0;j<ret;j++) {
+				fprintf(stdout, "[%d][%d]=[%s]\n",pid,j,ppargv[j]);
+			}
+		}
+	}
+out:
+	get_pid_argv(-1,&ppargv,&argvsize);
+	return totalret;
 }
 
 int main(int argc, char* argv[])

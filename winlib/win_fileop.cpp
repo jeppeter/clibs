@@ -3,8 +3,9 @@
 #include <win_output_debug.h>
 #include <io.h>
 #include <win_uniansi.h>
+#include <win_envop.h>
 
-#define TEMP_XSIZE      10
+#define TEMP_XSIZE      6
 
 int mktempfile_safe(char* inputtemplate,char**ppoutput,int* bufsize)
 {
@@ -15,7 +16,9 @@ int mktempfile_safe(char* inputtemplate,char**ppoutput,int* bufsize)
 	size_t sz=0;
 	errno_t err;
 	char* plastpart=NULL;
-	char* 
+	char* ptemppath=NULL;
+	int temppathlen = 0;
+	int i;
 
 	if (inputtemplate == NULL) {
 		if (ppoutput != NULL && *ppoutput != NULL) {
@@ -42,11 +45,18 @@ int mktempfile_safe(char* inputtemplate,char**ppoutput,int* bufsize)
 	} else {
 		plastpart ++;
 	}
-
-
+	ret = get_env_variable("TEMP",&ptemppath,&temppathlen);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("can not get TEMP env error[%d]",ret);
+		goto fail;
+	}
 	templen = (int)strlen(plastpart) + 1;
-	if (templen > (retlen-TEMP_XSIZE) || pretout == NULL){
-		retlen = templen+TEMP_XSIZE;
+	templen += (int)strlen(ptemppath);
+	templen += TEMP_XSIZE;
+
+	if (templen > retlen || pretout == NULL){
+		retlen = templen;
 		pretout = (char*)malloc((size_t)retlen);
 		if (pretout == NULL) {
 			GETERRNO(ret);
@@ -54,10 +64,13 @@ int mktempfile_safe(char* inputtemplate,char**ppoutput,int* bufsize)
 			goto fail;
 		}
 	}
-
-	sz =(size_t) ((templen > 0 ) ? (templen):0);
-	strncpy(pretout,inputtemplate,(size_t)sz);
-	strncat(pretout,"XXXXXX",(size_t)retlen);
+	memset(pretout,0,(size_t)retlen);
+	strncpy(pretout,ptemppath,(size_t)templen);
+	strncat(pretout,"\\",(size_t)templen);
+	strncat(pretout,plastpart,(size_t)templen);
+	for (i=0;i<TEMP_XSIZE;i++) {
+		strncat(pretout,"X",(size_t)templen);
+	}
 	sz = strlen(pretout) + 1;
 	err = _mktemp_s(pretout,sz);
 	if (err != 0) {
@@ -70,12 +83,14 @@ int mktempfile_safe(char* inputtemplate,char**ppoutput,int* bufsize)
 	}
 	*ppoutput = pretout;
 	*bufsize = templen;
+	get_env_variable(NULL,&ptemppath,&temppathlen);
 	return templen ;
 fail:
 	if (pretout && pretout != *ppoutput) {
 		free(pretout);
 	}
 	pretout = NULL;
+	get_env_variable(NULL,&ptemppath,&temppathlen);
 	SETERRNO(-ret);
 	return ret;
 }
@@ -242,5 +257,39 @@ fail:
 	}
 	pretbuf = NULL;
 	SETERRNO(-ret);
+	return ret;
+}
+
+int delete_file(const char* infile)
+{
+	int ret;
+	BOOL bret;
+	TCHAR* ptfile=NULL;
+	int tfilesize=0;
+
+	if (infile == NULL) {
+		ret =-ERROR_INVALID_PARAMETER;
+		SETERRNO(-ret);
+		return ret;
+	}
+
+	ret = AnsiToTchar(infile,&ptfile,&tfilesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	bret = DeleteFile(ptfile);
+	if (!bret) {
+		GETERRNO(ret);
+		ERROR_INFO("can not delete [%s] error[%d]",infile,ret);
+		goto fail;
+	}
+
+	AnsiToTchar(NULL,&ptfile,&tfilesize);
+	return 0;
+fail:
+	AnsiToTchar(NULL,&ptfile,&tfilesize);
+	SETERRNO(ret);
 	return ret;
 }

@@ -1,4 +1,5 @@
 #include <win_envop.h>
+#include <win_err.h>
 
 int get_env_variable(char* envvar,char** ppenvval,int* pvalsize)
 {
@@ -35,8 +36,8 @@ int get_env_variable(char* envvar,char** ppenvval,int* pvalsize)
 		goto fail;
 	}
 	slen = strlen(penv) + 1;
-	if (slen > retsize || pretval == NULL) {
-		retsize = slen;
+	if ((int)slen > retsize || pretval == NULL) {
+		retsize = (int)slen;
 		pretval = (char*)malloc((size_t)retsize);
 		if (pretval == NULL) {
 			GETERRNO(ret);
@@ -45,7 +46,7 @@ int get_env_variable(char* envvar,char** ppenvval,int* pvalsize)
 		}
 	}
 
-	strncpy(pretval,penv,retsize);
+	strncpy(pretval,penv,(size_t)retsize);
 
 	if (*ppenvval && *ppenvval != pretval) {
 		free(*ppenvval);
