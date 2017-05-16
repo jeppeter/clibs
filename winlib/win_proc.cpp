@@ -4,6 +4,7 @@
 #include <win_uniansi.h>
 
 #pragma comment(lib,"Shell32.lib")
+#pragma warning(disable:4996)
 
 #define pid_wmic_cmd_fmt "WMIC /OUTPUT:%s process where \"ProcessId=%d\" get CommandLine,ProcessId"
 

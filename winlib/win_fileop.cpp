@@ -7,6 +7,8 @@
 
 #define TEMP_XSIZE      6
 
+#pragma warning(disable:4996)
+
 int mktempfile_safe(char* inputtemplate,char**ppoutput,int* bufsize)
 {
 	int ret=0;

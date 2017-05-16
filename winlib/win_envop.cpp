@@ -1,6 +1,8 @@
 #include <win_envop.h>
 #include <win_err.h>
 
+#pragma warning(disable:4996)
+
 int get_env_variable(char* envvar,char** ppenvval,int* pvalsize)
 {
 	char* penv=NULL;
