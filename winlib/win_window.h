@@ -12,7 +12,10 @@
 extern "C" {
 #endif
 
-int get_window_handle(const char* typeclass,HWND *ppwnd[],int *pwinsize);
+typedef int (*win_enum_func_t)(HWND hwnd,void* param);
+
+WINLIB_API int get_win_handle(win_enum_func_t pcallback,void* param);
+WINLIB_API int get_window_handle(const char* typeclass,HWND *ppwnd[],int *pwinsize);
 
 #ifdef __cplusplus
 };
