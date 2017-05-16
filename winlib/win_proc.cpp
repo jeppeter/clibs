@@ -3,6 +3,8 @@
 #include <win_err.h>
 #include <win_uniansi.h>
 
+#pragma comment(lib,"Shell32.lib")
+
 #define pid_wmic_cmd_fmt "WMIC /OUTPUT:%s process where \"ProcessId=%d\" get CommandLine,ProcessId"
 
 int get_pid_argv(int pid,char*** pppargv,int *pargvsize)

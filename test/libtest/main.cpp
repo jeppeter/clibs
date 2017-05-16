@@ -4,14 +4,17 @@
 #include <extargs.h>
 #include <win_err.h>
 #include <win_proc.h>
+#include <win_window.h>
 
 typedef struct __args_options {
 	int m_verbose;
+	char* m_classname;
 }args_options_t,*pargs_options_t;
 
 int mktemp_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 int readencode_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 int pidargv_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
+int findwindow_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
 
@@ -89,9 +92,65 @@ int pidargv_handler(int argc,char* argv[],pextargs_state_t parsestate, void* pop
 			}
 		}
 	}
-out:
 	get_pid_argv(-1,&ppargv,&argvsize);
 	return totalret;
+}
+
+int findwindow_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt)
+{
+	int i,j;
+	int pid=-1;
+	int ret=0;
+	int totalret = 0;
+	HWND* pwnd=NULL;
+	pargs_options_t poption = (pargs_options_t) popt;
+	argv = argv;
+	argc = argc;
+	int wndsize=0;
+	if (parsestate->leftargs != NULL) {
+		for (i=0;parsestate->leftargs[i] != NULL;i++) {
+			pid = atoi(parsestate->leftargs[i]);
+			ret = get_win_handle_by_classname(poption->m_classname,pid,&pwnd,&wndsize);
+			if (ret < 0) {
+				GETERRNO(ret);
+				totalret = ret;
+				fprintf(stderr,"can not get [%d] class[%s] error[%d]\n",pid,poption->m_classname,ret);
+				continue;
+			}
+			fprintf(stdout,"get [%d] class [%s]:",pid,poption->m_classname);
+			for (j=0;j<ret;j++) {
+				if ((j%5) == 0) {
+					fprintf(stdout,"\n    ");
+				}
+				fprintf(stdout," 0x%p",pwnd[j]);				
+			}
+			fprintf(stdout, "\n");
+		}
+
+	} else {
+		ret = get_win_handle_by_classname(poption->m_classname,-1,&pwnd,&wndsize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			totalret = ret;
+			fprintf(stderr, "can not get [%s] on pid[%d] error[%d]\n",poption->m_classname,pid,ret);
+			goto out;
+		}
+		fprintf(stdout,"get class [%s]:",poption->m_classname);
+		for (j=0;j<ret;j++) {
+			if ((j%5) == 0) {
+				fprintf(stdout,"\n    ");
+			}
+			fprintf(stdout," 0x%p",pwnd[j]);
+		}
+		fprintf(stdout, "\n");
+
+	}
+
+	ret = totalret;
+out:
+	get_win_handle_by_classname(NULL,-1,&pwnd,&wndsize);
+	SETERRNO(-ret);
+	return ret;
 }
 
 int main(int argc, char* argv[])

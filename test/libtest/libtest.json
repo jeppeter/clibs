@@ -1,5 +1,6 @@
 {
     "verbose|v<m_verbose>" : "+",
+    "classname|c<m_classname>" : "",
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },
@@ -8,5 +9,8 @@
     },
     "pidargv<pidargv_handler>" : {
         "$" : "+"
+    },
+    "findwindow<findwindow_handler>" : {
+        "$" : "*"
     }
 }
