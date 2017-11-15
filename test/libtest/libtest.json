@@ -12,5 +12,8 @@
     },
     "findwindow<findwindow_handler>" : {
         "$" : "*"
+    },
+    "fullpath<fullpath_handler>" : {
+        "$" : "+"
     }
 }

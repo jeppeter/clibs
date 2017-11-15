@@ -15,6 +15,7 @@ int mktemp_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt
 int readencode_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 int pidargv_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 int findwindow_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
+int fullpath_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
 
@@ -149,6 +150,33 @@ int findwindow_handler(int argc,char* argv[],pextargs_state_t parsestate, void* 
 	ret = totalret;
 out:
 	get_win_handle_by_classname(NULL,-1,&pwnd,&wndsize);
+	SETERRNO(-ret);
+	return ret;
+}
+
+int fullpath_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt)
+{
+	int ret;
+	char* pfullpath=NULL;
+	int fullsize=0;
+	int i;
+	argv = argv;
+	argc = argc;
+	popt = popt;
+	if (parsestate->leftargs != NULL) {
+		for (i=0;parsestate->leftargs[i] != NULL; i ++) {
+			ret = get_full_path(parsestate->leftargs[i],&pfullpath,&fullsize);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto out;
+			}
+			fprintf(stdout,"[%d][%s] => [%s]\n",i,parsestate->leftargs[i],pfullpath);
+		}
+	}
+
+	ret = 0;
+out:
+	get_full_path(NULL,&pfullpath,&fullsize);	
 	SETERRNO(-ret);
 	return ret;
 }

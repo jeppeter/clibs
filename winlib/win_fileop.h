@@ -13,7 +13,7 @@ extern "C" {
 WINLIB_API int mktempfile_safe(char* inputtemplate,char**ppoutput,int* bufsize);
 WINLIB_API int read_file_encoded(char* infile,char** ppoutbuf,int *bufsize);
 WINLIB_API int delete_file(const char* infile);
-
+WINLIB_API int get_full_path(char* pinfile, char** ppfullpath, int *pfullsize);
 
 #ifdef __cplusplus
 };

@@ -4,7 +4,15 @@
 #include <windows.h>
 #include <win_output_debug.h>
 
-#define SETERRNO(ret) do{SetLastError((DWORD)(ret));}while(0)
+#define SETERRNO(ret)         \
+	do{ \
+		int ___ret = (ret); \
+		if (___ret > 0) { \
+			SetLastError((DWORD)___ret);\
+		} else { \
+			SetLastError((DWORD)-___ret);\
+		}\
+	}while(0)
 #define GETERRNO(__ret) \
 	do{\
 		 __ret = (int)GetLastError();\
