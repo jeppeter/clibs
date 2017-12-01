@@ -2,7 +2,7 @@
 #include <win_output_debug.h>
 #include <stdio.h>
 
-
+static int st_output_loglvl = LOG_DEFAULT;
 
 void InnerDebug(char* pFmtStr)
 {
@@ -33,7 +33,7 @@ void InnerDebug(char* pFmtStr)
     return ;
 }
 
-void DebugOutString(const char* file, int lineno, const char* fmt, ...)
+void DebugOutString(int loglvl,const char* file, int lineno, const char* fmt, ...)
 {
     char* pFmt = NULL;
     char* pLine = NULL;
@@ -41,6 +41,11 @@ void DebugOutString(const char* file, int lineno, const char* fmt, ...)
     va_list ap;
     size_t alloclen = 1024;
     int ret;
+
+    if (loglvl > st_output_loglvl) {
+        /*nothing to output*/
+        return;
+    }
 
 try_again:
     if (pFmt) {
@@ -110,7 +115,7 @@ out:
     return ;
 }
 
-void ConsoleOutString(const char* file, int lineno, const char* fmt, ...)
+void ConsoleOutString(int loglvl,const char* file, int lineno, const char* fmt, ...)
 {
     char* pFmt = NULL;
     char* pLine = NULL;
@@ -118,6 +123,10 @@ void ConsoleOutString(const char* file, int lineno, const char* fmt, ...)
     va_list ap;
     size_t alloclen = 1024;
     int ret;
+
+    if (loglvl > st_output_loglvl) {
+        return;
+    }
 
 try_again:
     if (pFmt) {
@@ -189,13 +198,18 @@ out:
 }
 
 
-void DebugBufferFmt(const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
+void DebugBufferFmt(int loglvl,const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
 {
     size_t fmtlen = 2000;
     char*pLine = NULL, *pCur;
     int formedlen;
     int ret;
     int i;
+
+    if (loglvl > st_output_loglvl) {
+        return;
+    }
+
     pLine = new char[fmtlen];
     pCur = pLine;
     formedlen = 0;
@@ -248,13 +262,17 @@ void DebugBufferFmt(const char* file, int lineno, unsigned char* pBuffer, int bu
 }
 
 
-void ConsoleBufferFmt(const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
+void ConsoleBufferFmt(int loglvl,const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
 {
     size_t fmtlen = 2000;
     char*pLine = NULL, *pCur;
     int formedlen;
     int ret;
     int i;
+    if (loglvl > st_output_loglvl) {
+        return;
+    }
+
     pLine = new char[fmtlen];
     pCur = pLine;
     formedlen = 0;
@@ -315,4 +333,15 @@ int error_out(const char* fmt, ...)
     ret += vfprintf(stderr, fmt, ap);
     ret += fprintf(stderr, "\n");
     return ret;
+}
+
+int InitOutput(int loglvl)
+{
+    st_output_loglvl = loglvl;
+    return 0;
+}
+
+void FiniOutput(void)
+{
+    return;
 }

@@ -5,11 +5,13 @@
 #define WINVER 0x600
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <Windows.h>
 #include <win_err.h>
 #include <win_args.h>
-#include <strop.h>
+#include <win_strop.h>
 #include <win_uniansi.h>
+#include <win_output_debug.h>
 #include <extargs.h>
 #include <Windows.h>
 
@@ -113,8 +115,6 @@ typedef struct __args_options {
 	char* m_thrattrchildprocesspolicy;
 } args_options_t, *pargs_options_t;
 
-#define DEBUG_FORMAT(...)  debug_format(popt,__FILE__,__LINE__,__VA_ARGS__)
-#define DEBUG_FORMAT_BUFFER(ptr,size,...) debug_buffer_format(popt,__FILE__,__LINE__,ptr,size,__VA_ARGS__)
 #define DEBUG_START(...)   \
 	do{\
 		if (popt->m_verbose >= 3) {\
@@ -127,50 +127,7 @@ typedef struct __args_options {
 #define DEBUG_STRAIGHT(...) do{if (popt->m_verbose >= 1) {fprintf(stderr, __VA_ARGS__);}}while(0)
 #define DEBUG_END()  do{if (popt->m_verbose >= 1) {fprintf(stderr, "\n"); fflush(stderr);}} while(0)
 
-void debug_format(args_options_t* popt, const char* file, int lineno, const char* fmt, ...)
-{
-	if (popt->m_verbose >= 3) {
-		fprintf(stderr, "[%s:%d] ", file, lineno);
-	}
 
-	if (popt->m_verbose >= 1) {
-		va_list ap;
-		va_start(ap, fmt);
-		vfprintf(stderr, fmt, ap);
-		fprintf(stderr, "\n");
-	}
-	return;
-}
-
-void debug_buffer_format(args_options_t* popt, const char* file, int lineno, void* ptr, unsigned int size, const char* fmt, ...)
-{
-	unsigned int i;
-	unsigned char* ptr8 = (unsigned char*) ptr;
-	if (popt->m_verbose == 0) {
-		return;
-	}
-	if (popt->m_verbose >= 3) {
-		fprintf(stderr, "[%s:%d] ", file, lineno);
-	}
-	fprintf(stderr, "ptr(%p) size(0x%x:%d)", ptr8, size, size);
-	if (fmt != NULL) {
-		va_list ap;
-		va_start(ap, fmt);
-		vfprintf(stderr, fmt, ap);
-	}
-
-
-	if (popt->m_verbose >= 3) {
-		for (i = 0; i < size; i++) {
-			if ((i % 16) == 0) {
-				fprintf(stderr, "\n0x%08x", i);
-			}
-			fprintf(stderr, " 0x%2x", ptr8[i]);
-		}
-	}
-	fprintf(stderr, "\n");
-	return;
-}
 
 
 #if defined(_WIN64)
@@ -309,7 +266,7 @@ int __update_ums(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr,
 				goto fail;
 			}
 
-			DEBUG_FORMAT("umscontext %p usmcompletion %p", pattr->m_pumscontext, pattr->m_pumscompletion);
+			DEBUG_INFO("umscontext %p usmcompletion %p", pattr->m_pumscontext, pattr->m_pumscompletion);
 
 			memset(&umsattr, 0, sizeof(umsattr));
 			umsattr.UmsVersion = UMS_VERSION;
@@ -347,6 +304,9 @@ int __update_group_aff(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST pthrea
 	int setgroup = 0;
 	char* pendptr;
 	uint64_t num64;
+	if (popt != NULL) {
+		popt = popt;	
+	}	
 	if (grpaff != NULL) {
 		pattr = pattr;
 		memset(&groupaff, 0, sizeof(groupaff));
@@ -407,7 +367,7 @@ int __update_group_aff(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST pthrea
 			}
 		}
 
-		DEBUG_FORMAT("(%s) Group %d Mask %d", grpaff, groupaff.Group, groupaff.Mask);
+		DEBUG_INFO("(%s) Group %d Mask %d", grpaff, groupaff.Group, groupaff.Mask);
 		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_GROUP_AFFINITY, &groupaff, sizeof(groupaff), NULL, NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -432,6 +392,9 @@ int __update_ideal_process(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST pt
 	uint64_t num64;
 	int setgroup = 0;
 	int setnumber = 0;
+	if (popt != NULL) {
+		popt = popt;
+	}
 	if (idealprocess != NULL) {
 		pattr = pattr;
 		pcurptr = (char*)idealprocess;
@@ -498,7 +461,7 @@ int __update_ideal_process(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST pt
 				pcurptr ++;
 			}
 		}
-		DEBUG_FORMAT("(%s) Group %d Number %d", idealprocess, procnumber.Group, procnumber.Number);
+		DEBUG_INFO("(%s) Group %d Number %d", idealprocess, procnumber.Group, procnumber.Number);
 		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_IDEAL_PROCESSOR, &procnumber, sizeof(procnumber), NULL, NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -587,6 +550,10 @@ int __update_mitigation_policy(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIS
 	DWORD64 policy = 0, dret64;
 	BOOL bret;
 
+	if (popt != NULL) {
+		popt = popt;
+	}
+
 	if (mitigationpolicy != NULL) {
 		pattr = pattr;
 		pcurptr = (char*)mitigationpolicy;
@@ -607,7 +574,7 @@ int __update_mitigation_policy(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIS
 			}
 		}
 
-		DEBUG_FORMAT("(%s) policy 0x%llx", mitigationpolicy, policy);
+		DEBUG_INFO("(%s) policy 0x%llx", mitigationpolicy, policy);
 		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY, &policy, sizeof(policy), NULL, NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -630,6 +597,10 @@ int __update_parent_process(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST p
 	char* pendptr;
 	BOOL bret;
 
+	if (popt != NULL) {
+		popt = popt;
+	}
+
 	if (parentproc != NULL) {
 		if (pattr == NULL || pattr->m_hparentproc != INVALID_HANDLE_VALUE) {
 			ret = -ERROR_INVALID_PARAMETER;
@@ -648,7 +619,7 @@ int __update_parent_process(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST p
 			error_out("can not open(%lld) error(%d)", num64, ret);
 			goto fail;
 		}
-		DEBUG_FORMAT("(%s) %lld", parentproc, num64);
+		DEBUG_INFO("(%s) %lld", parentproc, num64);
 		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, &(pattr->m_hparentproc), sizeof(pattr->m_hparentproc), NULL, NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -670,6 +641,10 @@ int __update_prefer_node(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST pthr
 	uint64_t num64;
 	DWORD dret;
 	BOOL bret;
+	if (popt != NULL) {
+		popt = popt;
+	}
+
 	if (prefernode != NULL) {
 		pattr = pattr;
 		ret = parse_number((char*)prefernode, &num64, &pendptr);
@@ -680,7 +655,7 @@ int __update_prefer_node(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST pthr
 		}
 
 		dret = (DWORD)num64;
-		DEBUG_FORMAT("(%s) prefernode %d", prefernode, dret);
+		DEBUG_INFO("(%s) prefernode %d", prefernode, dret);
 		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_PREFERRED_NODE , &dret, sizeof(dret), NULL, NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -700,6 +675,10 @@ int __update_protection_level(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST
 	int ret = 0;
 	DWORD dret;
 	BOOL bret;
+	if (popt != NULL) {
+		popt = popt;
+	}
+
 	if (protectionlevel != NULL) {
 		pattr = pattr;
 		if (strcmp(protectionlevel, "same") == 0) {
@@ -709,7 +688,7 @@ int __update_protection_level(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST
 			error_out("(%s) not valid protection level", protectionlevel);
 			goto fail;
 		}
-		DEBUG_FORMAT("(%s) protectionlevel %ld", protectionlevel, dret);
+		DEBUG_INFO("(%s) protectionlevel %ld", protectionlevel, dret);
 		bret = UpdateProcThreadAttribute(pthreadattr, 0, PROC_THREAD_ATTRIBUTE_PROTECTION_LEVEL, &dret, sizeof(dret), NULL, NULL);
 		if (!bret) {
 			GETERRNO(ret);
@@ -858,7 +837,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	argv = argv;
 
 	if (popt->m_username) {
-		DEBUG_FORMAT("m_username %s", popt->m_username);
+		DEBUG_INFO("m_username %s", popt->m_username);
 		ret = AnsiToUnicode(popt->m_username, &pwusername, &usernamesize);
 		if (ret < 0) {
 			goto fail;
@@ -866,7 +845,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_password) {
-		DEBUG_FORMAT("m_password %s", popt->m_password);
+		DEBUG_INFO("m_password %s", popt->m_password);
 		ret = AnsiToUnicode(popt->m_password, &pwpassword, &passwordsize);
 		if (ret < 0) {
 			goto fail;
@@ -874,7 +853,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_domainname) {
-		DEBUG_FORMAT("m_domainname %s", popt->m_domainname);
+		DEBUG_INFO("m_domainname %s", popt->m_domainname);
 		ret = AnsiToUnicode(popt->m_domainname, &pwdomain, &domainsize);
 		if (ret < 0) {
 			goto fail;
@@ -882,7 +861,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_curdir) {
-		DEBUG_FORMAT("m_curdir %s", popt->m_curdir);
+		DEBUG_INFO("m_curdir %s", popt->m_curdir);
 		ret = AnsiToUnicode(popt->m_curdir, &pwcurdir, &curdirsize);
 		if (ret < 0) {
 			goto fail;
@@ -931,7 +910,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 		if (ret < 0) {
 			goto fail;
 		}
-		DEBUG_FORMAT_BUFFER(penvs, (unsigned int)(strlen(penvs) + 1), "penvs [%s]", penvs);
+		DEBUG_BUFFER_FMT(penvs, (int)(strlen(penvs) + 1), "penvs [%s]", penvs);
 
 		ret = AnsiToUnicode(penvs, &pwenvs, &wenvsize);
 		if (ret < 0) {
@@ -944,47 +923,47 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 		}
 	}
 
-	DEBUG_FORMAT("pcmdline [%s]", pcmdline);
+	DEBUG_INFO("pcmdline [%s]", pcmdline);
 	ret = AnsiToUnicode(pcmdline, &pwcmdline, &wcmdlinesize);
 	if (ret < 0) {
 		goto fail;
 	}
 
 	if (popt->m_withprofile) {
-		DEBUG_FORMAT("m_withprofile");
+		DEBUG_INFO("m_withprofile");
 		logonflags |= LOGON_WITH_PROFILE;
 	}
 
 	if (popt->m_netcredential) {
-		DEBUG_FORMAT("m_netcredential");
+		DEBUG_INFO("m_netcredential");
 		logonflags |= LOGON_NETCREDENTIALS_ONLY;
 	}
 
 	if (popt->m_createdefaulterrormode) {
-		DEBUG_FORMAT("m_createdefaulterrormode");
+		DEBUG_INFO("m_createdefaulterrormode");
 		createflags  |= CREATE_DEFAULT_ERROR_MODE;
 	}
 	if (popt->m_createnewconsole) {
-		DEBUG_FORMAT("m_createnewconsole");
+		DEBUG_INFO("m_createnewconsole");
 		createflags |= CREATE_NEW_CONSOLE;
 	}
 	if (popt->m_createnewprocessgroup) {
-		DEBUG_FORMAT("m_createnewprocessgroup");
+		DEBUG_INFO("m_createnewprocessgroup");
 		createflags |= CREATE_NEW_PROCESS_GROUP;
 	}
 
 	if (popt->m_createseperatewowvdm) {
-		DEBUG_FORMAT("m_createseperatewowvdm");
+		DEBUG_INFO("m_createseperatewowvdm");
 		createflags |= CREATE_SEPARATE_WOW_VDM;
 	}
 
 	if (popt->m_createsuspended) {
-		DEBUG_FORMAT("m_createsuspended");
+		DEBUG_INFO("m_createsuspended");
 		createflags |= CREATE_SUSPENDED;
 	}
 
 	if (popt->m_createunicodeenvironment) {
-		DEBUG_FORMAT("m_createunicodeenvironment");
+		DEBUG_INFO("m_createunicodeenvironment");
 		createflags |= CREATE_UNICODE_ENVIRONMENT;
 	}
 	ret = __update_thread_attribute(popt, &pthreadattr, &pattr);
@@ -992,7 +971,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 		goto fail;
 	} else if (ret > 0) {
 		siwsize = sizeof(STARTUPINFOEXW);
-		DEBUG_FORMAT("extended startupinfo");
+		DEBUG_INFO("extended startupinfo");
 		createflags |= EXTENDED_STARTUPINFO_PRESENT;
 	} else {
 		siwsize = sizeof(STARTUPINFOW);
@@ -1030,7 +1009,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 
 	if (popt->m_desktopname) {
 		i = 0;
-		DEBUG_FORMAT("desktop %s", popt->m_desktopname);
+		DEBUG_INFO("desktop %s", popt->m_desktopname);
 		ret = AnsiToUnicode(popt->m_desktopname, &(psiw->lpDesktop), &i);
 		if (ret < 0) {
 			goto fail;
@@ -1039,7 +1018,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 
 	if (popt->m_title) {
 		i = 0;
-		DEBUG_FORMAT("title %s", popt->m_title);
+		DEBUG_INFO("title %s", popt->m_title);
 		ret = AnsiToUnicode(popt->m_title, &(psiw->lpTitle), &i);
 		if (ret < 0) {
 			goto fail;
@@ -1047,7 +1026,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_stdinfile != NULL  && psiw->hStdInput == INVALID_HANDLE_VALUE) {
-		DEBUG_FORMAT("m_stdinfile [%s]", popt->m_stdinfile);
+		DEBUG_INFO("m_stdinfile [%s]", popt->m_stdinfile);
 		ret = AnsiToUnicode(popt->m_stdinfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -1063,7 +1042,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_appendstdoutfile != NULL) {
-		DEBUG_FORMAT("m_appendstderrfile [%s]", popt->m_appendstdoutfile);
+		DEBUG_INFO("m_appendstderrfile [%s]", popt->m_appendstdoutfile);
 		ret =  AnsiToUnicode(popt->m_appendstdoutfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -1081,7 +1060,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_stdouutfile != NULL && psiw->hStdOutput == INVALID_HANDLE_VALUE) {
-		DEBUG_FORMAT("m_stdouutfile [%s]", popt->m_stdouutfile);
+		DEBUG_INFO("m_stdouutfile [%s]", popt->m_stdouutfile);
 		ret = AnsiToUnicode(popt->m_stdouutfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -1099,7 +1078,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_appendstderrfile != NULL) {
-		DEBUG_FORMAT("m_appendstderrfile [%s]", popt->m_appendstderrfile);
+		DEBUG_INFO("m_appendstderrfile [%s]", popt->m_appendstderrfile);
 		ret = AnsiToUnicode(popt->m_appendstderrfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -1115,7 +1094,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_stderrfile != NULL && psiw->hStdError == INVALID_HANDLE_VALUE) {
-		DEBUG_FORMAT("m_stderrfile [%s]", popt->m_stderrfile);
+		DEBUG_INFO("m_stderrfile [%s]", popt->m_stderrfile);
 		ret = AnsiToUnicode(popt->m_stderrfile, &pwfname, &wfnamesize);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -1134,43 +1113,43 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_siforceonfeedback) {
-		DEBUG_FORMAT("m_siforceonfeedback");
+		DEBUG_INFO("m_siforceonfeedback");
 		psiw->dwFlags |= STARTF_FORCEONFEEDBACK;
 	}
 
 	if (popt->m_siforceofffeedback) {
-		DEBUG_FORMAT("m_siforceofffeedback");
+		DEBUG_INFO("m_siforceofffeedback");
 		psiw->dwFlags |= STARTF_FORCEOFFFEEDBACK;
 	}
 
 	if (popt->m_sipreventpinning) {
-		DEBUG_FORMAT("m_sipreventpinning");
+		DEBUG_INFO("m_sipreventpinning");
 		psiw->dwFlags |= STARTF_PREVENTPINNING;
 	}
 
 	if (popt->m_sirunfullscreen) {
-		DEBUG_FORMAT("m_sirunfullscreen");
+		DEBUG_INFO("m_sirunfullscreen");
 		psiw->dwFlags |= STARTF_RUNFULLSCREEN;
 	}
 
 	if (popt->m_sititleisappid) {
-		DEBUG_FORMAT("m_sititleisappid");
+		DEBUG_INFO("m_sititleisappid");
 		psiw->dwFlags |= STARTF_TITLEISAPPID;
 	}
 
 	if (popt->m_sititleisalinkname) {
-		DEBUG_FORMAT("m_sititleisalinkname");
+		DEBUG_INFO("m_sititleisalinkname");
 		psiw->dwFlags |= STARTF_TITLEISLINKNAME;
 	}
 
 	if (popt->m_siuntrustedsource) {
-		DEBUG_FORMAT("m_siuntrustedsource");
+		DEBUG_INFO("m_siuntrustedsource");
 		psiw->dwFlags |= STARTF_UNTRUSTEDSOURCE;
 	}
 
 	if (popt->m_xcountchars != 0 ||
 	        popt->m_ycountchars != 0) {
-		DEBUG_FORMAT("m_xcountchars [%d] m_ycountchars [%d]",
+		DEBUG_INFO("m_xcountchars [%d] m_ycountchars [%d]",
 		             popt->m_xcountchars, popt->m_ycountchars);
 		psiw->dwFlags |= STARTF_USECOUNTCHARS;
 		psiw->dwXCountChars = (DWORD)popt->m_xcountchars;
@@ -1249,12 +1228,12 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_siusehotkey) {
-		DEBUG_FORMAT("m_siusehotkey");
+		DEBUG_INFO("m_siusehotkey");
 		psiw->dwFlags |= STARTF_USEHOTKEY;
 	}
 
 	if (popt->m_xpos != 0 || popt->m_ypos != 0) {
-		DEBUG_FORMAT("m_xpos [%d] m_ypos [%d]",popt->m_xpos,popt->m_ypos);
+		DEBUG_INFO("m_xpos [%d] m_ypos [%d]",popt->m_xpos,popt->m_ypos);
 		psiw->dwFlags |= STARTF_USEPOSITION;
 		psiw->dwX = (DWORD)popt->m_xpos;
 		psiw->dwY = (DWORD)popt->m_ypos;
@@ -1263,7 +1242,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	if (popt->m_xwindowcmd != NULL) {
 		psiw->dwFlags |= STARTF_USESHOWWINDOW;
 		psiw->wShowWindow = get_show_window(popt->m_xwindowcmd);
-		DEBUG_FORMAT("(%s) 0x%lx",popt->m_xwindowcmd,psiw->wShowWindow);
+		DEBUG_INFO("(%s) 0x%lx",popt->m_xwindowcmd,psiw->wShowWindow);
 		if (psiw->wShowWindow == SW_ERROR_CODE) {
 			ret = -ERROR_INVALID_PARAMETER;
 			error_out("(%s) not valid show window", popt->m_xwindowcmd);
@@ -1272,7 +1251,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 
 	if (popt->m_xsize != 0 || popt->m_ysize != 0) {
-		DEBUG_FORMAT("m_xsize [%d] m_ysize [%d]",popt->m_xsize,popt->m_ysize);
+		DEBUG_INFO("m_xsize [%d] m_ysize [%d]",popt->m_xsize,popt->m_ysize);
 		psiw->dwFlags |= STARTF_USESIZE;
 		psiw->dwXSize = (DWORD)popt->m_xsize;
 		psiw->dwYSize = (DWORD)popt->m_ysize;
@@ -1287,8 +1266,8 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 	memset(ppi, 0, sizeof(*ppi));
 
-	DEBUG_FORMAT("logonflags 0x%08x createflags 0x%08x", logonflags, createflags);
-	DEBUG_FORMAT_BUFFER(psiw, (unsigned int)siwsize, "startupinfo");
+	DEBUG_INFO("logonflags 0x%08x createflags 0x%08x", logonflags, createflags);
+	DEBUG_BUFFER_FMT(psiw, (int)siwsize, "startupinfo");
 
 	bret = CreateProcessWithLogonW(pwusername,
 	                               pwdomain,
@@ -1426,6 +1405,7 @@ int _tmain(int argc, TCHAR* argv[])
 {
 	char** args = NULL;
 	int ret;
+	int loglvl = LOG_ERROR;
 	args_options_t argsoption;
 	pextargs_state_t pextstate = NULL;
 
@@ -1450,6 +1430,25 @@ int _tmain(int argc, TCHAR* argv[])
 		goto out;
 	}
 
+	if (argsoption.m_verbose <= 0) {
+		loglvl = LOG_ERROR;
+	} else if (argsoption.m_verbose == 1) {
+		loglvl = LOG_WARN;
+	} else if (argsoption.m_verbose == 2) {
+		loglvl = LOG_INFO;
+	} else if (argsoption.m_verbose == 3) {
+		loglvl = LOG_DEBUG;
+	} else if (argsoption.m_verbose >= 4) {
+		loglvl = LOG_TRACE;
+	}
+
+	ret = INIT_LOG(loglvl);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+
 	ret = login_user_create_process(argc, args, pextstate, &argsoption);
 	if (ret < 0) {
 		goto out;
@@ -1461,5 +1460,6 @@ out:
 	free_extargs_state(&pextstate);
 	release_extargs_output(&argsoption);
 	extargs_deinit();
+	FINI_LOG();
 	return ret;
 }
