@@ -4,13 +4,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifndef __UX_INNER_DEFINE__
-#define __UX_INNER_DEFINE__
+#ifndef __UX_INNER_DEFINED__
+#define __UX_INNER_DEFINED__
 #endif
 
 #include <ux_inner.h>
 
-#undef  __UX_INNER_DEFINE__
+#undef  __UX_INNER_DEFINED__
 
 
 #define  BASE_LOG_FATAL        0

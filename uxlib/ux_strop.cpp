@@ -1,8 +1,11 @@
 
 #include <ux_strop.h>
+#include <ux_err.h>
+
+#include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include <ux_err.h>
+#include <string.h>
 
 int find_endof_inbuf(void* pbuf, int bufsize)
 {
@@ -252,7 +255,6 @@ bool str_match_wildcard(const char* regpat,const char* str)
     char* pcopypat=NULL;
     char* pcopystr=NULL;
     size_t patlen,slen;
-    int ret;
     addr_t curpatlen;
     char* pmatchstr=NULL;
 
@@ -264,14 +266,12 @@ bool str_match_wildcard(const char* regpat,const char* str)
     patlen = strlen(regpat) + 1;
     pcopypat = (char*)malloc(patlen);
     if (pcopypat == NULL){
-        GETERRNO(ret);
         goto out;
     }
 
     slen = strlen(str) + 1;
     pcopystr = (char*)malloc(slen);
     if (pcopystr == NULL){
-        GETERRNO(ret);
         goto out;
     }
     memcpy(pcopypat,regpat,patlen);

@@ -1,7 +1,12 @@
 #include <ux_output_debug.h>
 #include <ux_err.h>
 #include <ux_strop.h>
+
+
 #include <syslog.h>
+#include <string.h>
+#include <time.h>
+#include <ctype.h>
 
 static int st_output_loglvl = BASE_LOG_DEFAULT;
 static int st_output_opened = 0;
@@ -61,7 +66,7 @@ static int __syslog_output(int level, char* outstr)
     }
     
 
-    syslog(priority, "%s", outstr);
+    syslog(priority, "%s\n", outstr);
     return outlen;
 }
 
@@ -69,7 +74,7 @@ static int __stderr_output(int level, char* outstr)
 {
 	int outlen = 0;
     level = level;
-    fprintf(stderr, "%s", outstr);
+    fprintf(stderr, "%s\n", outstr);
     fflush(stderr);
     if (outstr != NULL) {
     	outlen = strlen(outstr);
@@ -91,7 +96,7 @@ static int __output_format_buffer_v(char** ppbuf, int *pbufsize, int level, cons
         return ret;
     }
 
-    if (fmt == NULL) {
+    if (fmt == NULL) {    	
         if (*ppbuf) {
             free(*ppbuf);
         }
@@ -153,7 +158,7 @@ static int __output_format_buffer_v(char** ppbuf, int *pbufsize, int level, cons
     retlen = ret;
     return retlen;
 fail:
-    snprintf_safe(ppbuf, pbufsize);
+    snprintf_safe(ppbuf, pbufsize,NULL);
     SETERRNO(ret);
     return ret;
 }
@@ -161,7 +166,9 @@ fail:
 static int __output_format_buffer(char** ppbuf, int *pbufsize, int level, const char* file, int lineno, const char* fmt, ...)
 {
     va_list ap;
-    va_start(ap, fmt);
+    if (fmt != NULL) {
+    	va_start(ap, fmt);	
+    }    
     return __output_format_buffer_v(ppbuf, pbufsize, level, file, lineno, fmt, ap);
 }
 
@@ -169,14 +176,9 @@ static int __call_out_line(int level, const char* file, int lineno, const char* 
 {
     char* pbuf = NULL;
     int bufsize = 0;
+    int ret;
 
     ret = __output_format_buffer_v(&pbuf, &bufsize, level, file, lineno, fmt, ap);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = append_snprintf_safe(&pbuf, &bufsize, "\n");
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -222,15 +224,13 @@ void console_out_string(int level, const char* file, int lineno, const char* fmt
 }
 
 
-static void __inner_buffer_output(int level, const char* file, lineno, unsigned char* pBuffer, int buflen, const char* fmt, va_list ap, output_func_t fn)
+static void __inner_buffer_output(int level, const char* file,int lineno, unsigned char* pBuffer, int buflen, const char* fmt, va_list ap, output_func_t fn)
 {
     int ret;
     char* pbuf = NULL;
     int bufsize = 0;
-    va_list ap;
-    unsigned char* pcurptr, plastptr;
+    unsigned char* pcurptr, *plastptr;
     int i;
-
 
     ret = __output_format_buffer(&pbuf, &bufsize, level, file, lineno, "buf[%p] size[%d:0x%x]", pBuffer, buflen, buflen);
     if (ret < 0) {
@@ -239,18 +239,11 @@ static void __inner_buffer_output(int level, const char* file, lineno, unsigned 
     }
 
     if (fmt != NULL) {
-        va_start(ap, fmt);
         ret = append_vsnprintf_safe(&pbuf, &bufsize, fmt, ap);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
         }
-    }
-
-    ret = append_snprintf_safe(&pbuf, &bufsize, "\n");
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto out;
     }
 
     ret = fn(level, pbuf);
@@ -259,15 +252,12 @@ static void __inner_buffer_output(int level, const char* file, lineno, unsigned 
         goto out;
     }
 
-    /*now put output*/
-    append_snprintf_safe(&pbuf, &bufsize, NULL);
-
     pcurptr = pBuffer;
     plastptr = pcurptr;
     for (i = 0; i < buflen ; i++) {
         if ((i % 16) == 0) {
             if (i > 0) {
-                ret = append_snprintf_safe(&pbuf, &bufsize, "    ");
+                ret = append_snprintf_safe(&pbuf, &bufsize, "   ");
                 if (ret < 0) {
                     GETERRNO(ret);
                     goto out;
@@ -284,11 +274,7 @@ static void __inner_buffer_output(int level, const char* file, lineno, unsigned 
                     }
                     plastptr ++;
                 }
-                ret = append_snprintf_safe(&pbuf, &bufsize, "\n");
-                if (ret < 0) {
-                    GETERRNO(ret);
-                    goto out;
-                }
+
                 ret = fn(level, pbuf);
                 if (ret < 0) {
                     GETERRNO(ret);
@@ -310,7 +296,7 @@ static void __inner_buffer_output(int level, const char* file, lineno, unsigned 
     }
 
     if (pcurptr != plastptr) {
-    	while(i < 16) {
+    	while((i % 16)  != 0) {
     		ret = append_snprintf_safe(&pbuf,&bufsize,"     ");
     		if (ret < 0) {
     			GETERRNO(ret);
@@ -336,11 +322,6 @@ static void __inner_buffer_output(int level, const char* file, lineno, unsigned 
     			goto out;
     		}
     		plastptr ++;
-    	}
-    	ret = append_snprintf_safe(&pbuf,&bufsize,"\n");
-    	if (ret < 0) {
-    		GETERRNO(ret);
-    		goto out;
     	}
 
     	ret = fn(level,pbuf);
