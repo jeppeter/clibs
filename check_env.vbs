@@ -27,11 +27,12 @@ End Function
 Function CheckVisualStudio(basever)
     dim vsver,cmakestr
     dim vscmake
-    vsver = IsInstallVisualStudio(10.0,"SOFTWARE\Microsoft\VisualStudio")
+    vsver = IsInstallVisualStudio(10.0)
     If IsEmpty(vsver) Then
         CheckVisualStudio=false
         Exit Function
     End If
+    vsver = CStr(vsver)
     If VersionCompare(basever,vsver) Then
         CheckVisualStudio=true
         Exit Function
@@ -380,6 +381,37 @@ Function CheckNpm3Version(basever)
     CheckNpm3Version=false
 End Function
 
+Function CheckNpmVersion(basever)
+    dim patharr
+    dim pathval
+    dim curpath
+    dim curnpm
+    pathval = GetEnv("PATH")
+    If IsNull(pathval) Then
+        CheckNpmVersion=false
+        Exit Function
+    End If
+
+    patharr = Split(pathval,";")
+    For Each curpath in patharr
+        If FileExists( curpath & "\" & "npm.cmd") Then
+            curnpm = curpath & "\" & "npm.cmd"
+            set npmversion = new NpmExtractVersion
+            call GetRunOut(curnpm,"--version","FilterText","npmversion")
+            WScript.Stdout.Writeline("npm version " & npmversion.GetVersion())
+            If VersionCompare(basever,npmversion.GetVersion()) Then
+                CheckNpmVersion=true
+            Else
+                CheckNpmVersion=false
+            End If
+            Exit Function
+        End If
+    Next
+
+    CheckNpmVersion=false
+End Function
+
+
 Class NsisExtractVersion
     Private m_version
     Public Function FilterVersion(line)
@@ -524,7 +556,8 @@ Function Usage(ec,fmt)
     fh.Writeline(chr(9) &"visual_studio version        to check for visual studio environment")
     fh.Writeline(chr(9) &"golang   version             to check for golang environment")
     fh.Writeline(chr(9) &"node  version                to check for node js environment")
-    fh.Writeline(chr(9) &"npm3  version                to check npm environment")
+    fh.Writeline(chr(9) &"npm3  version                to check npm3 environment")
+    fh.Writeline(chr(9) &"npm   version                to check npm environment")
     fh.Writeline(chr(9) &"cmake version                to check for cmake environment")
     fh.Writeline(chr(9) &"nsis  version                to check for nsis environment")
     fh.Writeline(chr(9) &"git   version                to check for git environment")
@@ -598,12 +631,23 @@ Function ParseArgs(args)
             i = i + 1
         elseif args(i) = "npm3" Then
             If (i+1) > j Then
-                Usage 3 , "npm need version"
+                Usage 3 , "npm3 need version"
             End If
             optarg = args(i+1)
             retval = CheckNpm3Version(optarg)
             If Not retval Then
                 WScript.Stderr.Writeline("must install npm3 for version " & optarg)
+                WScript.Quit(3)
+            End If
+            i = i + 1
+        elseif args(i) = "npm" Then
+            If (i+1) > j Then
+                Usage 3 , "npm need version"
+            End If
+            optarg = args(i+1)
+            retval = CheckNpmVersion(optarg)
+            If Not retval Then
+                WScript.Stderr.Writeline("must install npm for version " & optarg)
                 WScript.Quit(3)
             End If
             i = i + 1

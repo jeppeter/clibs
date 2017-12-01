@@ -161,21 +161,14 @@ next
 set argobj = ParseArgs(args)
 
 
-vsver=IsInstallVisualStudio(10.0,"SOFTWARE\Microsoft\VisualStudio")
-if IsEmpty(vsver) Then
-	wscript.stderr.writeline("Please Install visual studio new version than 14.0")
-	WScript.Quit(3)
+vsver=IsInstallVisualStudio(10.0)
+If IsEmpty(vsver) Then
+    wscript.stderr.writeline("can not find visual studio installed")
+    wscript.Quit(3)
 End If
-
-vspdir=ReadReg("HKEY_CURRENT_USER\SOFTWARE\Microsoft\VisualStudio\"& vsver &"_Config\InstallDir")
-if IsEmpty(vspdir) Then
+basedir=GetVisualStudioInstdir(10.0)
+if IsEmpty(basedir) Then
 	wscript.stderr.writeline("can not find visual studio install directory")
-	wscript.quit(4)
-End If
-
-basedir=FindoutInstallBasedir(vspdir,vsver)
-if basedir = "" Then
-	wscript.stderr.writeline("can not find visual studio install directory on " & vspdir)
 	wscript.quit(5)
 End If
 
@@ -183,9 +176,13 @@ dim nmakeexe,cmd,makefile,makedep
 dim dt ,timestamp,version
 dim runcon,tempfile
 
-nmakeexe=basedir+"\VC\bin\nmake.exe"
-wscript.echo ("basedir (" & basedir & ") nmake (" & nmakeexe & ")")
+nmakeexe = GetNmake(basedir,vsver)
+if IsEmpty(nmakeexe) Then
+	Wscript.Stderr.Writeline("can not get nmake")
+	Wscript.Quit(7)
+End If
 
+wscript.echo ("basedir (" & basedir & ") nmake (" & nmakeexe & ")")
 
 If argobj.Exists("check") Then
 	dim arrobj
@@ -222,14 +219,33 @@ if argobj.Exists("versionvar") Then
 End If
 
 If argobj.Value("novc") Then
+	if argobj.Exists("vars") Then
+		dim temparr1
+		dim curvar
+		dim curkey,curval
+		dim arr1
+		set temparr1 = argobj.Value("vars")
+		j = 0
+		jmax = temparr1.Size()
+		Do While j < jmax
+			curvar = temparr1.GetItem(j)
+			arr1=Split(curvar,"=")
+			curkey=arr1(0)
+			curval=arr1(1)
+			SetEnv curkey,curval
+			j = j + 1
+		Loop
+	End If
+
+
 	if argobj.Exists("args") Then
 		set arrobj = argobj.Value("args")
 		makefile=arrobj.GetItem(0)
 		if arrobj.Size() >= 2 Then
 			i = 1
 			Do While i < arrobj.Size()
-				cmd = GetNmakeCommand(argobj)
-				cmd = cmd & " /f " & chr(34) & makefile & chr(34)
+				cmd = GetNmake(basedir,vsver)
+				cmd = chr(34) & cmd & chr(34) & " /f " & chr(34) & makefile & chr(34)
 				makedep=arrobj.GetItem(i)
 				cmd = cmd &  " " & chr(34) & makedep & chr(34)
 				WScript.Stderr.Writeline("cmd["&cmd&"]")
@@ -237,23 +253,30 @@ If argobj.Value("novc") Then
 				i = i + 1
 			Loop
 		Else
-			cmd = GetNmakeCommand(argobj)
-			cmd =  cmd & " /f " & chr(34) & makefile  & chr(34)
+			cmd = GetNmake(basedir,vsver)
+			cmd =  chr(34) & cmd & chr(34) & " /f " & chr(34) & makefile  & chr(34)
 			WScript.Stderr.Writeline("cmd["&cmd&"]")
 			RunCommand(cmd)
 		End If
 	Else
-		cmd=GetNmakeCommand(argobj)
+		cmd = GetNmake(basedir,vsver)
 		WScript.Stderr.Writeline("cmd["&cmd&"]")
 		RunCommand(cmd)
 	End If
 Else
 	runcon = ""
-	runcon = runcon & "call " & chr(34) & basedir & "\VC\vcvarsall.bat" & chr(34) & " "  & argobj.Value("vcmode")  & chr(13) & chr(10)
+	if vsver = "12.0" or vsver = "14.0" Then
+		runcon = runcon & "call " & chr(34) & basedir & "\VC\vcvarsall.bat" & chr(34) & " "  & argobj.Value("vcmode")  & chr(13) & chr(10)
+	Elseif vsver = "15.0" Then
+		runcon = runcon & "call " & chr(34) & basedir & "\VC\Auxiliary\Build\vcvarsall.bat" & chr(34) & " " & argobj.Value("vcmode") & chr(13) & chr(10)
+	Else
+		Wscript.Stderr.Writeline("vsver["&vsver&"]not supported")
+		Wscript.Quit(3)
+	End If
 	runcon = runcon & "cscript.exe //Nologo " & chr(34) & WScript.ScriptFullName & chr(34)
 	runcon = runcon & " --novc"
 	If argobj.Exists("timestamp") Then
-		runcon = runcon & " " & chr(34) & argobj.Value("timestamp") & chr(34)
+		runcon = runcon & " --timestamp " & chr(34) & argobj.Value("timestamp") & chr(34)
 	End If
 
 	If argobj.Exists("check") Then
@@ -294,5 +317,7 @@ Else
 	RunCommand(cmd)
 	if not argobj.Value("reserve") Then
 		RemoveFileSafe(tempfile)
+	Else
+		Wscript.Stderr.Writeline("tempfile["&tempfile&"]")
 	End If
 End If
