@@ -38,20 +38,20 @@ void fini_log();
 };
 #endif /* __cplusplus*/
 
-#define __INNER_BACKGROUND_OUTPUT(level,fmt,...) debug_out_string(level,__FILE__,__LINE__,fmt,__VA_ARGS__)
-#define __INNER_CONSOLE_OUTPUTU(level,fmt,...)  console_out_string(level,__FILE__,__LINE__,fmt,__VA_ARGS__)
+#define __INNER_BACKGROUND_OUTPUT(level,...) do{debug_out_string(level,__FILE__,__LINE__,__VA_ARGS__);} while(0)
+#define __INNER_CONSOLE_OUTPUTU(level,...)   do{console_out_string(level,__FILE__,__LINE__,__VA_ARGS__);} while(0)
 
-#define DEBUG_INFO(fmt,...) \
+#define DEBUG_INFO(...) \
 	do{ \
-		__INNER_BACKGROUND_OUTPUT(BASE_LOG_DEBUG,fmt,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(BASE_LOG_DEBUG,fmt,__VA_ARGS__);\
+		__INNER_BACKGROUND_OUTPUT(BASE_LOG_DEBUG,__VA_ARGS__);\
+		__INNER_CONSOLE_OUTPUTU(BASE_LOG_DEBUG,__VA_ARGS__);\
 	}while(0)
 
 
-#define ERROR_INFO(fmt,...) \
+#define ERROR_INFO(...) \
 	do {\
-		__INNER_BACKGROUND_OUTPUT(BASE_LOG_ERROR,fmt,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(BASE_LOG_ERROR,fmt,__VA_ARGS__);\
+		__INNER_BACKGROUND_OUTPUT(BASE_LOG_ERROR,__VA_ARGS__);\
+		__INNER_CONSOLE_OUTPUTU(BASE_LOG_ERROR,__VA_ARGS__);\
 	}while(0)
 
 

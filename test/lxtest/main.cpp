@@ -3,19 +3,53 @@
 #include <extargs.h>
 #include <ux_err.h>
 
+#include <string.h>
+
 typedef struct __args_options {
 	int m_verbose;
-	char* m_fmtstr;
-	char** m_args;
 }args_options_t,*pargs_options_t;
 
+int debug_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
+
 #include "args_options.cpp"
+
+int init_log_verbose(pargs_options_t pargs)
+{
+	int loglvl = BASE_LOG_ERROR;
+	int ret;
+	if (pargs->m_verbose <= 0) {
+		loglvl = BASE_LOG_ERROR;
+	} else if (pargs->m_verbose == 1) {
+		loglvl = BASE_LOG_WARN;
+	} else if (pargs->m_verbose == 2) {
+		loglvl = BASE_LOG_INFO;
+	} else if (pargs->m_verbose == 3) {
+		loglvl = BASE_LOG_DEBUG;
+	} else {
+		loglvl = BASE_LOG_TRACE;
+	}
+	ret = INIT_LOG(loglvl);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("init [%d] verbose error[%d]",pargs->m_verbose, ret);
+		SETERRNO(ret);
+		return ret;
+	}
+	return 0;
+}
 
 int debug_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt)
 {
 	int ret;
-	int cnt=0;
-	int i;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	ret = init_log_verbose(pargs);
+	if (ret < 0) {
+		GETERRNO(ret);
+		return ret;
+	}
+	DEBUG_INFO("hello world");
+	ERROR_INFO("hello world");
+	return 0;
 }
 
 
@@ -37,6 +71,7 @@ int main(int argc,char* argv[])
 
 	ret = EXTARGS_PARSE(argc, args, &argsoption, pextstate);
 	if (ret < 0) {
+		GETERRNO(ret);
 		fprintf(stderr, "could not parse error(%d)", ret);
 		goto out;
 	}

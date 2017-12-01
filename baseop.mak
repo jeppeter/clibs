@@ -14,19 +14,20 @@ RM:=$(shell which rm)
 BASH:=$(shell which bash)
 DIFF:=$(shell which diff)
 CHX:=$(shell which chmod) +x
+GIT:=$(shell which git)
 
 
 ifeq (${CROSS_COMPILE},)
 CC            = gcc
 CXX           = g++
 LINK          = g++
-AR            = ar cqs
+AR            = ar
 STRIP         = strip
 else
 CC            = ${CROSS_COMPILE}-gcc
 CXX           = ${CROSS_COMPILE}-g++
 LINK          = ${CROSS_COMPILE}-g++
-AR            = ${CROSS_COMPILE}-ar cqs
+AR            = ${CROSS_COMPILE}-ar
 STRIP         = ${CROSS_COMPILE}-strip
 endif
 
@@ -75,8 +76,8 @@ endef
 
 ECHO          = $(shell which echo)
 
-INCLUDE_BASE_CFLAGS = -I${TOPDIR}/uxlib
-INCLUDE_BASE_CXXFLAGS = -I${TOPDIR}/uxlib
+INCLUDE_BASE_CFLAGS = -I${TOPDIR}/uxlib -I${TOPDIR}/extargslib/src/
+INCLUDE_BASE_CXXFLAGS = -I${TOPDIR}/uxlib -I${TOPDIR}/extargslib/src/
 INCLUDE_BASE_LDFLAGS= -L${TOPDIR}/uxlib
 INCLUDE_BASE_LIBFLAGS= -luxlib
 

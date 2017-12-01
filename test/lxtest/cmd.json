@@ -1,8 +1,6 @@
 {
     "verbose|v<m_verbose>" : "+",
-    "fmt<m_fmtstr>" : null,
-    "args<m_args>" : [],
     "debug<debug_handler>" : {
-        "$" : "+"
+        "$" : 0
     }
 }

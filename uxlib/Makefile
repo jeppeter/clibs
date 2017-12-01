@@ -19,10 +19,10 @@ ux_strop.o:ux_strop.cpp
 
 else
 
-all:libuxlib.lib
+all:libuxlib.a
 
-libuxlib.lib:${LIBUX_OFILES}
-	$(call call_exec,${AR} -rcs $@ $^,"AR $@")
+libuxlib.a:${LIBUX_OFILES}
+	$(call call_exec,${AR} -rcs $@ $^,"AR      $@")
 
 ux_output_deubg.o:ux_output_deubg.cpp
 
@@ -33,5 +33,5 @@ endif
 include ../rules.mak
 
 clean:
-	$(call call_exec,${RM} -f libuxlib.so libuxlib.lib,"RM      libuxlib")
+	$(call call_exec,${RM} -f libuxlib.so libuxlib.a,"RM      libuxlib")
 	$(call call_exec,${RM} -f ${LIBUX_OFILES},"RM      *.o")

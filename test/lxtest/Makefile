@@ -1,29 +1,50 @@
 
+SRCDIR:=$(shell dirname $(lastword $(MAKEFILE_LIST)))
+
+ifeq ($(MAKECMDGOALS),static)
+STATICLIB=1
+endif
+
 include ../../baseop.mak
 
-SRCDIR= $(shell dirname $(lastword $(MAKEFILE_LIST)))
+EXTARGSLIB_GITHUB=https://github.com/jeppeter/extargslib.git
 
 LXTEST_SRCS= main.cpp
 LXTEST_OFILES=$(patsubst %.cpp,%.o,${LXTEST_SRCS})
 
-all:lxtest
+#$(info "SRCDIR ${SRCDIR} $(MAKEFILE_LIST)")
 
-ifeq (${STATICLIB},)
-lxtest:${LXTEST_OFILES} ${TOPDIR}/uxlib/libuxlib.so
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} ${LIBFLAGS},"LINK    $@")
+all:dynamic
+
+static:lxtest_static
+
+dynamic:lxtest
+
+lxtest:${LXTEST_OFILES} ${TOPDIR}/uxlib/libuxlib.so ${TOPDIR}/extargslib/src/libextargs.so
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} ${LIBFLAGS} -L${TOPDIR}/extargslib/src -lextargs,"LINK    $@")
 
 ${TOPDIR}/uxlib/libuxlib.so:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"GEN     libuxlib.so")
 
-else
-lxtest:${LXTEST_OFILES} ${TOPDIR}/uxlib/libuxlib.lib
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} ${LIBFLAGS},"LINK    $@")
+${TOPDIR}/extargslib/src/libextargs.so:${TOPDIR}/extargslib
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} EXTARGSLIB_STATICLIB= -C ${TOPDIR}/extargslib/src all,"GEN     libextargslib.so")
 
 
-${TOPDIR}/uxlib/libuxlib.lib:
-	$(call call_exec,${MAKE} STATICLIB=1 -C ${TOPDIR}/uxlib all,"GEN     libuxlib.lib")
 
-endif
+lxtest_static:${LXTEST_OFILES} ${TOPDIR}/uxlib/libuxlib.a ${TOPDIR}/extargslib/src/libextargs.a
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} ${LIBFLAGS} -L${TOPDIR}/extargslib/src -lextargs,"LINK    $@")
+
+
+${TOPDIR}/uxlib/libuxlib.a:
+	$(call call_exec,${MAKE} STATICLIB=1 ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"GEN     libuxlib.a")
+
+${TOPDIR}/extargslib/src/libextargs.a:${TOPDIR}/extargslib
+	$(call call_exec,${MAKE} EXTARGSLIB_STATICLIB=1 ${MAKE_PRINT_FLAG} -C ${TOPDIR}/extargslib/src all,"GEN     libuxlib.a")
+
+
+${TOPDIR}/extargslib:
+	$(call call_exec, ${GIT} clone --quiet ${EXTARGSLIB_GITHUB} $@,"CLONE   extargslib")
+
 
 main.o:main.cpp
 
@@ -37,5 +58,7 @@ include ../../rules.mak
 
 clean:
 	$(call call_exec,${MAKE} -C ${TOPDIR}/uxlib ${MAKE_PRINT_FLAG} clean,"CLEAN   uxlib")
-	$(call call_exec,${RM} -f lxtest, "RM      lxtest")
+	$(call call_exec,${MAKE} -C ${TOPDIR}/extargslib/src ${MAKE_PRINT_FLAG} clean,"CLEAN   extargslib")
+	$(call call_exec,${RM} -f lxtest lxtest_static, "RM      lxtest")
+	$(call call_exec,${RM} -f args_options.cpp,"RM      args_options.cpp")
 	$(call call_exec,${RM} -f ${LXTEST_OFILES}, "RM      *.o")
