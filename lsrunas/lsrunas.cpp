@@ -1405,7 +1405,7 @@ int _tmain(int argc, TCHAR* argv[])
 {
 	char** args = NULL;
 	int ret;
-	int loglvl = LOG_ERROR;
+	int loglvl = BASE_LOG_ERROR;
 	args_options_t argsoption;
 	pextargs_state_t pextstate = NULL;
 
@@ -1431,15 +1431,15 @@ int _tmain(int argc, TCHAR* argv[])
 	}
 
 	if (argsoption.m_verbose <= 0) {
-		loglvl = LOG_ERROR;
+		loglvl = BASE_LOG_ERROR;
 	} else if (argsoption.m_verbose == 1) {
-		loglvl = LOG_WARN;
+		loglvl = BASE_LOG_WARN;
 	} else if (argsoption.m_verbose == 2) {
-		loglvl = LOG_INFO;
+		loglvl = BASE_LOG_INFO;
 	} else if (argsoption.m_verbose == 3) {
-		loglvl = LOG_DEBUG;
+		loglvl = BASE_LOG_DEBUG;
 	} else if (argsoption.m_verbose >= 4) {
-		loglvl = LOG_TRACE;
+		loglvl = BASE_LOG_TRACE;
 	}
 
 	ret = INIT_LOG(loglvl);

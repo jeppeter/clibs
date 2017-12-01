@@ -5,14 +5,14 @@
 #include <stdlib.h>
 #include <windows.h>
 
-#define  LOG_FATAL        0
-#define  LOG_ERROR        10
-#define  LOG_WARN         20
-#define  LOG_INFO         30
-#define  LOG_DEBUG        40
-#define  LOG_TRACE        50
+#define  BASE_LOG_FATAL        0
+#define  BASE_LOG_ERROR        10
+#define  BASE_LOG_WARN         20
+#define  BASE_LOG_INFO         30
+#define  BASE_LOG_DEBUG        40
+#define  BASE_LOG_TRACE        50
 
-#define  LOG_DEFAULT      LOG_ERROR
+#define  BASE_LOG_DEFAULT      BASE_LOG_ERROR
 
 
 #undef __WINLIB_INNER_INCLUDE__
@@ -46,14 +46,14 @@ WINLIB_API int error_out(const char* fmt, ...);
 #if defined(WIN_CONSOLE_OUTPUT) && defined(WIN_BACKGROUND_OUTPUT)
 #define DEBUG_INFO(fmt,...) \
 	do{ \
-		__INNER_BACKGROUND_OUTPUT(LOG_DEBUG,fmt,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(LOG_DEBUG,fmt,__VA_ARGS__);\
+		__INNER_BACKGROUND_OUTPUT(BASE_LOG_DEBUG,fmt,__VA_ARGS__);\
+		__INNER_CONSOLE_OUTPUTU(BASE_LOG_DEBUG,fmt,__VA_ARGS__);\
 	}while(0)
 
 #elif defined(WIN_BACKGROUND_OUTPUT)
-#define DEBUG_INFO(fmt,...) __INNER_BACKGROUND_OUTPUT(LOG_DEBUG,fmt,__VA_ARGS__)
+#define DEBUG_INFO(fmt,...) __INNER_BACKGROUND_OUTPUT(BASE_LOG_DEBUG,fmt,__VA_ARGS__)
 #elif defined(WIN_CONSOLE_OUTPUT)
-#define DEBUG_INFO(fmt,...) __INNER_CONSOLE_OUTPUTU(LOG_DEBUG,fmt,__VA_ARGS__)
+#define DEBUG_INFO(fmt,...) __INNER_CONSOLE_OUTPUTU(BASE_LOG_DEBUG,fmt,__VA_ARGS__)
 #else
 #define DEBUG_INFO(fmt,...)
 #endif
@@ -66,27 +66,27 @@ WINLIB_API int error_out(const char* fmt, ...);
 
 #define  DEBUG_BUFFER(ptr,blen) \
 	do{\
-		DebugBufferFmt(LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		ConsoleBufferFmt(LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
+		DebugBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
+		ConsoleBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
 	}while(0)
 
 #define  DEBUG_BUFFER_FMT(ptr,blen,...)  \
 	do{\
-		DebugBufferFmt(LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		ConsoleBufferFmt(LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
+		DebugBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
+		ConsoleBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
 	}while(0)
 
 
 #elif defined(WIN_CONSOLE_OUTPUT)
 
-#define  DEBUG_BUFFER(ptr,blen) ConsoleBufferFmt(LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL)
-#define  DEBUG_BUFFER_FMT(ptr,blen,...) ConsoleBufferFmt(LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__)
+#define  DEBUG_BUFFER(ptr,blen) ConsoleBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL)
+#define  DEBUG_BUFFER_FMT(ptr,blen,...) ConsoleBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__)
 
 
 #elif defined(WIN_BACKGROUND_OUTPUT)
 
-#define  DEBUG_BUFFER(ptr,blen) DebugBufferFmt(LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL)
-#define  DEBUG_BUFFER_FMT(ptr,blen,...) DebugBufferFmt(LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__)
+#define  DEBUG_BUFFER(ptr,blen) DebugBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL)
+#define  DEBUG_BUFFER_FMT(ptr,blen,...) DebugBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__)
 
 #else
 #define  DEBUG_BUFFER(ptr,blen)

@@ -13,14 +13,14 @@
 #undef  __UX_INNER_DEFINE__
 
 
-#define  LOG_FATAL        0
-#define  LOG_ERROR        10
-#define  LOG_WARN         20
-#define  LOG_INFO         30
-#define  LOG_DEBUG        40
-#define  LOG_TRACE        50
+#define  BASE_LOG_FATAL        0
+#define  BASE_LOG_ERROR        10
+#define  BASE_LOG_WARN         20
+#define  BASE_LOG_INFO         30
+#define  BASE_LOG_DEBUG        40
+#define  BASE_LOG_TRACE        50
 
-#define  LOG_DEFAULT      LOG_ERROR
+#define  BASE_LOG_DEFAULT      BASE_LOG_ERROR
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,15 +43,15 @@ void fini_log();
 
 #define DEBUG_INFO(fmt,...) \
 	do{ \
-		__INNER_BACKGROUND_OUTPUT(LOG_DEBUG,fmt,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(LOG_DEBUG,fmt,__VA_ARGS__);\
+		__INNER_BACKGROUND_OUTPUT(BASE_LOG_DEBUG,fmt,__VA_ARGS__);\
+		__INNER_CONSOLE_OUTPUTU(BASE_LOG_DEBUG,fmt,__VA_ARGS__);\
 	}while(0)
 
 
 #define ERROR_INFO(fmt,...) \
 	do {\
-		__INNER_BACKGROUND_OUTPUT(LOG_ERROR,fmt,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(LOG_ERROR,fmt,__VA_ARGS__);\
+		__INNER_BACKGROUND_OUTPUT(BASE_LOG_ERROR,fmt,__VA_ARGS__);\
+		__INNER_CONSOLE_OUTPUTU(BASE_LOG_ERROR,fmt,__VA_ARGS__);\
 	}while(0)
 
 
@@ -59,14 +59,14 @@ void fini_log();
 
 #define  DEBUG_BUFFER(ptr,blen) \
 	do{\
-		debug_buffer_fmt(LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		console_buffer_fmt(LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
+		debug_buffer_fmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
+		console_buffer_fmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
 	}while(0)
 
 #define  DEBUG_BUFFER_FMT(ptr,blen,...)  \
 	do{\
-		debug_buffer_fmt(LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		console_buffer_fmt(LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
+		debug_buffer_fmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
+		console_buffer_fmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
 	}while(0)
 
 #define  INIT_LOG(loglvl)  init_log(loglvl)

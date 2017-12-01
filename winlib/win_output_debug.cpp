@@ -2,7 +2,7 @@
 #include <win_output_debug.h>
 #include <stdio.h>
 
-static int st_output_loglvl = LOG_DEFAULT;
+static int st_output_loglvl = BASE_LOG_DEFAULT;
 
 void InnerDebug(char* pFmtStr)
 {
