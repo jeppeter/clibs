@@ -1,7 +1,7 @@
 
 
 %.o : %.cpp
-	$(call call_exec,${CXX} ${CXXFLAGS} -c $< -o $@,"CXX     $@")
+	$(call call_exec,${CXX} ${CXXFLAGS}  -o $@ -c $<,"CXX     $@")
 
 %.o : %.c
-	$(call call_exec,${CC} ${CFLAGS} -c $< -o $@,"CC      $@")
+	$(call call_exec,${CC} ${CFLAGS} -o $@ -c $<,"CC      $@")

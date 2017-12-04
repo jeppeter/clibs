@@ -14,9 +14,10 @@ LXTEST_OFILES=$(patsubst %.cpp,%.o,${LXTEST_SRCS})
 
 #$(info "SRCDIR ${SRCDIR} $(MAKEFILE_LIST)")
 
-all:dynamic
+ifeq (${STATICLIB},)
 
-static:lxtest_static
+
+all:dynamic
 
 dynamic:lxtest
 
@@ -24,11 +25,16 @@ lxtest:${LXTEST_OFILES} ${TOPDIR}/uxlib/libuxlib.so ${TOPDIR}/extargslib/src/lib
 	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} ${LIBFLAGS} -L${TOPDIR}/extargslib/src -lextargs,"LINK    $@")
 
 ${TOPDIR}/uxlib/libuxlib.so:
-	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"GEN     libuxlib.so")
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} STATICLIB= -C ${TOPDIR}/uxlib all,"GEN     libuxlib.so")
 
 ${TOPDIR}/extargslib/src/libextargs.so:${TOPDIR}/extargslib
-	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} EXTARGSLIB_STATICLIB= -C ${TOPDIR}/extargslib/src all,"GEN     libextargslib.so")
+	$(call call_exec,unset EXTARGSLIB_STATICLIB && ${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/extargslib/src all,"GEN     libextargslib.so")
 
+else
+
+all:static
+
+static:lxtest_static
 
 
 lxtest_static:${LXTEST_OFILES} ${TOPDIR}/uxlib/libuxlib.a ${TOPDIR}/extargslib/src/libextargs.a
@@ -41,6 +47,7 @@ ${TOPDIR}/uxlib/libuxlib.a:
 ${TOPDIR}/extargslib/src/libextargs.a:${TOPDIR}/extargslib
 	$(call call_exec,${MAKE} EXTARGSLIB_STATICLIB=1 ${MAKE_PRINT_FLAG} -C ${TOPDIR}/extargslib/src all,"GEN     libuxlib.a")
 
+endif
 
 ${TOPDIR}/extargslib:
 	$(call call_exec, ${GIT} clone --quiet ${EXTARGSLIB_GITHUB} $@,"CLONE   extargslib")

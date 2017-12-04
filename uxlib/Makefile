@@ -1,6 +1,6 @@
 EXTRA_CFLAGS=
 EXTRA_CXXFLAGS=
-EXTRA_LDFLAGS=
+EXTRA_LDFLAGS= -shared
 
 include ../baseop.mak
 
@@ -11,11 +11,7 @@ ifeq (${STATICLIB},)
 all:libuxlib.so
 
 libuxlib.so:${LIBUX_OFILES}
-	$(call call_exec,${LINK} -shared -Wall -o $@ ${LIBUX_OFILES},"LINK    $@")
-
-ux_output_deubg.o:ux_output_deubg.cpp
-
-ux_strop.o:ux_strop.cpp
+	$(call call_exec,${LINK} ${LDFLAGS} -Wall -o $@ ${LIBUX_OFILES},"LINK    $@")
 
 else
 
@@ -24,11 +20,14 @@ all:libuxlib.a
 libuxlib.a:${LIBUX_OFILES}
 	$(call call_exec,${AR} -rcs $@ $^,"AR      $@")
 
+
+endif
+
+
 ux_output_deubg.o:ux_output_deubg.cpp
 
 ux_strop.o:ux_strop.cpp
 
-endif
 
 include ../rules.mak
 
