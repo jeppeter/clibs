@@ -28,7 +28,7 @@ ${TOPDIR}/uxlib/libuxlib.so:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} STATICLIB= -C ${TOPDIR}/uxlib all,"GEN     libuxlib.so")
 
 ${TOPDIR}/extargslib/src/libextargs.so:${TOPDIR}/extargslib
-	$(call call_exec,unset EXTARGSLIB_STATICLIB && ${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/extargslib/src all,"GEN     libextargslib.so")
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} EXTARGSLIB_STATICLIB= -C ${TOPDIR}/extargslib/src all,"GEN     libextargslib.so")
 
 else
 
@@ -57,15 +57,17 @@ main.o:main.cpp
 
 main.cpp:args_options.cpp
 
-args_options.cpp:args_options.cpp.tmpl
+args_options.cpp:args_options.cpp.tmpl ${TOPDIR}/extargslib
 	$(call call_exec,${PYTHON} ${TOPDIR}/extargslib/coutput.py -j ${SRCDIR}/cmd.json -i $< cmdstruct | \
 		${PYTHON} ${TOPDIR}/extargslib/coutput.py -j ${SRCDIR}/cmd.json -i - -o $@ freefunc,"GEN     $@")
 
 include ../../rules.mak
 
-clean:
+clean_extargslib:
+	$(call call_exec,if [ -f ${TOPDIR}/extargslib/src/makefile ] ; then ${MAKE} -C ${TOPDIR}/uxlib ${MAKE_PRINT_FLAG} clean; fi,"CLEAN   extargslib")
+
+clean:clean_extargslib
 	$(call call_exec,${MAKE} -C ${TOPDIR}/uxlib ${MAKE_PRINT_FLAG} clean,"CLEAN   uxlib")
-	$(call call_exec,${MAKE} -C ${TOPDIR}/extargslib/src ${MAKE_PRINT_FLAG} clean,"CLEAN   extargslib")
 	$(call call_exec,${RM} -f lxtest lxtest_static, "RM      lxtest")
 	$(call call_exec,${RM} -f args_options.cpp,"RM      args_options.cpp")
 	$(call call_exec,${RM} -f ${LXTEST_OFILES}, "RM      *.o")
