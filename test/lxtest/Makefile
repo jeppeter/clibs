@@ -50,7 +50,7 @@ ${TOPDIR}/extargslib/src/libextargs.a:${TOPDIR}/extargslib
 endif
 
 ${TOPDIR}/extargslib:
-	$(call call_exec, ${GIT} clone --quiet ${EXTARGSLIB_GITHUB} $@,"CLONE   extargslib")
+	$(call call_exec, ${GIT} clone ${GIT_QUIET_FLAG} ${EXTARGSLIB_GITHUB} $@,"CLONE   extargslib")
 
 
 main.o:main.cpp

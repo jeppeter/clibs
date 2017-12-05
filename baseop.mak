@@ -35,9 +35,11 @@ endif
 ifeq (${MAKEVERBOSE},)
 Q=@
 MAKE_PRINT_FLAG= --no-print-directory
+GIT_QUIET_FLAG= --quiet
 else
 Q=
 MAKE_PRINT_FLAG=
+GIT_QUIET_FLAG=
 endif
 
 ifeq (${STATICLIB},)
