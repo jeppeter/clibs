@@ -79,7 +79,9 @@ int sleep_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     int ret=0;
     int i;
     int curmills;
+    int smills;
     uint64_t sticks;
+    uint64_t cticks;
     pargs_options_t pargs = (pargs_options_t) popt;
     ret = init_log_verbose(pargs);
     if (ret < 0) {
@@ -91,15 +93,23 @@ int sleep_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     for (i=0;parsestate->leftargs[i] != NULL;i++) {
     	curmills = atoi(parsestate->leftargs[i]);
     	sticks = get_cur_ticks();
+    	smills = curmills;
     	if ((i%2) == 0){
-    		sched_out(curmills+1);
+    		if (smills > 50) {
+    			smills -= 10;
+    		}
     	} else {
-    		sched_out(curmills - 1);
+    		if (smills > 50) {
+    			smills += 10;
+    		}
     	}
-    	ret = is_time_expired(sticks,curmills);
-    	fprintf(stdout,"[%d] [%d] [%lld:0x%llx] %s\n",
+    	sched_out(smills);
+    	ret = time_left(sticks,curmills);
+    	cticks = get_cur_ticks();
+    	fprintf(stdout,"[%d] [%d] [%lld:0x%llx] [%lld:0x%llx] %s\n",
     			i,curmills,(long long int)sticks,(long long unsigned int)sticks,
-    			(ret > 0 ? "expired" : "not expired"));
+    			(long long int) cticks,(long long unsigned int)cticks,
+    			(ret > 0 ? "not expired" : "expired"));
     }
 
     ret = 0;

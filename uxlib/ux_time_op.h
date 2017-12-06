@@ -8,7 +8,7 @@ extern "C" {
 #endif /* __cplusplus*/
 
 uint64_t get_cur_ticks();
-int is_time_expired(uint64_t startticks,uint32_t expiremills);
+int time_left(uint64_t startticks,uint32_t expiremills);
 int sched_out(int mills);
 
 #ifdef __cplusplus

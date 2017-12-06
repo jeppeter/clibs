@@ -24,7 +24,7 @@ fail:
 
 }
 
-int is_time_expired(uint64_t startticks,uint32_t expiremills)
+int time_left(uint64_t startticks,uint32_t expiremills)
 {
 	uint64_t curticks;
 	int ret;
@@ -32,16 +32,20 @@ int is_time_expired(uint64_t startticks,uint32_t expiremills)
 	curticks = get_cur_ticks();
 	GETERRNO_DIRECT(ret);
 	if (curticks != ULLONG_MAX || ret == 0) {
-		if (curticks > (startticks + expiremills)) {
-			return 0;
+		if (curticks < (expiremills + startticks) && curticks >= startticks) {
+			return (int)(startticks + expiremills - curticks);
 		}
-		if ((ULLONG_MAX- startticks) < expiremills) {
-			if (curticks > (expiremills - (ULLONG_MAX - startticks))) {
-				return 0;
+
+		if ((ULLONG_MAX - startticks) < expiremills) {
+			if (curticks > 0 && curticks < (expiremills - (ULLONG_MAX - startticks))) {
+				return (expiremills - (ULLONG_MAX - startticks)) - curticks;
+			}
+			if (curticks >= startticks && curticks < ULLONG_MAX) {
+				return (expiremills - (curticks - startticks));
 			}
 		}
 	}
-	return 1;
+	return 0;
 }
 
 int sched_out(int mills)
