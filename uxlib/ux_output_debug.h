@@ -41,33 +41,47 @@ void fini_log();
 #define __INNER_BACKGROUND_OUTPUT(level,...) do{debug_out_string(level,__FILE__,__LINE__,__VA_ARGS__);} while(0)
 #define __INNER_CONSOLE_OUTPUTU(level,...)   do{console_out_string(level,__FILE__,__LINE__,__VA_ARGS__);} while(0)
 
-#define DEBUG_INFO(...) \
-	do{ \
-		__INNER_BACKGROUND_OUTPUT(BASE_LOG_DEBUG,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(BASE_LOG_DEBUG,__VA_ARGS__);\
-	}while(0)
+#define __OUTPUT_INFO(lvl,...)                                      \
+    do{                                                             \
+        __INNER_BACKGROUND_OUTPUT(lvl,__VA_ARGS__);                 \
+        __INNER_CONSOLE_OUTPUTU(lvl,__VA_ARGS__);                   \
+    }while(0)
+
+#define FATAL_INFO(...)   __OUTPUT_INFO(BASE_LOG_FATAL,__VA_ARGS__)
+#define ERROR_INFO(...)   __OUTPUT_INFO(BASE_LOG_ERROR,__VA_ARGS__)
+#define WARN_INFO(...)    __OUTPUT_INFO(BASE_LOG_WARN,__VA_ARGS__)
+#define INFO_INFO(...)    __OUTPUT_INFO(BASE_LOG_INFO,__VA_ARGS__)
+#define DEBUG_INFO(...)   __OUTPUT_INFO(BASE_LOG_DEBUG,__VA_ARGS__)
+#define TRACE_INFO(...)   __OUTPUT_INFO(BASE_LOG_TRACE,__VA_ARGS__)
 
 
-#define ERROR_INFO(...) \
-	do {\
-		__INNER_BACKGROUND_OUTPUT(BASE_LOG_ERROR,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(BASE_LOG_ERROR,__VA_ARGS__);\
-	}while(0)
+#define __OUTPUT_BUFFER(lvl,ptr,blen)                                                           \
+    do{                                                                                         \
+        debug_buffer_fmt(lvl,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);                  \
+        console_buffer_fmt(lvl,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);                \
+    }while(0)
+
+#define __OUTPUT_BUFFER_FMT(lvl,ptr,blen,...)                                                       \
+    do{                                                                                             \
+        debug_buffer_fmt(lvl,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);               \
+        console_buffer_fmt(lvl,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);             \
+    }while(0)
+
+#define  FATAL_BUFFER(ptr,blen)  __OUTPUT_BUFFER(BASE_LOG_FATAL,ptr,blen)
+#define  ERROR_BUFFER(ptr,blen)  __OUTPUT_BUFFER(BASE_LOG_ERROR,ptr,blen)
+#define  WARN_BUFFER(ptr,blen)   __OUTPUT_BUFFER(BASE_LOG_WARN,ptr,blen)
+#define  INFO_BUFFER(ptr,blen)   __OUTPUT_BUFFER(BASE_LOG_INFO,ptr,blen)
+#define  DEBUG_BUFFER(ptr,blen)  __OUTPUT_BUFFER(BASE_LOG_DEBUG,ptr,blen)
+#define  TRACE_BUFFER(ptr,blen)  __OUTPUT_BUFFER(BASE_LOG_TRACE,ptr,blen)
 
 
+#define  FATAL_BUFFER_FMT(ptr,blen,...)  __OUTPUT_BUFFER_FMT(BASE_LOG_FATAL,ptr,blen,__VA_ARGS__)
+#define  ERROR_BUFFER_FMT(ptr,blen,...)  __OUTPUT_BUFFER_FMT(BASE_LOG_ERROR,ptr,blen,__VA_ARGS__)
+#define  WARN_BUFFER_FMT(ptr,blen,...)   __OUTPUT_BUFFER_FMT(BASE_LOG_WARN,ptr,blen,__VA_ARGS__)
+#define  INFO_BUFFER_FMT(ptr,blen,...)   __OUTPUT_BUFFER_FMT(BASE_LOG_INFO,ptr,blen,__VA_ARGS__)
+#define  DEBUG_BUFFER_FMT(ptr,blen,...)  __OUTPUT_BUFFER_FMT(BASE_LOG_DEBUG,ptr,blen,__VA_ARGS__)
+#define  TRACE_BUFFER_FMT(ptr,blen,...)  __OUTPUT_BUFFER_FMT(BASE_LOG_TRACE,ptr,blen,__VA_ARGS__)
 
-
-#define  DEBUG_BUFFER(ptr,blen) \
-	do{\
-		debug_buffer_fmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		console_buffer_fmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
-
-#define  DEBUG_BUFFER_FMT(ptr,blen,...)  \
-	do{\
-		debug_buffer_fmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		console_buffer_fmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-	}while(0)
 
 #define  INIT_LOG(loglvl)  init_log(loglvl)
 #define  FINI_LOG()        fini_log()

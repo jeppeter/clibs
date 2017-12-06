@@ -71,3 +71,6 @@ clean:clean_extargslib
 	$(call call_exec,${RM} -f lxtest lxtest_static, "RM      lxtest")
 	$(call call_exec,${RM} -f args_options.cpp,"RM      args_options.cpp")
 	$(call call_exec,${RM} -f ${LXTEST_OFILES}, "RM      *.o")
+
+allclean:clean
+	$(call call_exec,${RM} -rf ${TOPDIR}/extargslib,"RM      extargslib")
