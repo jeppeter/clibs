@@ -2,5 +2,8 @@
     "verbose|v<m_verbose>" : "+",
     "debug<debug_handler>" : {
         "$" : 0
+    },
+    "sleep<sleep_handler>" : {
+    	"$" : "+"
     }
 }

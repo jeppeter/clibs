@@ -4,7 +4,7 @@ EXTRA_LDFLAGS= -shared
 
 include ../baseop.mak
 
-LIBUX_SRCS=ux_output_debug.cpp ux_strop.cpp ux_args.cpp
+LIBUX_SRCS=ux_output_debug.cpp ux_strop.cpp ux_args.cpp ux_time_op.cpp
 LIBUX_OFILES=$(patsubst %.cpp,%.o,${LIBUX_SRCS})
 
 ifeq (${STATICLIB},)

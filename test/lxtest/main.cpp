@@ -2,6 +2,7 @@
 #include <ux_args.h>
 #include <extargs.h>
 #include <ux_err.h>
+#include <ux_time_op.h>
 
 #include <string.h>
 
@@ -10,6 +11,7 @@ typedef struct __args_options {
 } args_options_t, *pargs_options_t;
 
 int debug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int sleep_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
 
@@ -70,6 +72,39 @@ int debug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     FATAL_BUFFER_FMT(pargs, sizeof(*pargs), "args for");
     
     return 0;
+}
+
+int sleep_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret=0;
+    int i;
+    int curmills;
+    uint64_t sticks;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    ret = init_log_verbose(pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        return ret;
+    }
+
+
+    for (i=0;parsestate->leftargs[i] != NULL;i++) {
+    	curmills = atoi(parsestate->leftargs[i]);
+    	sticks = get_cur_ticks();
+    	if ((i%2) == 0){
+    		sched_out(curmills+1);
+    	} else {
+    		sched_out(curmills - 1);
+    	}
+    	ret = is_time_expired(sticks,curmills);
+    	fprintf(stdout,"[%d] [%d] [%lld:0x%llx] %s\n",
+    			i,curmills,(long long int)sticks,(long long unsigned int)sticks,
+    			(ret > 0 ? "expired" : "not expired"));
+    }
+
+    ret = 0;
+	SETERRNO(ret);
+	return ret;
 }
 
 
