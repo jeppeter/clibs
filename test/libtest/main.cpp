@@ -5,6 +5,7 @@
 #include <win_err.h>
 #include <win_proc.h>
 #include <win_window.h>
+#include <win_verify.h>
 
 typedef struct __args_options {
 	int m_verbose;
@@ -16,8 +17,26 @@ int readencode_handler(int argc,char* argv[],pextargs_state_t parsestate, void* 
 int pidargv_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 int findwindow_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 int fullpath_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
+int winverify_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
+
+int init_log_level(pargs_options_t pargs)
+{
+	int loglvl=BASE_LOG_ERROR;
+	if (pargs->m_verbose <= 0) {
+		loglvl = BASE_LOG_ERROR;
+	} else if (pargs->m_verbose == 1) {
+		loglvl = BASE_LOG_WARN;
+	} else if (pargs->m_verbose == 2) {
+		loglvl = BASE_LOG_INFO;
+	} else if (pargs->m_verbose == 3) {
+		loglvl = BASE_LOG_DEBUG;
+	} else {
+		loglvl = BASE_LOG_TRACE;
+	}
+	return INIT_LOG(loglvl);
+}
 
 int mktemp_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt)
 {
@@ -25,9 +44,10 @@ int mktemp_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt
 	char* templstr=NULL;
 	int templsize=0;
 	int ret = 0;
+	pargs_options_t pargs = (pargs_options_t)popt;
 	argv = argv;
 	argc = argc;
-	popt = popt;
+	init_log_level(pargs);
 	if (parsestate->leftargs != NULL) {
 		for (i=0;parsestate->leftargs[i] != NULL ; i++) {
 			ret = mktempfile_safe(parsestate->leftargs[i],&templstr,&templsize);
@@ -50,9 +70,10 @@ int readencode_handler(int argc,char* argv[],pextargs_state_t parsestate, void* 
 	char* templstr=NULL;
 	int templsize = 0;
 	int ret=0;
+	pargs_options_t pargs = (pargs_options_t)popt;
 	argv = argv;
 	argc = argc;
-	popt = popt;
+	init_log_level(pargs);
 	if (parsestate->leftargs != NULL) {
 		for (i=0;parsestate->leftargs[i] != NULL;i++) {
 			ret = read_file_encoded(parsestate->leftargs[i],&templstr,&templsize);
@@ -76,9 +97,10 @@ int pidargv_handler(int argc,char* argv[],pextargs_state_t parsestate, void* pop
 	int ret = 0;
 	int totalret = 0;
 	int i,j;
+	pargs_options_t pargs = (pargs_options_t)popt;
 	argv = argv;
 	argc = argc;
-	popt = popt;
+	init_log_level(pargs);
 	if (parsestate->leftargs != NULL) {
 		for (i=0;parsestate->leftargs[i]!= NULL;i++) {
 			pid = atoi(parsestate->leftargs[i]);
@@ -108,6 +130,7 @@ int findwindow_handler(int argc,char* argv[],pextargs_state_t parsestate, void* 
 	argv = argv;
 	argc = argc;
 	int wndsize=0;
+	init_log_level(poption);
 	if (parsestate->leftargs != NULL) {
 		for (i=0;parsestate->leftargs[i] != NULL;i++) {
 			pid = atoi(parsestate->leftargs[i]);
@@ -160,9 +183,10 @@ int fullpath_handler(int argc,char* argv[],pextargs_state_t parsestate, void* po
 	char* pfullpath=NULL;
 	int fullsize=0;
 	int i;
+	pargs_options_t pargs = (pargs_options_t)popt;
 	argv = argv;
 	argc = argc;
-	popt = popt;
+	init_log_level(pargs);
 	if (parsestate->leftargs != NULL) {
 		for (i=0;parsestate->leftargs[i] != NULL; i ++) {
 			ret = get_full_path(parsestate->leftargs[i],&pfullpath,&fullsize);
@@ -179,6 +203,36 @@ out:
 	get_full_path(NULL,&pfullpath,&fullsize);	
 	SETERRNO(-ret);
 	return ret;
+}
+
+int winverify_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt)
+{
+	int totalret=0;
+	int ret;
+	int i;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	argc = argc;
+	argv = argv;
+	init_log_level(pargs);
+
+
+	if (parsestate->leftargs) {
+		i = 0;
+		while(parsestate->leftargs[i] != NULL) {
+			ret = verify_windows_pe(parsestate->leftargs[i]);
+			if (ret < 0) {
+				GETERRNO(ret);
+				totalret = ret;
+				fprintf(stderr,"[%d] verify [%s] error[%d]\n",i,parsestate->leftargs[i],ret);
+			} else {
+				fprintf(stdout,"[%d]verify [%s] succ\n",i,parsestate->leftargs[i]);
+			}
+			i ++;
+		}
+	}
+
+	SETERRNO(totalret);
+	return totalret;
 }
 
 int main(int argc, char* argv[])

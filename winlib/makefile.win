@@ -24,12 +24,12 @@ VERBOSE_SOURCES=
 
 !IFDEF WINLIB_STATICLIB
 !IF $(WINLIB_STATICLIB) != 0
-STATIC_LIB_CFLAGS=-DWINLIB_STATIC_EXPORT /MD
+STATIC_LIB_CFLAGS=-DWINLIB_STATIC_EXPORT /MT
 !ELSE
-STATIC_LIB_CFLAGS=-DWINLIB_DLL_EXPORT /MD
+STATIC_LIB_CFLAGS=-DWINLIB_DLL_EXPORT /MT
 !ENDIF
 !ELSE
-STATIC_LIB_CFLAGS=-DWINLIB_DLL_EXPORT /MD
+STATIC_LIB_CFLAGS=-DWINLIB_DLL_EXPORT /MT
 !ENDIF
 
 !IFDEF UNICODE_MODE
@@ -50,7 +50,7 @@ CFLAGS  = $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(UNICODE_CFLAGS) $(INC_CFLAGS) 
 LDFLAGS = $(NOLOGO_LDFLAGS) $(REL_LDFLAGS) 
 ARFLAGS = /NOLOGO /WX $(NOLOGO_ARFLAGS)
 
-LIB_SOURCE = win_output_debug.cpp win_uniansi.cpp win_args.cpp win_strop.cpp win_fileop.cpp win_proc.cpp win_envop.cpp win_window.cpp
+LIB_SOURCE = win_output_debug.cpp win_uniansi.cpp win_args.cpp win_strop.cpp win_fileop.cpp win_proc.cpp win_envop.cpp win_window.cpp win_verify.cpp
 LIB_OBJECTS = $(LIB_SOURCE:.cpp=.obj)
 OBJECTS = $(LIB_OBJECTS)
 
