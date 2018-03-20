@@ -5,6 +5,7 @@
 #include <win_err.h>
 #include <win_output_debug.h>
 #include <win_types.h>
+#include <assert.h>
 
 #pragma warning(disable:4996)
 
@@ -344,4 +345,114 @@ out:
     }
     pcopystr = NULL;
     return bmatched;
+}
+
+
+int quote_stringv(char** ppquotestr,int *psize,const char* pstr,va_list ap)
+{
+    char* pret=NULL;
+    int retsize=0;
+    char* ptmp=NULL;
+    int tmpsize=0;
+    int ret;
+    int cnt;
+    char* pcursrc=NULL, *pcurdst=NULL;;
+
+    if (pstr == NULL) {
+        if (ppquotestr && *ppquotestr) {
+            free(*ppquotestr);
+            *ppquotestr = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (ppquotestr == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pret = *ppquotestr;
+    retsize = *psize;
+
+    ret = vsnprintf_safe(&ptmp,&tmpsize, pstr,ap);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    /*we include the " at begin or end and the every two*/
+    if (pret == NULL || retsize < ((ret * 2)+3))  {
+        if (retsize < ((ret * 2)+3)) {
+            retsize = ((ret * 2)+3);
+        }
+        pret = (char*) malloc((size_t)retsize);
+        if (pret == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc [%d] error[%d]", retsize, ret);
+            goto fail;
+        }
+    }
+
+
+    memset(pret ,0 , (size_t)retsize);
+    pcursrc = ptmp;
+    pcurdst = pret;
+    *pcurdst = '"';
+    pcurdst ++;
+
+    while(*pcursrc) {
+        if (*pcursrc == '\\' || 
+            *pcursrc == '"') {
+            *pcurdst = '\\';
+            pcurdst ++;
+        }
+        *pcurdst = *pcursrc;
+        pcurdst ++;
+        pcursrc ++;
+    }
+
+    *pcurdst = '"';
+    pcurdst ++;
+    /*at the end of the size*/
+    *pcurdst = '\0';
+
+    cnt = (int)(pcurdst - pret);
+    assert(cnt < retsize);
+    if (pret != *ppquotestr && *ppquotestr) {
+        free(*ppquotestr);
+    }
+
+    *ppquotestr = pret;
+    *psize = retsize;
+    return cnt;
+fail:
+    if (pret != NULL && pret != *ppquotestr) {
+        free(pret);
+    }
+    pret = NULL;
+    retsize = 0;
+    vsnprintf_safe(&ptmp,&tmpsize,NULL,ap);
+    SETERRNO(ret);
+    return ret;    
+}
+
+int quote_string(char** ppquotestr,int *psize,const char* pstr,...)
+{
+    va_list ap;
+    if (pstr ==NULL) {
+        if (ppquotestr && *ppquotestr) {
+            free(*ppquotestr);
+            *ppquotestr = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+    va_start(ap, pstr);
+    return quote_stringv(ppquotestr, psize,pstr, ap);
 }

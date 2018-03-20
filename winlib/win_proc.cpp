@@ -2,6 +2,7 @@
 #include <win_fileop.h>
 #include <win_err.h>
 #include <win_uniansi.h>
+#include <win_strop.h>
 
 #pragma comment(lib,"Shell32.lib")
 #pragma warning(disable:4996)
@@ -284,3 +285,184 @@ fail:
 	return ret;
 }
 
+#define PROC_MAGIC        0x33898221
+
+#ifdef __PROC_DEBUG__
+#define CHECK_PROC_MAGIC(proc) ((proc) && (proc)->m_magic == PROC_MAGIC)
+#define SET_PROC_MAGIC(proc)  do { if ((proc) != NULL) { (proc)->m_magic = PROC_MAGIC;}} while(0)
+#else
+#define CHECK_PROC_MAGIC(proc) ((proc) && 1)
+#define SET_PROC_MAGIC(proc)
+#endif
+
+typedef struct __proc_handle {
+#ifdef __PROC_DEBUG__
+	uint32_t m_magic;
+#endif
+	HANDLE m_stdinhd;
+	HANDLE m_stdouthd;
+	HANDLE m_stderrhd;	
+	HANDLE m_prochd;
+
+	/*for child hd*/
+	HANDLE m_chldstdin;
+	HANDLE m_chldstdout;
+	HANDLE m_chldstderr;
+} proc_handle_t,*pproc_handle_t;
+
+void __close_handle_note(HANDLE *phd,const char* fmt,...)
+{
+	va_list ap;
+	BOOL bret;
+	char* errstr=NULL;
+	int errsize=0;
+	int ret;
+	int res;
+	if (phd && *phd != INVALID_HANDLE_VALUE && *phd != NULL) {
+		bret = CloseHandle(*phd);
+		if (!bret && fmt != NULL) {
+			GETERRNO(ret);
+			va_start(ap,fmt);
+			res = vsnprintf_safe(&errstr,&errsize,fmt,ap);
+			if (res >= 0) {
+				ERROR_INFO("%s error[%d]", errstr, ret);
+			}
+			vsnprintf_safe(&errstr,&errsize,NULL,ap);
+		}
+		*phd = INVALID_HANDLE_VALUE;
+	}
+	return;
+}
+
+void __free_proc_handle(pproc_handle_t* ppproc)
+{
+	pproc_handle_t pproc = NULL;
+	if (ppproc != NULL) {
+		pproc = *ppproc;
+		ASSERT_IF(CHECK_PROC_MAGIC(pproc));
+		__close_handle_note(&(pproc->m_stdinhd), "close stdin");
+		__close_handle_note(&(pproc->m_stdouthd), "close stdout");
+		__close_handle_note(&(pproc->m_stderrhd), "close stderr");
+		__close_handle_note(&(pproc->m_chldstdin), "close child stdin");
+		__close_handle_note(&(pproc->m_chldstdout), "close child stdout");
+		__close_handle_note(&(pproc->m_chldstderr), "close child stderr");
+		__close_handle_note(&(pproc->m_prochd), "proc handle");
+
+		free(pproc);
+		*ppproc = NULL;
+	}
+	return;
+}
+
+pproc_handle_t __alloc_proc_handle(void)
+{
+	pproc_handle_t pproc= NULL;
+	int ret;
+	pproc = (pproc_handle_t) malloc(sizeof(*pproc));
+	if (pproc == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("alloc [%d] error[%d]", sizeof(*pproc), ret);
+		goto fail;
+	}
+	memset(pproc, 0 , sizeof(*pproc));
+	SET_PROC_MAGIC(pproc);
+	pproc->m_stdinhd = INVALID_HANDLE_VALUE;
+	pproc->m_stdouthd = INVALID_HANDLE_VALUE;
+	pproc->m_stderrhd = INVALID_HANDLE_VALUE;
+	pproc->m_chldstdin = INVALID_HANDLE_VALUE;
+	pproc->m_chldstdout = INVALID_HANDLE_VALUE;
+	pproc->m_chldstderr = INVALID_HANDLE_VALUE;
+	pproc->m_prochd = INVALID_HANDLE_VALUE;
+
+	return pproc;
+fail:
+	__free_proc_handle(&pproc);
+	SETERRNO(ret);
+	return NULL;
+}
+
+int __create_pipe(HANDLE *whd, HANDLE *rhd, int bufsize, const char* fmt,...)
+{
+	SECURITY_ATTRIBUTES  sa;
+	BOOL bret;
+	int ret;
+	va_list ap;
+	char* errstr = NULL;
+	int errsize=0;
+	int res;
+	memset(&sa, 0, sizeof(sa));
+	sa.nLength = sizeof(sa);
+	sa.bInheritHandle = TRUE;
+	sa.lpSecurityDescriptor  = NULL;
+
+	bret = CreatePipe(rhd,whd,&sa,(DWORD)bufsize);
+	if (!bret) {
+		GETERRNO(ret);
+		if (fmt != NULL) {
+			va_start(ap, fmt);
+			res = vsnprintf_safe(&errstr, &errsize,fmt,ap);
+			if (res >= 0) {
+				ERROR_INFO("%s error[%d]", errstr, ret);
+			}
+			vsnprintf_safe(&errstr,&errsize,NULL,ap);
+		}
+		goto fail;
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int __create_flags(pproc_handle_t pproc, int flags)
+{
+	int ret;
+	if (flags & PROC_PIPE_STDIN) {
+		ret = __create_pipe(&(pproc->m_stdinhd), &(pproc->m_chldstdin),0, "stdin pipe");
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	if (flags & PROC_PIPE_STDOUT) {
+		ret = __create_pipe(&(pproc->m_chldstdout), &(pproc->m_stdouthd),0, "stdout pipe");
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	if (flags & PROC_PIPE_STDERR) {
+		ret = __create_pipe(&(pproc->m_chldstderr), &(pproc->m_stderrhd),0,"stderr pipe");
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+void* start_cmdv(int createflag,char* prog[])
+{
+	pproc_handle_t pproc = NULL;
+	int ret;
+	pproc = __alloc_proc_handle();
+	if (pproc == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	prog = prog;
+	createflag = createflag;
+
+	return (void*) pproc;
+fail:
+	__free_proc_handle(&pproc);
+	SETERRNO(ret);
+	return NULL;
+}

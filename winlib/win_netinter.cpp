@@ -472,3 +472,41 @@ alloc_infos:
     return ret;
 #endif
 }
+
+
+
+int __set_adapter(pnet_inter_info_t pinfo, int idx,int forced)
+{
+    /*now we should give the */
+    pinfo = pinfo;
+    idx = idx;
+    forced = forced;
+    return 0;
+}
+
+
+int set_adapter_info(pnet_inter_info_t pinfo)
+{
+#if 0
+    pnet_inter_info_t pinfos=NULL;
+    int infosize=0;
+    int infonum=0;
+    int infoidx=-1, adpidx=-1;
+    int ret;
+
+
+    get_all_adapter_info(1,NULL,&pinfos,&infosize);    
+    return 0;
+fail_reset:
+    if (infoidx >= 0) {
+        /*now we should give the set*/
+        __set_adapter(&(pinfos[infoidx]),adpidx,1);
+    }
+fail:
+    get_all_adapter_info(1,NULL,&pinfos,&infosize);
+    SETERRNO(ret);
+    return ret;
+#endif
+    pinfo = pinfo;
+    return 0;
+}

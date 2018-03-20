@@ -1,6 +1,7 @@
 #include <win_fileop.h>
 #include <win_output_debug.h>
 #include <win_args.h>
+#include <win_strop.h>
 #include <extargs.h>
 #include <win_err.h>
 #include <win_proc.h>
@@ -20,6 +21,7 @@ int findwindow_handler(int argc,char* argv[],pextargs_state_t parsestate, void* 
 int fullpath_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 int winverify_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 int netinter_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
+int quote_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
 
@@ -322,6 +324,32 @@ out:
 	get_all_adapter_info(1,NULL,&pinfos,&infosize);
 	SETERRNO(ret);
 	return ret;	
+}
+
+int quote_handler(int argc,char* argv[],pextargs_state_t parsestate, void* popt)
+{
+	int ret =0;
+	char* qstr = NULL;
+	int qsize=0;
+	int i;
+
+	argc = argc;
+	argv = argv;
+	popt = popt;
+
+	for (i=0;parsestate->leftargs[i] != NULL;i++) {
+		ret = quote_string(&qstr,&qsize,parsestate->leftargs[i]);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+		fprintf(stdout,"[%d][%s] quoted [%s]\n", i, parsestate->leftargs[i], qstr);
+	}
+	ret = 0;
+out:
+	quote_string(&qstr,&qsize,NULL);
+	SETERRNO(ret);
+	return ret;
 }
 
 int main(int argc, char* argv[])

@@ -21,5 +21,8 @@
     },
     "netinter<netinter_handler>" : {
         "$" : "*"
+    },
+    "quote<quote_handler>" : {
+        "$" : "+"
     }
 }

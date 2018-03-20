@@ -35,6 +35,7 @@ extern "C" {
 #endif
 
 WINLIB_API int get_all_adapter_info(int freed,char* pfilter,pnet_inter_info_t* ppinfos,int *pinfonum);
+WINLIB_API int set_adapter_info(pnet_inter_info_t pinfo);
 
 #ifdef __cplusplus
 };
