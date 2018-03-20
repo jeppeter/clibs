@@ -5,6 +5,7 @@
 #error "must included in the winlib header files"
 #endif
 
+#include <Windows.h>
 
 #if defined(WINLIB_DLL_IMPORT)
 #define WINLIB_API  __declspec(dllimport)

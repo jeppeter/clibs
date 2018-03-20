@@ -50,7 +50,9 @@ CFLAGS  = $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(UNICODE_CFLAGS) $(INC_CFLAGS) 
 LDFLAGS = $(NOLOGO_LDFLAGS) $(REL_LDFLAGS) 
 ARFLAGS = /NOLOGO /WX $(NOLOGO_ARFLAGS)
 
-LIB_SOURCE = win_output_debug.cpp win_uniansi.cpp win_args.cpp win_strop.cpp win_fileop.cpp win_proc.cpp win_envop.cpp win_window.cpp win_verify.cpp
+LIB_SOURCE = win_output_debug.cpp win_uniansi.cpp win_args.cpp win_strop.cpp \
+	win_fileop.cpp win_proc.cpp win_envop.cpp win_window.cpp \
+	win_verify.cpp win_netinter.cpp
 LIB_OBJECTS = $(LIB_SOURCE:.cpp=.obj)
 OBJECTS = $(LIB_OBJECTS)
 

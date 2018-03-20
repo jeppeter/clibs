@@ -18,5 +18,8 @@
     },
     "winverify<winverify_handler>" : {
         "$" : "+"
+    },
+    "netinter<netinter_handler>" : {
+        "$" : "*"
     }
 }
