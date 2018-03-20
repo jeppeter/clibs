@@ -29,8 +29,8 @@ WINLIB_API HANDLE proc_get_stderr(void* proc);
 WINLIB_API HANDLE proc_get_proc(void* proc);
 WINLIB_API int kill_proc(void* proc,int* exitcode);
 WINLIB_API int get_proc_exit(void* proc, int *exitcode);
-WINLIB_API int run_cmd_output(char* pin, char** ppout,int *poutsize, char** pperr, int *perrsize, int *exitcode, const char* prog,...);
-WINLIB_API int run_cmd_outputv(char* pin,char** ppout,int *poutsize, char** pperr, int *perrsize, int *exitcode, char* prog[]);
+WINLIB_API int run_cmd_output(char* pin, char** ppout,int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog,...);
+WINLIB_API int run_cmd_outputv(char* pin,char** ppout,int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[]);
 
 #ifdef __cplusplus
 };
