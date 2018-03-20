@@ -821,3 +821,95 @@ int kill_proc(void* proc, int *exitcode)
 
 	return 0;
 }
+
+int get_proc_exit(void* proc, int *exitcode)
+{
+	pproc_handle_t pproc = (pproc_handle_t) proc;
+	int ret;
+	if (!CHECK_PROC_MAGIC(pproc)) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (pproc->m_exited == 0) {
+		ret = -ERROR_ALREADY_EXISTS;
+		SETERRNO(ret);
+		return ret;
+	}
+	if (exitcode) {
+		*exitcode = pproc->m_exitcode;
+	}
+	return 0;
+}
+
+int run_cmd_outputv(char* pin, char** ppout,int *poutsize, char** pperr, int *perrsize, int *exitcode, char* prog[])
+{
+	pproc_handle_t pproc=NULL;
+	int ret;
+	int createflag = 0;
+	char* pretout=NULL;
+	int outsize=0,outlen=0;
+	char* preterr= NULL;
+	int errsize=0,errlen=0;
+	char* ptmpbuf=NULL;
+	char* pcurptr=NULL;
+
+	if (pin != NULL) {
+		createflag |= PROC_PIPE_STDIN;
+	} else {
+		createflag |= PROC_STDIN_NULL;
+	}
+
+	if (ppout != NULL) {
+		createflag |= PROC_PIPE_STDOUT;
+	} else {
+		createflag |= PROC_STDOUT_NULL;
+	}
+
+	if (pperr != NULL) {
+		createflag |= PROC_PIPE_STDERR;
+	} else {
+		createflag |= PROC_STDERR_NULL;
+	}
+	createflag |= PROC_NO_WINDOW;
+
+	pproc = (pproc_handle_t)start_cmdv(createflag, prog);
+	if (pproc == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	outlen = outlen;
+	errlen = errlen;
+	pcurptr = pcurptr;
+	if (exitcode) {
+		*exitcode = pproc->m_exitcode;
+	}
+	if (perrsize) {
+		*perrsize = errsize;
+	}
+
+	if (poutsize) {
+		*poutsize = outsize;
+	}
+
+	return 0;
+fail:
+
+	if (ptmpbuf) {
+		free(ptmpbuf);
+	}
+	ptmpbuf = NULL;
+	if (pretout && (ppout == NULL || pretout != *ppout)) {
+		free(pretout);
+	}
+	pretout = NULL;
+	if (preterr && (pperr == NULL || preterr != *pperr)) {
+		free(preterr);
+	}
+	preterr = NULL;
+	__free_proc_handle(&pproc);
+	SETERRNO(ret);
+	return ret;
+}
