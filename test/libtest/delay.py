@@ -14,8 +14,9 @@ def main():
 	for l in sys.stdin:
 		l = l.rstrip('\r\n')
 		sys.stdout.write('[%d] out [%s]\n'%(i,l))
-		sys.stderr.write('[%d] err [%s]\n'%(i,l))		
-		time.sleep(wtime)
+		sys.stderr.write('[%d] err [%s]\n'%(i,l))
+		if wtime >= 0.1:		
+			time.sleep(wtime)
 		sys.stdout.flush()
 		sys.stderr.flush()
 		i += 1
