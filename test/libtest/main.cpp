@@ -8,6 +8,7 @@
 #include <win_window.h>
 #include <win_verify.h>
 #include <win_netinter.h>
+#include <win_time.h>
 
 typedef struct __args_options {
     int m_verbose;
@@ -27,6 +28,8 @@ int winverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int netinter_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int quote_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
 
@@ -44,7 +47,7 @@ int init_log_level(pargs_options_t pargs)
     } else {
         loglvl = BASE_LOG_TRACE;
     }
-    fprintf(stdout,"verbose [%d]\n", pargs->m_verbose);
+    fprintf(stdout, "verbose [%d]\n", pargs->m_verbose);
     return INIT_LOG(loglvl);
 }
 
@@ -296,7 +299,7 @@ int netinter_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     int i, j;
     int num;
     pargs_options_t pargs = (pargs_options_t) popt;
-	init_log_level(pargs);
+    init_log_level(pargs);
     argc = argc;
     argv = argv;
 
@@ -419,10 +422,10 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
     int i;
     int ret;
     pargs_options_t pargs = (pargs_options_t) popt;
-	init_log_level(pargs);
-	
-	argc = argc;
-	argv = argv;    
+    init_log_level(pargs);
+
+    argc = argc;
+    argv = argv;
     if (pargs->m_input != NULL) {
         ret = read_file_encoded(pargs->m_input, &inbuf, &insize);
         if (ret < 0) {
@@ -456,14 +459,14 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
     fprintf(stdout, "] succ\n");
     if (pargs->m_input != NULL) {
         fprintf(stdout, "input --------------------\n");
-        __debug_buf(stdout,inbuf,insize);
+        __debug_buf(stdout, inbuf, insize);
         fprintf(stdout, "input ++++++++++++++++++++\n");
     }
     fprintf(stdout, "output --------------------\n");
-    __debug_buf(stdout,outbuf,outsize);
+    __debug_buf(stdout, outbuf, outsize);
     fprintf(stdout, "output ++++++++++++++++++++\n");
     fprintf(stdout, "errout --------------------\n");
-    __debug_buf(stdout,errbuf,errsize);
+    __debug_buf(stdout, errbuf, errsize);
     fprintf(stdout, "errout ++++++++++++++++++++\n");
 
     ret = 0;
@@ -473,6 +476,69 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+#define PIPE_NO_WAIT            0
+#define PIPE_READ_WAIT          1
+#define PIPE_WRITE_WAIT         2
+
+typedef struct __pipe_st {
+	HANDLE m_pipe;
+	HANDLE m_evt;
+	HANDLE m_nul;
+	HANDLE m_chldpipe;
+	OVERLAPPED m_ov;
+	int m_state;
+	char* m_pipename;
+	int m_pipenamesize;
+} pipe_st_t, *ppipe_st_t;
+
+void __free_pipe(ppipe_st_t *pp)
+{
+	BOOL bret;
+	int res;
+	if (pp != NULL && *pp != NULL) {
+		ppipe_st_t p = *pp;
+		if (p->m_state != PIPE_NO_WAIT) {
+			bret = CancelIoEx(p->m_pipe,&(p->m_ov));
+			if (!bret) {
+				GETERRNO(res);
+				ERROR_INFO("can not stop [%s] error[%d]", p->m_pipename, res);
+			}
+			p->m_state = PIPE_NO_WAIT;
+		}
+
+		if (p->m_pipe != INVALID_HANDLE_VALUE && p->m_pipe != NULL) {
+			bret = CloseHandle(p->m_pipe);
+			if (!bret) {
+				
+			}
+		}
+
+		*pp = NULL;
+	}
+	return
+}
+
+ppipe_st_t __alloc_pipe()
+{
+
+}
+
+int __create_pipe(int rdwr, ppipe_st_t p, char* name)
+{
+
+}
+
+int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+
+}
+
+int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	return 0;
+}
+
 
 int main(int argc, char* argv[])
 {

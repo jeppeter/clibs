@@ -31,5 +31,11 @@
     },
     "run<run_handler>##make run command with output and input##" : {
         "$" : "+"
+    },
+    "svroverlap<svrlap_handler>##to make server overlapped##" : {
+        "$" : 0
+    },
+    "clioverlap<clilap_handler>##to make client overlapped##" : {
+        "$" : 0
     }
 }

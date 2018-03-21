@@ -1063,7 +1063,6 @@ int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** p
     BOOL bret;
     int pending;
     int inwait =0, outwait=0,errwait=0;
-    DWORD rsize =0;
 
     DEBUG_INFO(" ");
     if (prog == NULL) {
@@ -1324,10 +1323,7 @@ err_again:
         }
     }
 
-    /*now exited ,so we should give the wait*/
-    if (inwait > 0) {
-    	ret = __get_overlapped()
-    }
+    /*now exited we will give the output*/
 
     if (exitcode) {
         *exitcode = pproc->m_exitcode;
