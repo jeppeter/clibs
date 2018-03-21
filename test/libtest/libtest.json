@@ -1,6 +1,10 @@
 {
     "verbose|v<m_verbose>" : "+",
     "classname|c<m_classname>" : "",
+    "input|i<m_input>" : null,
+    "output|o<m_output>" : null,
+    "errout|e<m_errout>" : null,
+    "timeout|t<m_timeout>" : 0,
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },
@@ -23,6 +27,9 @@
         "$" : "*"
     },
     "quote<quote_handler>" : {
+        "$" : "+"
+    },
+    "run<run_handler>##make run command with output and input##" : {
         "$" : "+"
     }
 }

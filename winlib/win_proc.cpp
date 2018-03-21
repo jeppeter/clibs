@@ -11,6 +11,8 @@
 
 #define pid_wmic_cmd_fmt "WMIC /OUTPUT:%s process where \"ProcessId=%d\" get CommandLine,ProcessId"
 
+#define MIN_BUF_SIZE    0x400
+
 int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
 {
     char* tempfile = NULL;
@@ -301,6 +303,16 @@ typedef struct __proc_handle {
 #ifdef __PROC_DEBUG__
     uint32_t m_magic;
 #endif
+    /*handle for event overlapped*/
+    HANDLE m_stdinevt;
+    HANDLE m_stdoutevt;
+    HANDLE m_stderrevt;
+
+    OVERLAPPED m_stdinov;
+    OVERLAPPED m_stdoutov;
+    OVERLAPPED m_stderrov;
+
+    /*parent handle event*/
     HANDLE m_stdinhd;
     HANDLE m_stdouthd;
     HANDLE m_stderrhd;
@@ -346,6 +358,7 @@ int __get_command_lines(char** ppcmdline, int *psize, char* prog[])
     int i;
     char* qstr = NULL;
     int qsize = 0;
+    int ret;
     if (prog == NULL || prog[0] == NULL) {
         append_snprintf_safe(ppcmdline, psize, NULL);
         return 0;
@@ -376,6 +389,7 @@ int __get_command_lines(char** ppcmdline, int *psize, char* prog[])
             GETERRNO(ret);
             goto fail;
         }
+        DEBUG_INFO("cmdline [%s]", *ppcmdline);
     }
     quote_string(&qstr, &qsize, NULL);
     return ret;
@@ -396,6 +410,9 @@ void __free_proc_handle(pproc_handle_t* ppproc)
     if (ppproc != NULL) {
         pproc = *ppproc;
         ASSERT_IF(CHECK_PROC_MAGIC(pproc));
+        __close_handle_note(&(pproc->m_stdinevt), "close stdinevt");
+        __close_handle_note(&(pproc->m_stdoutevt), "close stdoutevt");
+        __close_handle_note(&(pproc->m_stderrevt), "close stderrevt");
         __close_handle_note(&(pproc->m_stdinhd), "close stdin");
         __close_handle_note(&(pproc->m_stdouthd), "close stdout");
         __close_handle_note(&(pproc->m_stderrhd), "close stderr");
@@ -437,6 +454,9 @@ pproc_handle_t __alloc_proc_handle(void)
     }
     memset(pproc, 0 , sizeof(*pproc));
     SET_PROC_MAGIC(pproc);
+    pproc->m_stdinevt = INVALID_HANDLE_VALUE;
+    pproc->m_stdoutevt = INVALID_HANDLE_VALUE;
+    pproc->m_stderrevt = INVALID_HANDLE_VALUE;
     pproc->m_stdinhd = INVALID_HANDLE_VALUE;
     pproc->m_stdouthd = INVALID_HANDLE_VALUE;
     pproc->m_stderrhd = INVALID_HANDLE_VALUE;
@@ -457,7 +477,7 @@ fail:
     return NULL;
 }
 
-int __create_pipe(HANDLE *whd, HANDLE *rhd, int bufsize, const char* fmt, ...)
+int __create_pipe(HANDLE *whd, HANDLE *rhd, HANDLE *evt, OVERLAPPED* pov, int bufsize, const char* fmt, ...)
 {
     SECURITY_ATTRIBUTES  sa;
     BOOL bret;
@@ -478,12 +498,33 @@ int __create_pipe(HANDLE *whd, HANDLE *rhd, int bufsize, const char* fmt, ...)
             va_start(ap, fmt);
             res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
             if (res >= 0) {
-                ERROR_INFO("%s error[%d]", errstr, ret);
+                ERROR_INFO("%s createpipe error[%d]", errstr, ret);
             }
             vsnprintf_safe(&errstr, &errsize, NULL, ap);
         }
         goto fail;
     }
+    if (evt != NULL) {
+        *evt = CreateEvent(NULL, TRUE, TRUE, NULL);
+        if (*evt == NULL) {
+            GETERRNO(ret);
+            if (fmt != NULL) {
+                va_start(ap, fmt);
+                res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
+                if (res >= 0) {
+                    ERROR_INFO("%s createevent error[%d]", errstr, ret);
+                }
+                vsnprintf_safe(&errstr, &errsize, NULL, ap);
+            }
+            goto fail;
+        }
+
+        if (pov != NULL) {
+            memset(pov, 0 , sizeof(*pov));
+            pov->hEvent = *evt;
+        }
+    }
+
     return 0;
 fail:
     SETERRNO(ret);
@@ -535,7 +576,7 @@ int __create_flags(pproc_handle_t pproc, int flags)
 {
     int ret;
     if (flags & PROC_PIPE_STDIN) {
-        ret = __create_pipe(&(pproc->m_stdinhd), &(pproc->m_chldstdin), 0, "stdin pipe");
+        ret = __create_pipe(&(pproc->m_stdinhd), &(pproc->m_chldstdin), &(pproc->m_stdinevt), &(pproc->m_stdinov), 0, "stdin pipe");
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
@@ -549,7 +590,7 @@ int __create_flags(pproc_handle_t pproc, int flags)
     }
 
     if (flags & PROC_PIPE_STDOUT) {
-        ret = __create_pipe(&(pproc->m_chldstdout), &(pproc->m_stdouthd), 0, "stdout pipe");
+        ret = __create_pipe(&(pproc->m_chldstdout), &(pproc->m_stdouthd) , &(pproc->m_stdoutevt), &(pproc->m_stdoutov), 0, "stdout pipe");
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
@@ -563,7 +604,7 @@ int __create_flags(pproc_handle_t pproc, int flags)
     }
 
     if (flags & PROC_PIPE_STDERR) {
-        ret = __create_pipe(&(pproc->m_chldstderr), &(pproc->m_stderrhd), 0, "stderr pipe");
+        ret = __create_pipe(&(pproc->m_chldstderr), &(pproc->m_stderrhd), &(pproc->m_stderrevt), &(pproc->m_stderrov), 0, "stderr pipe");
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
@@ -594,7 +635,7 @@ void* start_cmdv(int createflag, char* prog[])
     BOOL bret;
     wchar_t *wcmdline = NULL;
     int wcmdsize = 0;
-    int i, res;
+    int res;
 
     if (prog == NULL || prog[0] == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
@@ -687,7 +728,8 @@ void* start_cmdv(int createflag, char* prog[])
                           pstartinfo, pinfo);
     if (!bret) {
         GETERRNO(ret);
-        ERROR_INFO("create [%s] error[%d]", cmdline, ret);
+        ERROR_INFO("create [%s] error[%d]", pproc->m_cmdline
+                   , ret);
         goto fail;
     }
 
@@ -704,6 +746,8 @@ void* start_cmdv(int createflag, char* prog[])
         }
         pinfo->hThread = NULL;
     }
+
+    DEBUG_INFO("start [%s] ok", pproc->m_cmdline);
 
     AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
     if (pinfo) {
@@ -888,46 +932,195 @@ int get_proc_exit(void* proc, int *exitcode)
     return 0;
 }
 
-int run_cmd_outputv(char* pin, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
+int __write_file_sync(HANDLE hd, OVERLAPPED *pov, char* ptr, int size, int *pending)
+{
+    char* pcur = ptr;
+    int writelen = 0;
+    int ret;
+    BOOL bret;
+    DWORD rsize = 0;
+    DWORD wsize = (DWORD)size;
+
+    while (writelen < size) {
+        bret = WriteFile(hd, pcur, wsize, &rsize, pov);
+        if (!bret) {
+            GETERRNO(ret);
+            if (ret == -ERROR_IO_PENDING) {
+                if (pending) {
+                    *pending = 1;
+                }
+                return writelen;
+            }
+            ERROR_INFO("write ret [%d]", ret);
+            goto fail;
+        }
+        pcur += rsize;
+        wsize -= rsize;
+        writelen += rsize;
+    }
+
+    DEBUG_INFO("outbuf [%d]", rsize);
+    bret = FlushFileBuffers(hd);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("flush buffer error[%d]", ret);
+        goto fail;
+    }
+
+    if (pending) {
+        *pending = 0;
+    }
+
+    return writelen;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+int __read_file_sync(HANDLE hd, OVERLAPPED* pov, char* pinbuf, int size, int *pending)
+{
+    BOOL bret;
+    int ret;
+    DWORD rsize = 0;
+
+    bret = ReadFile(hd, pinbuf, (DWORD)size, &rsize, pov);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_IO_PENDING) {
+            if (pending) {
+                *pending = 1;
+            }
+            return 0;
+        }
+        ERROR_INFO("read file error[%d]", ret);
+        goto fail;
+    }
+
+    if (pending) {
+        *pending = 0;
+    }
+
+    return (int)rsize;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+int __get_overlapped(HANDLE hd, OVERLAPPED* pov, int *addlen,const char* fmt,...)
+{
+	BOOL bret;
+	DWORD rsize;
+	int ret;
+	va_list ap;
+	int res;
+	char* errstr = NULL;
+	int errsize = 0;
+	bret = GetOverlappedResult(hd,pov,&rsize,FALSE);
+	if (!bret) {
+		GETERRNO(ret);
+		if (ret == -ERROR_IO_PENDING) {
+			return 1;
+		}
+
+		if (fmt != NULL) {
+			va_start(ap, fmt);
+			res = vsnprintf_safe(&errstr,&errsize,fmt,ap);
+			if (res >= 0) {
+				ERROR_INFO("%s error [%d]", errstr,ret);
+			}
+			vsnprintf_safe(&errstr,&errsize,NULL,ap);
+		}
+		goto fail;
+	}
+
+	if (addlen) {
+		*addlen += rsize;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
 {
     pproc_handle_t pproc = NULL;
     int ret;
     int createflag = 0;
-    int insize = 0;
     int inlen = 0;
     char* pretout = NULL;
     int outsize = 0, outlen = 0;
     char* preterr = NULL;
     int errsize = 0, errlen = 0;
     char* ptmpbuf = NULL;
-    char* pcurptr = NULL;
     HANDLE waithds[3];
     int waitnum = 0;
     DWORD dret = 0;
     uint64_t sticks = 0, cticks = 0;
     DWORD waittime;
     HANDLE hd;
+    BOOL bret;
+    int pending;
+    int inwait =0, outwait=0,errwait=0;
+    DWORD rsize =0;
 
+    DEBUG_INFO(" ");
+    if (prog == NULL) {
+        if (ppout != NULL) {
+            if (*ppout != NULL) {
+                free(*ppout);
+            }
+            *ppout = NULL;
+        }
+        if (poutsize) {
+            *poutsize = 0;
+        }
+
+        if (pperr != NULL) {
+            if (*pperr != NULL) {
+                free(*pperr);
+            }
+            *pperr = NULL;
+        }
+        if (perrsize) {
+            *perrsize = 0;
+        }
+        return 0;
+    }
 
     if (pin != NULL) {
         createflag |= PROC_PIPE_STDIN;
-        insize = (int)strlen(pin);
     } else {
         createflag |= PROC_STDIN_NULL;
     }
 
     if (ppout != NULL) {
+        if (poutsize == NULL) {
+            ret = -ERROR_INVALID_PARAMETER;
+            goto fail;
+        }
         createflag |= PROC_PIPE_STDOUT;
+        outsize = *poutsize;
+        pretout = *ppout;
     } else {
         createflag |= PROC_STDOUT_NULL;
     }
 
     if (pperr != NULL) {
+        if (perrsize == NULL) {
+            ret = -ERROR_INVALID_PARAMETER;
+            goto fail;
+        }
         createflag |= PROC_PIPE_STDERR;
+        errsize = *perrsize;
+        preterr = *pperr;
     } else {
         createflag |= PROC_STDERR_NULL;
     }
     createflag |= PROC_NO_WINDOW;
+
+    DEBUG_INFO(" ");
 
     pproc = (pproc_handle_t)start_cmdv(createflag, prog);
     if (pproc == NULL) {
@@ -948,19 +1141,119 @@ int run_cmd_outputv(char* pin, char** ppout, int *poutsize, char** pperr, int *p
         /*now we should make waithds*/
         memset(waithds, 0 , sizeof(waithds));
         waitnum = 0;
-        if (pproc->m_stdinhd != INVALID_HANDLE_VALUE) {
-            waithds[waitnum] = pproc->m_stdinhd;
-            waitnum ++;
+        if (inwait > 0) {
+        	waithds[waitnum] = pproc->m_stdinevt;
+        	waitnum ++;
+        } else if (pproc->m_stdinhd != INVALID_HANDLE_VALUE) {
+            pending = 0;
+            ret = __write_file_sync(pproc->m_stdinhd, &(pproc->m_stdinov), &(pin[inlen]), (insize - inlen), &pending);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            inlen += ret;
+            if (inlen == insize) {
+                /*ok close all*/
+                bret = CloseHandle(pproc->m_stdinhd);
+                if (!bret) {
+                    GETERRNO(ret);
+                    ERROR_INFO("close stdinhd error[%d]", ret);
+                    goto fail;
+                }
+                pproc->m_stdinhd = INVALID_HANDLE_VALUE;
+                bret = CloseHandle(pproc->m_stdinevt);
+                if (!bret) {
+                    GETERRNO(ret);
+                    ERROR_INFO("close stdinevt error[%d]", ret);
+                    goto fail;
+                }
+                pproc->m_stdinevt = INVALID_HANDLE_VALUE;
+            } else if (pending) {
+                waithds[waitnum] = pproc->m_stdinevt;
+                waitnum ++;
+            }
         }
 
-        if (pproc->m_stdouthd != INVALID_HANDLE_VALUE) {
-            waithds[waitnum] = pproc->m_stdouthd;
-            waitnum ++;
+        if (outwait > 0) {
+        	waithds[waitnum] = pproc->m_stdoutevt;
+        	waitnum ++;
+        } else if (pproc->m_stdouthd != INVALID_HANDLE_VALUE) {
+out_again:
+            if (pretout == NULL || outsize == outlen) {
+                if (outsize < MIN_BUF_SIZE) {
+                    outsize = MIN_BUF_SIZE;
+                } else if (outsize == outlen) {
+                    outsize <<= 1;
+                }
+                ptmpbuf = (char*) malloc((size_t)outsize);
+                if (ptmpbuf == NULL) {
+                    GETERRNO(ret);
+                    ERROR_INFO("alloc %d error[%d]", outsize, ret);
+                    goto fail;
+                }
+                memset(ptmpbuf, 0 , (size_t)outsize);
+                if (outlen > 0) {
+                    memcpy(ptmpbuf, pretout, (size_t)outlen);
+                }
+                if (pretout != NULL && pretout != *ppout) {
+                    free(pretout);
+                }
+                pretout = ptmpbuf;
+                ptmpbuf = NULL;
+            }
+            ret = __read_file_sync(pproc->m_stdouthd, &(pproc->m_stdoutov), &(pretout[outlen]), (outsize - outlen), &pending);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            outlen += ret;
+            if (outlen == outsize) {
+                goto out_again;
+            } else if (pending) {
+                waithds[waitnum] = pproc->m_stdoutevt;
+                waitnum ++;
+            }
         }
 
-        if (pproc->m_stderrhd != INVALID_HANDLE_VALUE) {
-            waithds[waitnum] = pproc->m_stderrhd;
-            waitnum ++;
+        if (errwait > 0) {
+        	waithds[waitnum] = pproc->m_stderrevt;
+        	waitnum ++;
+        } else if (pproc->m_stderrhd != INVALID_HANDLE_VALUE) {
+err_again:
+            if (preterr == NULL || errsize == errlen) {
+                if (errsize < MIN_BUF_SIZE) {
+                    errsize = MIN_BUF_SIZE;
+                } else if (errsize == errlen) {
+                    errsize <<= 1;
+                }
+                ptmpbuf = (char*) malloc((size_t)errsize);
+                if (ptmpbuf == NULL) {
+                    GETERRNO(ret);
+                    ERROR_INFO("alloc %d error[%d]", errsize, ret);
+                    goto fail;
+                }
+                memset(ptmpbuf, 0 , (size_t)errsize);
+                if (errlen > 0) {
+                    memcpy(ptmpbuf, preterr, (size_t)errlen);
+                }
+                if (preterr != NULL && preterr != *pperr) {
+                    free(preterr);
+                }
+                preterr = ptmpbuf;
+                ptmpbuf = NULL;
+            }
+            ret = __read_file_sync(pproc->m_stderrhd , &(pproc->m_stderrov), &(preterr[errlen]), (errsize - errlen), &pending);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            errlen += ret;
+            if (errlen == errsize) {
+                goto err_again;
+            } else if (pending) {
+                waithds[waitnum] = pproc->m_stderrevt;
+                waitnum ++;
+            }
         }
 
         waittime = INFINITE;
@@ -971,38 +1264,96 @@ int run_cmd_outputv(char* pin, char** ppout, int *poutsize, char** pperr, int *p
                 ret = -WAIT_TIMEOUT;
                 goto fail;
             }
-            waittime = ret;
+            waittime = (DWORD)ret;
         }
 
-        dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, waittime, TRUE);
-        if (dret >= WAIT_OBJECT_0 && dret <= (WAIT_OBJECT_0 + waitnum)) {
-        	hd = waithds[(dret - WAIT_OBJECT_0)];
-        	if (hd == pproc->m_stdinhd) {
-        		
-        	}
-        } else {
-            GETERRNO(ret);
-            ERROR_INFO("run cmd [%s] error [%d]", pproc->m_cmdline,ret);
-            goto fail;
+        if (waitnum > 0 ) {
+            dret = WaitForMultipleObjectsEx((DWORD)waitnum, waithds, FALSE, waittime, TRUE);
+            DEBUG_INFO("dret [%d]", dret);
+            if ((dret >= WAIT_OBJECT_0) && (dret < (WAIT_OBJECT_0 + waitnum))) {
+                hd = waithds[(dret - WAIT_OBJECT_0)];
+                if (hd == pproc->m_stdinevt) {
+                    DEBUG_INFO("stdin write");
+                    ret = __get_overlapped(pproc->m_stdinhd,&(pproc->m_stdinov), &inlen,"stdin result");
+                    if (ret < 0) {
+                    	GETERRNO(ret);
+                    	goto fail;
+                    }
+                    /*inwait over*/
+                    inwait = ret;
+                    if (inlen == insize) {
+						bret = CloseHandle(pproc->m_stdinhd);
+						if (!bret) {
+							GETERRNO(ret);
+							ERROR_INFO("close stdin error[%d]",ret);
+							goto fail;
+						}
+						pproc->m_stdinhd = INVALID_HANDLE_VALUE;
+						bret = CloseHandle(pproc->m_stdinevt);
+						if (!bret) {
+							GETERRNO(ret);
+							ERROR_INFO("close stdinevt error[%d]",ret);
+							goto fail;
+						}
+						pproc->m_stdinevt = INVALID_HANDLE_VALUE;
+						memset(&(pproc->m_stdinov), 0 , sizeof(pproc->m_stdinov));
+						inwait = 0;
+                    }
+                } else if (hd == pproc->m_stdouthd) {
+                    DEBUG_INFO("stdout read");
+                    ret = __get_overlapped(pproc->m_stdouthd, &(pproc->m_stdoutov), &outlen, "get stdout result");
+                    if (ret < 0) {
+                    	GETERRNO(ret);
+                    	goto fail;
+                    }
+                    outwait = ret;
+                } else if (hd == pproc->m_stderrhd) {
+                	DEBUG_INFO("stderr read");
+                    ret = __get_overlapped(pproc->m_stderrhd, &(pproc->m_stderrov), &errlen, "get stdout result");
+                    if (ret < 0) {
+                    	GETERRNO(ret);
+                    	goto fail;
+                    }
+                    errwait = ret;
+                }
+            } else {
+                GETERRNO(ret);
+                ERROR_INFO("run cmd [%s] [%ld] error [%d]", pproc->m_cmdline, dret, ret);
+                goto fail;
+            }
         }
-
-
     }
 
-    outlen = outlen;
-    errlen = errlen;
-    pcurptr = pcurptr;
+    /*now exited ,so we should give the wait*/
+    if (inwait > 0) {
+    	ret = __get_overlapped()
+    }
+
     if (exitcode) {
         *exitcode = pproc->m_exitcode;
     }
+    if (ppout != NULL) {
+        if (*ppout != NULL && *ppout != pretout) {
+            free(*ppout);
+        }
+        *ppout = pretout;
+    }
+
+    if (pperr != NULL) {
+        if (*pperr != NULL && *pperr != preterr) {
+            free(*pperr);
+        }
+        *pperr = preterr;
+    }
+
     if (perrsize) {
-        *perrsize = errsize;
+        *perrsize = errlen;
     }
 
     if (poutsize) {
-        *poutsize = outsize;
+        *poutsize = outlen;
     }
-
+    __free_proc_handle(&pproc);
     return 0;
 fail:
 
