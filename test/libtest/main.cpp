@@ -9,6 +9,7 @@
 #include <win_verify.h>
 #include <win_netinter.h>
 #include <win_time.h>
+#include <win_uniansi.h>
 
 typedef struct __args_options {
     int m_verbose;
@@ -30,8 +31,14 @@ int quote_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int sendmsg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
+
+#define  GET_NUM64(num,name) 
+do{
+
+} while(0)
 
 int init_log_level(pargs_options_t pargs)
 {
@@ -250,13 +257,13 @@ int winverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
 #define TYPE_PRINTF(type,stype)          \
 do {                                     \
-	if (pinfo->m_type & type) {          \
-		if (typefp > 0) {                \
-			fprintf(fp, "|");            \
-		}                                \
-		fprintf(fp, "%s", stype);        \
-		typefp ++;                       \
-	}                                    \
+    if (pinfo->m_type & type) {          \
+        if (typefp > 0) {                \
+            fprintf(fp, "|");            \
+        }                                \
+        fprintf(fp, "%s", stype);        \
+        typefp ++;                       \
+    }                                    \
 } while(0)
 
 void debug_net_adapter(pnet_inter_info_t pinfo, FILE* fp, const char* fmt, ...)
@@ -520,6 +527,9 @@ void __close_handle_note(HANDLE *phd, const char* fmt, ...)
 
 void __close_pipe(ppipe_st_t p)
 {
+    char* curname = "no name";
+    BOOL bret;
+    int res;
     if (p->m_pipename) {
         curname = p->m_pipename;
     }
@@ -542,16 +552,13 @@ void __close_pipe(ppipe_st_t p)
 
 void __free_pipe(ppipe_st_t *pp)
 {
-    BOOL bret;
-    int res;
-    char* curname = "no name";
     if (pp != NULL && *pp != NULL) {
         ppipe_st_t p = *pp;
         __close_pipe(p);
         free(p);
         *pp = NULL;
     }
-    return
+    return ;
 }
 
 ppipe_st_t __alloc_pipe()
@@ -584,17 +591,16 @@ fail:
 
 int __connect_child(int wr, ppipe_st_t p)
 {
-    BOOL bret;
     DWORD chldacs = 0;
     DWORD chldshmode = 0;
     int ret;
-    TCHAR* ptname=NULL;
-    int tnamesize=0;
+    TCHAR* ptname = NULL;
+    int tnamesize = 0;
 
     if (p->m_pipename == NULL ||
             p->m_pipenamesize == 0 ||
             p->m_pipe == INVALID_HANDLE_VALUE ||
-            p->m_pipe == NULL || 
+            p->m_pipe == NULL ||
             (p->m_chldpipe != INVALID_HANDLE_VALUE && p->m_chldpipe != NULL)) {
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
@@ -611,24 +617,26 @@ int __connect_child(int wr, ppipe_st_t p)
 
     ret = AnsiToTchar(p->m_pipename, &(ptname), &(tnamesize));
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
 
-    p->m_chldpipe = CreateFile(ptname, chldacs, chldshmode,NULL,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+    p->m_chldpipe = CreateFile(ptname, chldacs, chldshmode, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (p->m_chldpipe == INVALID_HANDLE_VALUE) {
-    	GETERRNO(ret);
-    	ERROR_INFO("connect [%s] error[%d]", p->m_pipename, ret);
-    	goto fail;
+        GETERRNO(ret);
+        ERROR_INFO("connect [%s] error[%d]", p->m_pipename, ret);
+        goto fail;
     }
 
     AnsiToTchar(NULL, &(ptname), &(tnamesize));
     return 0;
 fail:
-	AnsiToTchar(NULL, &(ptname), &(tnamesize));
-	SETERRNO(ret);
-	return ret;
+    AnsiToTchar(NULL, &(ptname), &(tnamesize));
+    SETERRNO(ret);
+    return ret;
 }
+
+#define MIN_BUF_SIZE  0x400
 
 int __create_pipe(int wr, ppipe_st_t p, char* name)
 {
@@ -636,6 +644,8 @@ int __create_pipe(int wr, ppipe_st_t p, char* name)
     int ret;
     TCHAR* ptname = NULL;
     int tnamesize = 0;
+    DWORD chldacs;
+    DWORD chldshmode;
     DWORD omode = FILE_FLAG_OVERLAPPED ;
     DWORD pmode = PIPE_TYPE_MESSAGE | PIPE_ACCEPT_REMOTE_CLIENTS | PIPE_NOWAIT | PIPE_READMODE_MESSAGE;
 
@@ -705,8 +715,8 @@ int __create_pipe(int wr, ppipe_st_t p, char* name)
         /*now we should connect to the server*/
         ret = __connect_child(wr, p);
         if (ret < 0) {
-        	GETERRNO(ret);
-        	goto fail;
+            GETERRNO(ret);
+            goto fail;
         }
     }
 
@@ -721,14 +731,50 @@ fail:
 
 int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+    popt = popt;
+    return 0;
 }
 
 int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+    popt = popt;
     return 0;
 }
 
+
+int sendmsg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int cnt = 0;
+    int ret;
+    int idx=0;
+    HWND hwnd;
+    UINT msg;
+    WPARAM wparam;
+    LPARAM lparam;
+
+    if (parsestate->leftargs != NULL) {
+        for (cnt = 0; parsestate->leftargs[cnt] != NULL; cnt ++) {
+
+        }
+    }
+
+    if (cnt < 4) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "sendmsg hwnd msg wparam lparam\n");
+        goto out;
+    }
+
+out:
+    SETERRNO(ret);
+    return ret;
+}
 
 int main(int argc, char* argv[])
 {
