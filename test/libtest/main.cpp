@@ -35,7 +35,6 @@ int netinter_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int quote_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sendmsg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
@@ -538,37 +537,43 @@ void __close_handle_note(HANDLE *phd, const char* fmt, ...)
 #define PIPE_WAIT_WRITE          3
 #define PIPE_WAIT_CONNECT        4
 
-int __create_pipe(char* name, HANDLE *ppipe,OVERLAPPED* pov,HANDLE *pevt, int *pstate)
+#define MIN_BUF_SIZE    0x400
+
+int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *pevt, int *pstate)
 {
     int ret;
     int res;
     BOOL bret;
+    TCHAR* ptname = NULL;
+    int tnamesize = 0;
+    DWORD omode = 0;
+    DWORD pmode = 0;
     if (name == NULL) {
-        if ( ppipe != NULL && *ppipe != NULL && 
-            *ppipe != INVALID_HANDLE_VALUE && pov != NULL) {
-            if (pstate && (*pstate != PIPE_NONE && *pstate != PIPE_READY )){
+        if ( ppipe != NULL && *ppipe != NULL &&
+                *ppipe != INVALID_HANDLE_VALUE && pov != NULL) {
+            if (pstate && (*pstate != PIPE_NONE && *pstate != PIPE_READY )) {
                 bret = CancelIoEx(*ppipe, pov);
                 if (!bret) {
                     GETERRNO(res);
-                    ERROR_INFO("cancel io error[%d]", ret);
-                }     
+                    ERROR_INFO("cancel io error[%d]", res);
+                }
             }
-       }
+        }
 
-        if (ppipe != NULL && *ppipe != NULL && 
-            *ppipe != INVALID_HANDLE_VALUE &&
-            pstate != NULL &&
-            (*pstate == PIPE_WAIT_READ && *pstate == PIPE_WAIT_WRITE )) {
+        if (ppipe != NULL && *ppipe != NULL &&
+                *ppipe != INVALID_HANDLE_VALUE &&
+                pstate != NULL &&
+                (*pstate == PIPE_WAIT_READ && *pstate == PIPE_WAIT_WRITE )) {
             bret = DisconnectNamedPipe(*ppipe);
             if (!bret) {
                 GETERRNO(res);
                 ERROR_INFO("disconnect error[%d]", res);
             }
         }
-        __close_handle_note(pevt,"event close");
+        __close_handle_note(pevt, "event close");
         __close_handle_note(ppipe, "pipe close");
         if (pov != NULL) {
-            memset(pov, 0 ,sizeof(*pov));
+            memset(pov, 0 , sizeof(*pov));
         }
         return 0;
     }
@@ -582,24 +587,69 @@ int __create_pipe(char* name, HANDLE *ppipe,OVERLAPPED* pov,HANDLE *pevt, int *p
     if (*ppipe != NULL || *pevt != NULL) {
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
-        return ret;        
+        return ret;
     }
 
     *pstate = PIPE_NONE;
-    *pevt = CreateEvent(NULL,TRUE,TRUE,NULL);
+    *pevt = CreateEvent(NULL, TRUE, TRUE, NULL);
     if (*pevt == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("can not create event for[%s] error[%d]", name,ret);
+        ERROR_INFO("can not create event for[%s] error[%d]", name, ret);
+        goto fail;
+    }
+
+    memset(pov, 0 , sizeof(*pov));
+    pov->hEvent = pevt;
+
+    ret = AnsiToTchar(name, &ptname, &tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (wr) {
+        omode = PIPE_ACCESS_OUTBOUND | FILE_FLAG_OVERLAPPED;
+        pmode = PIPE_TYPE_MESSAGE  | PIPE_WAIT;
+    } else {
+        omode = PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED;
+        pmode = PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT;
+    }
+
+
+    *ppipe = CreateNamedPipe(ptname, omode, pmode, 1, MIN_BUF_SIZE, MIN_BUF_SIZE, NMPWAIT_WAIT_FOREVER, NULL);
+    if (*ppipe == NULL ||
+            *ppipe == INVALID_HANDLE_VALUE) {
+        GETERRNO(ret);
+        ERROR_INFO("create [%s] for %s error[%d]", name, wr ? "write" : "read", ret);
         goto fail;
     }
 
 
+    bret = ConnectNamedPipe(*ppipe, pov);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret != -ERROR_IO_PENDING && ret != -ERROR_PIPE_CONNECTED) {
+            ERROR_INFO("connect [%s] for %s error[%d]", name, wr ? "write" : "read", ret);
+            goto fail;
+        }
+        if (ret == -ERROR_IO_PENDING) {
+            *pstate = PIPE_WAIT_CONNECT;
+        } else {
+            *pstate = PIPE_READY;
+        }
+    } else {
+        /*ok so we got ready*/
+        *pstate = PIPE_READY;
+    }
 
+
+    AnsiToTchar(NULL, &ptname, &tnamesize);
     return 0;
 fail:
-    __close_handle_note(pevt,"%s event", name);
-    __close_handle_note(ppipe,"%s server pipe", name);
-    memset(pov,0,sizeof(*pov));
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    __close_handle_note(pevt, "%s event", name);
+    __close_handle_note(ppipe, "%s server pipe", name);
+    memset(pov, 0, sizeof(*pov));
     SETERRNO(ret);
     return ret;
 }
@@ -607,17 +657,223 @@ fail:
 
 int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    char* inputbuf=NULL;
-    int inputsize=0;
     int ret;
+    HANDLE svrpipe = NULL;
+    HANDLE evt = NULL;
+    OVERLAPPED ov;
+    int state = PIPE_NONE;
+    int wr = 0;
+    HANDLE waithds[1];
+    DWORD waitnum;
+    DWORD dret;
+    char* poutbuf = NULL;
+    size_t outsize = 0;
+    size_t outlen = 0;
+    char* pinbuf = NULL;
+    size_t insize = 0;
+    size_t inlen = 0;
+    DWORD wtime;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    uint64_t sticks = 0, cticks = 0;
+    DWORD cbret;
+    char* pipename = NULL;
+    char* ptmpbuf=NULL;
+    BOOL bret;
 
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
+    if (pargs->m_input != NULL) {
+        wr = 1;
+        ret = read_file_encoded(pargs->m_input, &poutbuf, (int*)&outsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "read [%s] error[%d]\n", pargs->m_input, ret);
+            goto out;
+        }
+    }
+
+    pipename = parsestate->leftargs[0];
+
+    ret = __create_pipe(pipename, wr, &svrpipe, &ov, &evt, &state);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "create %s error[%d]\n", pipename, ret);
+        goto out;
+    }
+
+    if (pargs->m_timeout > 0) {
+        sticks = get_current_ticks();
+    }
+
+    if (wr == 0) {
+        insize = MIN_BUF_SIZE;
+        pinbuf = (char*) malloc(insize);
+        if (pinbuf == NULL) {
+            GETERRNO(ret);
+            fprintf(stderr, "alloc %zu error[%d]\n", insize, ret);
+            goto out;
+        }
+        memset(pinbuf, 0, insize);
+    }
+
+    while (1) {
+        waitnum = 0;
+        memset(waithds, 0 , sizeof(waithds));
+        if (state == PIPE_WAIT_CONNECT) {
+            waithds[0] = evt;
+            waitnum ++;
+        } else if (wr && state == PIPE_WAIT_WRITE) {
+            waithds[0] = evt;
+            waitnum ++;
+        } else if (wr == 0 && state == PIPE_WAIT_READ) {
+            waithds[0] = evt;
+            waitnum ++;
+        }
+
+        if (waitnum > 0) {
+            wtime = INFINITE;
+            if (pargs->m_timeout > 0) {
+                cticks = get_current_ticks();
+                ret = need_wait_times(sticks, cticks, pargs->m_timeout);
+                if (ret < 0) {
+                    ret = -WAIT_TIMEOUT;
+                    fprintf(stderr, "wait [%s] timedout\n", pipename);
+                    goto out;
+                }
+                wtime = (DWORD)ret;
+            }
+            dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, wtime, TRUE);
+            if (dret != WAIT_OBJECT_0) {
+                GETERRNO(ret);
+                fprintf(stderr, "wait [%s] ret[%ld] error[%d]\n", pipename, dret, ret);
+                goto out;
+            }
+        }
+
+        if (state == PIPE_WAIT_CONNECT) {
+            state = PIPE_READY;
+        }
+
+        if (state == PIPE_WAIT_READ) {
+            /*ok this is for the */
+            bret = GetOverlappedResult(svrpipe, &(ov), &cbret, FALSE);
+            if (!bret) {
+                GETERRNO(ret);
+                if (ret != -ERROR_IO_PENDING && ret != -ERROR_MORE_DATA) {
+                    fprintf(stderr, "read [%s] at [%zu] error[%d]\n", pipename, inlen, ret);
+                    goto out;
+                }
+                if (ret == -ERROR_MORE_DATA) {
+                    inlen += cbret;
+                    if (inlen == insize) {
+                        state = PIPE_READY;
+                    }
+                }
+            } else {
+                inlen += cbret;
+                if (inlen == insize) {
+                    state = PIPE_READY;
+                }
+            }
+        }
+
+        if (state == PIPE_WAIT_WRITE) {
+            bret = GetOverlappedResult(svrpipe, &(ov), &cbret, FALSE);
+            if (!bret) {
+                GETERRNO(ret);
+                if (ret != -ERROR_IO_PENDING) {
+                    fprintf(stderr, "write [%s] [%zu] error[%d]\n", pipename, outlen, ret);
+                    goto out;
+                }
+                outlen += cbret;
+            } else {
+                outlen += cbret;
+            }
+
+            if (outlen == outsize) {
+                /*that is all ok so break*/
+                break;
+            }
+        }
+
+        if (state == PIPE_READY) {
+            if (wr) {
+                bret = WriteFile(svrpipe, &(poutbuf[outlen]), (DWORD)(outsize - outlen), &cbret, &(ov));
+                if (!bret) {
+                    GETERRNO(ret);
+                    if (ret != -ERROR_IO_PENDING) {
+                        fprintf(stderr, "write [%s] [%zu] error[%d]\n", pipename, outlen, ret);
+                        goto out;
+                    }
+                    state = PIPE_WAIT_WRITE;
+                } else {
+                    outlen += cbret;
+                }
+                if (outlen == outsize) {
+                    /*all writed ,so out*/
+                    break;
+                }
+            } else {
+                if (inlen == insize) {
+                    insize <<= 1;
+                    ptmpbuf = (char*) malloc(insize);
+                    if (ptmpbuf == NULL) {
+                        GETERRNO(ret);
+                        fprintf(stderr, "alloc %zu error[%d]\n", insize, ret);
+                        goto out;
+                    }
+                    memset(ptmpbuf, 0 ,insize);
+                    if (inlen > 0) {
+                        memcpy(ptmpbuf, pinbuf, inlen);
+                    }
+
+                    if (pinbuf) {
+                        free(pinbuf);
+                    }
+                    pinbuf = NULL;
+                    pinbuf = ptmpbuf;
+                    ptmpbuf = NULL;
+                }
+
+                bret = ReadFile(svrpipe,&(pinbuf[inlen]), (DWORD)(insize - inlen), &cbret, &(ov));
+                if (!bret) {
+                    GETERRNO(ret);
+                    if (ret != -ERROR_IO_PENDING) {
+                        fprintf(stderr, "read [%s] [%zu] error[%d]\n", pipename, inlen, ret);
+                        goto out;
+                    }
+                    state = PIPE_WAIT_READ;
+                } else {
+                    inlen += cbret;
+                }
+            }
+        }
+    }
+
+    if (wr == 0) {
+        fprintf(stdout,"read [%s] --------------------\n", pipename);
+        __debug_buf(stdout,pinbuf, (int)inlen);
+        fprintf(stdout,"read [%s] ++++++++++++++++++++\n", pipename);
+    }
+    ret = 0;
 out:
+
+    if (ptmpbuf != NULL) {
+        free(ptmpbuf);
+    }
+    ptmpbuf = NULL;
+    if (pinbuf != NULL) {
+        free(pinbuf);
+    }
+    pinbuf = NULL;
+    insize = 0;
+
+    read_file_encoded(NULL, &poutbuf, (int*)&outsize);
+    __create_pipe(NULL, 0, &svrpipe, &ov, &evt, &state);
     SETERRNO(ret);
     return ret;
-}
-int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
-{
-
 }
 
 
@@ -625,12 +881,12 @@ int sendmsg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 {
     pargs_options_t pargs = (pargs_options_t) popt;
     int ret;
-    int cnt=0;
+    int cnt = 0;
     int idx = 0;
-    HWND hwnd=NULL;
-    UINT msg=0;
-    WPARAM wparam=0;
-    LPARAM lparam=0;
+    HWND hwnd = NULL;
+    UINT msg = 0;
+    WPARAM wparam = 0;
+    LPARAM lparam = 0;
     LRESULT lret;
 
     argc = argc;
