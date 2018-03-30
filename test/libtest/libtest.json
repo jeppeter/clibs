@@ -33,9 +33,12 @@
         "$" : "+"
     },
     "svroverlap<svrlap_handler>##to make server overlapped##" : {
-        "$" : 0
+        "$" : 1
     },
     "clioverlap<clilap_handler>##to make client overlapped##" : {
-        "$" : 0
+        "$" : 1
+    },
+    "sendmsg<sendmsg_handler>##to send hwnd msg wparam lparam##" : {
+        "$" : "+"
     }
 }

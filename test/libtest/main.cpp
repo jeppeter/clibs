@@ -20,6 +20,11 @@ typedef struct __args_options {
     int m_timeout;
 } args_options_t, *pargs_options_t;
 
+#pragma comment(lib,"user32.lib")
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 int mktemp_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int readencode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int pidargv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
@@ -33,12 +38,31 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sendmsg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
+#ifdef __cplusplus
+};
+#endif
+
 #include "args_options.cpp"
 
-#define  GET_NUM64(num,name) 
-do{
-
+#define  GET_OPT_TYPE(num, desc, typeof)                                          \
+do{                                                                               \
+    char* __pendptr;                                                              \
+    uint64_t __num;                                                               \
+    if (parsestate->leftargs &&                                                   \
+        parsestate->leftargs[idx] != NULL) {                                      \
+        ret = parse_number(parsestate->leftargs[idx],&__num,&__pendptr);          \
+        if (ret < 0) {                                                            \
+            GETERRNO(ret);                                                        \
+            fprintf(stderr,"%s error[%d]\n", desc, ret);                          \
+            goto out;                                                             \
+        }                                                                         \
+        num = (typeof)__num;                                                      \
+        idx ++;                                                                   \
+    }                                                                             \
 } while(0)
+
+#define  GET_OPT_NUM64(num,desc)          GET_OPT_TYPE(num,desc, uint64_t)
+#define  GET_OPT_INT(num, desc)           GET_OPT_TYPE(num,desc,int)
 
 int init_log_level(pargs_options_t pargs)
 {
@@ -484,22 +508,6 @@ out:
     return ret;
 }
 
-#define PIPE_NO_WAIT            0
-#define PIPE_READ_WAIT          1
-#define PIPE_WRITE_WAIT         2
-#define PIPE_CONN_WAIT          3
-
-typedef struct __pipe_st {
-    HANDLE m_pipe;
-    HANDLE m_evt;
-    HANDLE m_nul;
-    HANDLE m_chldpipe;
-    OVERLAPPED m_ov;
-    int m_state;
-    char* m_pipename;
-    int m_pipenamesize;
-} pipe_st_t, *ppipe_st_t;
-
 void __close_handle_note(HANDLE *phd, const char* fmt, ...)
 {
     va_list ap;
@@ -524,240 +532,110 @@ void __close_handle_note(HANDLE *phd, const char* fmt, ...)
     return;
 }
 
+#define PIPE_NONE                0
+#define PIPE_READY               1
+#define PIPE_WAIT_READ           2
+#define PIPE_WAIT_WRITE          3
+#define PIPE_WAIT_CONNECT        4
 
-void __close_pipe(ppipe_st_t p)
+int __create_pipe(char* name, HANDLE *ppipe,OVERLAPPED* pov,HANDLE *pevt, int *pstate)
 {
-    char* curname = "no name";
-    BOOL bret;
+    int ret;
     int res;
-    if (p->m_pipename) {
-        curname = p->m_pipename;
-    }
-    if (p->m_state != PIPE_NO_WAIT) {
-        bret = CancelIoEx(p->m_pipe, &(p->m_ov));
-        if (!bret) {
-            GETERRNO(res);
-            ERROR_INFO("can not stop [%s] error[%d]", curname, res);
-        }
-        p->m_state = PIPE_NO_WAIT;
-    }
-
-    __close_handle_note(&(p->m_evt), "evt[%s]", curname);
-    __close_handle_note(&(p->m_pipe), "server[%s]", curname);
-    __close_handle_note(&(p->m_chldpipe), "client[%s]", curname);
-    __close_handle_note(&(p->m_nul), "null[%s]", curname);
-    snprintf_safe(&(p->m_pipename), &(p->m_pipenamesize), NULL);
-    return;
-}
-
-void __free_pipe(ppipe_st_t *pp)
-{
-    if (pp != NULL && *pp != NULL) {
-        ppipe_st_t p = *pp;
-        __close_pipe(p);
-        free(p);
-        *pp = NULL;
-    }
-    return ;
-}
-
-ppipe_st_t __alloc_pipe()
-{
-    ppipe_st_t p = NULL;
-    int ret;
-
-    p = (ppipe_st_t) malloc(sizeof(*p));
-    if (p == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc %d error[%d]", sizeof(*p));
-        goto fail;
-    }
-
-    memset(p, 0 , sizeof(*p));
-    p->m_state = PIPE_NO_WAIT;
-    p->m_pipe = INVALID_HANDLE_VALUE;
-    p->m_evt = INVALID_HANDLE_VALUE;
-    p->m_chldpipe = INVALID_HANDLE_VALUE;
-    p->m_nul = INVALID_HANDLE_VALUE;
-    p->m_pipename = NULL;
-    p->m_pipenamesize = 0;
-
-    return p;
-fail:
-    __free_pipe(&p);
-    SETERRNO(ret);
-    return NULL;
-}
-
-int __connect_child(int wr, ppipe_st_t p)
-{
-    DWORD chldacs = 0;
-    DWORD chldshmode = 0;
-    int ret;
-    TCHAR* ptname = NULL;
-    int tnamesize = 0;
-
-    if (p->m_pipename == NULL ||
-            p->m_pipenamesize == 0 ||
-            p->m_pipe == INVALID_HANDLE_VALUE ||
-            p->m_pipe == NULL ||
-            (p->m_chldpipe != INVALID_HANDLE_VALUE && p->m_chldpipe != NULL)) {
-        ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;
-    }
-
-    if (wr) {
-        chldacs = GENERIC_READ;
-        chldshmode = FILE_SHARE_READ;
-    } else {
-        chldacs = GENERIC_WRITE;
-        chldshmode = FILE_SHARE_WRITE;
-    }
-
-    ret = AnsiToTchar(p->m_pipename, &(ptname), &(tnamesize));
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    p->m_chldpipe = CreateFile(ptname, chldacs, chldshmode, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (p->m_chldpipe == INVALID_HANDLE_VALUE) {
-        GETERRNO(ret);
-        ERROR_INFO("connect [%s] error[%d]", p->m_pipename, ret);
-        goto fail;
-    }
-
-    AnsiToTchar(NULL, &(ptname), &(tnamesize));
-    return 0;
-fail:
-    AnsiToTchar(NULL, &(ptname), &(tnamesize));
-    SETERRNO(ret);
-    return ret;
-}
-
-#define MIN_BUF_SIZE  0x400
-
-int __create_pipe(int wr, ppipe_st_t p, char* name)
-{
     BOOL bret;
-    int ret;
-    TCHAR* ptname = NULL;
-    int tnamesize = 0;
-    DWORD chldacs;
-    DWORD chldshmode;
-    DWORD omode = FILE_FLAG_OVERLAPPED ;
-    DWORD pmode = PIPE_TYPE_MESSAGE | PIPE_ACCEPT_REMOTE_CLIENTS | PIPE_NOWAIT | PIPE_READMODE_MESSAGE;
+    if (name == NULL) {
+        if ( ppipe != NULL && *ppipe != NULL && 
+            *ppipe != INVALID_HANDLE_VALUE && pov != NULL) {
+            if (pstate && (*pstate != PIPE_NONE && *pstate != PIPE_READY )){
+                bret = CancelIoEx(*ppipe, pov);
+                if (!bret) {
+                    GETERRNO(res);
+                    ERROR_INFO("cancel io error[%d]", ret);
+                }     
+            }
+       }
 
-    if (name == NULL || p == NULL ||
-            (p->m_pipe != INVALID_HANDLE_VALUE && p->m_pipe != NULL) ||
-            (p->m_chldpipe != INVALID_HANDLE_VALUE && p->m_chldpipe != NULL) ||
-            (p->m_evt != INVALID_HANDLE_VALUE && p->m_evt != NULL) ||
-            (p->m_nul != INVALID_HANDLE_VALUE && p->m_nul != NULL) ||
-            p->m_state != PIPE_NO_WAIT ||
-            p->m_pipename != NULL || p->m_pipenamesize != 0) {
+        if (ppipe != NULL && *ppipe != NULL && 
+            *ppipe != INVALID_HANDLE_VALUE &&
+            pstate != NULL &&
+            (*pstate == PIPE_WAIT_READ && *pstate == PIPE_WAIT_WRITE )) {
+            bret = DisconnectNamedPipe(*ppipe);
+            if (!bret) {
+                GETERRNO(res);
+                ERROR_INFO("disconnect error[%d]", res);
+            }
+        }
+        __close_handle_note(pevt,"event close");
+        __close_handle_note(ppipe, "pipe close");
+        if (pov != NULL) {
+            memset(pov, 0 ,sizeof(*pov));
+        }
+        return 0;
+    }
+
+    if (ppipe == NULL || pevt == NULL || pov == NULL || pstate == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
         return ret;
     }
 
-    if (wr) {
-        omode |=  PIPE_ACCESS_OUTBOUND;
-        chldacs = GENERIC_READ;
-        chldshmode = FILE_SHARE_READ;
-    } else {
-        omode |= PIPE_ACCESS_INBOUND;
-        chldacs = GENERIC_WRITE;
-        chldshmode = FILE_SHARE_WRITE;
+    if (*ppipe != NULL || *pevt != NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;        
     }
 
-    p->m_evt = CreateEvent(NULL, TRUE, TRUE, NULL);
-    if (p->m_evt == NULL) {
+    *pstate = PIPE_NONE;
+    *pevt = CreateEvent(NULL,TRUE,TRUE,NULL);
+    if (*pevt == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("can not create for [%s] error[%d]", name, ret);
-        goto fail;
-    }
-    memset(&(p->m_ov), 0 , sizeof(p->m_ov));
-    p->m_ov.hEvent = p->m_evt;
-
-    ret = snprintf_safe(&(p->m_pipename), &(p->m_pipenamesize), "%s", name);
-    if (ret < 0) {
-        GETERRNO(ret);
+        ERROR_INFO("can not create event for[%s] error[%d]", name,ret);
         goto fail;
     }
 
-    ret = AnsiToTchar(name, &ptname, &tnamesize);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
 
-    p->m_pipe = CreateNamedPipe(ptname, omode, pmode, 1, MIN_BUF_SIZE, MIN_BUF_SIZE, NMPWAIT_USE_DEFAULT_WAIT, NULL);
-    if (p->m_pipe == INVALID_HANDLE_VALUE) {
-        GETERRNO(ret);
-        ERROR_INFO("can not create [%s] pipe error[%d]", name, ret);
-        goto fail;
-    }
 
-    bret = ConnectNamedPipe(p->m_pipe, &(p->m_ov));
-    if (!bret) {
-        GETERRNO(ret);
-        if (ret != -ERROR_IO_PENDING && ret != -ERROR_PIPE_CONNECTED) {
-            ERROR_INFO("connect [%s] error[%d]", name, ret);
-            goto fail;
-        }
-        if (ret == -ERROR_IO_PENDING) {
-            p->m_state = PIPE_CONN_WAIT;
-        }
-    }
-
-    if (p->m_state != PIPE_CONN_WAIT) {
-        /*now we should connect to the server*/
-        ret = __connect_child(wr, p);
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto fail;
-        }
-    }
-
-    AnsiToTchar(NULL, &ptname, &tnamesize);
     return 0;
 fail:
-    __close_pipe(p);
-    AnsiToTchar(NULL, &ptname, &tnamesize);
+    __close_handle_note(pevt,"%s event", name);
+    __close_handle_note(ppipe,"%s server pipe", name);
+    memset(pov,0,sizeof(*pov));
     SETERRNO(ret);
     return ret;
 }
+
 
 int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    argc = argc;
-    argv = argv;
-    parsestate = parsestate;
-    popt = popt;
-    return 0;
-}
+    char* inputbuf=NULL;
+    int inputsize=0;
+    int ret;
 
+out:
+    SETERRNO(ret);
+    return ret;
+}
 int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    argc = argc;
-    argv = argv;
-    parsestate = parsestate;
-    popt = popt;
-    return 0;
+
 }
 
 
 int sendmsg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     pargs_options_t pargs = (pargs_options_t) popt;
-    int cnt = 0;
     int ret;
-    int idx=0;
-    HWND hwnd;
-    UINT msg;
-    WPARAM wparam;
-    LPARAM lparam;
+    int cnt=0;
+    int idx = 0;
+    HWND hwnd=NULL;
+    UINT msg=0;
+    WPARAM wparam=0;
+    LPARAM lparam=0;
+    LRESULT lret;
+
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
 
     if (parsestate->leftargs != NULL) {
         for (cnt = 0; parsestate->leftargs[cnt] != NULL; cnt ++) {
@@ -765,12 +643,29 @@ int sendmsg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         }
     }
 
-    if (cnt < 4) {
+    if (cnt < 4 || (cnt % 4) != 0) {
         ret = -ERROR_INVALID_PARAMETER;
         fprintf(stderr, "sendmsg hwnd msg wparam lparam\n");
         goto out;
     }
 
+
+    while (parsestate->leftargs[idx] != NULL) {
+        GET_OPT_TYPE(hwnd, "get hwnd", HWND);
+        GET_OPT_TYPE(msg, "get msg", UINT);
+        GET_OPT_TYPE(wparam, "get wparam", WPARAM);
+        GET_OPT_TYPE(lparam, "get lparam", LPARAM);
+
+        lret = SendMessage(hwnd, msg, wparam, lparam);
+        fprintf(stdout, "send [%p] msg[%d:0x%x] with wparam [%lld:0x%llx] lparam[%lld:0x%llx] ret[%lld]\n",
+                hwnd, msg, msg,
+                wparam, wparam,
+                lparam, lparam, lret);
+        if (pargs->m_timeout > 0) {
+            SleepEx((DWORD)pargs->m_timeout, TRUE);
+        }
+    }
+    ret = 0;
 out:
     SETERRNO(ret);
     return ret;

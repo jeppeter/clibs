@@ -360,7 +360,7 @@ int __get_command_lines(char** ppcmdline, int *psize, char* prog[])
     int qsize = 0;
     int ret;
     if (prog == NULL || prog[0] == NULL) {
-        append_snprintf_safe(ppcmdline, psize, NULL);
+        snprintf_safe(ppcmdline, psize, NULL);
         return 0;
     }
 
@@ -389,8 +389,8 @@ int __get_command_lines(char** ppcmdline, int *psize, char* prog[])
             GETERRNO(ret);
             goto fail;
         }
-        DEBUG_INFO("cmdline [%s]", *ppcmdline);
     }
+    DEBUG_INFO("cmdline [%s]", *ppcmdline);
     quote_string(&qstr, &qsize, NULL);
     return ret;
 
