@@ -608,15 +608,16 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
     }
 
     if (wr) {
-        omode = PIPE_ACCESS_OUTBOUND | FILE_FLAG_OVERLAPPED;
-        pmode = PIPE_TYPE_MESSAGE  | PIPE_WAIT;
+        omode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
+        pmode = PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT;
     } else {
-        omode = PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED;
+        omode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
         pmode = PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT;
     }
 
+    DEBUG_INFO("create [%s]", name);
 
-    *ppipe = CreateNamedPipe(ptname, omode, pmode, 1, MIN_BUF_SIZE, MIN_BUF_SIZE, NMPWAIT_WAIT_FOREVER, NULL);
+    *ppipe = CreateNamedPipe(ptname, omode, pmode, 1, MIN_BUF_SIZE, MIN_BUF_SIZE, 5000, NULL);
     if (*ppipe == NULL ||
             *ppipe == INVALID_HANDLE_VALUE) {
         GETERRNO(ret);
@@ -625,6 +626,7 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
     }
 
 
+    DEBUG_INFO("[%s] pipe [%p]", name, *ppipe);
     bret = ConnectNamedPipe(*ppipe, pov);
     if (!bret) {
         GETERRNO(ret);

@@ -9,6 +9,7 @@ RM      = del
 PYTHON  = python.exe
 GIT     = git.exe
 CP      = copy /Y
+GOBIN   = go.exe
 
 !IFDEF MAKEVERBOSE
 !IF $(MAKEVERBOSE) != 0
@@ -63,7 +64,7 @@ LDFLAGS = $(NOLOGO_LDFLAGS) $(INC_LDFLAGS) $(REL_LDFLAGS)
 SOURCES=main.cpp
 OBJECTS=$(SOURCES:.cpp=.obj)
 
-all:libtest.exe
+all:libtest.exe pipewin.exe
 
 !IFDEF STATICLIB
 !IF $(STATICLIB) != 0
@@ -97,6 +98,19 @@ args_options.cpp:args_options.cpp.tmpl libtest.json $(TOPDIR)\extargslib\coutput
 
 $(TOPDIR)\extargslib\coutput.py:$(TOPDIR)\extargslib
 
+
+pipewin.exe : pipewin.go loglib.go loglib_windows.go
+	$(QUIETCMD)$(GOBIN) build -o $@ pipewin.go loglib.go loglib_windows.go
+
+loglib.go : $(TOPDIR)\golib
+	$(QUIETCMD)$(CP) $(TOPDIR)\golib\log\loglib.go $@
+
+loglib_windows.go: $(TOPDIR)\golib
+	$(QUIETCMD)$(CP) $(TOPDIR)\golib\log\loglib_windows.go $@
+
+$(TOPDIR)\golib:
+	$(QUIETCMD)(cd $(TOPDIR) && $(GIT) clone https://github.com/jeppeter/golib.git golib && cd $(CURDIR))
+
 extargslib.dll:$(TOPDIR)\extargslib\src\extargslib.lib
 	$(QUIETCMD)$(CP) $(TOPDIR)\extargslib\src\extargslib.dll extargslib.dll
 
@@ -127,3 +141,4 @@ clean:clean_lib
 	$(QUIETCMD) $(RM) *.pdb *.ilk 2>NUL
 	$(QUIETCMD) $(RM) args_options.cpp 2>NUL
 	$(QUIETCMD) $(RM) *.dll 2>NUL
+	$(QUIETCMD) $(RM) pipewin.exe loglib.go loglib_windows.go 2>NUL
