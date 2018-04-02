@@ -551,11 +551,11 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
     if (name == NULL) {
         if ( ppipe != NULL && *ppipe != NULL &&
                 *ppipe != INVALID_HANDLE_VALUE && pov != NULL) {
-            if (pstate && (*pstate != PIPE_NONE && *pstate != PIPE_READY )) {
+            if (pstate && (*pstate != PIPE_NONE && *pstate != PIPE_READY)) {
                 bret = CancelIoEx(*ppipe, pov);
                 if (!bret) {
                     GETERRNO(res);
-                    ERROR_INFO("cancel io error[%d]", res);
+                    ERROR_INFO("cancel io error[%d] at state [%d]", res, *pstate);
                 }
             }
         }
@@ -599,7 +599,7 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
     }
 
     memset(pov, 0 , sizeof(*pov));
-    pov->hEvent = pevt;
+    pov->hEvent = *pevt;
 
     ret = AnsiToTchar(name, &ptname, &tnamesize);
     if (ret < 0) {
@@ -609,15 +609,15 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
 
     if (wr) {
         omode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
-        pmode = PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT;
+        pmode = PIPE_TYPE_MESSAGE | PIPE_WAIT;
     } else {
         omode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
-        pmode = PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT;
+        pmode = PIPE_TYPE_MESSAGE  | PIPE_WAIT;
     }
 
-    DEBUG_INFO("create [%s]", name);
+    DEBUG_INFO("create %s [%s]", wr ? "write" : "read", name);
 
-    *ppipe = CreateNamedPipe(ptname, omode, pmode, 1, MIN_BUF_SIZE, MIN_BUF_SIZE, 5000, NULL);
+    *ppipe = CreateNamedPipe(ptname, omode, pmode, 1, MIN_BUF_SIZE * sizeof(TCHAR), MIN_BUF_SIZE* sizeof(TCHAR), 5000, NULL);
     if (*ppipe == NULL ||
             *ppipe == INVALID_HANDLE_VALUE) {
         GETERRNO(ret);
@@ -741,7 +741,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                 ret = need_wait_times(sticks, cticks, pargs->m_timeout);
                 if (ret < 0) {
                     ret = -WAIT_TIMEOUT;
-                    fprintf(stderr, "wait [%s] timedout\n", pipename);
+                    ERROR_INFO("wait [%s] timedout", pipename);
                     goto out;
                 }
                 wtime = (DWORD)ret;
@@ -749,7 +749,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
             dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, wtime, TRUE);
             if (dret != WAIT_OBJECT_0) {
                 GETERRNO(ret);
-                fprintf(stderr, "wait [%s] ret[%ld] error[%d]\n", pipename, dret, ret);
+                ERROR_INFO("wait [%s] ret[%ld] error[%d]", pipename, dret, ret);
                 goto out;
             }
         }
@@ -763,10 +763,15 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
             bret = GetOverlappedResult(svrpipe, &(ov), &cbret, FALSE);
             if (!bret) {
                 GETERRNO(ret);
-                if (ret != -ERROR_IO_PENDING && ret != -ERROR_MORE_DATA) {
-                    fprintf(stderr, "read [%s] at [%zu] error[%d]\n", pipename, inlen, ret);
+                if (ret != -ERROR_IO_PENDING && ret != -ERROR_MORE_DATA && ret != -ERROR_BROKEN_PIPE) {
+                    ERROR_INFO("read [%s] at [%zu] error[%d]", pipename, inlen, ret);
                     goto out;
                 }
+                if (ret == -ERROR_BROKEN_PIPE) {
+                    state = PIPE_READY;
+                    break;
+                }
+
                 if (ret == -ERROR_MORE_DATA) {
                     inlen += cbret;
                     if (inlen == insize) {
@@ -786,7 +791,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
             if (!bret) {
                 GETERRNO(ret);
                 if (ret != -ERROR_IO_PENDING) {
-                    fprintf(stderr, "write [%s] [%zu] error[%d]\n", pipename, outlen, ret);
+                    ERROR_INFO("write [%s] [%zu] error[%d]", pipename, outlen, ret);
                     goto out;
                 }
                 outlen += cbret;
@@ -806,7 +811,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                 if (!bret) {
                     GETERRNO(ret);
                     if (ret != -ERROR_IO_PENDING) {
-                        fprintf(stderr, "write [%s] [%zu] error[%d]\n", pipename, outlen, ret);
+                        ERROR_INFO("write [%s] [%zu] error[%d]", pipename, outlen, ret);
                         goto out;
                     }
                     state = PIPE_WAIT_WRITE;
@@ -823,7 +828,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                     ptmpbuf = (char*) malloc(insize);
                     if (ptmpbuf == NULL) {
                         GETERRNO(ret);
-                        fprintf(stderr, "alloc %zu error[%d]\n", insize, ret);
+                        ERROR_INFO("alloc %zu error[%d]", insize, ret);
                         goto out;
                     }
                     memset(ptmpbuf, 0 ,insize);
@@ -842,9 +847,14 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                 bret = ReadFile(svrpipe,&(pinbuf[inlen]), (DWORD)(insize - inlen), &cbret, &(ov));
                 if (!bret) {
                     GETERRNO(ret);
-                    if (ret != -ERROR_IO_PENDING) {
-                        fprintf(stderr, "read [%s] [%zu] error[%d]\n", pipename, inlen, ret);
+                    if (ret != -ERROR_IO_PENDING && ret != -ERROR_BROKEN_PIPE) {
+                        ERROR_INFO("read [%s] [%zu] error[%d]", pipename, inlen, ret);
                         goto out;
+                    }
+
+                    if (ret == -ERROR_BROKEN_PIPE) {
+                        state = PIPE_READY;
+                        break;
                     }
                     state = PIPE_WAIT_READ;
                 } else {
