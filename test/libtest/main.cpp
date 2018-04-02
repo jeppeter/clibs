@@ -658,14 +658,30 @@ fail:
 
 int __get_temp_pipe_name(int freed,char** pptmp,int *psize)
 {
-    TCHAR* tmpbuf=NULL;
-    int tmpbufsize=0;
+    TCHAR* tmpdirbuf=NULL;
+    int tmpdirsize=0;
+    TCHAR* tmpfilebuf=NULL;
+    int tmpfilesize=0;
+    int ret;
+
+
     if (freed) {
         if (pptmp && *pptmp && psize) {
             TcharToAnsi(NULL,pptmp,psize);
         }
         return 0;
     }
+
+try_again:
+    
+
+fail:
+    if (tmpdirbuf != NULL) {
+
+    }
+
+    SETERRNO(ret);
+    return ret;
 }
 
 
