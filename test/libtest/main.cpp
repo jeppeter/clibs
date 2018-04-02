@@ -656,6 +656,18 @@ fail:
     return ret;
 }
 
+int __get_temp_pipe_name(int freed,char** pptmp,int *psize)
+{
+    TCHAR* tmpbuf=NULL;
+    int tmpbufsize=0;
+    if (freed) {
+        if (pptmp && *pptmp && psize) {
+            TcharToAnsi(NULL,pptmp,psize);
+        }
+        return 0;
+    }
+}
+
 
 int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -681,6 +693,8 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     char* pipename = NULL;
     char* ptmpbuf=NULL;
     BOOL bret;
+    char* tmpfile=NULL;
+    int tmpfilesize=0;
 
     argc = argc;
     argv = argv;
