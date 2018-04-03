@@ -617,7 +617,7 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
 
     DEBUG_INFO("create %s [%s]", wr ? "write" : "read", name);
 
-    *ppipe = CreateNamedPipe(ptname, omode, pmode, 1, MIN_BUF_SIZE * sizeof(TCHAR), MIN_BUF_SIZE* sizeof(TCHAR), 5000, NULL);
+    *ppipe = CreateNamedPipe(ptname, omode, pmode, 1, MIN_BUF_SIZE * sizeof(TCHAR), MIN_BUF_SIZE * sizeof(TCHAR), 5000, NULL);
     if (*ppipe == NULL ||
             *ppipe == INVALID_HANDLE_VALUE) {
         GETERRNO(ret);
@@ -634,7 +634,7 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
             goto fail;
         }
         if (ret == -ERROR_IO_PENDING) {
-            DEBUG_INFO("[%s] connect pending" ,name);
+            DEBUG_INFO("[%s] connect pending" , name);
             *pstate = PIPE_WAIT_CONNECT;
         } else {
             *pstate = PIPE_READY;
@@ -658,32 +658,32 @@ fail:
 
 #define LEAST_UNIQ_NUM    50
 
-int __get_temp_pipe_name(char* prefix,char** pptmp,int *psize)
+int __get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
 {
-    TCHAR* tmpdirbuf=NULL;
-    size_t tmpdirsize=0, tmpdirlen;
-    TCHAR* ptprefix=NULL;
-    int prefixsize=0;
-    TCHAR* tmpfilebuf=NULL;
-    size_t tmpfilesize=0, tmpfilelen;
+    TCHAR* tmpdirbuf = NULL;
+    size_t tmpdirsize = 0, tmpdirlen;
+    TCHAR* ptprefix = NULL;
+    int prefixsize = 0;
+    TCHAR* tmpfilebuf = NULL;
+    size_t tmpfilesize = 0, tmpfilelen;
 
     int ret, nlen;
     DWORD dret;
-    UINT uniq,uret;
-    TCHAR* prealname=NULL;
-    TCHAR* pcmpname=NULL;
+    UINT uniq, uret;
+    TCHAR* prealname = NULL;
+    TCHAR* pcmpname = NULL;
 
 
     if (prefix == NULL) {
         if (pptmp && *pptmp && psize) {
-            TcharToAnsi(NULL,pptmp,psize);
+            TcharToAnsi(NULL, pptmp, psize);
         }
         return 0;
     }
 
-    ret = AnsiToTchar(prefix, &ptprefix,&prefixsize);
+    ret = AnsiToTchar(prefix, &ptprefix, &prefixsize);
     if (ret < 0) {
-        GETERRNO(ret);        
+        GETERRNO(ret);
         goto fail;
     }
 
@@ -700,7 +700,7 @@ try_again:
         ERROR_INFO("alloc %d error[%d]", tmpdirsize, ret);
         goto fail;
     }
-    memset(tmpdirbuf, 0 ,tmpdirsize);
+    memset(tmpdirbuf, 0 , tmpdirsize);
     dret = GetTempPath((DWORD)(tmpdirsize / sizeof(TCHAR)), tmpdirbuf);
     if (dret == 0) {
         GETERRNO(ret);
@@ -718,7 +718,7 @@ try_again:
     tmpfilebuf = (TCHAR*) malloc(tmpfilesize);
     if (tmpfilebuf == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("alloc %d error[%d]", tmpfilesize ,ret);
+        ERROR_INFO("alloc %d error[%d]", tmpfilesize , ret);
         goto fail;
     }
     tmpdirlen = _tcslen(tmpdirbuf);
@@ -726,11 +726,11 @@ try_again:
         tmpfilesize = ((tmpdirlen + LEAST_UNIQ_NUM + strlen(prefix)) * sizeof(TCHAR));
         goto try_again;
     }
-    memset(tmpfilebuf, 0 ,tmpfilesize);
+    memset(tmpfilebuf, 0 , tmpfilesize);
     //uniq = (UINT)(LEAST_UNIQ_NUM + strlen(prefix));
     uniq = 0;
 
-    uret = GetTempFileName(tmpdirbuf, ptprefix,uniq, tmpfilebuf);
+    uret = GetTempFileName(tmpdirbuf, ptprefix, uniq, tmpfilebuf);
     if (uret == 0) {
         GETERRNO(ret);
         ERROR_INFO("get temp file name error[%s]", ret);
@@ -739,23 +739,23 @@ try_again:
 
     prealname = tmpfilebuf;
     pcmpname = tmpdirbuf;
-    while(*prealname == *pcmpname) {
+    while (*prealname == *pcmpname) {
         prealname ++;
         pcmpname ++;
     }
 
-    while( *prealname == __TEXT('\\')) {
+    while ( *prealname == __TEXT('\\')) {
         prealname ++;
     }
 
     tmpdirlen = _tcslen(tmpdirbuf);
     tmpfilelen = _tcslen(tmpfilebuf);
-    DEBUG_BUFFER_FMT(tmpdirbuf, (int)((tmpdirlen+1) * sizeof(TCHAR)),NULL);
-    DEBUG_BUFFER_FMT(tmpfilebuf, (int)((tmpfilelen+1) * sizeof(TCHAR)), NULL);
+    DEBUG_BUFFER_FMT(tmpdirbuf, (int)((tmpdirlen + 1) * sizeof(TCHAR)), NULL);
+    DEBUG_BUFFER_FMT(tmpfilebuf, (int)((tmpfilelen + 1) * sizeof(TCHAR)), NULL);
 
     DEBUG_INFO("tmpfilebuf %p prealname %p", tmpfilebuf, prealname);
 
-    ret = TcharToAnsi(prealname, pptmp,psize);
+    ret = TcharToAnsi(prealname, pptmp, psize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -771,7 +771,7 @@ try_again:
     }
     tmpfilebuf = NULL;
     tmpfilesize = 0;
-    AnsiToTchar(NULL,&ptprefix,&prefixsize);    
+    AnsiToTchar(NULL, &ptprefix, &prefixsize);
     return nlen;
 fail:
     if (tmpdirbuf != NULL) {
@@ -784,7 +784,7 @@ fail:
     }
     tmpfilebuf = NULL;
     tmpfilesize = 0;
-    AnsiToTchar(NULL,&ptprefix,&prefixsize);
+    AnsiToTchar(NULL, &ptprefix, &prefixsize);
     SETERRNO(ret);
     return ret;
 }
@@ -812,12 +812,12 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     uint64_t sticks = 0, cticks = 0;
     DWORD cbret;
     char* pipename = NULL;
-    char* ptmpbuf=NULL;
+    char* ptmpbuf = NULL;
     BOOL bret;
-    char* pipebasename=NULL;
-    int pipebasesize=0;
-    char* tmppipe=NULL;
-    int tmppipesize=0;
+    char* pipebasename = NULL;
+    int pipebasesize = 0;
+    char* tmppipe = NULL;
+    int tmppipesize = 0;
 
     argc = argc;
     argv = argv;
@@ -836,18 +836,18 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     if (parsestate->leftargs != NULL && parsestate->leftargs[0] != NULL) {
         pipename = parsestate->leftargs[0];
     } else {
-        ret = __get_temp_pipe_name("pipe", &pipebasename,&pipebasesize);
+        ret = __get_temp_pipe_name("pipe", &pipebasename, &pipebasesize);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
         }
 
-        ret = snprintf_safe(&tmppipe,&tmppipesize,"\\\\.\\pipe\\%s", pipebasename);
+        ret = snprintf_safe(&tmppipe, &tmppipesize, "\\\\.\\pipe\\%s", pipebasename);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
         }
-        fprintf(stdout,"create pipe %s\n",tmppipe);
+        fprintf(stdout, "create pipe %s\n", tmppipe);
         pipename = tmppipe;
     }
 
@@ -900,7 +900,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                 }
                 wtime = (DWORD)ret;
             }
-            dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, wtime, TRUE);
+            dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, wtime, FALSE);
             if (dret != WAIT_OBJECT_0) {
                 GETERRNO(ret);
                 ERROR_INFO("wait [%s] ret[%ld] error[%d]", pipename, dret, ret);
@@ -929,12 +929,22 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
                 if (ret == -ERROR_MORE_DATA) {
                     inlen += cbret;
+                    if (inlen > insize) {
+                        ERROR_INFO("cbret [%d]", cbret);
+                        inlen = insize;
+                    }
+                    DEBUG_INFO("inlen [%zu] insize[%zu]", inlen, insize);
                     if (inlen == insize) {
                         state = PIPE_READY;
                     }
                 }
             } else {
                 inlen += cbret;
+                if (inlen > insize) {
+                    ERROR_INFO("cbret [%d]", cbret);
+                    inlen = insize;
+                }
+                DEBUG_INFO("inlen [%zu] insize[%zu] cbret[%d]", inlen, insize, cbret);
                 if (inlen == insize) {
                     state = PIPE_READY;
                 }
@@ -950,10 +960,20 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                     goto out;
                 }
                 outlen += cbret;
+                if (outlen > outsize) {
+                    ERROR_INFO("ret [%d] cbret [%d] outlen [%zu] outsize[%zu]", ret,cbret, outlen, outsize);
+                    outlen = outsize;
+                }
             } else {
                 outlen += cbret;
+                if (outlen > outsize) {
+                    ERROR_INFO("cbret [%d] outlen [%zu] outsize[%zu]", cbret, outlen, outsize);
+                    outlen = outsize;
+                }
             }
 
+
+            DEBUG_INFO("outlen [%zu] outsize [%zu]", outlen, outsize);
             if (outlen == outsize) {
                 /*that is all ok so break*/
                 break;
@@ -972,6 +992,10 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                     state = PIPE_WAIT_WRITE;
                 } else {
                     outlen += cbret;
+                    if (outlen > outsize) {
+                        ERROR_INFO("cbret [%d] outlen[%zu] outsize[%zu]", cbret, outlen, outsize);
+                        outlen = outsize;
+                    }
                 }
                 if (outlen == outsize) {
                     /*all writed ,so out*/
@@ -986,7 +1010,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                         ERROR_INFO("alloc %zu error[%d]", insize, ret);
                         goto out;
                     }
-                    memset(ptmpbuf, 0 ,insize);
+                    memset(ptmpbuf, 0 , insize);
                     if (inlen > 0) {
                         memcpy(ptmpbuf, pinbuf, inlen);
                     }
@@ -999,7 +1023,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                     ptmpbuf = NULL;
                 }
 
-                bret = ReadFile(svrpipe,&(pinbuf[inlen]), (DWORD)(insize - inlen), &cbret, &(ov));
+                bret = ReadFile(svrpipe, &(pinbuf[inlen]), (DWORD)(insize - inlen), &cbret, &(ov));
                 if (!bret) {
                     GETERRNO(ret);
                     if (ret != -ERROR_IO_PENDING && ret != -ERROR_BROKEN_PIPE) {
@@ -1014,15 +1038,19 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                     state = PIPE_WAIT_READ;
                 } else {
                     inlen += cbret;
+                    if (inlen > insize) {
+                        ERROR_INFO("cbret [%d] inlen[%zu] insize[%zu]", cbret, inlen, insize);
+                        inlen = insize;
+                    }
                 }
             }
         }
     }
 
     if (wr == 0) {
-        fprintf(stdout,"read [%s] --------------------\n", pipename);
-        __debug_buf(stdout,pinbuf, (int)inlen);
-        fprintf(stdout,"read [%s] ++++++++++++++++++++\n", pipename);
+        fprintf(stdout, "read [%s] --------------------\n", pipename);
+        __debug_buf(stdout, pinbuf, (int)inlen);
+        fprintf(stdout, "read [%s] ++++++++++++++++++++\n", pipename);
     }
     ret = 0;
 out:
@@ -1039,8 +1067,8 @@ out:
 
     read_file_encoded(NULL, &poutbuf, (int*)&outsize);
     __create_pipe(NULL, 0, &svrpipe, &ov, &evt, &state);
-    snprintf_safe(&tmppipe,&tmppipesize, NULL);
-    __get_temp_pipe_name(NULL,&pipebasename,&pipebasesize);
+    snprintf_safe(&tmppipe, &tmppipesize, NULL);
+    __get_temp_pipe_name(NULL, &pipebasename, &pipebasesize);
     SETERRNO(ret);
     return ret;
 }

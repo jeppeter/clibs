@@ -6,6 +6,7 @@ import (
 	"github.com/natefinch/npipe"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -13,6 +14,60 @@ type Pipeargs struct {
 	Verbose int
 	Input   string
 	Args    []string
+}
+
+func format_bytes(data []byte) string {
+	var s = ""
+	var i int
+	var lasti int
+	var cr rune
+	var curi int
+
+	lasti = 0
+	for i = 0; i < len(data); i++ {
+		if (i % 16) == 0 {
+			if i > 0 {
+				s += "    "
+			}
+
+			for lasti != i {
+				cr = rune(data[lasti])
+				if strconv.IsPrint(cr) {
+					s += fmt.Sprintf("%s", string(data[lasti]))
+				} else {
+					s += "."
+				}
+				lasti++
+			}
+
+			s += "\n"
+			s += fmt.Sprintf("[0x%08x]", i)
+		}
+
+		s += fmt.Sprintf(" 0x%02x", data[i])
+	}
+
+	if lasti != i {
+		curi = i
+		for (curi % 16) != 0 {
+			s += fmt.Sprintf("     ")
+			curi++
+		}
+
+		for lasti != i {
+			cr = rune(data[lasti])
+			if strconv.IsPrint(cr) {
+				s += fmt.Sprintf("%s", string(data[lasti]))
+			} else {
+				s += "."
+			}
+			lasti++
+		}
+
+		s += "\n"
+	}
+
+	return s
 }
 
 func main() {
@@ -90,7 +145,7 @@ func main() {
 			}
 
 			tbyte += nbyte
-			fmt.Fprintf(os.Stdout, "%s", string(data[:nbyte]))
+			fmt.Fprintf(os.Stdout, "%s", format_bytes(data[:nbyte]))
 			if nbyte < len(data) {
 				break
 			}
