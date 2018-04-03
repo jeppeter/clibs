@@ -12,8 +12,8 @@ void InnerDebug(char* pFmtStr)
     int len;
     BOOL bret;
     len = (int) strlen(pFmtStr) + 1;
-    pWide = (wchar_t*)malloc((len+1)*2);
-    if (pWide == NULL){
+    pWide = (wchar_t*)malloc((len + 1) * 2);
+    if (pWide == NULL) {
         return ;
     }
     //pWide = new wchar_t[(len+1) * 2];
@@ -33,7 +33,7 @@ void InnerDebug(char* pFmtStr)
     return ;
 }
 
-void DebugOutString(int loglvl,const char* file, int lineno, const char* fmt, ...)
+void DebugOutString(int loglvl, const char* file, int lineno, const char* fmt, ...)
 {
     char* pFmt = NULL;
     char* pLine = NULL;
@@ -66,13 +66,13 @@ try_again:
 
     pFmt = (char*)malloc(alloclen);
     pLine = (char*)malloc(alloclen);
-    pWhole = (char*)malloc((alloclen*2));
-    if (pFmt == NULL || pLine == NULL || pWhole == NULL){
+    pWhole = (char*)malloc((alloclen * 2));
+    if (pFmt == NULL || pLine == NULL || pWhole == NULL) {
         goto out;
     }
-    memset(pFmt,0,alloclen);
-    memset(pLine,0,alloclen);
-    memset(pWhole,0,alloclen*2);
+    memset(pFmt, 0, alloclen);
+    memset(pLine, 0, alloclen);
+    memset(pWhole, 0, alloclen * 2);
 
     ret = _snprintf_s(pLine, alloclen, alloclen - 1, "%s:%d:time(0x%08x)\t", file, lineno, (unsigned int)GetTickCount());
     if (ret < 0 || ret >= (int)(alloclen - 1)) {
@@ -115,7 +115,7 @@ out:
     return ;
 }
 
-void ConsoleOutString(int loglvl,const char* file, int lineno, const char* fmt, ...)
+void ConsoleOutString(int loglvl, const char* file, int lineno, const char* fmt, ...)
 {
     char* pFmt = NULL;
     char* pLine = NULL;
@@ -147,13 +147,13 @@ try_again:
 
     pFmt = (char*)malloc(alloclen);
     pLine = (char*)malloc(alloclen);
-    pWhole = (char*)malloc((alloclen*2));
-    if (pFmt == NULL || pLine == NULL || pWhole == NULL){
+    pWhole = (char*)malloc((alloclen * 2));
+    if (pFmt == NULL || pLine == NULL || pWhole == NULL) {
         goto out;
     }
-    memset(pFmt,0,alloclen);
-    memset(pLine,0,alloclen);
-    memset(pWhole,0,alloclen*2);
+    memset(pFmt, 0, alloclen);
+    memset(pLine, 0, alloclen);
+    memset(pWhole, 0, alloclen * 2);
 
     ret = _snprintf_s(pLine, alloclen, alloclen - 1, "%s:%d:time(0x%08x)\t", file, lineno, (unsigned int)GetTickCount());
     if (ret < 0 || ret >= (int)(alloclen - 1)) {
@@ -175,7 +175,7 @@ try_again:
         goto try_again;
     }
 
-    fprintf(stderr, "%s",pWhole);
+    fprintf(stderr, "%s", pWhole);
     fflush(stderr);
 out:
     if (pFmt) {
@@ -197,11 +197,29 @@ out:
     return ;
 }
 
+typedef void (*output_func_t)(char* pbuf);
 
-void DebugBufferFmt(int loglvl,const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
+#define FORMAT_SNPRINTF(...)  \
+do {\
+    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, __VA_ARGS__); \
+    if (ret < 0 || ret >= ((int)(fmtlen - formedlen - 1))) {\
+        goto out;\
+    }\
+    pCur += ret;\
+    formedlen += ret;\
+} while(0)
+
+#define FLUSH_BUFFER()  \
+do {\
+    outfunc(pLine);\
+    pCur = pLine;\
+    formedlen = 0;\
+} while(0)
+
+void __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, va_list ap, output_func_t outfunc)
 {
     size_t fmtlen = 2000;
-    char*pLine = NULL, *pCur;
+    char*pLine = NULL, *pCur, *plastbuf = NULL, *pcurbuf = NULL;
     int formedlen;
     int ret;
     int i;
@@ -214,115 +232,98 @@ void DebugBufferFmt(int loglvl,const char* file, int lineno, unsigned char* pBuf
     pCur = pLine;
     formedlen = 0;
 
-    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "[%s:%d:time(0x%08x)]\tbuffer %p (%d)", file, lineno,(unsigned int) GetTickCount(), pBuffer, buflen);
-    pCur += ret;
-    formedlen += ret;
-
+    FORMAT_SNPRINTF("[%s:%d:time(0x%llx)]\tbuffer %p (%d)", file, lineno, GetTickCount64(), pBuffer, buflen);
     if (fmt) {
-        va_list ap;
-        va_start(ap, fmt);
         ret = _vsnprintf_s(pCur, (size_t)(fmtlen - formedlen), (size_t)(formedlen - formedlen - 1), fmt, ap);
+        if (ret < 0 || ret >= ((int)(fmtlen - formedlen - 1))) {
+            goto out;
+        }
         pCur += ret;
         formedlen += ret;
     }
 
+    plastbuf = (char*)pBuffer;
+    pcurbuf = (char*)pBuffer;
     for (i = 0; i < buflen; i++) {
         if ((formedlen + 100) > (int)fmtlen) {
-            InnerDebug(pLine);
-            pCur = pLine;
-            formedlen = 0;
+            FLUSH_BUFFER();
         }
         if ((i % 16) == 0) {
-            ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "\n");
-            InnerDebug(pLine);
-            pCur = pLine;
-            formedlen = 0;
-            ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "[0x%08x]\t", i);
-            pCur += ret;
-            formedlen += ret;
+            if (plastbuf != pcurbuf) {
+                FORMAT_SNPRINTF("    ");
+                while (plastbuf != pcurbuf) {
+                    if (isprint(*plastbuf)) {
+                        FORMAT_SNPRINTF("%c", *plastbuf);
+                    } else {
+                        FORMAT_SNPRINTF(".");
+                    }
+                    plastbuf ++;
+                }
+            }
+
+            FORMAT_SNPRINTF("\n");
+            FLUSH_BUFFER();
+            FORMAT_SNPRINTF("[0x%08x]\t", i);
         }
 
-        ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "0x%02x ", pBuffer[i]);
-        pCur += ret;
-        formedlen += ret;
+        FORMAT_SNPRINTF("0x%02x ", pBuffer[i]);
+        pcurbuf ++;
     }
-    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "\n");
-    pCur += ret;
-    formedlen += ret;
+
+    if (plastbuf != pcurbuf) {
+        while ( ( i % 16) != 0) {
+            FORMAT_SNPRINTF("     ");
+            i ++;
+        }
+
+        FORMAT_SNPRINTF("    ");
+        while (plastbuf != pcurbuf) {
+            if (isprint(*plastbuf)) {
+                FORMAT_SNPRINTF("%c", *plastbuf);
+            } else {
+                FORMAT_SNPRINTF(".");
+            }
+            plastbuf ++;
+        }
+    }
+
+    FORMAT_SNPRINTF("\n");
 
     if (formedlen > 0) {
-        InnerDebug(pLine);
-        pCur = pLine;
-        formedlen = 0;
+        FLUSH_BUFFER();
     }
 
+out:
     delete [] pLine;
     pLine = NULL;
     return ;
 }
 
 
-void ConsoleBufferFmt(int loglvl,const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
+void DebugBufferFmt(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
 {
-    size_t fmtlen = 2000;
-    char*pLine = NULL, *pCur;
-    int formedlen;
-    int ret;
-    int i;
-    if (loglvl > st_output_loglvl) {
-        return;
+    va_list ap = NULL;
+    if (fmt != NULL) {
+        va_start(ap,fmt);
     }
+    __inner_out_buffer(loglvl,file,lineno,pBuffer,buflen,fmt,ap,InnerDebug);
+    return;
+}
 
-    pLine = new char[fmtlen];
-    pCur = pLine;
-    formedlen = 0;
+void __console_out(char* pFmtStr)
+{
+    fprintf(stderr,"%s",pFmtStr);
+    return;
+}
 
-    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "[%s:%d:time(0x%08x)]\tbuffer %p (%d)", file, lineno,(unsigned int)GetTickCount(), pBuffer, buflen);
-    pCur += ret;
-    formedlen += ret;
-
-    if (fmt) {
-        va_list ap;
-        va_start(ap, fmt);
-        ret = _vsnprintf_s(pCur, (size_t)(fmtlen - formedlen), (size_t)(formedlen - formedlen - 1), fmt, ap);
-        pCur += ret;
-        formedlen += ret;
+void ConsoleBufferFmt(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
+{
+    va_list ap = NULL;
+    if (fmt != NULL) {
+        va_start(ap,fmt);
     }
-
-    for (i = 0; i < buflen; i++) {
-        if ((formedlen + 100) > (int)fmtlen) {
-            fprintf(stderr, "%s",pLine);
-            pCur = pLine;
-            formedlen = 0;
-        }
-        if ((i % 16) == 0) {
-            ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "\n");
-            fprintf(stderr, "%s",pLine );
-            pCur = pLine;
-            formedlen = 0;
-            ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "[0x%08x]\t", i);
-            pCur += ret;
-            formedlen += ret;
-        }
-
-        ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "0x%02x ", pBuffer[i]);
-        pCur += ret;
-        formedlen += ret;
-    }
-    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, "\n");
-    pCur += ret;
-    formedlen += ret;
-
-    if (formedlen > 0) {
-        fprintf(stderr, "%s",pLine);
-        pCur = pLine;
-        formedlen = 0;
-    }
-    fflush(stderr);
-
-    delete [] pLine;
-    pLine = NULL;
-    return ;
+    __inner_out_buffer(loglvl,file,lineno,pBuffer,buflen,fmt,ap,__console_out);
+    return;
 }
 
 int error_out(const char* fmt, ...)

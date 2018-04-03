@@ -656,30 +656,135 @@ fail:
     return ret;
 }
 
-int __get_temp_pipe_name(int freed,char** pptmp,int *psize)
+#define LEAST_UNIQ_NUM    50
+
+int __get_temp_pipe_name(char* prefix,char** pptmp,int *psize)
 {
     TCHAR* tmpdirbuf=NULL;
-    int tmpdirsize=0;
+    size_t tmpdirsize=0, tmpdirlen;
+    TCHAR* ptprefix=NULL;
+    int prefixsize=0;
     TCHAR* tmpfilebuf=NULL;
-    int tmpfilesize=0;
-    int ret;
+    size_t tmpfilesize=0, tmpfilelen;
+
+    int ret, nlen;
+    DWORD dret;
+    UINT uniq,uret;
+    TCHAR* prealname=NULL;
+    TCHAR* pcmpname=NULL;
 
 
-    if (freed) {
+    if (prefix == NULL) {
         if (pptmp && *pptmp && psize) {
             TcharToAnsi(NULL,pptmp,psize);
         }
         return 0;
     }
 
-try_again:
-    
-
-fail:
-    if (tmpdirbuf != NULL) {
-
+    ret = AnsiToTchar(prefix, &ptprefix,&prefixsize);
+    if (ret < 0) {
+        GETERRNO(ret);        
+        goto fail;
     }
 
+    tmpdirsize = 1024 * sizeof(TCHAR);
+    tmpfilesize = 1024 * sizeof(TCHAR);
+try_again:
+    if (tmpdirbuf != NULL) {
+        free(tmpdirbuf);
+    }
+    tmpdirbuf = NULL;
+    tmpdirbuf = (TCHAR*) malloc(tmpdirsize);
+    if (tmpdirbuf == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", tmpdirsize, ret);
+        goto fail;
+    }
+    memset(tmpdirbuf, 0 ,tmpdirsize);
+    dret = GetTempPath((DWORD)(tmpdirsize / sizeof(TCHAR)), tmpdirbuf);
+    if (dret == 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get temp path error[%d]", ret);
+        goto fail;
+    } else if (dret >= (tmpdirsize / sizeof(TCHAR))) {
+        tmpdirsize <<= 1;
+        goto try_again;
+    }
+
+    if (tmpfilebuf != NULL) {
+        free(tmpfilebuf);
+    }
+    tmpfilebuf = NULL;
+    tmpfilebuf = (TCHAR*) malloc(tmpfilesize);
+    if (tmpfilebuf == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", tmpfilesize ,ret);
+        goto fail;
+    }
+    tmpdirlen = _tcslen(tmpdirbuf);
+    if (tmpfilesize < ((tmpdirlen + LEAST_UNIQ_NUM + strlen(prefix)) * sizeof(TCHAR))) {
+        tmpfilesize = ((tmpdirlen + LEAST_UNIQ_NUM + strlen(prefix)) * sizeof(TCHAR));
+        goto try_again;
+    }
+    memset(tmpfilebuf, 0 ,tmpfilesize);
+    //uniq = (UINT)(LEAST_UNIQ_NUM + strlen(prefix));
+    uniq = 0;
+
+    uret = GetTempFileName(tmpdirbuf, ptprefix,uniq, tmpfilebuf);
+    if (uret == 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get temp file name error[%s]", ret);
+        goto fail;
+    }
+
+    prealname = tmpfilebuf;
+    pcmpname = tmpdirbuf;
+    while(*prealname == *pcmpname) {
+        prealname ++;
+        pcmpname ++;
+    }
+
+    while( *prealname == __TEXT('\\')) {
+        prealname ++;
+    }
+
+    tmpdirlen = _tcslen(tmpdirbuf);
+    tmpfilelen = _tcslen(tmpfilebuf);
+    DEBUG_BUFFER_FMT(tmpdirbuf, (int)((tmpdirlen+1) * sizeof(TCHAR)),NULL);
+    DEBUG_BUFFER_FMT(tmpfilebuf, (int)((tmpfilelen+1) * sizeof(TCHAR)), NULL);
+
+    DEBUG_INFO("tmpfilebuf %p prealname %p", tmpfilebuf, prealname);
+
+    ret = TcharToAnsi(prealname, pptmp,psize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    nlen = ret;
+    if (tmpdirbuf != NULL) {
+        free(tmpdirbuf);
+    }
+    tmpdirbuf = NULL;
+    tmpdirsize = 0;
+    if (tmpfilebuf != NULL) {
+        free(tmpfilebuf);
+    }
+    tmpfilebuf = NULL;
+    tmpfilesize = 0;
+    AnsiToTchar(NULL,&ptprefix,&prefixsize);    
+    return nlen;
+fail:
+    if (tmpdirbuf != NULL) {
+        free(tmpdirbuf);
+    }
+    tmpdirbuf = NULL;
+    tmpdirsize = 0;
+    if (tmpfilebuf != NULL) {
+        free(tmpfilebuf);
+    }
+    tmpfilebuf = NULL;
+    tmpfilesize = 0;
+    AnsiToTchar(NULL,&ptprefix,&prefixsize);
     SETERRNO(ret);
     return ret;
 }
@@ -709,8 +814,10 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     char* pipename = NULL;
     char* ptmpbuf=NULL;
     BOOL bret;
-    char* tmpfile=NULL;
-    int tmpfilesize=0;
+    char* pipebasename=NULL;
+    int pipebasesize=0;
+    char* tmppipe=NULL;
+    int tmppipesize=0;
 
     argc = argc;
     argv = argv;
@@ -726,7 +833,24 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         }
     }
 
-    pipename = parsestate->leftargs[0];
+    if (parsestate->leftargs != NULL && parsestate->leftargs[0] != NULL) {
+        pipename = parsestate->leftargs[0];
+    } else {
+        ret = __get_temp_pipe_name("pipeXXXXXXXXXX", &pipebasename,&pipebasesize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+
+        ret = snprintf_safe(&tmppipe,&tmppipesize,"\\\\.\\pipe\\%s", pipebasename);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        fprintf(stdout,"create pipe %s\n",tmppipe);
+        pipename = tmppipe;
+    }
+
 
     ret = __create_pipe(pipename, wr, &svrpipe, &ov, &evt, &state);
     if (ret < 0) {
@@ -914,6 +1038,8 @@ out:
 
     read_file_encoded(NULL, &poutbuf, (int*)&outsize);
     __create_pipe(NULL, 0, &svrpipe, &ov, &evt, &state);
+    snprintf_safe(&tmppipe,&tmppipesize, NULL);
+    __get_temp_pipe_name(NULL,&pipebasename,&pipebasesize);
     SETERRNO(ret);
     return ret;
 }
