@@ -299,6 +299,225 @@ fail:
 #define SET_PROC_MAGIC(proc)
 #endif
 
+/*
+#define PIPE_NONE                0
+#define PIPE_READY               1
+#define PIPE_WAIT_READ           2
+#define PIPE_WAIT_WRITE          3
+#define PIPE_WAIT_CONNECT        4
+
+
+typedef struct __pipe_server {
+    HANDLE m_pipesvr;
+    HANDLE m_evt;
+    HANDLE m_pipecli;
+    OVERLAPPED m_ov;
+    char* m_pipename;
+    int m_pipesize;
+    int m_wr;
+    int m_state;
+} pipe_server_t, *ppipe_server_t;
+
+void __free_pipe_server(ppipe_server_t *ppsvr)
+{
+    char* pipename = NULL;
+    BOOL bret;
+    int ret;
+    ppipe_server_t psvr;
+    if (ppsvr && *ppsvr) {
+        psvr = *ppsvr;
+        if (psvr->m_pipename) {
+            pipename = psvr->m_pipename;
+        } else {
+            pipename = "none";
+        }
+
+        if (psvr->m_state == PIPE_WAIT_CONNECT ||
+            psvr->m_state == PIPE_WAIT_READ ||
+            psvr->m_state == PIPE_WAIT_WRITE) {
+            bret = CancelIoEx(psvr->m_pipesvr, &(psvr->m_ov));
+            if (!bret) {
+                GETERRNO(ret);
+                ERROR_INFO("cancel [%s] [%d] error[%d]", pipename, psvr->m_state, ret);
+            }
+        }
+        psvr->m_state = PIPE_NONE;
+        __close_handle_note(&(psvr->m_evt), "%s evt", pipename);
+        __close_handle_note(&(psvr->m_pipecli), "%s client", pipename);
+        __close_handle_note(&(psvr->m_pipesvr), "%s server", pipename);
+        snprintf_safe(&(psvr->m_pipename), &(psvr->m_pipesize),NULL);
+        memset(&(psvr->m_ov), 0, sizeof(psvr->m_ov));
+        free(psvr);
+        *ppsvr= NULL;
+    }
+}
+
+int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *pevt, int *pstate)
+{
+    int ret;
+    int res;
+    BOOL bret;
+    TCHAR* ptname = NULL;
+    int tnamesize = 0;
+    DWORD omode = 0;
+    DWORD pmode = 0;
+    if (name == NULL) {
+        if ( ppipe != NULL && *ppipe != NULL &&
+                *ppipe != INVALID_HANDLE_VALUE && pov != NULL) {
+            if (pstate && (*pstate != PIPE_NONE && *pstate != PIPE_READY)) {
+                bret = CancelIoEx(*ppipe, pov);
+                if (!bret) {
+                    GETERRNO(res);
+                    ERROR_INFO("cancel io error[%d] at state [%d]", res, *pstate);
+                }
+            }
+        }
+
+        if (ppipe != NULL && *ppipe != NULL &&
+                *ppipe != INVALID_HANDLE_VALUE &&
+                pstate != NULL &&
+                (*pstate == PIPE_WAIT_READ && *pstate == PIPE_WAIT_WRITE )) {
+            bret = DisconnectNamedPipe(*ppipe);
+            if (!bret) {
+                GETERRNO(res);
+                ERROR_INFO("disconnect error[%d]", res);
+            }
+        }
+        __close_handle_note(pevt, "event close");
+        __close_handle_note(ppipe, "pipe close");
+        if (pov != NULL) {
+            memset(pov, 0 , sizeof(*pov));
+        }
+        return 0;
+    }
+
+    if (ppipe == NULL || pevt == NULL || pov == NULL || pstate == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (*ppipe != NULL || *pevt != NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    *pstate = PIPE_NONE;
+    *pevt = CreateEvent(NULL, TRUE, TRUE, NULL);
+    if (*pevt == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not create event for[%s] error[%d]", name, ret);
+        goto fail;
+    }
+
+    memset(pov, 0 , sizeof(*pov));
+    pov->hEvent = *pevt;
+
+    ret = AnsiToTchar(name, &ptname, &tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (wr) {
+        omode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
+        pmode = PIPE_TYPE_MESSAGE | PIPE_WAIT;
+    } else {
+        omode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
+        pmode = PIPE_TYPE_MESSAGE  | PIPE_WAIT;
+    }
+
+    DEBUG_INFO("create %s [%s]", wr ? "write" : "read", name);
+
+    *ppipe = CreateNamedPipe(ptname, omode, pmode, 1, MIN_BUF_SIZE * sizeof(TCHAR), MIN_BUF_SIZE * sizeof(TCHAR), 5000, NULL);
+    if (*ppipe == NULL ||
+            *ppipe == INVALID_HANDLE_VALUE) {
+        GETERRNO(ret);
+        ERROR_INFO("create [%s] for %s error[%d]", name, wr ? "write" : "read", ret);
+        goto fail;
+    }
+
+
+    bret = ConnectNamedPipe(*ppipe, pov);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret != -ERROR_IO_PENDING && ret != -ERROR_PIPE_CONNECTED) {
+            ERROR_INFO("connect [%s] for %s error[%d]", name, wr ? "write" : "read", ret);
+            goto fail;
+        }
+        if (ret == -ERROR_IO_PENDING) {
+            DEBUG_INFO("[%s] connect pending" , name);
+            *pstate = PIPE_WAIT_CONNECT;
+        } else {
+            *pstate = PIPE_READY;
+        }
+    } else {
+        //ok so we got ready
+        *pstate = PIPE_READY;
+    }
+
+
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    return 0;
+fail:
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    __close_handle_note(pevt, "%s event", name);
+    __close_handle_note(ppipe, "%s server pipe", name);
+    memset(pov, 0, sizeof(*pov));
+    SETERRNO(ret);
+    return ret;
+}
+
+
+ppipe_server_t __alloc_pipe_server(int wr,const char* fmt,...)
+{
+    ppipe_server_t psvr=NULL;
+    int ret;
+    va_list ap;
+    if (fmt == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    psvr = (ppipe_server_t) malloc(sizeof(*psvr));
+    if (psvr == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*psvr), ret);
+        goto fail;
+    }
+    memset(psvr, 0 , sizeof(*psvr));
+    psvr->m_pipesvr = NULL;
+    psvr->m_evt = NULL;
+    psvr->m_pipecli = NULL;
+    memset(&(psvr->m_ov), 0 ,sizeof(psvr->m_ov));
+    psvr->m_pipename = NULL;
+    psvr->m_pipesize = 0;
+    psvr->m_wr = wr;
+    psvr->m_state = PIPE_NONE;
+
+    va_start(ap, fmt);
+    ret = vsnprintf_safe(&(psvr->m_pipename), &(psvr->m_pipesize), fmt,ap);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __create_pipe(psvr->m_pipename,wr,&(psvr->m_pipesvr),&(psvr->m_ov),&(psvr->m_evt),&(psvr->m_state));
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    return psvr;
+fail:
+    __free_pipe_server(&psvr);
+    return NULL;
+}
+*/
+
+
 typedef struct __proc_handle {
 #ifdef __PROC_DEBUG__
     uint32_t m_magic;

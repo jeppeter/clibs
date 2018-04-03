@@ -32,8 +32,11 @@
     "run<run_handler>##make run command with output and input##" : {
         "$" : "+"
     },
-    "svroverlap<svrlap_handler>##to make server overlapped##" : {
+    "svrlap<svrlap_handler>##to make server overlapped##" : {
         "$" : "?"
+    },
+    "clilap<clilap_handler>##to make client overlapped##" : {
+        "$" : 1
     },
     "sendmsg<sendmsg_handler>##to send hwnd msg wparam lparam##" : {
         "$" : "+"

@@ -35,6 +35,7 @@ int netinter_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int quote_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sendmsg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
@@ -825,7 +826,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     if (pargs->m_input != NULL) {
         wr = 1;
-        ret = read_file_encoded(pargs->m_input, &poutbuf, (int*)&outsize);
+        ret = read_file_whole(pargs->m_input, &poutbuf, (int*)&outsize);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "read [%s] error[%d]\n", pargs->m_input, ret);
@@ -961,7 +962,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                 }
                 outlen += cbret;
                 if (outlen > outsize) {
-                    ERROR_INFO("ret [%d] cbret [%d] outlen [%zu] outsize[%zu]", ret,cbret, outlen, outsize);
+                    ERROR_INFO("ret [%d] cbret [%d] outlen [%zu] outsize[%zu]", ret, cbret, outlen, outsize);
                     outlen = outsize;
                 }
             } else {
@@ -1065,10 +1066,196 @@ out:
     pinbuf = NULL;
     insize = 0;
 
-    read_file_encoded(NULL, &poutbuf, (int*)&outsize);
+    read_file_whole(NULL, &poutbuf, (int*)&outsize);
     __create_pipe(NULL, 0, &svrpipe, &ov, &evt, &state);
     snprintf_safe(&tmppipe, &tmppipesize, NULL);
     __get_temp_pipe_name(NULL, &pipebasename, &pipebasesize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int __connect_pipe(char* name, int wr, HANDLE* pcli)
+{
+    int ret;
+    TCHAR* ptname = NULL;
+    int tnamesize = 0;
+    HANDLE phd = NULL;
+    BOOL bret;
+    DWORD omode;
+
+    if (name == NULL) {
+        if (pcli) {
+            if (*pcli != NULL &&
+                    *pcli != INVALID_HANDLE_VALUE) {
+                bret = CloseHandle(*pcli);
+                if (!bret) {
+                    GETERRNO(ret);
+                    ERROR_INFO("close handle error[%d]", ret);
+                }
+            }
+            *pcli = NULL;
+        }
+        return 0;
+    }
+
+    if (pcli == NULL || (*pcli != NULL && *pcli != INVALID_HANDLE_VALUE )) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    ret = AnsiToTchar(name, &ptname, &tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (wr) {
+        omode = GENERIC_WRITE;
+    } else {
+        omode = GENERIC_READ;
+    }
+
+    phd = CreateFile(ptname, omode, 0, NULL, OPEN_EXISTING, 0, NULL);
+    if (phd == INVALID_HANDLE_VALUE) {
+        GETERRNO(ret);
+        ERROR_INFO("open file [%s] error[%d]", name, ret);
+        goto fail;
+    }
+
+    *pcli = phd;
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    return 0;
+fail:
+    if (phd != NULL) {
+        CloseHandle(phd);
+    }
+    phd = NULL;
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    char* pipename = NULL;
+    HANDLE hd = INVALID_HANDLE_VALUE;
+    int wr = 0;
+    DWORD cbret;
+    char* poutbuf = NULL;
+    int outsize = 0;
+    int outlen = 0;
+    char* pinbuf = NULL;
+    char* ptmpbuf = NULL;
+    int insize = 1024;
+    int inlen = 0;
+    BOOL bret;
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+
+    if (parsestate->leftargs == NULL ||
+            parsestate->leftargs[0] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("no pipe name");
+        goto out;
+    }
+
+    pipename = parsestate->leftargs[0];
+    wr = 0;
+    if (pargs->m_input != NULL) {
+        wr = 1;
+        ret = read_file_whole(pargs->m_input, &poutbuf, &outsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("read file [%s] error[%d]", pargs->m_input, ret);
+            goto out;
+        }
+    }
+
+    ret = __connect_pipe(pipename, wr, &(hd));
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("client [%s] for %s error[%d]", pipename, wr ? "write" : "read", ret);
+        goto out;
+    }
+
+    if (wr) {
+        while (outlen < outsize) {
+            bret = WriteFile(hd, &(poutbuf[outlen]), (DWORD)(outsize - outlen), &cbret, NULL);
+            if (!bret) {
+                GETERRNO(ret);
+                if (ret != -ERROR_IO_PENDING) {
+                    ERROR_INFO("write [%s] [%d] error[%d]", pipename, outlen, ret);
+                    goto out;
+                }
+                continue;
+            }
+            outlen += cbret;
+        }
+    } else {
+        pinbuf = (char*) malloc((size_t)insize);
+        if (pinbuf == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", insize, ret);
+            goto out;
+        }
+        while (1) {
+            bret = ReadFile(hd, &(pinbuf[inlen]), (DWORD)(insize - inlen), &cbret, NULL);
+            if (!bret) {
+                GETERRNO(ret);
+                if (ret != -ERROR_IO_PENDING && ret != -ERROR_BROKEN_PIPE) {
+                    ERROR_INFO("read [%s] [%d] error[%d]", pipename, inlen, ret);
+                    goto out;
+                }
+                if (ret == -ERROR_BROKEN_PIPE) {
+                    break;
+                }
+                continue;
+            }
+            inlen += cbret;
+            if (inlen >= insize) {
+                inlen = insize;
+                insize <<= 2;
+                ptmpbuf = (char*) malloc((size_t)insize);
+                if (ptmpbuf == NULL) {
+                    GETERRNO(ret);
+                    ERROR_INFO("alloc %d error[%d]", insize, ret);
+                    goto out;
+                }
+                memset(ptmpbuf, 0, (size_t)insize);
+                if (inlen > 0) {
+                    memcpy(ptmpbuf,pinbuf, (size_t)inlen);
+                }
+                if (pinbuf) {
+                    free(pinbuf);
+                }
+                pinbuf = ptmpbuf;
+                ptmpbuf = NULL;
+            }
+        }
+
+        fprintf(stdout,"read [%s] ------------------------\n", pipename);
+        __debug_buf(stdout, pinbuf, inlen);
+        fprintf(stdout,"read [%s] ++++++++++++++++++++++++\n", pipename);
+    }
+
+    ret = 0;
+out:
+    read_file_whole(NULL, &poutbuf, &outsize);
+    if (pinbuf != NULL) {
+        free(pinbuf);
+    }
+    pinbuf = NULL;
+    insize = 0;
+    inlen = 0;
+    if (ptmpbuf != NULL) {
+        free(ptmpbuf);
+    }
+    ptmpbuf = NULL;
+    __connect_pipe(NULL, 0, &hd);
     SETERRNO(ret);
     return ret;
 }
