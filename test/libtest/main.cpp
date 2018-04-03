@@ -626,7 +626,6 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
     }
 
 
-    DEBUG_INFO("[%s] pipe [%p]", name, *ppipe);
     bret = ConnectNamedPipe(*ppipe, pov);
     if (!bret) {
         GETERRNO(ret);
@@ -635,6 +634,7 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
             goto fail;
         }
         if (ret == -ERROR_IO_PENDING) {
+            DEBUG_INFO("[%s] connect pending" ,name);
             *pstate = PIPE_WAIT_CONNECT;
         } else {
             *pstate = PIPE_READY;
@@ -836,7 +836,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     if (parsestate->leftargs != NULL && parsestate->leftargs[0] != NULL) {
         pipename = parsestate->leftargs[0];
     } else {
-        ret = __get_temp_pipe_name("pipeXXXXXXXXXX", &pipebasename,&pipebasesize);
+        ret = __get_temp_pipe_name("pipe", &pipebasename,&pipebasesize);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
@@ -909,6 +909,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         }
 
         if (state == PIPE_WAIT_CONNECT) {
+            DEBUG_INFO("%s connect", pipename);
             state = PIPE_READY;
         }
 
