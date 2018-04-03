@@ -299,7 +299,6 @@ fail:
 #define SET_PROC_MAGIC(proc)
 #endif
 
-/*
 #define PIPE_NONE                0
 #define PIPE_READY               1
 #define PIPE_WAIT_READ           2
@@ -318,6 +317,92 @@ typedef struct __pipe_server {
     int m_state;
 } pipe_server_t, *ppipe_server_t;
 
+int __connect_pipe(char* name, int wr, HANDLE* pcli)
+{
+    int ret;
+    TCHAR* ptname = NULL;
+    int tnamesize = 0;
+    HANDLE phd = NULL;
+    BOOL bret;
+    DWORD omode;
+
+    if (name == NULL) {
+        if (pcli) {
+            if (*pcli != NULL &&
+                    *pcli != INVALID_HANDLE_VALUE) {
+                bret = CloseHandle(*pcli);
+                if (!bret) {
+                    GETERRNO(ret);
+                    ERROR_INFO("close handle error[%d]", ret);
+                }
+            }
+            *pcli = NULL;
+        }
+        return 0;
+    }
+
+    if (pcli == NULL || (*pcli != NULL && *pcli != INVALID_HANDLE_VALUE )) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    ret = AnsiToTchar(name, &ptname, &tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (wr) {
+        omode = GENERIC_WRITE;
+    } else {
+        omode = GENERIC_READ;
+    }
+
+    phd = CreateFile(ptname, omode, 0, NULL, OPEN_EXISTING, 0, NULL);
+    if (phd == INVALID_HANDLE_VALUE) {
+        GETERRNO(ret);
+        ERROR_INFO("open file [%s] error[%d]", name, ret);
+        goto fail;
+    }
+
+    *pcli = phd;
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    return 0;
+fail:
+    if (phd != NULL) {
+        CloseHandle(phd);
+    }
+    phd = NULL;
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    SETERRNO(ret);
+    return ret;
+}
+
+void __close_handle_note(HANDLE *phd, const char* fmt, ...)
+{
+    va_list ap;
+    BOOL bret;
+    char* errstr = NULL;
+    int errsize = 0;
+    int ret;
+    int res;
+    if (phd && *phd != INVALID_HANDLE_VALUE && *phd != NULL) {
+        bret = CloseHandle(*phd);
+        if (!bret && fmt != NULL) {
+            GETERRNO(ret);
+            va_start(ap, fmt);
+            res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
+            if (res >= 0) {
+                ERROR_INFO("%s error[%d]", errstr, ret);
+            }
+            vsnprintf_safe(&errstr, &errsize, NULL, ap);
+        }
+        *phd = INVALID_HANDLE_VALUE;
+    }
+    return;
+}
+
+
 void __free_pipe_server(ppipe_server_t *ppsvr)
 {
     char* pipename = NULL;
@@ -333,8 +418,8 @@ void __free_pipe_server(ppipe_server_t *ppsvr)
         }
 
         if (psvr->m_state == PIPE_WAIT_CONNECT ||
-            psvr->m_state == PIPE_WAIT_READ ||
-            psvr->m_state == PIPE_WAIT_WRITE) {
+                psvr->m_state == PIPE_WAIT_READ ||
+                psvr->m_state == PIPE_WAIT_WRITE) {
             bret = CancelIoEx(psvr->m_pipesvr, &(psvr->m_ov));
             if (!bret) {
                 GETERRNO(ret);
@@ -345,10 +430,10 @@ void __free_pipe_server(ppipe_server_t *ppsvr)
         __close_handle_note(&(psvr->m_evt), "%s evt", pipename);
         __close_handle_note(&(psvr->m_pipecli), "%s client", pipename);
         __close_handle_note(&(psvr->m_pipesvr), "%s server", pipename);
-        snprintf_safe(&(psvr->m_pipename), &(psvr->m_pipesize),NULL);
+        snprintf_safe(&(psvr->m_pipename), &(psvr->m_pipesize), NULL);
         memset(&(psvr->m_ov), 0, sizeof(psvr->m_ov));
         free(psvr);
-        *ppsvr= NULL;
+        *ppsvr = NULL;
     }
 }
 
@@ -470,11 +555,14 @@ fail:
 }
 
 
-ppipe_server_t __alloc_pipe_server(int wr,const char* fmt,...)
+
+ppipe_server_t __alloc_pipe_server(int wr, const char* fmt, ...)
 {
-    ppipe_server_t psvr=NULL;
+    ppipe_server_t psvr = NULL;
     int ret;
     va_list ap;
+    char* cliname = NULL;
+    int clisize = 0;
     if (fmt == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
         goto fail;
@@ -490,32 +578,172 @@ ppipe_server_t __alloc_pipe_server(int wr,const char* fmt,...)
     psvr->m_pipesvr = NULL;
     psvr->m_evt = NULL;
     psvr->m_pipecli = NULL;
-    memset(&(psvr->m_ov), 0 ,sizeof(psvr->m_ov));
+    memset(&(psvr->m_ov), 0 , sizeof(psvr->m_ov));
     psvr->m_pipename = NULL;
     psvr->m_pipesize = 0;
     psvr->m_wr = wr;
     psvr->m_state = PIPE_NONE;
 
     va_start(ap, fmt);
-    ret = vsnprintf_safe(&(psvr->m_pipename), &(psvr->m_pipesize), fmt,ap);
+    ret = vsnprintf_safe(&(psvr->m_pipename), &(psvr->m_pipesize), fmt, ap);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    ret = __create_pipe(psvr->m_pipename,wr,&(psvr->m_pipesvr),&(psvr->m_ov),&(psvr->m_evt),&(psvr->m_state));
+    ret = __create_pipe(psvr->m_pipename, wr, &(psvr->m_pipesvr), &(psvr->m_ov), &(psvr->m_evt), &(psvr->m_state));
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
 
+    ret = __connect_pipe(psvr->m_pipename, wr ? 0 : 1, &(psvr->m_pipecli));
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    snprintf_safe(&cliname, &clisize, NULL);
     return psvr;
 fail:
+    snprintf_safe(&cliname, &clisize, NULL);
     __free_pipe_server(&psvr);
     return NULL;
 }
-*/
+
+#define LEAST_UNIQ_NUM    50
+
+int __get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
+{
+    TCHAR* tmpdirbuf = NULL;
+    size_t tmpdirsize = 0, tmpdirlen;
+    TCHAR* ptprefix = NULL;
+    int prefixsize = 0;
+    TCHAR* tmpfilebuf = NULL;
+    size_t tmpfilesize = 0, tmpfilelen;
+
+    int ret, nlen;
+    DWORD dret;
+    UINT uniq, uret;
+    TCHAR* prealname = NULL;
+    TCHAR* pcmpname = NULL;
+
+
+    if (prefix == NULL) {
+        if (pptmp && *pptmp && psize) {
+            TcharToAnsi(NULL, pptmp, psize);
+        }
+        return 0;
+    }
+
+    ret = AnsiToTchar(prefix, &ptprefix, &prefixsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    tmpdirsize = 1024 * sizeof(TCHAR);
+    tmpfilesize = 1024 * sizeof(TCHAR);
+try_again:
+    if (tmpdirbuf != NULL) {
+        free(tmpdirbuf);
+    }
+    tmpdirbuf = NULL;
+    tmpdirbuf = (TCHAR*) malloc(tmpdirsize);
+    if (tmpdirbuf == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", tmpdirsize, ret);
+        goto fail;
+    }
+    memset(tmpdirbuf, 0 , tmpdirsize);
+    dret = GetTempPath((DWORD)(tmpdirsize / sizeof(TCHAR)), tmpdirbuf);
+    if (dret == 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get temp path error[%d]", ret);
+        goto fail;
+    } else if (dret >= (tmpdirsize / sizeof(TCHAR))) {
+        tmpdirsize <<= 1;
+        goto try_again;
+    }
+
+    if (tmpfilebuf != NULL) {
+        free(tmpfilebuf);
+    }
+    tmpfilebuf = NULL;
+    tmpfilebuf = (TCHAR*) malloc(tmpfilesize);
+    if (tmpfilebuf == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", tmpfilesize , ret);
+        goto fail;
+    }
+    tmpdirlen = _tcslen(tmpdirbuf);
+    if (tmpfilesize < ((tmpdirlen + LEAST_UNIQ_NUM + strlen(prefix)) * sizeof(TCHAR))) {
+        tmpfilesize = ((tmpdirlen + LEAST_UNIQ_NUM + strlen(prefix)) * sizeof(TCHAR));
+        goto try_again;
+    }
+    memset(tmpfilebuf, 0 , tmpfilesize);
+    //uniq = (UINT)(LEAST_UNIQ_NUM + strlen(prefix));
+    uniq = 0;
+
+    uret = GetTempFileName(tmpdirbuf, ptprefix, uniq, tmpfilebuf);
+    if (uret == 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get temp file name error[%s]", ret);
+        goto fail;
+    }
+
+    prealname = tmpfilebuf;
+    pcmpname = tmpdirbuf;
+    while (*prealname == *pcmpname) {
+        prealname ++;
+        pcmpname ++;
+    }
+
+    while ( *prealname == __TEXT('\\')) {
+        prealname ++;
+    }
+
+    tmpdirlen = _tcslen(tmpdirbuf);
+    tmpfilelen = _tcslen(tmpfilebuf);
+    DEBUG_BUFFER_FMT(tmpdirbuf, (int)((tmpdirlen + 1) * sizeof(TCHAR)), NULL);
+    DEBUG_BUFFER_FMT(tmpfilebuf, (int)((tmpfilelen + 1) * sizeof(TCHAR)), NULL);
+
+    DEBUG_INFO("tmpfilebuf %p prealname %p", tmpfilebuf, prealname);
+
+    ret = TcharToAnsi(prealname, pptmp, psize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    nlen = ret;
+    if (tmpdirbuf != NULL) {
+        free(tmpdirbuf);
+    }
+    tmpdirbuf = NULL;
+    tmpdirsize = 0;
+    if (tmpfilebuf != NULL) {
+        free(tmpfilebuf);
+    }
+    tmpfilebuf = NULL;
+    tmpfilesize = 0;
+    AnsiToTchar(NULL, &ptprefix, &prefixsize);
+    return nlen;
+fail:
+    if (tmpdirbuf != NULL) {
+        free(tmpdirbuf);
+    }
+    tmpdirbuf = NULL;
+    tmpdirsize = 0;
+    if (tmpfilebuf != NULL) {
+        free(tmpfilebuf);
+    }
+    tmpfilebuf = NULL;
+    tmpfilesize = 0;
+    AnsiToTchar(NULL, &ptprefix, &prefixsize);
+    SETERRNO(ret);
+    return ret;
+}
 
 
 typedef struct __proc_handle {
@@ -523,24 +751,16 @@ typedef struct __proc_handle {
     uint32_t m_magic;
 #endif
     /*handle for event overlapped*/
-    HANDLE m_stdinevt;
-    HANDLE m_stdoutevt;
-    HANDLE m_stderrevt;
+    ppipe_server_t m_stdinpipe;
+    ppipe_server_t m_stdoutpipe;
+    ppipe_server_t m_stderrpipe;
 
-    OVERLAPPED m_stdinov;
-    OVERLAPPED m_stdoutov;
-    OVERLAPPED m_stderrov;
+    HANDLE m_stdinnull;
+    HANDLE m_stdoutnull;
+    HANDLE m_stderrnull;
 
-    /*parent handle event*/
-    HANDLE m_stdinhd;
-    HANDLE m_stdouthd;
-    HANDLE m_stderrhd;
     HANDLE m_prochd;
 
-    /*for child hd*/
-    HANDLE m_chldstdin;
-    HANDLE m_chldstdout;
-    HANDLE m_chldstderr;
     int m_exited;
     int m_exitcode;
 
@@ -548,29 +768,6 @@ typedef struct __proc_handle {
     int m_cmdlinesize;
 } proc_handle_t, *pproc_handle_t;
 
-void __close_handle_note(HANDLE *phd, const char* fmt, ...)
-{
-    va_list ap;
-    BOOL bret;
-    char* errstr = NULL;
-    int errsize = 0;
-    int ret;
-    int res;
-    if (phd && *phd != INVALID_HANDLE_VALUE && *phd != NULL) {
-        bret = CloseHandle(*phd);
-        if (!bret && fmt != NULL) {
-            GETERRNO(ret);
-            va_start(ap, fmt);
-            res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
-            if (res >= 0) {
-                ERROR_INFO("%s error[%d]", errstr, ret);
-            }
-            vsnprintf_safe(&errstr, &errsize, NULL, ap);
-        }
-        *phd = INVALID_HANDLE_VALUE;
-    }
-    return;
-}
 
 int __get_command_lines(char** ppcmdline, int *psize, char* prog[])
 {
@@ -629,15 +826,12 @@ void __free_proc_handle(pproc_handle_t* ppproc)
     if (ppproc != NULL) {
         pproc = *ppproc;
         ASSERT_IF(CHECK_PROC_MAGIC(pproc));
-        __close_handle_note(&(pproc->m_stdinevt), "close stdinevt");
-        __close_handle_note(&(pproc->m_stdoutevt), "close stdoutevt");
-        __close_handle_note(&(pproc->m_stderrevt), "close stderrevt");
-        __close_handle_note(&(pproc->m_stdinhd), "close stdin");
-        __close_handle_note(&(pproc->m_stdouthd), "close stdout");
-        __close_handle_note(&(pproc->m_stderrhd), "close stderr");
-        __close_handle_note(&(pproc->m_chldstdin), "close child stdin");
-        __close_handle_note(&(pproc->m_chldstdout), "close child stdout");
-        __close_handle_note(&(pproc->m_chldstderr), "close child stderr");
+        __free_pipe_server(&(pproc->m_stdinpipe));
+        __free_pipe_server(&(pproc->m_stdoutpipe));
+        __free_pipe_server(&(pproc->m_stderrpipe));
+        __close_handle_note(&(pproc->m_stdinnull), "stdin null");
+        __close_handle_note(&(pproc->m_stdoutnull), "stdout null");
+        __close_handle_note(&(pproc->m_stderrnull), "stderr null");
         if (pproc->m_prochd != INVALID_HANDLE_VALUE &&
                 pproc->m_prochd != NULL && pproc->m_exited == 0) {
             for (i = 0; i < maxcnt; i++) {
@@ -673,15 +867,12 @@ pproc_handle_t __alloc_proc_handle(void)
     }
     memset(pproc, 0 , sizeof(*pproc));
     SET_PROC_MAGIC(pproc);
-    pproc->m_stdinevt = INVALID_HANDLE_VALUE;
-    pproc->m_stdoutevt = INVALID_HANDLE_VALUE;
-    pproc->m_stderrevt = INVALID_HANDLE_VALUE;
-    pproc->m_stdinhd = INVALID_HANDLE_VALUE;
-    pproc->m_stdouthd = INVALID_HANDLE_VALUE;
-    pproc->m_stderrhd = INVALID_HANDLE_VALUE;
-    pproc->m_chldstdin = INVALID_HANDLE_VALUE;
-    pproc->m_chldstdout = INVALID_HANDLE_VALUE;
-    pproc->m_chldstderr = INVALID_HANDLE_VALUE;
+    pproc->m_stdinpipe = NULL;
+    pproc->m_stdoutpipe = NULL;
+    pproc->m_stderrpipe = NULL;
+    pproc->m_stdinnull = NULL;
+    pproc->m_stdoutnull = NULL;
+    pproc->m_stderrnull = NULL;
     pproc->m_prochd = INVALID_HANDLE_VALUE;
     pproc->m_exited = 1;
     pproc->m_exitcode = 1;
@@ -696,59 +887,6 @@ fail:
     return NULL;
 }
 
-int __create_pipe(HANDLE *whd, HANDLE *rhd, HANDLE *evt, OVERLAPPED* pov, int bufsize, const char* fmt, ...)
-{
-    SECURITY_ATTRIBUTES  sa;
-    BOOL bret;
-    int ret;
-    va_list ap;
-    char* errstr = NULL;
-    int errsize = 0;
-    int res;
-    memset(&sa, 0, sizeof(sa));
-    sa.nLength = sizeof(sa);
-    sa.bInheritHandle = TRUE;
-    sa.lpSecurityDescriptor  = NULL;
-
-    bret = CreatePipe(rhd, whd, &sa, (DWORD)bufsize);
-    if (!bret) {
-        GETERRNO(ret);
-        if (fmt != NULL) {
-            va_start(ap, fmt);
-            res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
-            if (res >= 0) {
-                ERROR_INFO("%s createpipe error[%d]", errstr, ret);
-            }
-            vsnprintf_safe(&errstr, &errsize, NULL, ap);
-        }
-        goto fail;
-    }
-    if (evt != NULL) {
-        *evt = CreateEvent(NULL, TRUE, TRUE, NULL);
-        if (*evt == NULL) {
-            GETERRNO(ret);
-            if (fmt != NULL) {
-                va_start(ap, fmt);
-                res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
-                if (res >= 0) {
-                    ERROR_INFO("%s createevent error[%d]", errstr, ret);
-                }
-                vsnprintf_safe(&errstr, &errsize, NULL, ap);
-            }
-            goto fail;
-        }
-
-        if (pov != NULL) {
-            memset(pov, 0 , sizeof(*pov));
-            pov->hEvent = *evt;
-        }
-    }
-
-    return 0;
-fail:
-    SETERRNO(ret);
-    return ret;
-}
 
 int __create_nul(HANDLE* rfd, HANDLE *wfd, const char* fmt, ...)
 {
@@ -794,14 +932,36 @@ fail:
 int __create_flags(pproc_handle_t pproc, int flags)
 {
     int ret;
+    char* pipename = NULL;
+    int pipesize = 0;
+    char* tempname = NULL;
+    int tempsize = 0;
+
+    ret = __get_temp_pipe_name("pipe", &tempname, &tempsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
     if (flags & PROC_PIPE_STDIN) {
-        ret = __create_pipe(&(pproc->m_stdinhd), &(pproc->m_chldstdin), &(pproc->m_stdinevt), &(pproc->m_stdinov), 0, "stdin pipe");
+        if (pproc->m_stdinpipe != NULL) {
+            ret = -ERROR_INVALID_PARAMETER;
+            goto fail;
+        }
+
+        ret = snprintf_safe(&pipename, &pipesize, "\\\\.\\pipe\\%s_stdin", tempname);
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
         }
+
+        pproc->m_stdinpipe = __alloc_pipe_server(1, pipename);
+        if (pproc->m_stdinpipe == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
     } else if (flags & PROC_STDIN_NULL) {
-        ret = __create_nul(&(pproc->m_chldstdin), NULL, "null child stdin");
+        ret = __create_nul(&(pproc->m_stdinnull), NULL, "null child stdin");
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
@@ -809,13 +969,25 @@ int __create_flags(pproc_handle_t pproc, int flags)
     }
 
     if (flags & PROC_PIPE_STDOUT) {
-        ret = __create_pipe(&(pproc->m_chldstdout), &(pproc->m_stdouthd) , &(pproc->m_stdoutevt), &(pproc->m_stdoutov), 0, "stdout pipe");
+        if (pproc->m_stdoutpipe != NULL) {
+            ret = -ERROR_INVALID_PARAMETER;
+            goto fail;
+        }
+
+        ret = snprintf_safe(&pipename, &pipesize, "\\\\.\\pipe\\%s_stdout", tempname);
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
         }
+
+        pproc->m_stdoutpipe = __alloc_pipe_server(0, pipename);
+        if (pproc->m_stdoutpipe == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+
     } else if (flags & PROC_STDOUT_NULL) {
-        ret = __create_nul(NULL, &(pproc->m_chldstdout), "null child stdout");
+        ret = __create_nul(NULL, &(pproc->m_stdoutnull), "null child stdout");
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
@@ -823,21 +995,36 @@ int __create_flags(pproc_handle_t pproc, int flags)
     }
 
     if (flags & PROC_PIPE_STDERR) {
-        ret = __create_pipe(&(pproc->m_chldstderr), &(pproc->m_stderrhd), &(pproc->m_stderrevt), &(pproc->m_stderrov), 0, "stderr pipe");
+        if (pproc->m_stderrpipe != NULL) {
+            ret = -ERROR_INVALID_PARAMETER;
+            goto fail;
+        }
+
+        ret = snprintf_safe(&pipename, &pipesize, "\\\\.\\pipe\\%s_stderr", tempname);
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
         }
+
+        pproc->m_stderrpipe = __alloc_pipe_server(0, pipename);
+        if (pproc->m_stderrpipe == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
     } else if (flags & PROC_STDERR_NULL) {
-        ret = __create_nul(NULL, &(pproc->m_chldstderr), "null child stderr");
+        ret = __create_nul(NULL, &(pproc->m_stderrnull), "null child stderr");
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
         }
     }
 
+    snprintf_safe(&pipename, &pipesize, NULL);
+    __get_temp_pipe_name(NULL, &tempname, &tempsize);
     return 0;
 fail:
+    snprintf_safe(&pipename, &pipesize, NULL);
+    __get_temp_pipe_name(NULL, &tempname, &tempsize);
     SETERRNO(ret);
     return ret;
 }
@@ -896,18 +1083,27 @@ void* start_cmdv(int createflag, char* prog[])
     memset(pstartinfo, 0 , sizeof(*pstartinfo));
 
     pstartinfo->cb = sizeof(*pstartinfo);
-    if (pproc->m_chldstdin != INVALID_HANDLE_VALUE) {
-        pstartinfo->hStdInput  = pproc->m_chldstdin;
+    if (pproc->m_stdinpipe != NULL) {
+        pstartinfo->hStdInput  = pproc->m_stdinpipe->m_pipecli;
+        usehd ++;
+    } else if (pproc->m_stdinnull != NULL && pproc->m_stdinnull != INVALID_HANDLE_VALUE) {
+        pstartinfo->hStdInput = pproc->m_stdinnull;
         usehd ++;
     }
 
-    if (pproc->m_chldstdout != INVALID_HANDLE_VALUE) {
-        pstartinfo->hStdOutput = pproc->m_chldstdout;
+    if (pproc->m_stdoutpipe != NULL) {
+        pstartinfo->hStdOutput = pproc->m_stdoutpipe->m_pipecli;
+        usehd ++;
+    } else if (pproc->m_stdoutnull != NULL && pproc->m_stdoutnull != INVALID_HANDLE_VALUE) {
+        pstartinfo->hStdOutput = pproc->m_stdoutnull;
         usehd ++;
     }
 
-    if (pproc->m_chldstderr != INVALID_HANDLE_VALUE) {
-        pstartinfo->hStdError = pproc->m_chldstderr;
+    if (pproc->m_stderrpipe != NULL) {
+        pstartinfo->hStdError = pproc->m_stderrpipe->m_pipecli;
+        usehd ++;
+    } else if (pproc->m_stderrnull != NULL && pproc->m_stderrnull != INVALID_HANDLE_VALUE) {
+        pstartinfo->hStdError = pproc->m_stderrnull;
         usehd ++;
     }
 
@@ -1066,32 +1262,6 @@ fail:
     return NULL;
 }
 
-HANDLE proc_get_stdin(void* proc)
-{
-    pproc_handle_t pproc = (pproc_handle_t) proc;
-    if (CHECK_PROC_MAGIC(pproc)) {
-        return pproc->m_stdinhd;
-    }
-    return INVALID_HANDLE_VALUE;
-}
-
-HANDLE proc_get_stdout(void* proc)
-{
-    pproc_handle_t pproc = (pproc_handle_t) proc;
-    if (CHECK_PROC_MAGIC(pproc)) {
-        return pproc->m_stdouthd;
-    }
-    return INVALID_HANDLE_VALUE;
-}
-
-HANDLE proc_get_stderr(void* proc)
-{
-    pproc_handle_t pproc = (pproc_handle_t) proc;
-    if (CHECK_PROC_MAGIC(pproc)) {
-        return pproc->m_stderrhd;
-    }
-    return INVALID_HANDLE_VALUE;
-}
 
 int kill_proc(void* proc, int *exitcode)
 {
@@ -1168,11 +1338,13 @@ int __write_file_sync(HANDLE hd, OVERLAPPED *pov, char* ptr, int size, int *pend
                 if (pending) {
                     *pending = 1;
                 }
+                DEBUG_INFO("writelen[%d]", writelen);
                 return writelen;
             }
             ERROR_INFO("write ret [%d]", ret);
             goto fail;
         }
+        DEBUG_INFO("rsize [%d]", rsize);
         pcur += rsize;
         wsize -= rsize;
         writelen += rsize;
@@ -1210,9 +1382,14 @@ int __read_file_sync(HANDLE hd, OVERLAPPED* pov, char* pinbuf, int size, int *pe
                 *pending = 1;
             }
             return 0;
+        } else if (ret != -ERROR_BROKEN_PIPE) {
+            ERROR_INFO("read file error[%d]", ret);
+            goto fail;
         }
-        ERROR_INFO("read file error[%d]", ret);
-        goto fail;
+        if (pending) {
+            *pending = 2;
+        }
+        return 0;
     }
 
     if (pending) {
@@ -1225,41 +1402,42 @@ fail:
     return ret;
 }
 
-int __get_overlapped(HANDLE hd, OVERLAPPED* pov, int *addlen,const char* fmt,...)
+int __get_overlapped(HANDLE hd, OVERLAPPED* pov, int *addlen, const char* fmt, ...)
 {
-	BOOL bret;
-	DWORD rsize;
-	int ret;
-	va_list ap;
-	int res;
-	char* errstr = NULL;
-	int errsize = 0;
-	bret = GetOverlappedResult(hd,pov,&rsize,FALSE);
-	if (!bret) {
-		GETERRNO(ret);
-		if (ret == -ERROR_IO_PENDING) {
-			return 1;
-		}
+    BOOL bret;
+    DWORD rsize;
+    int ret;
+    va_list ap;
+    int res;
+    char* errstr = NULL;
+    int errsize = 0;
+    bret = GetOverlappedResult(hd, pov, &rsize, FALSE);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_IO_PENDING) {
+            DEBUG_INFO("hd [%d] pending", hd);
+            return 1;
+        }
 
-		if (fmt != NULL) {
-			va_start(ap, fmt);
-			res = vsnprintf_safe(&errstr,&errsize,fmt,ap);
-			if (res >= 0) {
-				ERROR_INFO("%s error [%d]", errstr,ret);
-			}
-			vsnprintf_safe(&errstr,&errsize,NULL,ap);
-		}
-		goto fail;
-	}
+        if (fmt != NULL) {
+            va_start(ap, fmt);
+            res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
+            if (res >= 0) {
+                ERROR_INFO("%s error [%d]", errstr, ret);
+            }
+            vsnprintf_safe(&errstr, &errsize, NULL, ap);
+        }
+        goto fail;
+    }
 
-	if (addlen) {
-		*addlen += rsize;
-	}
+    if (addlen) {
+        *addlen += rsize;
+    }
 
-	return 0;
+    return 0;
 fail:
-	SETERRNO(ret);
-	return ret;
+    SETERRNO(ret);
+    return ret;
 }
 
 int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
@@ -1279,9 +1457,8 @@ int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** p
     uint64_t sticks = 0, cticks = 0;
     DWORD waittime;
     HANDLE hd;
-    BOOL bret;
     int pending;
-    int inwait =0, outwait=0,errwait=0;
+    int inwait = 0, outwait = 0, errwait = 0;
 
     DEBUG_INFO(" ");
     if (prog == NULL) {
@@ -1359,118 +1536,171 @@ int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** p
         /*now we should make waithds*/
         memset(waithds, 0 , sizeof(waithds));
         waitnum = 0;
-        if (inwait > 0) {
-        	waithds[waitnum] = pproc->m_stdinevt;
-        	waitnum ++;
-        } else if (pproc->m_stdinhd != INVALID_HANDLE_VALUE) {
-            pending = 0;
-            ret = __write_file_sync(pproc->m_stdinhd, &(pproc->m_stdinov), &(pin[inlen]), (insize - inlen), &pending);
-            if (ret < 0) {
-                GETERRNO(ret);
-                goto fail;
-            }
-            inlen += ret;
-            if (inlen == insize) {
-                /*ok close all*/
-                bret = CloseHandle(pproc->m_stdinhd);
-                if (!bret) {
-                    GETERRNO(ret);
-                    ERROR_INFO("close stdinhd error[%d]", ret);
-                    goto fail;
-                }
-                pproc->m_stdinhd = INVALID_HANDLE_VALUE;
-                bret = CloseHandle(pproc->m_stdinevt);
-                if (!bret) {
-                    GETERRNO(ret);
-                    ERROR_INFO("close stdinevt error[%d]", ret);
-                    goto fail;
-                }
-                pproc->m_stdinevt = INVALID_HANDLE_VALUE;
-            } else if (pending) {
-                waithds[waitnum] = pproc->m_stdinevt;
+
+        if (pproc->m_stdinpipe != NULL) {
+            if (pproc->m_stdinpipe->m_state == PIPE_WAIT_CONNECT ||
+                    pproc->m_stdinpipe->m_state == PIPE_WAIT_WRITE) {
+                waithds[waitnum] = pproc->m_stdinpipe->m_evt;
                 waitnum ++;
+                DEBUG_INFO("add stdin");
+            } else if (pproc->m_stdinpipe->m_state == PIPE_READY) {
+                pending = 0;
+                ret = __write_file_sync(pproc->m_stdinpipe->m_pipesvr, &(pproc->m_stdinpipe->m_ov), &(pin[inlen]), (insize - inlen), &pending);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+
+                DEBUG_INFO("ret [%d] write[%d]", ret, (insize - inlen));
+
+                inlen += ret;
+                if (inlen > insize) {
+                    ERROR_INFO("write [%s] inlen [%d] insize[%d]", pproc->m_stdinpipe->m_pipename, inlen, insize);
+                    inlen = insize;
+                }
+
+                if (inlen == insize) {
+                    /*now we should close the handle*/
+                    DEBUG_INFO("close stdin");
+                    __close_handle_note(&(pproc->m_stdinpipe->m_pipesvr), "%s close", pproc->m_stdinpipe->m_pipename);
+                    pproc->m_stdinpipe->m_state = PIPE_NONE;
+                } else if (pending) {
+                    DEBUG_INFO("add stdin");
+                    pproc->m_stdinpipe->m_state = PIPE_WAIT_WRITE;
+                    waithds[waitnum] = pproc->m_stdinpipe->m_evt;
+                    waitnum ++;
+                }
             }
         }
 
-        if (outwait > 0) {
-        	waithds[waitnum] = pproc->m_stdoutevt;
-        	waitnum ++;
-        } else if (pproc->m_stdouthd != INVALID_HANDLE_VALUE) {
+        if (pproc->m_stdoutpipe != NULL) {
+            if (pproc->m_stdoutpipe->m_state == PIPE_WAIT_CONNECT ||
+                    pproc->m_stdoutpipe->m_state == PIPE_WAIT_READ) {
+                waithds[waitnum] = pproc->m_stdoutpipe->m_evt;
+                waitnum ++;
+                DEBUG_INFO("add stdout");
+            } else if (pproc->m_stdoutpipe->m_state == PIPE_READY) {
 out_again:
-            if (pretout == NULL || outsize == outlen) {
-                if (outsize < MIN_BUF_SIZE) {
-                    outsize = MIN_BUF_SIZE;
-                } else if (outsize == outlen) {
-                    outsize <<= 1;
+                if (pretout == NULL || outsize == outlen) {
+                    if (outsize < MIN_BUF_SIZE) {
+                        outsize = MIN_BUF_SIZE;
+                    } else if (outsize == outlen) {
+                        outsize <<= 1;
+                    }
+                    ptmpbuf = (char*) malloc((size_t)outsize);
+                    if (ptmpbuf == NULL) {
+                        GETERRNO(ret);
+                        ERROR_INFO("alloc %d error[%d]", outsize, ret);
+                        goto fail;
+                    }
+                    memset(ptmpbuf, 0 , (size_t)outsize);
+                    if (outlen > 0) {
+                        memcpy(ptmpbuf, pretout, (size_t)outlen);
+                    }
+                    if (pretout != NULL && pretout != *ppout) {
+                        free(pretout);
+                    }
+                    pretout = ptmpbuf;
+                    ptmpbuf = NULL;
                 }
-                ptmpbuf = (char*) malloc((size_t)outsize);
-                if (ptmpbuf == NULL) {
+
+                pending = 0;
+                ret = __read_file_sync(pproc->m_stdoutpipe->m_pipesvr, &(pproc->m_stdoutpipe->m_ov), &(pretout[outlen]), (outsize - outlen), &pending);
+                if (ret < 0) {
                     GETERRNO(ret);
-                    ERROR_INFO("alloc %d error[%d]", outsize, ret);
                     goto fail;
                 }
-                memset(ptmpbuf, 0 , (size_t)outsize);
-                if (outlen > 0) {
-                    memcpy(ptmpbuf, pretout, (size_t)outlen);
+                outlen += ret;
+                if (outlen > outsize) {
+                    ERROR_INFO("read [%s] outlen[%d] outsize [%d]", pproc->m_stdoutpipe->m_pipename, outlen, outsize);
+                    outlen = outsize;
                 }
-                if (pretout != NULL && pretout != *ppout) {
-                    free(pretout);
+
+                if (pending == 0) {
+                    if (outlen == outsize) {
+                        goto out_again;
+                    } else {
+                        waithds[waitnum] = pproc->m_stdoutpipe->m_evt;
+                        waitnum ++;
+                        pproc->m_stdoutpipe->m_state = PIPE_WAIT_READ;
+                        DEBUG_INFO("add stdout");
+                    }
+                } else if (pending == 2) {
+                    /*now close the file*/
+                    __close_handle_note(&(pproc->m_stdoutpipe->m_pipesvr), "%s", pproc->m_stdoutpipe->m_pipename);
+                    pproc->m_stdoutpipe->m_state = PIPE_NONE;
+                    DEBUG_INFO("close stdout");
+                } else {
+                    waithds[waitnum] = pproc->m_stdoutpipe->m_evt;
+                    waitnum ++;
+                    pproc->m_stdoutpipe->m_state = PIPE_WAIT_READ;
+                    DEBUG_INFO("add stdout");
                 }
-                pretout = ptmpbuf;
-                ptmpbuf = NULL;
-            }
-            ret = __read_file_sync(pproc->m_stdouthd, &(pproc->m_stdoutov), &(pretout[outlen]), (outsize - outlen), &pending);
-            if (ret < 0) {
-                GETERRNO(ret);
-                goto fail;
-            }
-            outlen += ret;
-            if (outlen == outsize) {
-                goto out_again;
-            } else if (pending) {
-                waithds[waitnum] = pproc->m_stdoutevt;
-                waitnum ++;
             }
         }
 
-        if (errwait > 0) {
-        	waithds[waitnum] = pproc->m_stderrevt;
-        	waitnum ++;
-        } else if (pproc->m_stderrhd != INVALID_HANDLE_VALUE) {
+        if (pproc->m_stderrpipe != NULL) {
+            if (pproc->m_stderrpipe->m_state == PIPE_WAIT_CONNECT ||
+                    pproc->m_stderrpipe->m_state == PIPE_WAIT_READ) {
+                waithds[waitnum] = pproc->m_stderrpipe->m_evt;
+                waitnum ++;
+                DEBUG_INFO("add stderr");
+            } else if (pproc->m_stderrpipe->m_state == PIPE_READY) {
 err_again:
-            if (preterr == NULL || errsize == errlen) {
-                if (errsize < MIN_BUF_SIZE) {
-                    errsize = MIN_BUF_SIZE;
-                } else if (errsize == errlen) {
-                    errsize <<= 1;
+                if (preterr == NULL || errsize == errlen) {
+                    if (errsize < MIN_BUF_SIZE) {
+                        errsize = MIN_BUF_SIZE;
+                    } else if (errsize == errlen) {
+                        errsize <<= 1;
+                    }
+                    ptmpbuf = (char*) malloc((size_t)errsize);
+                    if (ptmpbuf == NULL) {
+                        GETERRNO(ret);
+                        ERROR_INFO("alloc %d error[%d]", errsize, ret);
+                        goto fail;
+                    }
+                    memset(ptmpbuf, 0 , (size_t)errsize);
+                    if (errlen > 0) {
+                        memcpy(ptmpbuf, preterr, (size_t)errlen);
+                    }
+                    if (preterr != NULL && preterr != *pperr) {
+                        free(preterr);
+                    }
+                    preterr = ptmpbuf;
+                    ptmpbuf = NULL;
                 }
-                ptmpbuf = (char*) malloc((size_t)errsize);
-                if (ptmpbuf == NULL) {
+                pending = 0;
+                ret = __read_file_sync(pproc->m_stderrpipe->m_pipesvr , &(pproc->m_stderrpipe->m_ov), &(preterr[errlen]), (errsize - errlen), &pending);
+                if (ret < 0) {
                     GETERRNO(ret);
-                    ERROR_INFO("alloc %d error[%d]", errsize, ret);
                     goto fail;
                 }
-                memset(ptmpbuf, 0 , (size_t)errsize);
-                if (errlen > 0) {
-                    memcpy(ptmpbuf, preterr, (size_t)errlen);
+
+                errlen += ret;
+                if (errlen > errsize) {
+                    ERROR_INFO("read [%s] errlen[%d] errsize[%d]", pproc->m_stderrpipe->m_pipename, errlen, errsize);
+                    errlen = errsize;
                 }
-                if (preterr != NULL && preterr != *pperr) {
-                    free(preterr);
+
+                if (pending == 0) {
+                    if (errlen == errsize) {
+                        goto err_again;
+                    } else {
+                        waithds[waitnum] = pproc->m_stderrpipe->m_evt;
+                        waitnum ++;
+                        pproc->m_stderrpipe->m_state = PIPE_WAIT_READ;
+                        DEBUG_INFO("add stderr");
+                    }
+                } else if (pending == 2) {
+                    __close_handle_note(&(pproc->m_stderrpipe->m_pipesvr), "%s", pproc->m_stderrpipe->m_pipename);
+                    pproc->m_stderrpipe->m_state = PIPE_NONE;
+                    DEBUG_INFO("close stderr");
+                } else {
+                    waithds[waitnum] = pproc->m_stderrpipe->m_evt;
+                    waitnum ++;
+                    pproc->m_stderrpipe->m_state = PIPE_WAIT_READ;
+                    DEBUG_INFO("add stderr");
                 }
-                preterr = ptmpbuf;
-                ptmpbuf = NULL;
-            }
-            ret = __read_file_sync(pproc->m_stderrhd , &(pproc->m_stderrov), &(preterr[errlen]), (errsize - errlen), &pending);
-            if (ret < 0) {
-                GETERRNO(ret);
-                goto fail;
-            }
-            errlen += ret;
-            if (errlen == errsize) {
-                goto err_again;
-            } else if (pending) {
-                waithds[waitnum] = pproc->m_stderrevt;
-                waitnum ++;
             }
         }
 
@@ -1490,53 +1720,81 @@ err_again:
             DEBUG_INFO("dret [%d]", dret);
             if ((dret >= WAIT_OBJECT_0) && (dret < (WAIT_OBJECT_0 + waitnum))) {
                 hd = waithds[(dret - WAIT_OBJECT_0)];
-                if (hd == pproc->m_stdinevt) {
+                if (pproc->m_stdinpipe
+                        && (pproc->m_stdinpipe->m_state == PIPE_WAIT_CONNECT  || pproc->m_stdinpipe->m_state == PIPE_WAIT_WRITE)
+                        && hd == pproc->m_stdinpipe->m_evt) {
                     DEBUG_INFO("stdin write");
-                    ret = __get_overlapped(pproc->m_stdinhd,&(pproc->m_stdinov), &inlen,"stdin result");
+                    ret = __get_overlapped(pproc->m_stdinpipe->m_pipesvr, &(pproc->m_stdinpipe->m_ov), &inlen, "stdin result");
                     if (ret < 0) {
-                    	GETERRNO(ret);
-                    	goto fail;
+                        GETERRNO(ret);
+                        goto fail;
                     }
                     /*inwait over*/
                     inwait = ret;
-                    if (inlen == insize) {
-						bret = CloseHandle(pproc->m_stdinhd);
-						if (!bret) {
-							GETERRNO(ret);
-							ERROR_INFO("close stdin error[%d]",ret);
-							goto fail;
-						}
-						pproc->m_stdinhd = INVALID_HANDLE_VALUE;
-						bret = CloseHandle(pproc->m_stdinevt);
-						if (!bret) {
-							GETERRNO(ret);
-							ERROR_INFO("close stdinevt error[%d]",ret);
-							goto fail;
-						}
-						pproc->m_stdinevt = INVALID_HANDLE_VALUE;
-						memset(&(pproc->m_stdinov), 0 , sizeof(pproc->m_stdinov));
-						inwait = 0;
+                    if (inwait == 0) {
+                        if (pproc->m_stdinpipe->m_state == PIPE_WAIT_CONNECT) {
+                            pproc->m_stdinpipe->m_state = PIPE_READY;
+                        } else if (pproc->m_stdinpipe->m_state == PIPE_WAIT_WRITE) {
+                            pproc->m_stdinpipe->m_state = PIPE_READY;
+                        }
+                        DEBUG_INFO("stdin write inlen[%d]", inlen);
+                        /*already */
+                        if (inlen == insize) {
+                            __close_handle_note(&(pproc->m_stdinpipe->m_pipesvr), "%s", pproc->m_stdinpipe->m_pipename);
+                            pproc->m_stdinpipe->m_state = PIPE_NONE;
+                            DEBUG_INFO("close stdin");
+                        }
                     }
-                } else if (hd == pproc->m_stdouthd) {
+                } else if (pproc->m_stdoutpipe != NULL &&
+                           (pproc->m_stdoutpipe->m_state == PIPE_WAIT_READ || pproc->m_stdoutpipe->m_state == PIPE_WAIT_CONNECT)
+                           && hd == pproc->m_stdoutpipe->m_evt) {
                     DEBUG_INFO("stdout read");
-                    ret = __get_overlapped(pproc->m_stdouthd, &(pproc->m_stdoutov), &outlen, "get stdout result");
+                    ret = __get_overlapped(pproc->m_stdoutpipe->m_pipesvr, &(pproc->m_stdoutpipe->m_ov), &outlen, "get stdout result");
                     if (ret < 0) {
-                    	GETERRNO(ret);
-                    	goto fail;
+                        GETERRNO(ret);
+                        goto fail;
                     }
                     outwait = ret;
-                } else if (hd == pproc->m_stderrhd) {
-                	DEBUG_INFO("stderr read");
-                    ret = __get_overlapped(pproc->m_stderrhd, &(pproc->m_stderrov), &errlen, "get stdout result");
+                    if (outwait == 0) {
+                        if (pproc->m_stdoutpipe->m_state == PIPE_WAIT_CONNECT) {
+                            pproc->m_stdoutpipe->m_state = PIPE_READY;
+                        } else if (pproc->m_stdoutpipe->m_state == PIPE_WAIT_READ) {
+                            pproc->m_stdoutpipe->m_state = PIPE_READY;
+                        }
+                        DEBUG_INFO("ready stdout");
+                    }
+
+                } else if (pproc->m_stderrpipe && (pproc->m_stderrpipe->m_state == PIPE_WAIT_CONNECT || pproc->m_stderrpipe->m_state == PIPE_WAIT_READ)
+                           && hd == pproc->m_stderrpipe->m_evt) {
+                    DEBUG_INFO("stderr read");
+                    ret = __get_overlapped(pproc->m_stderrpipe->m_pipesvr, &(pproc->m_stderrpipe->m_ov), &errlen, "get stdout result");
                     if (ret < 0) {
-                    	GETERRNO(ret);
-                    	goto fail;
+                        GETERRNO(ret);
+                        goto fail;
                     }
                     errwait = ret;
+                    if (errwait == 0) {
+                        if (pproc->m_stderrpipe->m_state == PIPE_WAIT_CONNECT) {
+                            pproc->m_stderrpipe->m_state = PIPE_READY;
+                        } else if (pproc->m_stderrpipe->m_state == PIPE_WAIT_READ) {
+                            pproc->m_stderrpipe->m_state = PIPE_READY;
+                        }
+                        DEBUG_INFO("ready stderr");
+                    }
                 }
             } else {
                 GETERRNO(ret);
                 ERROR_INFO("run cmd [%s] [%ld] error [%d]", pproc->m_cmdline, dret, ret);
+                goto fail;
+            }
+        } else {
+            /*nothing to wait ,so we should wait for the handle of proc*/
+            waithds[waitnum] = pproc->m_prochd;
+            waitnum ++;
+            dret = WaitForMultipleObjectsEx((DWORD)waitnum, waithds, FALSE, waittime, TRUE);
+            if (dret != WAIT_OBJECT_0) {
+                GETERRNO(ret);
+                ERROR_INFO("wait proc handle [%d] error[%d]", dret, ret);
                 goto fail;
             }
         }

@@ -458,7 +458,7 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
     argc = argc;
     argv = argv;
     if (pargs->m_input != NULL) {
-        ret = read_file_encoded(pargs->m_input, &inbuf, &insize);
+        ret = read_file_whole(pargs->m_input, &inbuf, &insize);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "can not read [%s] error[%d]\n", pargs->m_input, ret);
@@ -503,7 +503,7 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
     ret = 0;
 out:
     run_cmd_outputv(NULL, 0, &outbuf, &outsize, &errbuf, &errsize, &exitcode, -1, NULL);
-    read_file_encoded(NULL, &inbuf, &insize);
+    read_file_whole(NULL, &inbuf, &insize);
     SETERRNO(ret);
     return ret;
 }
