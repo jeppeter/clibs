@@ -1310,6 +1310,8 @@ int get_proc_exit(void* proc, int *exitcode)
 {
     pproc_handle_t pproc = (pproc_handle_t) proc;
     int ret;
+    BOOL bret;
+    DWORD exitret;
     if (!CHECK_PROC_MAGIC(pproc)) {
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
@@ -1317,6 +1319,17 @@ int get_proc_exit(void* proc, int *exitcode)
     }
 
     if (pproc->m_exited == 0) {
+        bret = GetExitCodeProcess(pproc->m_prochd,&exitret);
+        if (bret) {
+            if (exitret != STILL_ACTIVE) {
+                pproc->m_exited = 1;
+                pproc->m_exitcode = (int)exitret;
+                if (exitcode) {
+                    *exitcode = (int)exitret;
+                }
+                return 0;
+            }
+        }
         ret = -ERROR_ALREADY_EXISTS;
         SETERRNO(ret);
         return ret;
@@ -1767,7 +1780,7 @@ err_again:
                         GETERRNO(ret);
                         goto fail;
                     }
-                    DEBUG_BUFFER_FMT(&pretout[outwait], (outlen - outwait), "stdout ov");
+                    //DEBUG_BUFFER_FMT(&pretout[outwait], (outlen - outwait), "stdout ov");
 
                     outwait = ret;
                     if (outwait == 0) {
@@ -1788,7 +1801,7 @@ err_again:
                         GETERRNO(ret);
                         goto fail;
                     }
-                    DEBUG_BUFFER_FMT(&preterr[errwait], (errlen - errwait), "stderr ov");
+                    //DEBUG_BUFFER_FMT(&preterr[errwait], (errlen - errwait), "stderr ov");
                     errwait = ret;
                     if (errwait == 0) {
                         if (pproc->m_stderrpipe->m_state == PIPE_WAIT_CONNECT) {
@@ -1799,6 +1812,8 @@ err_again:
                         DEBUG_INFO("ready stderr errlen[%d]", errlen);
                     }
                 }
+            } else  if (dret == WAIT_TIMEOUT) { 
+                continue;
             } else {
                 GETERRNO(ret);
                 ERROR_INFO("run cmd [%s] [%ld] error [%d]", pproc->m_cmdline, dret, ret);
