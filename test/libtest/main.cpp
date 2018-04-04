@@ -452,6 +452,10 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
     int exitcode;
     int i;
     int ret;
+    char** ppoutbuf = NULL;
+    int *poutsize = NULL;
+    char** pperrbuf = NULL;
+    int *perrsize = NULL;
     pargs_options_t pargs = (pargs_options_t) popt;
     init_log_level(pargs);
 
@@ -466,7 +470,17 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
         }
     }
 
-    ret = run_cmd_outputv(inbuf, insize, &outbuf, &outsize, &errbuf, &errsize, &exitcode, pargs->m_timeout, parsestate->leftargs);
+    if (pargs->m_output != NULL) {
+        ppoutbuf = &outbuf;
+        poutsize = &outsize;
+    }
+
+    if (pargs->m_errout != NULL) {
+        pperrbuf = &errbuf;
+        perrsize = &errsize;
+    }
+
+    ret = run_cmd_outputv(inbuf, insize, ppoutbuf, poutsize, pperrbuf, perrsize, &exitcode, pargs->m_timeout, parsestate->leftargs);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr, "run cmd [");
@@ -493,12 +507,18 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
         __debug_buf(stdout, inbuf, insize);
         fprintf(stdout, "input ++++++++++++++++++++\n");
     }
-    fprintf(stdout, "output --------------------\n");
-    __debug_buf(stdout, outbuf, outsize);
-    fprintf(stdout, "output ++++++++++++++++++++\n");
-    fprintf(stdout, "errout --------------------\n");
-    __debug_buf(stdout, errbuf, errsize);
-    fprintf(stdout, "errout ++++++++++++++++++++\n");
+
+    if (pargs->m_output != NULL) {
+        fprintf(stdout, "output --------------------\n");
+        __debug_buf(stdout, outbuf, outsize);
+        fprintf(stdout, "output ++++++++++++++++++++\n");
+    }
+
+    if (pargs->m_errout != NULL) {
+        fprintf(stdout, "errout --------------------\n");
+        __debug_buf(stdout, errbuf, errsize);
+        fprintf(stdout, "errout ++++++++++++++++++++\n");
+    }
 
     ret = 0;
 out:
@@ -1227,7 +1247,7 @@ int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                 }
                 memset(ptmpbuf, 0, (size_t)insize);
                 if (inlen > 0) {
-                    memcpy(ptmpbuf,pinbuf, (size_t)inlen);
+                    memcpy(ptmpbuf, pinbuf, (size_t)inlen);
                 }
                 if (pinbuf) {
                     free(pinbuf);
@@ -1237,9 +1257,9 @@ int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
             }
         }
 
-        fprintf(stdout,"read [%s] ------------------------\n", pipename);
+        fprintf(stdout, "read [%s] ------------------------\n", pipename);
         __debug_buf(stdout, pinbuf, inlen);
-        fprintf(stdout,"read [%s] ++++++++++++++++++++++++\n", pipename);
+        fprintf(stdout, "read [%s] ++++++++++++++++++++++++\n", pipename);
     }
 
     ret = 0;
