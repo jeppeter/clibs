@@ -15,7 +15,7 @@ def main():
 		l = l.rstrip('\r\n')
 		sys.stdout.write('[%d] out [%s]\n'%(i,l))
 		sys.stderr.write('[%d] err [%s]\n'%(i,l))
-		if wtime >= 0.1:		
+		if wtime >= 0.1:
 			time.sleep(wtime)
 		sys.stdout.flush()
 		sys.stderr.flush()

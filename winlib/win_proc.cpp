@@ -325,6 +325,7 @@ int __connect_pipe(char* name, int wr, HANDLE* pcli)
     HANDLE phd = NULL;
     BOOL bret;
     DWORD omode;
+    SECURITY_ATTRIBUTES sa;
 
     if (name == NULL) {
         if (pcli) {
@@ -358,7 +359,12 @@ int __connect_pipe(char* name, int wr, HANDLE* pcli)
         omode = GENERIC_READ;
     }
 
-    phd = CreateFile(ptname, omode, 0, NULL, OPEN_EXISTING, 0, NULL);
+    memset(&sa, 0, sizeof(sa));
+    sa.nLength = sizeof(sa);
+    sa.lpSecurityDescriptor = NULL;
+    sa.bInheritHandle = TRUE;
+
+    phd = CreateFile(ptname, omode, 0, &sa, OPEN_EXISTING, 0, NULL);
     if (phd == INVALID_HANDLE_VALUE) {
         GETERRNO(ret);
         ERROR_INFO("open file [%s] error[%d]", name, ret);
@@ -1499,7 +1505,7 @@ int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** p
         outsize = *poutsize;
         pretout = *ppout;
     } else {
-        createflag |= PROC_STDOUT_NULL;
+        //createflag |= PROC_STDOUT_NULL;
     }
 
     if (pperr != NULL) {
@@ -1511,7 +1517,7 @@ int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** p
         errsize = *perrsize;
         preterr = *pperr;
     } else {
-        createflag |= PROC_STDERR_NULL;
+        //createflag |= PROC_STDERR_NULL;
     }
     createflag |= PROC_NO_WINDOW;
 
@@ -1610,6 +1616,9 @@ out_again:
                     GETERRNO(ret);
                     goto fail;
                 }
+                if (ret > 0) {
+                    DEBUG_BUFFER_FMT(&(pretout[outlen]), ret, "stdout new in");    
+                }                
                 outlen += ret;
                 if (outlen > outsize) {
                     ERROR_INFO("read [%s] outlen[%d] outsize [%d]", pproc->m_stdoutpipe->m_pipename, outlen, outsize);
@@ -1676,6 +1685,9 @@ err_again:
                     goto fail;
                 }
 
+                if (ret > 0) {
+                    DEBUG_BUFFER_FMT(&(preterr[errlen]), ret, "stderr new in");    
+                }                
                 errlen += ret;
                 if (errlen > errsize) {
                     ERROR_INFO("read [%s] errlen[%d] errsize[%d]", pproc->m_stderrpipe->m_pipename, errlen, errsize);
@@ -1749,11 +1761,14 @@ err_again:
                            (pproc->m_stdoutpipe->m_state == PIPE_WAIT_READ || pproc->m_stdoutpipe->m_state == PIPE_WAIT_CONNECT)
                            && hd == pproc->m_stdoutpipe->m_evt) {
                     DEBUG_INFO("stdout read");
+                    outwait = outlen;
                     ret = __get_overlapped(pproc->m_stdoutpipe->m_pipesvr, &(pproc->m_stdoutpipe->m_ov), &outlen, "get stdout result");
                     if (ret < 0) {
                         GETERRNO(ret);
                         goto fail;
                     }
+                    DEBUG_BUFFER_FMT(&pretout[outwait], (outlen - outwait), "stdout ov");
+
                     outwait = ret;
                     if (outwait == 0) {
                         if (pproc->m_stdoutpipe->m_state == PIPE_WAIT_CONNECT) {
@@ -1761,17 +1776,19 @@ err_again:
                         } else if (pproc->m_stdoutpipe->m_state == PIPE_WAIT_READ) {
                             pproc->m_stdoutpipe->m_state = PIPE_READY;
                         }
-                        DEBUG_INFO("ready stdout");
+                        DEBUG_INFO("ready stdout outlen[%d]", outlen);
                     }
 
                 } else if (pproc->m_stderrpipe && (pproc->m_stderrpipe->m_state == PIPE_WAIT_CONNECT || pproc->m_stderrpipe->m_state == PIPE_WAIT_READ)
                            && hd == pproc->m_stderrpipe->m_evt) {
                     DEBUG_INFO("stderr read");
+                    errwait = errlen;
                     ret = __get_overlapped(pproc->m_stderrpipe->m_pipesvr, &(pproc->m_stderrpipe->m_ov), &errlen, "get stdout result");
                     if (ret < 0) {
                         GETERRNO(ret);
                         goto fail;
                     }
+                    DEBUG_BUFFER_FMT(&preterr[errwait], (errlen - errwait), "stderr ov");
                     errwait = ret;
                     if (errwait == 0) {
                         if (pproc->m_stderrpipe->m_state == PIPE_WAIT_CONNECT) {
@@ -1779,7 +1796,7 @@ err_again:
                         } else if (pproc->m_stderrpipe->m_state == PIPE_WAIT_READ) {
                             pproc->m_stderrpipe->m_state = PIPE_READY;
                         }
-                        DEBUG_INFO("ready stderr");
+                        DEBUG_INFO("ready stderr errlen[%d]", errlen);
                     }
                 }
             } else {
@@ -1789,14 +1806,12 @@ err_again:
             }
         } else {
             /*nothing to wait ,so we should wait for the handle of proc*/
-            waithds[waitnum] = pproc->m_prochd;
-            waitnum ++;
-            dret = WaitForMultipleObjectsEx((DWORD)waitnum, waithds, FALSE, waittime, TRUE);
-            if (dret != WAIT_OBJECT_0) {
-                GETERRNO(ret);
-                ERROR_INFO("wait proc handle [%d] error[%d]", dret, ret);
-                goto fail;
+            if (waittime != INFINITE && waittime < 100) {
+                SleepEx(waittime,TRUE);
+            } else {
+                SleepEx(100,TRUE);
             }
+            DEBUG_INFO("prochd time");
         }
     }
 
