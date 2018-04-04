@@ -395,7 +395,7 @@ out:
 
 void __debug_buf(FILE* fp, char* ptr, int size)
 {
-    int i;
+    int i,lasti;
     unsigned char* pcur = (unsigned char*)ptr;
     unsigned char* plast = pcur;
 
@@ -420,11 +420,11 @@ void __debug_buf(FILE* fp, char* ptr, int size)
     }
 
     if (plast != pcur) {
-        unsigned char* pcc = plast;
+        lasti = i;
         /*now we should give out*/
-        while (pcc != pcur) {
+        while ((lasti % 16)) {
             fprintf(fp, "     ");
-            pcc ++;
+            lasti ++;
         }
         fprintf(fp, "    ");
         while (plast != pcur) {

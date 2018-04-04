@@ -1740,6 +1740,10 @@ err_again:
             waittime = (DWORD)ret;
         }
 
+        if (waittime == INFINITE || waittime > 1000) {
+            waittime = 1000;
+        }
+
         if (waitnum > 0 ) {
             dret = WaitForMultipleObjectsEx((DWORD)waitnum, waithds, FALSE, waittime, TRUE);
             DEBUG_INFO("dret [%d]", dret);
