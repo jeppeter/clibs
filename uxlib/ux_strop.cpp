@@ -7,6 +7,61 @@
 #include <stdlib.h>
 #include <string.h>
 
+void __make_uppercase(const char* pstr)
+{
+    char* pcurptr = (char*) pstr;
+
+    while (pcurptr && *pcurptr != 0x0) {
+        if (*pcurptr >= 'a' && *pcurptr <= 'z') {
+            *pcurptr = *pcurptr - 'a' + 'A';
+        }
+        pcurptr ++;
+    }
+    return ;
+}
+
+void str_upper_case(const char* pstr)
+{
+    __make_uppercase(pstr);
+    return;
+}
+
+
+
+void __make_under_score(const char* pstr)
+{
+    char* pcurptr = (char*) pstr;
+
+    while (pcurptr && *pcurptr != 0x0) {
+        if (*pcurptr == '-') {
+            *pcurptr = '_';
+        }
+        pcurptr ++;
+    }
+    return ;
+}
+
+void str_underscore_case(const char* pstr)
+{
+    __make_under_score(pstr);
+    return;
+}
+
+
+char* safe_strdup(const char* str)
+{
+    int len = (int)strlen(str);
+    char* pretstr = NULL;
+
+    pretstr = (char*) malloc(len + 1);
+    if (pretstr == NULL) {
+        return NULL;
+    }
+    memcpy(pretstr, str, len + 1);
+    return pretstr;
+}
+
+
 int find_endof_inbuf(void* pbuf, int bufsize)
 {
     int idx = 0;

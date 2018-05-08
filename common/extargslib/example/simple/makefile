@@ -15,7 +15,7 @@ LDFLAGS:= -Wall -L${TOPDIR}/src/
 ifeq (${STATICLIB},)
 LIBFLAGS:= -L${TOPDIR} -lextargs -ljson -luxlib
 else
-LIBFLAGS:= -L${TOPDIR} -luxlib
+LIBFLAGS:= -L${TOPDIR} -luxlib -lextargs -ljson
 endif
 CFLAGS:= ${VERBOSE_CFLAGS} -I${TOPDIR}/common/extargslib -I${TOPDIR}/common -I${TOPDIR}/uxlib -Wall
 
@@ -50,4 +50,4 @@ main.c:main.c.tmpl ${TOPDIR}/coutput.py
 
 clean:
 	$(call call_exec,${RM} -f ${OBJS} opttest main.c, "RM     opttest main.c")
-	$(call call_exec,${MAKE} -C ${TOPDIR}/uxlib clean,"CLEAN   uxlib")
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib clean,"CLEAN   uxlib")

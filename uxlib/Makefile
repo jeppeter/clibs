@@ -33,10 +33,10 @@ ${TARGET}.so:${LIBUX_OFILES} ${COMMON_LIBS}
 	$(call call_exec,${LINK} ${LDFLAGS} -Wall -o $@ ${LIBUX_OFILES} ${COMMON_LDFLAGS},"LINK    $@")
 
 ${TOPDIR}/libextargs.so:${TOPDIR}/common/extargslib
-	$(call call_exec,${MAKE} -C ${TOPDIR}/common/extargslib all, "MAKE    extargslib")
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/extargslib all, "MAKE    extargslib")
 
 ${TOPDIR}/libjson.so:${TOPDIR}/common/jsonlib
-	$(call call_exec,${MAKE} -C ${TOPDIR}/common/jsonlib all,"MAKE    jsonlib")
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/jsonlib all,"MAKE    jsonlib")
 
 else
 

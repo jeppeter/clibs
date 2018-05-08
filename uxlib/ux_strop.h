@@ -21,6 +21,9 @@ int append_snprintf_safe(char**ppbuf,int*pbufsize,const char* fmt,...);
 bool str_match_wildcard(const char* regpat,const char* str);
 void str_lower_case(const char* pstr);
 char* str_in_str(const char* pstr,const char *search);
+char* safe_strdup(const char* str);
+void str_underscore_case(const char* pstr);
+void str_upper_case(const char* pstr);
 
 #ifdef __cplusplus
 };

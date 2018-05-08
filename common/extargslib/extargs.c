@@ -5,6 +5,7 @@
 #include <extargs_strop.h>
 #include <assert.h>
 #include <jvalue.h>
+#include <cmn_strop.h>
 
 #ifdef EXTARGS_VERBOSE
 #include <debug_jvalue.h>
@@ -157,15 +158,15 @@ int init_extargs_inner_state(int argc, char* argv[], popt_cmd_t pmaincmd, extarg
     if (optionsize > OPTION_OFFSET(extargs_options_t, m_argv0)) {
         if (pptropt->m_argv0 == NULL) {
             if (argv != NULL && argc > 0) {
-                st_extargs_inner_state.m_options.m_argv0 = extargs_safe_strdup(argv[0]);
+                st_extargs_inner_state.m_options.m_argv0 = safe_strdup(argv[0]);
             } else {
-                st_extargs_inner_state.m_options.m_argv0 = extargs_safe_strdup("program");
+                st_extargs_inner_state.m_options.m_argv0 = safe_strdup("program");
             }
         } else {
-            st_extargs_inner_state.m_options.m_argv0 = extargs_safe_strdup(pptropt->m_argv0);
+            st_extargs_inner_state.m_options.m_argv0 = safe_strdup(pptropt->m_argv0);
         }
     } else {
-        st_extargs_inner_state.m_options.m_argv0 = extargs_safe_strdup(pptropt->m_argv0);
+        st_extargs_inner_state.m_options.m_argv0 = safe_strdup(pptropt->m_argv0);
     }
     if (st_extargs_inner_state.m_options.m_argv0 == NULL) {
         ret = -EXTARGS_NO_MEM;
@@ -193,12 +194,12 @@ int init_extargs_inner_state(int argc, char* argv[], popt_cmd_t pmaincmd, extarg
 
     if (optionsize > OPTION_OFFSET(extargs_options_t, m_longprefix)) {
         if (pptropt->m_longprefix != NULL) {
-            st_extargs_inner_state.m_options.m_longprefix = extargs_safe_strdup(pptropt->m_longprefix);
+            st_extargs_inner_state.m_options.m_longprefix = safe_strdup(pptropt->m_longprefix);
         } else {
-            st_extargs_inner_state.m_options.m_longprefix = extargs_safe_strdup(EXTARGS_DEFAULT_LONGPREFIX);
+            st_extargs_inner_state.m_options.m_longprefix = safe_strdup(EXTARGS_DEFAULT_LONGPREFIX);
         }
     } else {
-        st_extargs_inner_state.m_options.m_longprefix = extargs_safe_strdup(EXTARGS_DEFAULT_LONGPREFIX);
+        st_extargs_inner_state.m_options.m_longprefix = safe_strdup(EXTARGS_DEFAULT_LONGPREFIX);
     }
     if (st_extargs_inner_state.m_options.m_longprefix == NULL) {
         ret = -EXTARGS_NO_MEM;
@@ -207,12 +208,12 @@ int init_extargs_inner_state(int argc, char* argv[], popt_cmd_t pmaincmd, extarg
 
     if (optionsize > OPTION_OFFSET(extargs_options_t, m_shortprefix)) {
         if (pptropt->m_longprefix != NULL) {
-            st_extargs_inner_state.m_options.m_shortprefix = extargs_safe_strdup(pptropt->m_shortprefix);
+            st_extargs_inner_state.m_options.m_shortprefix = safe_strdup(pptropt->m_shortprefix);
         } else {
-            st_extargs_inner_state.m_options.m_shortprefix = extargs_safe_strdup(EXTARGS_DEFAULT_SHORTPREFIX);
+            st_extargs_inner_state.m_options.m_shortprefix = safe_strdup(EXTARGS_DEFAULT_SHORTPREFIX);
         }
     } else {
-        st_extargs_inner_state.m_options.m_shortprefix = extargs_safe_strdup(EXTARGS_DEFAULT_SHORTPREFIX);
+        st_extargs_inner_state.m_options.m_shortprefix = safe_strdup(EXTARGS_DEFAULT_SHORTPREFIX);
     }
     if (st_extargs_inner_state.m_options.m_shortprefix == NULL) {
         ret = -EXTARGS_NO_MEM;
@@ -221,12 +222,12 @@ int init_extargs_inner_state(int argc, char* argv[], popt_cmd_t pmaincmd, extarg
 
     if (optionsize > OPTION_OFFSET(extargs_options_t,m_jsonlong)) {
         if (pptropt->m_jsonlong != NULL) {
-            st_extargs_inner_state.m_options.m_jsonlong = extargs_safe_strdup(pptropt->m_jsonlong);
+            st_extargs_inner_state.m_options.m_jsonlong = safe_strdup(pptropt->m_jsonlong);
         } else {
-            st_extargs_inner_state.m_options.m_jsonlong = extargs_safe_strdup(EXTARGS_DEFAULT_JSONLONG);
+            st_extargs_inner_state.m_options.m_jsonlong = safe_strdup(EXTARGS_DEFAULT_JSONLONG);
         }
     } else {
-        st_extargs_inner_state.m_options.m_jsonlong = extargs_safe_strdup(EXTARGS_DEFAULT_JSONLONG);
+        st_extargs_inner_state.m_options.m_jsonlong = safe_strdup(EXTARGS_DEFAULT_JSONLONG);
     }
 
     if (st_extargs_inner_state.m_options.m_jsonlong == NULL) {
@@ -328,7 +329,7 @@ int string_opt_func_base(char* key, char* value, void** ppdestopt)
         **ppchardest = NULL;
     }
     if (value != NULL) {
-        pretval = extargs_safe_strdup(value);
+        pretval = safe_strdup(value);
         if (pretval == NULL) {
             return -EXTARGS_NO_MEM;
         }
@@ -373,7 +374,7 @@ int list_opt_func_base(char* key, char* value, void** ppdestopt)
         for (i = 0; i < cnt; i++) {
             newpc[i] = oldpc[i];
         }
-        newpc[cnt] = extargs_safe_strdup(value);
+        newpc[cnt] = safe_strdup(value);
         if (newpc[cnt] == NULL) {
             free(newpc);
             newpc = NULL;
@@ -538,9 +539,9 @@ int help_opt_func_base(char* key, char* value, void** ppdestopt)
 #define MAKE_LONGOPT_KEY(keyname,keysizename)  \
     do{\
         if (st_extargs_inner_state.m_options.m_longprefix != NULL){\
-           ret = extargs_snprintf_safe(&keyname,&keysizename,"%s%s",st_extargs_inner_state.m_options.m_longprefix,popthelp->m_longopt);\
+           ret = snprintf_safe(&keyname,&keysizename,"%s%s",st_extargs_inner_state.m_options.m_longprefix,popthelp->m_longopt);\
         } else {\
-            ret = extargs_snprintf_safe(&keyname,&keysizename,"%s%s",EXTARGS_DEFAULT_LONGPREFIX,popthelp->m_longopt);\
+            ret = snprintf_safe(&keyname,&keysizename,"%s%s",EXTARGS_DEFAULT_LONGPREFIX,popthelp->m_longopt);\
         }\
         if (ret < 0) {\
             goto fail;\
@@ -563,7 +564,7 @@ int true_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** p
         return -EXTARGS_INVAL_PARAM;
     }
     MAKE_LONGOPT_KEY(pkey,keysize);
-    ret = extargs_snprintf_safe(&pvalue,&valuesize,"true");
+    ret = snprintf_safe(&pvalue,&valuesize,"true");
     if (ret < 0) {
         goto fail;
     }
@@ -572,12 +573,12 @@ int true_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** p
         ret = step;
         goto fail;
     }
-    extargs_snprintf_safe(&pkey,&keysize,NULL);
-    extargs_snprintf_safe(&pvalue,&valuesize,NULL);
+    snprintf_safe(&pkey,&keysize,NULL);
+    snprintf_safe(&pvalue,&valuesize,NULL);
     return step;
 fail:
-    extargs_snprintf_safe(&pkey,&keysize,NULL);
-    extargs_snprintf_safe(&pvalue,&valuesize,NULL);
+    snprintf_safe(&pkey,&keysize,NULL);
+    snprintf_safe(&pvalue,&valuesize,NULL);
     return ret;
 }
 
@@ -593,7 +594,7 @@ int false_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** 
         return -EXTARGS_INVAL_PARAM;
     }
     MAKE_LONGOPT_KEY(key,keysize);
-    ret = extargs_snprintf_safe(&pvalue,&valuesize,"false");
+    ret = snprintf_safe(&pvalue,&valuesize,"false");
     if (ret < 0) {
         goto fail;
     }
@@ -602,12 +603,12 @@ int false_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** 
         ret = step;
         goto fail;
     }
-    extargs_snprintf_safe(&key,&keysize,NULL);
-    extargs_snprintf_safe(&pvalue,&valuesize,NULL);
+    snprintf_safe(&key,&keysize,NULL);
+    snprintf_safe(&pvalue,&valuesize,NULL);
     return step;
 fail:
-    extargs_snprintf_safe(&key,&keysize,NULL);
-    extargs_snprintf_safe(&pvalue,&valuesize,NULL);
+    snprintf_safe(&key,&keysize,NULL);
+    snprintf_safe(&pvalue,&valuesize,NULL);
     return ret;
 }
 
@@ -621,7 +622,7 @@ fail:
         return -EXTARGS_INVAL_PARAM;                                    \
     }                                                                   \
     MAKE_LONGOPT_KEY(pkey,keysize);                                     \
-    ret = extargs_snprintf_safe(&pvalue,&valuesize,"%s",argv[validx]);  \
+    ret = snprintf_safe(&pvalue,&valuesize,"%s",argv[validx]);  \
     if (ret < 0) {                                                      \
         goto fail;                                                      \
     }                                                                   \
@@ -630,12 +631,12 @@ fail:
         ret = step;                                                     \
         goto fail;                                                      \
     }                                                                   \
-    extargs_snprintf_safe(&pkey,&keysize,NULL);                         \
-    extargs_snprintf_safe(&pvalue,&valuesize,NULL);                     \
+    snprintf_safe(&pkey,&keysize,NULL);                         \
+    snprintf_safe(&pvalue,&valuesize,NULL);                     \
     return step;                                                        \
 fail:                                                                   \
-    extargs_snprintf_safe(&pkey,&keysize,NULL);                         \
-    extargs_snprintf_safe(&pvalue,&valuesize,NULL);                     \
+    snprintf_safe(&pkey,&keysize,NULL);                         \
+    snprintf_safe(&pvalue,&valuesize,NULL);                     \
     return ret;                                                         \
 
 
@@ -666,12 +667,12 @@ int inc_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** pp
         ret = step;
         goto fail;
     }
-    extargs_snprintf_safe(&pkey,&keysize,NULL);
-    extargs_snprintf_safe(&pvalue,&valuesize,NULL);
+    snprintf_safe(&pkey,&keysize,NULL);
+    snprintf_safe(&pvalue,&valuesize,NULL);
     return step;
 fail:
-    extargs_snprintf_safe(&pkey,&keysize,NULL);
-    extargs_snprintf_safe(&pvalue,&valuesize,NULL);
+    snprintf_safe(&pkey,&keysize,NULL);
+    snprintf_safe(&pvalue,&valuesize,NULL);
     return ret;
 }
 
@@ -687,7 +688,7 @@ int cmd_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** pp
         return -EXTARGS_INVAL_PARAM;
     }
 
-    ret = extargs_snprintf_safe(&pvalue,&valuesize,"%s",argv[validx-1]);
+    ret = snprintf_safe(&pvalue,&valuesize,"%s",argv[validx-1]);
     if (ret < 0) {
         goto fail;
     }
@@ -697,12 +698,12 @@ int cmd_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** pp
         ret = step;
         goto fail;
     }
-    extargs_snprintf_safe(&pkey,&keysize,NULL);
-    extargs_snprintf_safe(&pvalue,&valuesize,NULL);
+    snprintf_safe(&pkey,&keysize,NULL);
+    snprintf_safe(&pvalue,&valuesize,NULL);
     return step;
 fail:
-    extargs_snprintf_safe(&pkey,&keysize,NULL);
-    extargs_snprintf_safe(&pvalue,&valuesize,NULL);
+    snprintf_safe(&pkey,&keysize,NULL);
+    snprintf_safe(&pvalue,&valuesize,NULL);
     return ret;
 }
 
@@ -718,7 +719,7 @@ int arg_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** pp
         return -EXTARGS_INVAL_PARAM;
     }
 
-    ret = extargs_snprintf_safe(&pvalue,&valuesize,"%s",argv[validx]);
+    ret = snprintf_safe(&pvalue,&valuesize,"%s",argv[validx]);
     if (ret < 0) {
         goto fail;
     }
@@ -728,12 +729,12 @@ int arg_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** pp
         ret = step;
         goto fail;
     }
-    extargs_snprintf_safe(&pkey,&keysize,NULL);
-    extargs_snprintf_safe(&pvalue,&valuesize,NULL);
+    snprintf_safe(&pkey,&keysize,NULL);
+    snprintf_safe(&pvalue,&valuesize,NULL);
     return step;
 fail:
-    extargs_snprintf_safe(&pkey,&keysize,NULL);
-    extargs_snprintf_safe(&pvalue,&valuesize,NULL);
+    snprintf_safe(&pkey,&keysize,NULL);
+    snprintf_safe(&pvalue,&valuesize,NULL);
     return ret;
 }
 
@@ -788,11 +789,11 @@ int jsonfile_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void
         goto fail;                                                   \
     }                                                                \
                                                                      \
-    extargs_snprintf_safe(&key,&keysize,NULL);                       \
+    snprintf_safe(&key,&keysize,NULL);                       \
     return ret;                                                      \
                                                                      \
 fail:                                                                \
-    extargs_snprintf_safe(&key,&keysize,NULL);                       \
+    snprintf_safe(&key,&keysize,NULL);                       \
     return ret;                                                                     
 
 
@@ -846,11 +847,11 @@ int list_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt)
         }
     }
 
-    extargs_snprintf_safe(&key,&keysize,NULL);
+    snprintf_safe(&key,&keysize,NULL);
     return cnt;
 
 fail:
-    extargs_snprintf_safe(&key,&keysize,NULL);
+    snprintf_safe(&key,&keysize,NULL);
     return ret;
 }
 
@@ -1428,23 +1429,23 @@ int get_opt_name(popt_help_t popthelp, char** ppname, int *pnamesize)
     if (popthelp) {
         if (popthelp->m_longopt) {
             if (st_extargs_inner_state.m_options.m_longprefix != NULL) {
-                ret = extargs_snprintf_safe(ppname, pnamesize, "%s%s", st_extargs_inner_state.m_options.m_longprefix , popthelp->m_longopt);
+                ret = snprintf_safe(ppname, pnamesize, "%s%s", st_extargs_inner_state.m_options.m_longprefix , popthelp->m_longopt);
             } else {
-                ret = extargs_snprintf_safe(ppname,pnamesize,"%s%s",EXTARGS_DEFAULT_LONGPREFIX,popthelp->m_longopt);
+                ret = snprintf_safe(ppname,pnamesize,"%s%s",EXTARGS_DEFAULT_LONGPREFIX,popthelp->m_longopt);
             }
             if (ret >= 0 && popthelp->m_shortopt != 0x0) {
                 if (st_extargs_inner_state.m_options.m_shortprefix != NULL) {
-                    ret = extargs_append_snprintf_safe(ppname, pnamesize, "|%s%c" , st_extargs_inner_state.m_options.m_shortprefix,popthelp->m_shortopt);
+                    ret = append_snprintf_safe(ppname, pnamesize, "|%s%c" , st_extargs_inner_state.m_options.m_shortprefix,popthelp->m_shortopt);
                 } else {
-                    ret = extargs_append_snprintf_safe(ppname,pnamesize,"|%s%c",EXTARGS_DEFAULT_SHORTPREFIX,popthelp->m_shortopt);
+                    ret = append_snprintf_safe(ppname,pnamesize,"|%s%c",EXTARGS_DEFAULT_SHORTPREFIX,popthelp->m_shortopt);
                 }
             }
         } else {
-            extargs_snprintf_safe(ppname, pnamesize, NULL);
+            snprintf_safe(ppname, pnamesize, NULL);
         }
 
     } else {
-        extargs_snprintf_safe(ppname, pnamesize, NULL);
+        snprintf_safe(ppname, pnamesize, NULL);
     }
     return ret;
 }
@@ -1455,15 +1456,15 @@ int get_opt_argname(popt_help_t popthelp, char** ppargname, int *pargnamesize)
     if (popthelp) {
         if (popthelp->m_longopt) {
             if (popthelp->m_argname) {
-                ret = extargs_snprintf_safe(ppargname, pargnamesize, "%s", popthelp->m_argname);
+                ret = snprintf_safe(ppargname, pargnamesize, "%s", popthelp->m_argname);
             } else {
-                ret = extargs_snprintf_safe(ppargname, pargnamesize, "");
+                ret = snprintf_safe(ppargname, pargnamesize, "");
             }
         } else {
-            extargs_snprintf_safe(ppargname, pargnamesize, NULL);
+            snprintf_safe(ppargname, pargnamesize, NULL);
         }
     } else {
-        extargs_snprintf_safe(ppargname, pargnamesize, NULL);
+        snprintf_safe(ppargname, pargnamesize, NULL);
     }
     return ret;
 }
@@ -1481,78 +1482,78 @@ int get_opt_helpinfo(popt_help_t popthelp, char** pphelpinfo, int* phelpsize)
             if (popthelp->m_optsize > OPTION_OFFSET(opt_help_t,m_helpfunc) && popthelp->m_helpfunc != NULL) {
                 prethelp = popthelp->m_helpfunc(popthelp);
                 if (prethelp != NULL) {
-                    ret = extargs_snprintf_safe(pphelpinfo,phelpsize,"%s",prethelp);
+                    ret = snprintf_safe(pphelpinfo,phelpsize,"%s",prethelp);
                 } else {
                     ret = -EXTARGS_INVAL_RETURN;
                 }
             } else if (popthelp->m_helpinfo) {
-                ret = extargs_snprintf_safe(pphelpinfo, phelpsize, "%s", popthelp->m_helpinfo);
+                ret = snprintf_safe(pphelpinfo, phelpsize, "%s", popthelp->m_helpinfo);
             } else {
                 if (popthelp->m_opttype != OPT_ARG_TYPE &&
                         popthelp->m_opttype != OPT_CMD_TYPE &&
                         popthelp->m_opttype != OPT_HELP_TYPE &&
                         popthelp->m_opttype != OPT_JSONFILE_TYPE) {
-                    ret = extargs_snprintf_safe(pphelpinfo, phelpsize, "set %s ", popthelp->m_longopt);
+                    ret = snprintf_safe(pphelpinfo, phelpsize, "set %s ", popthelp->m_longopt);
                     if (ret >= 0) {
                         switch (popthelp->m_opttype) {
                         case OPT_TRUE_TYPE:
-                            ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "default(true)");
+                            ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(true)");
                             break;
                         case OPT_FALSE_TYPE:
-                            ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "default(false)");
+                            ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(false)");
                             break;
                         case OPT_STRING_TYPE:
                             ptr = (char*) ((uintptr_t)popthelp->m_defvalue);
                             if (ptr == NULL) {
-                                ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "default(NULL)");
+                                ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(NULL)");
                             } else {
-                                ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "default(%s)", ptr);
+                                ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(%s)", ptr);
                             }
                             break;
                         case OPT_LIST_TYPE:
                             pptr = (char**)((uintptr_t)popthelp->m_defvalue);
                             if (pptr != NULL) {
-                                ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "default([");
+                                ret = append_snprintf_safe(pphelpinfo, phelpsize, "default([");
                                 for (i = 0;; i++) {
                                     if (pptr[i] == NULL || ret < 0) {
                                         break;
                                     }
                                     if (i > 0) {
-                                        ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, ",");
+                                        ret = append_snprintf_safe(pphelpinfo, phelpsize, ",");
                                     }
                                     if (ret >= 0) {
-                                        ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "%s", pptr[i]);
+                                        ret = append_snprintf_safe(pphelpinfo, phelpsize, "%s", pptr[i]);
                                     }
                                 }
                                 if (ret >= 0) {
-                                    ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "])");
+                                    ret = append_snprintf_safe(pphelpinfo, phelpsize, "])");
                                 }
                             } else {
-                                ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "default([])");
+                                ret = append_snprintf_safe(pphelpinfo, phelpsize, "default([])");
                             }
                             break;
                         case OPT_INC_TYPE:
-                            ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "default(0)");
+                            ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(0)");
                             break;
                         case OPT_DICT_TYPE:
                             ret = -EXTARGS_INVAL_PARAM;
                             break;
                         case OPT_INT_TYPE:
-                            ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "default(%d)", (int)popthelp->m_defvalue);
+                            ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(%d)", (int)popthelp->m_defvalue);
                             break;
                         case OPT_DOUBLE_TYPE:
                             pfltptr = (float*)((uintptr_t)popthelp->m_defvalue);
                             if (pfltptr != NULL) {
-                                ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "default(%f)", (float) * pfltptr);
+                                ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(%f)", (float) * pfltptr);
                             } else {
-                                ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "default(0.0)");
+                                ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(0.0)");
                             }
                             break;
                         case OPT_LL_TYPE:
-                            ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "default(%lld)", (long long)popthelp->m_defvalue);
+                            ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(%lld)", (long long)popthelp->m_defvalue);
                             break;
                         case OPT_ULL_TYPE:
-                            ret = extargs_append_snprintf_safe(pphelpinfo, phelpsize, "default(%lld)", (unsigned long long)popthelp->m_defvalue);
+                            ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(%lld)", (unsigned long long)popthelp->m_defvalue);
                             break;
                         default:
                             EXTARGS_ERROR("unrecognize optype %d", popthelp->m_opttype);
@@ -1561,20 +1562,20 @@ int get_opt_helpinfo(popt_help_t popthelp, char** pphelpinfo, int* phelpsize)
                         }
                     }
                 } else if (popthelp->m_opttype == OPT_ARG_TYPE) {
-                    ret = extargs_snprintf_safe(pphelpinfo, phelpsize, "");
+                    ret = snprintf_safe(pphelpinfo, phelpsize, "");
                 } else if (popthelp->m_opttype == OPT_CMD_TYPE) {
                     ret = -EXTARGS_INVAL_PARAM;
                 } else if (popthelp->m_opttype == OPT_HELP_TYPE) {
-                    ret = extargs_snprintf_safe(pphelpinfo, phelpsize, "to display this help information");
+                    ret = snprintf_safe(pphelpinfo, phelpsize, "to display this help information");
                 } else if (popthelp->m_opttype == OPT_JSONFILE_TYPE) {
-                    ret = extargs_snprintf_safe(pphelpinfo, phelpsize, "to specify json for set args");
+                    ret = snprintf_safe(pphelpinfo, phelpsize, "to specify json for set args");
                 }
             }
         } else {
-            extargs_snprintf_safe(pphelpinfo, phelpsize, NULL);
+            snprintf_safe(pphelpinfo, phelpsize, NULL);
         }
     } else {
-        extargs_snprintf_safe(pphelpinfo, phelpsize, NULL);
+        snprintf_safe(pphelpinfo, phelpsize, NULL);
     }
 
     if (prethelp != NULL) {
@@ -1644,7 +1645,7 @@ int calc_opt_size(popt_help_t popthelp, int *pmaxnamesize, int *pmaxargsize, int
     *pmaxargsize = maxargsize;
     *pmaxhelpsize = maxhelpsize;
 out:
-    extargs_snprintf_safe(&pdummystr, &dummysize, NULL);
+    snprintf_safe(&pdummystr, &dummysize, NULL);
     return ret;
 }
 
@@ -1653,12 +1654,12 @@ int get_cmd_name(popt_cmd_t pcmd, char** ppcmd, int *pcmdsize)
     int ret = 0;
     if (pcmd) {
         if (pcmd->m_cmd) {
-            ret = extargs_snprintf_safe(ppcmd, pcmdsize, "%s", pcmd->m_cmd);
+            ret = snprintf_safe(ppcmd, pcmdsize, "%s", pcmd->m_cmd);
         } else {
-            extargs_snprintf_safe(ppcmd, pcmdsize, NULL);
+            snprintf_safe(ppcmd, pcmdsize, NULL);
         }
     } else {
-        extargs_snprintf_safe(ppcmd, pcmdsize, NULL);
+        snprintf_safe(ppcmd, pcmdsize, NULL);
     }
     return ret;
 }
@@ -1668,14 +1669,14 @@ int get_cmd_expr(popt_cmd_t pcmd, char** ppexpr, int *pexprsize)
     int ret = 0;
     if (pcmd) {
         if (pcmd->m_cmdepxr) {
-            ret = extargs_snprintf_safe(ppexpr, pexprsize, "%s", pcmd->m_cmdepxr);
+            ret = snprintf_safe(ppexpr, pexprsize, "%s", pcmd->m_cmdepxr);
         } else if (pcmd->m_cmd != NULL) {
-            ret = extargs_snprintf_safe(ppexpr, pexprsize, "");
+            ret = snprintf_safe(ppexpr, pexprsize, "");
         } else {
-            extargs_snprintf_safe(ppexpr, pexprsize, NULL);
+            snprintf_safe(ppexpr, pexprsize, NULL);
         }
     } else {
-        extargs_snprintf_safe(ppexpr, pexprsize, NULL);
+        snprintf_safe(ppexpr, pexprsize, NULL);
     }
     return ret;
 }
@@ -1685,14 +1686,14 @@ int get_cmd_help(popt_cmd_t pcmd, char** ppcmdhelp, int* pcmdhelpsize)
     int ret = 0;
     if (pcmd) {
         if (pcmd->m_cmdhelp) {
-            ret = extargs_snprintf_safe(ppcmdhelp, pcmdhelpsize, "%s", pcmd->m_cmdhelp);
+            ret = snprintf_safe(ppcmdhelp, pcmdhelpsize, "%s", pcmd->m_cmdhelp);
         } else if (pcmd->m_cmd != NULL) {
-            ret = extargs_snprintf_safe(ppcmdhelp, pcmdhelpsize, "%s handler", pcmd->m_cmd);
+            ret = snprintf_safe(ppcmdhelp, pcmdhelpsize, "%s handler", pcmd->m_cmd);
         } else {
-            extargs_snprintf_safe(ppcmdhelp, pcmdhelpsize, NULL);
+            snprintf_safe(ppcmdhelp, pcmdhelpsize, NULL);
         }
     } else {
-        extargs_snprintf_safe(ppcmdhelp, pcmdhelpsize, NULL);
+        snprintf_safe(ppcmdhelp, pcmdhelpsize, NULL);
     }
     return ret;
 }
@@ -1753,7 +1754,7 @@ int calc_cmd_size(popt_cmd_t pcmd[], int *pmaxname, int* pmaxexpr, int*pmaxhelp)
     *pmaxexpr = maxexpr;
     *pmaxhelp = maxhelp;
 out:
-    extargs_snprintf_safe(&pdummystr, &dummysize, NULL);
+    snprintf_safe(&pdummystr, &dummysize, NULL);
     return ret;
 }
 
@@ -1828,7 +1829,7 @@ out:
 
 #define APPEND_STRING(...)   \
     do {\
-        ret = extargs_append_snprintf_safe(&poutbuffer,&outbuffersize,__VA_ARGS__); \
+        ret = append_snprintf_safe(&poutbuffer,&outbuffersize,__VA_ARGS__); \
         if (ret < 0) {\
          ret = -EXTARGS_NO_MEM; goto fail;\
         }\
@@ -1951,7 +1952,7 @@ char* __help_usagev(const char* arg0, const char* subcmd , popt_cmd_t pmaincmd, 
 
     if (st_extargs_inner_state.m_options.m_nohelp != 0) {
         /*we delete help information*/
-        ret = extargs_append_snprintf_safe(&poutbuffer, &outbuffersize, "no help output\n");
+        ret = append_snprintf_safe(&poutbuffer, &outbuffersize, "no help output\n");
         if (ret < 0) {
             ret = -EXTARGS_NO_MEM;
             goto fail;
@@ -1960,7 +1961,7 @@ char* __help_usagev(const char* arg0, const char* subcmd , popt_cmd_t pmaincmd, 
     }
 
     if (fmt != NULL) {
-        ret = extargs_append_vsnprintf_safe(&poutbuffer, &outbuffersize, fmt, ap);
+        ret = append_vsnprintf_safe(&poutbuffer, &outbuffersize, fmt, ap);
         if (ret < 0) {
             ret = -EXTARGS_NO_MEM;
             goto fail;
@@ -2103,31 +2104,31 @@ char* __help_usagev(const char* arg0, const char* subcmd , popt_cmd_t pmaincmd, 
     }
 
 out:
-    extargs_snprintf_safe(&popthelp, &opthelpsize, NULL);
-    extargs_snprintf_safe(&poptname, &optnamesize, NULL);
-    extargs_snprintf_safe(&poptargname, &optargnamesize, NULL);
-    extargs_snprintf_safe(&pcmdname, &cmdnamesize, NULL);
-    extargs_snprintf_safe(&pcmdexpr, &cmdexprsize, NULL);
-    extargs_snprintf_safe(&pcmdhelp, &cmdhelpsize, NULL);
+    snprintf_safe(&popthelp, &opthelpsize, NULL);
+    snprintf_safe(&poptname, &optnamesize, NULL);
+    snprintf_safe(&poptargname, &optargnamesize, NULL);
+    snprintf_safe(&pcmdname, &cmdnamesize, NULL);
+    snprintf_safe(&pcmdexpr, &cmdexprsize, NULL);
+    snprintf_safe(&pcmdhelp, &cmdhelpsize, NULL);
     if (pindentstr != NULL) {
         free(pindentstr);
     }
     pindentstr = NULL;
     return poutbuffer;
 fail:
-    extargs_snprintf_safe(&popthelp, &opthelpsize, NULL);
-    extargs_snprintf_safe(&poptname, &optnamesize, NULL);
-    extargs_snprintf_safe(&poptargname, &optargnamesize, NULL);
-    extargs_snprintf_safe(&pcmdname, &cmdnamesize, NULL);
-    extargs_snprintf_safe(&pcmdexpr, &cmdexprsize, NULL);
-    extargs_snprintf_safe(&pcmdhelp, &cmdhelpsize, NULL);
+    snprintf_safe(&popthelp, &opthelpsize, NULL);
+    snprintf_safe(&poptname, &optnamesize, NULL);
+    snprintf_safe(&poptargname, &optargnamesize, NULL);
+    snprintf_safe(&pcmdname, &cmdnamesize, NULL);
+    snprintf_safe(&pcmdexpr, &cmdexprsize, NULL);
+    snprintf_safe(&pcmdhelp, &cmdhelpsize, NULL);
     if (pindentstr != NULL) {
         free(pindentstr);
     }
     pindentstr = NULL;
 
     /*free buffer out*/
-    extargs_snprintf_safe(&poutbuffer, &outbuffersize, NULL);
+    snprintf_safe(&poutbuffer, &outbuffersize, NULL);
     return NULL;
 }
 
@@ -2246,7 +2247,7 @@ char* get_command_subcommand_name(pparse_state_t pstate)
     int i;
 
     /*we make sure the less*/
-    ret = extargs_snprintf_safe(&poutbuffer, &outbuffersize, "");
+    ret = snprintf_safe(&poutbuffer, &outbuffersize, "");
     if (ret < 0) {
         ret =  -EXTARGS_NO_MEM;
         goto fail;
@@ -2255,13 +2256,13 @@ char* get_command_subcommand_name(pparse_state_t pstate)
     if (pstate->m_cmdnum > 1) {
         for (i = 1; i < pstate->m_cmdnum; i++) {
             if (ret > 1)    {
-                ret = extargs_append_snprintf_safe(&poutbuffer, &outbuffersize, ".");
+                ret = append_snprintf_safe(&poutbuffer, &outbuffersize, ".");
                 if (ret < 0) {
                     ret = -EXTARGS_NO_MEM;
                     goto fail;
                 }
             }
-            ret = extargs_append_snprintf_safe(&poutbuffer, &outbuffersize, "%s", pstate->m_cmdstates[i]->m_optcmd->m_cmd);
+            ret = append_snprintf_safe(&poutbuffer, &outbuffersize, "%s", pstate->m_cmdstates[i]->m_optcmd->m_cmd);
             if (ret < 0) {
                 ret = -EXTARGS_NO_MEM;
                 goto fail;
@@ -2271,7 +2272,7 @@ char* get_command_subcommand_name(pparse_state_t pstate)
 
     return poutbuffer;
 fail:
-    extargs_snprintf_safe(&poutbuffer, &outbuffersize, NULL);
+    snprintf_safe(&poutbuffer, &outbuffersize, NULL);
     return NULL;
 }
 
@@ -2411,7 +2412,7 @@ int add_jsonfile_value(pparse_state_t pstate, popt_help_t pgethelp, char* jsonna
     pfindstate = find_cmd_state_by_opt(pstate, pgethelp);
     if (pfindstate != NULL) {
         /*now first to find out the get help*/
-        pdup = extargs_safe_strdup(jsonname);
+        pdup = safe_strdup(jsonname);
         if (pdup == NULL) {
             return -EXTARGS_NO_MEM;
         }
@@ -2425,7 +2426,7 @@ int add_jsonfile_value(pparse_state_t pstate, popt_help_t pgethelp, char* jsonna
     pfindstate = find_dummy_state_by_opt_by_add(pstate, pgethelp);
     if (pfindstate != NULL) {
         /*now first to find out the get help*/
-        pdup = extargs_safe_strdup(jsonname);
+        pdup = safe_strdup(jsonname);
         if (pdup == NULL) {
             return -EXTARGS_NO_MEM;
         }
@@ -2733,6 +2734,27 @@ int extargs_log_init(void)
     return 0;
 }
 
+void __extargs_make_hiphen(const char* pstr)
+{
+    char* pcurptr = (char*) pstr;
+
+    while (pcurptr && *pcurptr != 0x0) {
+        if (*pcurptr == '_') {
+            *pcurptr = '-';
+        }
+        pcurptr ++;
+    }
+    return ;
+}
+
+
+void extargs_str_hiphen_case(const char* pstr)
+{
+    __extargs_make_hiphen(pstr);
+    return;
+}
+
+
 int set_jsonvalue_not_defined(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt, const char* cmdprefix, const char* key, jvalue* val)
 {
     popt_cmd_t pcurcmd = NULL;
@@ -2777,9 +2799,9 @@ int set_jsonvalue_not_defined(popt_cmd_t pmaincmd, pparse_state_t pstate, void* 
     }
 
     if (cmdprefix != NULL && strlen(cmdprefix) > 0) {
-        ret = extargs_snprintf_safe(&pkeyopt, &keyoptsize, "%s_%s", cmdprefix, key);
+        ret = snprintf_safe(&pkeyopt, &keyoptsize, "%s_%s", cmdprefix, key);
     } else {
-        ret = extargs_snprintf_safe(&pkeyopt, &keyoptsize, "%s", key);
+        ret = snprintf_safe(&pkeyopt, &keyoptsize, "%s", key);
     }
     if (ret < 0) {
         goto out;
@@ -2806,7 +2828,7 @@ int set_jsonvalue_not_defined(popt_cmd_t pmaincmd, pparse_state_t pstate, void* 
                 parraystr = NULL;
             }
             /*to set the value string*/
-            extargs_snprintf_safe(&valuestr,&valuesize,NULL);
+            snprintf_safe(&valuestr,&valuesize,NULL);
             EXTARGS_DEBUG("pkeyopt %s longopt %s", pkeyopt, pcuropt->m_longopt);
             if (strcmp(pkeyopt, pcuropt->m_longopt) == 0 ) {
                 if (is_opt_setted(pstate, pcuropt) == 0) {
@@ -2818,9 +2840,9 @@ int set_jsonvalue_not_defined(popt_cmd_t pmaincmd, pparse_state_t pstate, void* 
                             EXTARGS_WARN("opt %s not match bool value(%d)", pcuropt->m_longopt, val->type);
                         } else {
                             if (pcuropt->m_opttype == OPT_TRUE_TYPE) {
-                                ret = extargs_snprintf_safe(&valuestr, &valuesize, "true");
+                                ret = snprintf_safe(&valuestr, &valuesize, "true");
                             } else {
-                                ret = extargs_snprintf_safe(&valuestr, &valuesize, "false");
+                                ret = snprintf_safe(&valuestr, &valuesize, "false");
                             }
                             if (ret < 0) {
                                 goto out;
@@ -2840,7 +2862,7 @@ int set_jsonvalue_not_defined(popt_cmd_t pmaincmd, pparse_state_t pstate, void* 
                         if (val->type != JSTRING) {
                             EXTARGS_WARN("opt %s not match string value(%d)", pcuropt->m_longopt, val->type);
                         } else {
-                            ret = extargs_snprintf_safe(&valuestr, &valuesize, "%s", val->_string.value);
+                            ret = snprintf_safe(&valuestr, &valuesize, "%s", val->_string.value);
                             if (ret < 0) {
                                 goto out;
                             }
@@ -2856,7 +2878,7 @@ int set_jsonvalue_not_defined(popt_cmd_t pmaincmd, pparse_state_t pstate, void* 
                         if (val->type != JSTRING && val->type != JNULL) {
                             EXTARGS_WARN("opt %s not match string value(%d)", pcuropt->m_longopt, val->type);
                         } else if (val->type == JSTRING) {
-                            ret = extargs_snprintf_safe(&valuestr, &valuesize, "%s", val->_string.value);
+                            ret = snprintf_safe(&valuestr, &valuesize, "%s", val->_string.value);
                             if (ret < 0) {
                                 goto out;
                             }
@@ -2909,20 +2931,20 @@ int set_jsonvalue_not_defined(popt_cmd_t pmaincmd, pparse_state_t pstate, void* 
                                 }
                                 switch (itemval->type) {
                                 case JSTRING:
-                                    ret = extargs_snprintf_safe(&valuestr, &valuesize, "%s", itemval->_string.value);
+                                    ret = snprintf_safe(&valuestr, &valuesize, "%s", itemval->_string.value);
                                     break;
                                 case JINT:
-                                    ret = extargs_snprintf_safe(&valuestr, &valuesize, "%d", itemval->_integer.value);
+                                    ret = snprintf_safe(&valuestr, &valuesize, "%d", itemval->_integer.value);
                                     break;
                                 case JINT64:
-                                    ret = extargs_snprintf_safe(&valuestr, &valuesize, "%lld", itemval->_integer64.value);
+                                    ret = snprintf_safe(&valuestr, &valuesize, "%lld", itemval->_integer64.value);
                                     break;
                                 case JREAL:
-                                    ret = extargs_snprintf_safe(&valuestr, &valuesize, "%f", itemval->_integer64.value);
+                                    ret = snprintf_safe(&valuestr, &valuesize, "%f", itemval->_integer64.value);
                                     break;
                                 default:
                                     EXTARGS_WARN("unknown item[%d] %d", idx, itemval->type);
-                                    ret = extargs_snprintf_safe(&valuestr,&valuesize,"");
+                                    ret = snprintf_safe(&valuestr,&valuesize,"");
                                     break;
                                 }
                                 if (ret < 0) {
@@ -2950,7 +2972,7 @@ int set_jsonvalue_not_defined(popt_cmd_t pmaincmd, pparse_state_t pstate, void* 
                         if (val->type != JINT) {
                             EXTARGS_WARN("opt %s not match int value(%d)", pcuropt->m_longopt, val->type);
                         } else {
-                            ret = extargs_snprintf_safe(&valuestr,&valuesize,"%d",val->_integer.value);
+                            ret = snprintf_safe(&valuestr,&valuesize,"%d",val->_integer.value);
                             if (ret < 0) {
                                 goto out;
                             }
@@ -2969,7 +2991,7 @@ int set_jsonvalue_not_defined(popt_cmd_t pmaincmd, pparse_state_t pstate, void* 
                         if (val->type != JINT) {
                             EXTARGS_WARN("opt %s not match int value(%d)", pcuropt->m_longopt, val->type);
                         } else {
-                            ret = extargs_snprintf_safe(&valuestr, &valuesize, "%d", val->_integer.value);
+                            ret = snprintf_safe(&valuestr, &valuesize, "%d", val->_integer.value);
                             if (ret < 0) {
                                 goto out;
                             }
@@ -2992,7 +3014,7 @@ int set_jsonvalue_not_defined(popt_cmd_t pmaincmd, pparse_state_t pstate, void* 
                         if (val->type != JREAL) {
                             EXTARGS_WARN("%s not match real number(%d)", pcuropt->m_longopt, val->type);
                         } else {
-                            ret = extargs_snprintf_safe(&valuestr, &valuesize, "%f", val->_real.value);
+                            ret = snprintf_safe(&valuestr, &valuesize, "%f", val->_real.value);
                             if (ret < 0) {
                                 goto out;
                             }
@@ -3014,9 +3036,9 @@ int set_jsonvalue_not_defined(popt_cmd_t pmaincmd, pparse_state_t pstate, void* 
                             EXTARGS_WARN("%s not match int or int64(%d)", pcuropt->m_longopt, val->type);
                         } else {
                             if (val->type == JINT) {
-                                ret = extargs_snprintf_safe(&valuestr, &valuesize, "%d", val->_integer.value);
+                                ret = snprintf_safe(&valuestr, &valuesize, "%d", val->_integer.value);
                             } else {
-                                ret = extargs_snprintf_safe(&valuestr, &valuesize, "%lld", val->_integer64.value);
+                                ret = snprintf_safe(&valuestr, &valuesize, "%lld", val->_integer64.value);
                             }
                             if (ret < 0) {
                                 goto out;
@@ -3052,9 +3074,9 @@ int set_jsonvalue_not_defined(popt_cmd_t pmaincmd, pparse_state_t pstate, void* 
     ret = cnt;
 
 out:
-    extargs_snprintf_safe(&valuestr, &valuesize, NULL);
-    extargs_snprintf_safe(&pcurcmdprefix, &curcmdprefixsize, NULL);
-    extargs_snprintf_safe(&pkeyopt, &keyoptsize, NULL);
+    snprintf_safe(&valuestr, &valuesize, NULL);
+    snprintf_safe(&pcurcmdprefix, &curcmdprefixsize, NULL);
+    snprintf_safe(&pkeyopt, &keyoptsize, NULL);
     if (parraystr != NULL) {
         for (i=0;;i++) {
             if (parraystr[i] == NULL) {
@@ -3089,9 +3111,9 @@ int load_jsonvalue(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt, const
             DEBUG_JVALUE(jsonval, "[%d] value key %s", i, pcurentry->key);
             if (pcurentry->value->type == JOBJECT) {
                 if (prefix != NULL && strlen(prefix) > 0) {
-                    ret = extargs_snprintf_safe(&pcurprefix, &curprefixsize, "%s_%s", prefix, pcurentry->key);
+                    ret = snprintf_safe(&pcurprefix, &curprefixsize, "%s_%s", prefix, pcurentry->key);
                 } else {
-                    ret = extargs_snprintf_safe(&pcurprefix, &curprefixsize, "%s", pcurentry->key);
+                    ret = snprintf_safe(&pcurprefix, &curprefixsize, "%s", pcurentry->key);
                 }
                 if (ret < 0) {
                     goto out;
@@ -3116,7 +3138,7 @@ int load_jsonvalue(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt, const
     ret = cnt;
 
 out:
-    extargs_snprintf_safe(&pcurprefix, &curprefixsize, NULL);
+    snprintf_safe(&pcurprefix, &curprefixsize, NULL);
     jentries_destroy(&entries);
     return ret;
 }
@@ -3221,7 +3243,7 @@ int format_cmd_prefix(pparse_state_t pstate, int idx, char** pprefix, int *psize
     pparse_cmd_state_t pcurcmdstate = NULL;
 
     if (pstate == NULL) {
-        extargs_snprintf_safe(pprefix, psize, NULL);
+        snprintf_safe(pprefix, psize, NULL);
         return 0;
     }
 
@@ -3230,7 +3252,7 @@ int format_cmd_prefix(pparse_state_t pstate, int idx, char** pprefix, int *psize
         goto fail;
     }
 
-    ret = extargs_snprintf_safe(pprefix, psize, "");
+    ret = snprintf_safe(pprefix, psize, "");
     if (ret < 0) {
         goto fail;
     }
@@ -3238,13 +3260,13 @@ int format_cmd_prefix(pparse_state_t pstate, int idx, char** pprefix, int *psize
 
     for (i = 1; i <= idx; i++) {
         if (i > 1) {
-            ret = extargs_append_snprintf_safe(pprefix, psize, "_");
+            ret = append_snprintf_safe(pprefix, psize, "_");
             if (ret < 0) {
                 goto fail;
             }
         }
         pcurcmdstate = pstate->m_cmdstates[i];
-        ret = extargs_append_snprintf_safe(pprefix, psize, "%s", pcurcmdstate->m_optcmd->m_cmd);
+        ret = append_snprintf_safe(pprefix, psize, "%s", pcurcmdstate->m_optcmd->m_cmd);
         if (ret < 0) {
             goto fail;
         }
@@ -3332,14 +3354,14 @@ int set_env_subcmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* p
                     pcurcmdstate->m_optcmd->m_cmd != NULL &&
                     strlen(pcurcmdstate->m_optcmd->m_cmd) > 0) {
                 if (st_extargs_inner_state.m_options.m_jsonlong != NULL) {
-                    ret = extargs_snprintf_safe(&pjsonenvkey,&jsonenvkeysize,"%s_%s",pcurcmdstate->m_optcmd->m_cmd,st_extargs_inner_state.m_options.m_jsonlong);
+                    ret = snprintf_safe(&pjsonenvkey,&jsonenvkeysize,"%s_%s",pcurcmdstate->m_optcmd->m_cmd,st_extargs_inner_state.m_options.m_jsonlong);
                 } else {
-                    ret = extargs_snprintf_safe(&pjsonenvkey,&jsonenvkeysize,"%s_%s",pcurcmdstate->m_optcmd->m_cmd,EXTARGS_DEFAULT_JSONLONG);
+                    ret = snprintf_safe(&pjsonenvkey,&jsonenvkeysize,"%s_%s",pcurcmdstate->m_optcmd->m_cmd,EXTARGS_DEFAULT_JSONLONG);
                 }
                 if (ret < 0) {
                     goto out;
                 }
-                extargs_str_upper_case(pjsonenvkey);
+                str_upper_case(pjsonenvkey);
                 pjsonenvval = GETENV(pjsonenvkey);
                 if (pjsonenvval != NULL) {
                     ret = format_cmd_prefix(pstate, i, &prefix, &prefixsize);
@@ -3357,7 +3379,7 @@ int set_env_subcmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* p
     }
     ret = cnt;
 out:
-    extargs_snprintf_safe(&pjsonenvkey, &jsonenvkeysize, NULL);
+    snprintf_safe(&pjsonenvkey, &jsonenvkeysize, NULL);
     format_cmd_prefix(NULL, 0, &prefix, &prefixsize);
     return ret;
 }
@@ -3372,14 +3394,14 @@ int set_env_cmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt
 
     if (pstate->m_cmdstates != NULL && pstate->m_cmdnum > 0) {
         if (st_extargs_inner_state.m_options.m_jsonlong != NULL) {
-            ret = extargs_snprintf_safe(&pjsonenvkey, &jsonenvkeysize, "EXTARGSPARSE_%s",st_extargs_inner_state.m_options.m_jsonlong);
+            ret = snprintf_safe(&pjsonenvkey, &jsonenvkeysize, "EXTARGSPARSE_%s",st_extargs_inner_state.m_options.m_jsonlong);
         } else {
-            ret = extargs_snprintf_safe(&pjsonenvkey, &jsonenvkeysize, "EXTARGSPARSE_%s",EXTARGS_DEFAULT_JSONLONG);
+            ret = snprintf_safe(&pjsonenvkey, &jsonenvkeysize, "EXTARGSPARSE_%s",EXTARGS_DEFAULT_JSONLONG);
         }
         if (ret < 0) {
             goto out;
         }
-        extargs_str_upper_case(pjsonenvkey);
+        str_upper_case(pjsonenvkey);
         pjsonenvval = GETENV(pjsonenvkey);
         if (pjsonenvval != NULL) {
             ret = load_value_from_json(pmaincmd, pstate, popt, pjsonenvval, "");
@@ -3391,7 +3413,7 @@ int set_env_cmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt
     }
     ret = cnt;
 out:
-    extargs_snprintf_safe(&pjsonenvkey, &jsonenvkeysize, NULL);
+    snprintf_safe(&pjsonenvkey, &jsonenvkeysize, NULL);
     return ret;
 }
 
@@ -3426,12 +3448,12 @@ int set_env_args_prefix(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt, 
                 break;
             }
             if (prefix != NULL && strlen(prefix) > 0) {
-                ret = extargs_snprintf_safe(&pcurprefix, &curprefixsize, "%s_", prefix);
+                ret = snprintf_safe(&pcurprefix, &curprefixsize, "%s_", prefix);
                 if (ret < 0) {
                     goto out;
                 }
             }
-            ret = extargs_append_snprintf_safe(&pcurprefix, &curprefixsize, "%s", pcurcmd->m_cmd);
+            ret = append_snprintf_safe(&pcurprefix, &curprefixsize, "%s", pcurcmd->m_cmd);
             if (ret < 0) {
                 goto out;
             }
@@ -3452,15 +3474,15 @@ int set_env_args_prefix(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt, 
             /*with underscore we will not append */
             phiphenchar = strchr(pcuropt->m_longopt, '-');
             if (phiphenchar != NULL) {
-                ret = extargs_snprintf_safe(&penvkey, &envkeysize, "%s", pcuropt->m_longopt);
+                ret = snprintf_safe(&penvkey, &envkeysize, "%s", pcuropt->m_longopt);
             } else {
-                ret = extargs_snprintf_safe(&penvkey, &envkeysize, "EXTARGS_%s", pcuropt->m_longopt);
+                ret = snprintf_safe(&penvkey, &envkeysize, "EXTARGS_%s", pcuropt->m_longopt);
             }
             if (ret < 0) {
                 goto out;
             }
-            extargs_str_underscore_case(penvkey);
-            extargs_str_upper_case(penvkey);
+            str_underscore_case(penvkey);
+            str_upper_case(penvkey);
             pvalue = GETENV(penvkey);
             if (pvalue == NULL) {
                 EXTARGS_DEBUG("[%s]=NULL", penvkey);
@@ -3471,11 +3493,11 @@ int set_env_args_prefix(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt, 
                     jvalue_destroy(jsonval);
                 }
                 jsonval = NULL;
-                ret = extargs_snprintf_safe(&pkey, &keysize, "%s", pcuropt->m_longopt);
+                ret = snprintf_safe(&pkey, &keysize, "%s", pcuropt->m_longopt);
                 if (ret < 0) {
                     goto out;
                 }
-                extargs_str_underscore_case(pkey);
+                str_underscore_case(pkey);
 
                 switch (pcuropt->m_opttype) {
                 case OPT_INC_TYPE:
@@ -3488,7 +3510,7 @@ int set_env_args_prefix(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt, 
                         EXTARGS_ERROR("(%s) not valid value [%s]", penvkey, pvalue);
                         goto out;
                     }
-                    ret = extargs_snprintf_safe(&jsonstr, &jsonsize, "{\"%s\": %lld}", pkey, llval);
+                    ret = snprintf_safe(&jsonstr, &jsonsize, "{\"%s\": %lld}", pkey, llval);
                     if (ret < 0) {
                         goto out;
                     }
@@ -3515,7 +3537,7 @@ int set_env_args_prefix(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt, 
                 case OPT_TRUE_TYPE:
                 case OPT_FALSE_TYPE:
                 case OPT_DOUBLE_TYPE:
-                    ret = extargs_snprintf_safe(&jsonstr, &jsonsize, "{\"%s\" : %s}", pkey, pvalue);
+                    ret = snprintf_safe(&jsonstr, &jsonsize, "{\"%s\" : %s}", pkey, pvalue);
                     if (ret < 0) {
                         goto out;
                     }
@@ -3542,9 +3564,9 @@ int set_env_args_prefix(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt, 
                 case OPT_STRING_TYPE:
                 case OPT_JSONFILE_TYPE:
                     if (pvalue && strlen(pvalue) > 0) {
-                        ret = extargs_snprintf_safe(&jsonstr, &jsonsize, "{\"%s\" : \"%s\"}", pkey, pvalue);
+                        ret = snprintf_safe(&jsonstr, &jsonsize, "{\"%s\" : \"%s\"}", pkey, pvalue);
                     }   else {
-                        ret = extargs_snprintf_safe(&jsonstr, &jsonsize, "{\"%s\" : null}", pkey);
+                        ret = snprintf_safe(&jsonstr, &jsonsize, "{\"%s\" : null}", pkey);
                     }
                     if (ret < 0) {
                         goto out;
@@ -3571,7 +3593,7 @@ int set_env_args_prefix(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt, 
                     }
                     break;
                 case OPT_LIST_TYPE:
-                    ret = extargs_snprintf_safe(&jsonstr, &jsonsize, "{\"%s\" : %s}", pkey, pvalue);
+                    ret = snprintf_safe(&jsonstr, &jsonsize, "{\"%s\" : %s}", pkey, pvalue);
                     if (ret < 0) {
                         goto out;
                     }
@@ -3618,10 +3640,10 @@ out:
     jsonval = NULL;
     jentries_destroy(&entries);
     entriesize = 0;
-    extargs_snprintf_safe(&pcurprefix, &curprefixsize, NULL);
-    extargs_snprintf_safe(&jsonstr, &jsonsize, NULL);
-    extargs_snprintf_safe(&pkey, &keysize, NULL);
-    extargs_snprintf_safe(&penvkey, &envkeysize, NULL);
+    snprintf_safe(&pcurprefix, &curprefixsize, NULL);
+    snprintf_safe(&jsonstr, &jsonsize, NULL);
+    snprintf_safe(&pkey, &keysize, NULL);
+    snprintf_safe(&penvkey, &envkeysize, NULL);
     return ret;
 }
 
@@ -3675,19 +3697,19 @@ int set_default_args_inner(popt_cmd_t pmaincmd, pparse_state_t pstate, void* pop
             switch (pcurhelp->m_opttype) {
             case OPT_TRUE_TYPE:
                 /*this is set default , true for false*/
-                ret = extargs_snprintf_safe(&pvalue,&valuesize,"false");
+                ret = snprintf_safe(&pvalue,&valuesize,"false");
                 break;
             case OPT_FALSE_TYPE:
                 /*this is set default ,so we should change it ok*/
-                ret= extargs_snprintf_safe(&pvalue,&valuesize,"true");
+                ret= snprintf_safe(&pvalue,&valuesize,"true");
                 break;
             case OPT_STRING_TYPE:
                 pintervalue = (char*)((uintptr_t)pcurhelp->m_defvalue);
                 if (pintervalue) {
-                    ret = extargs_snprintf_safe(&pvalue,&valuesize,"%s",(char*)((uintptr_t)pcurhelp->m_defvalue));
+                    ret = snprintf_safe(&pvalue,&valuesize,"%s",(char*)((uintptr_t)pcurhelp->m_defvalue));
                 } else {
                     /*we should set to the null*/
-                    extargs_snprintf_safe(&pvalue,&valuesize,NULL);
+                    snprintf_safe(&pvalue,&valuesize,NULL);
                     ret = 0;
                 }
 
@@ -3715,24 +3737,24 @@ int set_default_args_inner(popt_cmd_t pmaincmd, pparse_state_t pstate, void* pop
                 multi = -1;
                 break;
             case OPT_INC_TYPE:
-                ret = extargs_snprintf_safe(&pvalue,&valuesize,"0");
+                ret = snprintf_safe(&pvalue,&valuesize,"0");
                 break;
             case OPT_INT_TYPE:
-                ret = extargs_snprintf_safe(&pvalue, &valuesize, "%d", (int)pcurhelp->m_defvalue);
+                ret = snprintf_safe(&pvalue, &valuesize, "%d", (int)pcurhelp->m_defvalue);
                 break;
             case OPT_DOUBLE_TYPE:
                 pfltptr = (float*)((uintptr_t)pcurhelp->m_defvalue);
                 if (pfltptr == NULL) {
-                    ret = extargs_snprintf_safe(&pvalue, &valuesize, "0.0");
+                    ret = snprintf_safe(&pvalue, &valuesize, "0.0");
                 } else {
-                    ret = extargs_snprintf_safe(&pvalue, &valuesize, "%f", *pfltptr);
+                    ret = snprintf_safe(&pvalue, &valuesize, "%f", *pfltptr);
                 }
                 break;
             case OPT_LL_TYPE:
-                ret = extargs_snprintf_safe(&pvalue, &valuesize, "%lld", (long long)pcurhelp->m_defvalue);
+                ret = snprintf_safe(&pvalue, &valuesize, "%lld", (long long)pcurhelp->m_defvalue);
                 break;
             case OPT_ULL_TYPE:
-                ret = extargs_snprintf_safe(&pvalue, &valuesize, "%lld", (unsigned long long)pcurhelp->m_defvalue);
+                ret = snprintf_safe(&pvalue, &valuesize, "%lld", (unsigned long long)pcurhelp->m_defvalue);
                 break;
             default:
                 EXTARGS_ERROR("not ok type %d", pcurhelp->m_opttype);
@@ -3758,7 +3780,7 @@ int set_default_args_inner(popt_cmd_t pmaincmd, pparse_state_t pstate, void* pop
     }
     ret = cnt;
 out:
-    extargs_snprintf_safe(&pvalue, &valuesize, NULL);
+    snprintf_safe(&pvalue, &valuesize, NULL);
     return ret;
 }
 
@@ -3962,7 +3984,7 @@ int __dup_left_args(pextargs_state_t pextstate,pparse_state_t pparsestate)
         memset(pptmpargs,0,(ncopied+1)*sizeof(*pptmpargs));
         for (i=0;i<ncopied;i++) {
             assert(pparsestate->m_leftargs[i]);
-            pptmpargs[i] = extargs_safe_strdup(pparsestate->m_leftargs[i]);
+            pptmpargs[i] = safe_strdup(pparsestate->m_leftargs[i]);
             if (pptmpargs[i] == NULL) {
                 ret = -EXTARGS_NO_MEM;
                 goto fail;
@@ -4020,7 +4042,7 @@ int copy_to_leftargs(pparse_state_t pstate,char* arg)
     char** ptmpleftargs=NULL;
     int exnum =0;
     int i;
-    pdupstr = extargs_safe_strdup(arg);
+    pdupstr = safe_strdup(arg);
     if (pdupstr == NULL) {
         ret = -EXTARGS_NO_MEM;
         goto fail;
@@ -4316,7 +4338,7 @@ next_cycle:
         ret = -EXTARGS_NO_MEM;
         goto fail;
     }
-    pextstate->subcommand = extargs_safe_strdup(psubcmdname);
+    pextstate->subcommand = safe_strdup(psubcmdname);
     if (pextstate->subcommand == NULL) {
         ret = -EXTARGS_NO_MEM;
         goto fail;
