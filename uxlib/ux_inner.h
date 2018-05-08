@@ -10,6 +10,7 @@
 extern "C" {
 #endif /* __cplusplus*/
 
+#define WINLIB_API
 
 #ifdef __cplusplus
 };
