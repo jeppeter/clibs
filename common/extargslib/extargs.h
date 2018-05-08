@@ -3,15 +3,8 @@
 
 #include <stdarg.h>
 #include <stdint.h>
-
-/*for safe use*/
-#ifndef __WINLIB_INNER_INCLUDE__
-#define __WINLIB_INNER_INCLUDE__
-#endif
-
-#include <win_inner.h>
-
-#undef __WINLIB_INNER_INCLUDE__
+/*this for the WINLIB_API define*/
+#include <cmn_err.h>
 
 /**************************************************
 *

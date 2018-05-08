@@ -246,9 +246,9 @@ char* str_in_str(const char* pstr,const char *search)
     return (char*)strstr(pstr,search);
 }
 
-bool str_match_wildcard(const char* regpat,const char* str)
+int str_match_wildcard(const char* regpat,const char* str)
 {
-    bool bmatched=false;
+    int bmatched=0;
     char* pcurstr=NULL;
 
     char* pcurpat=NULL,*pnextpat=NULL;
@@ -260,7 +260,7 @@ bool str_match_wildcard(const char* regpat,const char* str)
     char* pmatchstr=NULL;
 
     if (regpat == NULL || str == NULL){
-        return false;
+        return 0;
     } 
 
     /*now we copy the regular pattern*/
@@ -301,7 +301,7 @@ bool str_match_wildcard(const char* regpat,const char* str)
             /*it means we have something in the pattern,so we should give it to match*/
             if (*pcurstr==0x0 || strlen(pcurstr) < curpatlen){
                 /*nothing to match*/
-                bmatched = false;
+                bmatched = 0;
                 goto out;
             } 
             /*now search for it*/
@@ -312,7 +312,7 @@ bool str_match_wildcard(const char* regpat,const char* str)
             pmatchstr = strstr(pcurstr,pcurpat);
             if (pmatchstr == NULL){
                 /*nothing match*/
-                bmatched = false;
+                bmatched = 0;
                 goto out;
             }
             /*ok ,we match this skip this*/
@@ -333,7 +333,7 @@ bool str_match_wildcard(const char* regpat,const char* str)
         }
     }
 
-    bmatched = true;
+    bmatched = 1;
 
 out:
     if (pcopypat){
