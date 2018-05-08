@@ -1,13 +1,20 @@
+TOPDIR=..\..\
+
+DYNAMICDIR=$(TOPDIR)\dynamic
+STATICDIR=$(TOPDIR)\static
 
 TARGET=extargslib
 
 
-SHAREDLIB=$(TARGET).dll
-STATICLIB=$(TARGET).lib
-CC=cl.exe
-LD=link.exe
-AR=lib.exe
-RM=del
+SHAREDLIB_FILE=$(TARGET).dll
+STATICLIB_FILE=$(TARGET).lib
+CC         =cl.exe
+LD         =link.exe
+AR         =lib.exe
+RM         =del
+MAKE       =nmake.exe
+CP         =cp /Y
+MKDIR      =md.exe
 
 !IFDEF MAKEVERBOSE
 !IF $(MAKEVERBOSE) != 0
