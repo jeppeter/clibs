@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <extargs_strop.h>
 #include <assert.h>
 #include <jvalue.h>
 #include <cmn_strop.h>

@@ -5,13 +5,13 @@
 #include <stdint.h>
 
 /*for safe use*/
-#ifndef __EXTARGS_INNER_INCLUDE__
-#define __EXTARGS_INNER_INCLUDE__
+#ifndef __WINLIB_INNER_INCLUDE__
+#define __WINLIB_INNER_INCLUDE__
 #endif
 
-#include <extargs_inner.h>
+#include <win_inner.h>
 
-#undef __EXTARGS_INNER_INCLUDE__
+#undef __WINLIB_INNER_INCLUDE__
 
 /**************************************************
 *
@@ -157,45 +157,45 @@ static extargs_options_t option = {                          \
     EXTARGS_DEFAULT_JSONLONG           /* json long */       \
 }
 
-EXTARGSLIB_API int true_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
-EXTARGSLIB_API int false_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
-EXTARGSLIB_API int string_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
-EXTARGSLIB_API int list_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
-EXTARGSLIB_API int inc_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
-EXTARGSLIB_API int cmd_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
-EXTARGSLIB_API int arg_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
-EXTARGSLIB_API int dict_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
-EXTARGSLIB_API int int_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
-EXTARGSLIB_API int double_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
-EXTARGSLIB_API int ll_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
-EXTARGSLIB_API int ull_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
-EXTARGSLIB_API int jsonfile_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int true_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int false_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int string_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int list_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int inc_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int cmd_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int arg_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int dict_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int int_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int double_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int ll_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int ull_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
+WINLIB_API int jsonfile_opt_func(int argc,char* argv[],int validx,popt_help_t popthelp,void** ppdestopt);
 
 
-EXTARGSLIB_API int true_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
-EXTARGSLIB_API int false_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
-EXTARGSLIB_API int string_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
-EXTARGSLIB_API int list_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
-EXTARGSLIB_API int inc_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
-EXTARGSLIB_API int cmd_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
-EXTARGSLIB_API int arg_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
-EXTARGSLIB_API int dict_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
-EXTARGSLIB_API int int_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
-EXTARGSLIB_API int double_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
-EXTARGSLIB_API int ll_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
-EXTARGSLIB_API int ull_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
-EXTARGSLIB_API int jsonfile_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int true_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int false_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int string_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int list_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int inc_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int cmd_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int arg_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int dict_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int int_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int double_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int ll_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int ull_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
+WINLIB_API int jsonfile_opt_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt);
 
-EXTARGSLIB_API void default_help_functionv(const char* arg0,const char* subcmd, int ec, popt_cmd_t pmaincmd,  const char* fmt, va_list ap);
-EXTARGSLIB_API void default_help_function(const char* arg0,const char* subcmd, int ec, popt_cmd_t pmaincmd,  const char* fmt, ...);
-EXTARGSLIB_API char* help_usage(const char* arg0,const char* subcmd, popt_cmd_t pmaincmd, const char* fmt, ...);
-EXTARGSLIB_API char* help_usagev(const char* arg0,const char* subcmd, popt_cmd_t pmaincmd,  const char* fmt, va_list ap);
+WINLIB_API void default_help_functionv(const char* arg0,const char* subcmd, int ec, popt_cmd_t pmaincmd,  const char* fmt, va_list ap);
+WINLIB_API void default_help_function(const char* arg0,const char* subcmd, int ec, popt_cmd_t pmaincmd,  const char* fmt, ...);
+WINLIB_API char* help_usage(const char* arg0,const char* subcmd, popt_cmd_t pmaincmd, const char* fmt, ...);
+WINLIB_API char* help_usagev(const char* arg0,const char* subcmd, popt_cmd_t pmaincmd,  const char* fmt, va_list ap);
 
-EXTARGSLIB_API pextargs_state_t alloc_extargs_state(void);
-EXTARGSLIB_API void free_extargs_state(pextargs_state_t* ppextstate);
+WINLIB_API pextargs_state_t alloc_extargs_state(void);
+WINLIB_API void free_extargs_state(pextargs_state_t* ppextstate);
 
-EXTARGSLIB_API int parse_param_smart_ex(int argc, char* argv[], popt_cmd_t pmaincmd, void* popt, pextargs_state_t* ppoutstate, int* pprio,pextargs_options_t pargoptions);
-EXTARGSLIB_API void extargs_deinit(void);
+WINLIB_API int parse_param_smart_ex(int argc, char* argv[], popt_cmd_t pmaincmd, void* popt, pextargs_state_t* ppoutstate, int* pprio,pextargs_options_t pargoptions);
+WINLIB_API void extargs_deinit(void);
 
 
 #define parse_param_smart(argc,argv,st_main_cmds,popt,ppoutstate,prio,pargoptions)  parse_param_smart_ex(argc,argv,st_main_cmds,popt,ppoutstate,prio,pargoptions)
