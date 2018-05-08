@@ -1,0 +1,42 @@
+#include <extargs.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+
+%EXTARGS_STRUCT%
+
+%EXTARGS_DEBUGFUNC%
+
+%EXTARGS_FREEFUNC%
+
+%EXTARGS_CMDSTRUCT%
+
+
+
+INIT_EXTARGS_OPTIONS(st_extargs_options);
+
+int main(int argc, char* argv[])
+{
+    int ret;
+    args_options_t argsoption;
+    pextargs_state_t pextstate = NULL;
+    memset(&argsoption, 0, sizeof(argsoption));
+
+    ret = EXTARGS_PARSE(argc,argv,&argsoption,pextstate);
+    if (ret < 0) {
+        fprintf(stderr, "can not parse error (%d)\n", ret);
+        goto out;
+    }
+
+    ret = debug_extargs_output(argc,argv, pextstate, &argsoption);
+    if (ret < 0) {
+        goto out;
+    }
+    ret = 0;
+out:
+    free_extargs_state(&pextstate);
+    release_extargs_output(&argsoption);
+    return ret;
+}
+

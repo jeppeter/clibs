@@ -1,0 +1,17 @@
+{
+    "verbose|v": "+",
+    "handleone": true,
+    "list": ["list1", "list2"],
+    "cmd1": {
+        "list": ["cmd1_list1", "cmd1_list2"],
+        "$": 0,
+        "sub1": {
+            "opt1": true,
+            "opt2": []
+        }
+    },
+    "cmd2": {
+        "list": ["cmd2_list1", "cmd2_list2"],
+        "$": 2
+    }
+}

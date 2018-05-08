@@ -15,6 +15,7 @@ BASH:=$(shell which bash)
 DIFF:=$(shell which diff)
 CHX:=$(shell which chmod) +x
 GIT:=$(shell which git)
+CP:=$(shell which cp)
 
 
 ifeq (${CROSS_COMPILE},)

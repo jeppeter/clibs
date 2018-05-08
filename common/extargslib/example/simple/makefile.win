@@ -1,0 +1,98 @@
+
+CURDIR=$(MAKEDIR)
+TOPDIR=$(CURDIR)\..\..
+
+CC      = cl.exe
+LD      = link.exe
+AR      = lib.exe
+RM      = del
+PYTHON  = python
+
+!IFDEF MAKEVERBOSE
+!IF $(MAKEVERBOSE) != 0
+QUIETCMD=
+NOLOGO_CFLAGS=
+NOLOGO_LDFLAGS=
+NOLOGO_MAKEFLAGS=
+!ELSE
+QUIETCMD=@
+NOLOGO_CFLAGS=/nologo
+NOLOGO_LDFLAGS=/nologo
+NOLOGO_MAKEFLAGS=/NOLOGO
+!ENDIF
+!ELSE
+QUIETCMD=@
+NOLOGO_CFLAGS=/nologo
+NOLOGO_LDFLAGS=/nologo
+NOLOGO_MAKEFLAGS=/NOLOGO
+!ENDIF
+
+!IFDEF EXTARGSLIB_STATICLIB
+!IF $(EXTARGSLIB_STATICLIB) != 0
+STATIC_LIB_CFLAGS=-DEXTARGS_STATIC_EXPORT /MT
+!ELSE
+STATIC_LIB_CFLAGS=-DEXTARGS_DLL_IMPORT /MT
+!ENDIF
+!ELSE
+STATIC_LIB_CFLAGS=-DEXTARGS_DLL_IMPORT /MT
+!ENDIF
+
+
+INC_CFLAGS = /I"$(TOPDIR)\src"
+COM_CFLAGS = /Wall /wd"4710"  /wd"4819" /wd"4820" /wd"4255" /wd"4127" /wd"4996" /wd"4826"
+REL_CFLAGS = 
+DBG_CFLAGS = /Zi /Od 
+
+INC_LDFLAGS = "$(TOPDIR)\src\extargslib.lib"
+REL_LDFLAGS = 
+
+CFLAGS  = $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(INC_CFLAGS) $(COM_CFLAGS) $(REL_CFLAGS) $(DBG_CFLAGS)
+LDFLAGS = $(NOLOGO_LDFLAGS) $(INC_LDFLAGS) $(REL_LDFLAGS)
+
+SOURCES=main.c
+OBJECTS=$(SOURCES:.c=.obj)
+
+all:opttest
+
+opttest:opttest.exe
+
+!IFDEF EXTARGSLIB_STATICLIB
+!IF $(EXTARGSLIB_STATICLIB) != 0
+opttest.exe:$(OBJECTS) $(TOPDIR)\src\extargslib.lib
+	$(QUIETCMD) echo "call static"
+	$(QUIETCMD)$(LD) -out:$@  $(LDFLAGS)  $(OBJECTS)
+	$(QUIETCMD)echo "use static lib"
+!ELSE
+opttest.exe:$(OBJECTS)  $(TOPDIR)\src\extargslib.lib
+	$(QUIETCMD) echo "call dynamic"
+	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
+	$(QUIETCMD)echo "use dynamic lib"
+!ENDIF
+
+!ELSE
+opttest.exe:$(OBJECTS)  $(TOPDIR)\src\extargslib.lib
+	$(QUIETCMD) echo "call dynamic"
+	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
+	$(QUIETCMD)echo "use dynamic lib"
+!ENDIF
+
+.c.obj:
+	$(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
+
+main.c:main.c.tmpl
+	$(QUIETCMD)$(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\test.json -i $(CURDIR)\main.c.tmpl -o $(CURDIR)\main.c all
+
+$(TOPDIR)\src\extargslib.lib:
+	$(QUIETCMD) (cd $(TOPDIR)\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win all && cd $(CURDIR))  || cd $(CURDIR)
+
+$(TOPDIR)\src\extargslib.dll:
+	$(QUIETCMD) (cd $(TOPDIR)\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win all && cd $(CURDIR))  || cd $(CURDIR)	
+
+
+
+clean_lib:
+	$(QUIETCMD) (cd $(TOPDIR)\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd $(CURDIR)) || cd $(CURDIR)
+
+clean:clean_lib
+	$(QUIETCMD) $(RM) *.exe main.c *.obj 2>NUL
+	$(QUIETCMD) $(RM) *.pdb *.ilk 2>NUL
