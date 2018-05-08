@@ -17,7 +17,7 @@ LIBFLAGS:= -L${TOPDIR} -lextargs -ljson -luxlib
 else
 LIBFLAGS:= -L${TOPDIR} -luxlib
 endif
-CFLAGS:= ${VERBOSE_CFLAGS} -I${TOPDIR}/src/ -Wall
+CFLAGS:= ${VERBOSE_CFLAGS} -I${TOPDIR}/common/extargslib -I${TOPDIR}/common -I${TOPDIR}/uxlib -Wall
 
 ifdef STATICLIB
 export STATICLIB
@@ -36,10 +36,10 @@ endif
 
 
 ${TOPDIR}/uxlib/libuxlib.so:
-	$(call call_exec,${MAKE} -C ${TOPDIR}/uxlib all,"LINK    uxlib(dynamic)")
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"LINK    uxlib(dynamic)")
 
 ${TOPDIR}/uxlib/libuxlib.a:
-	$(call call_exec,${MAKE} -C ${TOPDIR}/uxlib all,"LINK    uxlib(static)")
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"LINK    uxlib(static)")
 
 
 %.o:%.c

@@ -35,26 +35,30 @@ endif
 
 
 ifeq (${STATICLIB},)
-all: ${TARGET}.so
+all: ${TOPDIR}/${TARGET}.so
 else
-all: ${TARGET}.a
+all: ${TOPDIR}/${TARGET}.a
 endif
 
+${TOPDIR}/${TARGET}.a:${TARGET}.a
+	$(call call_exec,${CP} ${TARGET}.a ${TOPDIR}/${TARGET}.a,"CP      ${TOPDIR}/${TARGET}.a")
+
+${TOPDIR}/${TARGET}.so:${TARGET}.so
+	$(call call_exec,${CP} ${TARGET}.so ${TOPDIR}/${TARGET}.so,"CP      ${TOPDIR}/${TARGET}.so")
+
 ${TARGET}.a:${LIB_OBJS}
-	$(call ${AR} -rcs $@ $^,"AR      $@")
-	$(call ${CP} ${TARGET}.a ${TOPDIR}/${TARGET}.a,"CP      ${TOPDIR}/${TARGET}.a")
+	$(call call_exec,${AR} -rcs $@ $^,"AR      $@")
 
 ${TARGET}.so:${LIB_OBJS}
-	$(call ${CC} $(LDFLAGS) $^ -o $@,"LD      $@")
-	$(call ${CP} ${TARGET}.so ${TOPDIR}/${TARGET}.so,"CP      ${TOPDIR}/${TARGET}.so")
+	$(call call_exec,${CC} $(LDFLAGS) $^ -o $@,"LD      $@")
 
 %.o:%.c ${HEADERS}
-	$(call ${CC} ${CFLAGS} -o $@ -c $<,"CC      $<")
+	$(call call_exec,${CC} ${CFLAGS} -o $@ -c $<,"CC      $<")
 
 extargs.o:extargs.c ${HEADERS}
 
 debug_jvalue.o:debug_jvalue.c ${HEADERS}
 
 clean:
-	$(call ${RM} -f ${LIB_OBJS} *.o *.so *.a ${TARGET}.a ${TARGET}.so,"RM      ${LIB_OBJS}")
-	$(call ${RM} -f ${TOPDIR}/${TARGET}.so ${TOPDIR}/${TARGET}.a,"RM      ${TARGET}.so ${TARGET}.a")
+	$(call call_exec,${RM} -f ${LIB_OBJS} *.o *.so *.a ${TARGET}.a ${TARGET}.so,"RM      ${LIB_OBJS}")
+	$(call call_exec,${RM} -f ${TOPDIR}/${TARGET}.so ${TOPDIR}/${TARGET}.a,"RM      ${TARGET}.so ${TARGET}.a")

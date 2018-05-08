@@ -27,24 +27,29 @@ endif
 all : build
 
 build: CFLAGS += $(BUILD_CFLAGS)
-build: $(TARGET).so $(TARGET).a
+build: ${TOPDIR}/$(TARGET).so ${TOPDIR}/$(TARGET).a
 
 debug: CFLAGS += $(DEBUG_CFLAGS)
-debug: $(TARGET).so $(TARGET).a
+debug: ${TOPDIR}/$(TARGET).so ${TOPDIR}/$(TARGET).a
+
+${TOPDIR}/$(TARGET).so:$(TARGET).so
+	$(call call_exec,${CP} $(TARGET).so ${TOPDIR}/$(TARGET).so,"CP      ${TOPDIR}/$(TARGET).so")
 
 $(TARGET).so: $(OBJECTS)
 	$(call call_exec,${CC} $(LDFLAGS)  -o $@  $^, "LD      $@")
-	$(call call_exec,${CP} $(TARGET).so ${TOPDIR}/$(TARGET).so,"CP      ${TOPDIR}/$(TARGET).so")
+	
 
 $(TARGET): $(OBJECTS)
-	$(call ${CC} ${OBJECTS} -o $@ ${LDFLAGS} ${RPATH},"LD      $@")
+	$(call call_exec,${CC} ${OBJECTS} -o $@ ${LDFLAGS} ${RPATH},"LD      $@")
+
+${TOPDIR}/$(TARGET).a:$(TARGET).a
+	$(call call_exec,${CP} $(TARGET).a ${TOPDIR}/$(TARGET).a,"CP      ${TOPDIR}/$(TARGET).a")
 
 $(TARGET).a: $(OBJECTS)
-	$(call ${AR} -rcs $@ $^,"AR      $@")
-	$(call ${CP} $(TARGET).a ${TOPDIR}/$(TARGET).a,"CP      ${TOPDIR}/$(TARGET).a")
+	$(call call_exec,${AR} -rcs $@ $^,"AR      $@")
 
 %.o:%.c ${HEADERS}
-	$(call ${CC} ${CFLAGS} -c $< -o $@,"CC      $<")
+	$(call call_exec,${CC} ${CFLAGS} -c $< -o $@,"CC      $<")
 
 
 jvalue.o:jvalue.c ${HEADERS}
@@ -60,5 +65,5 @@ hashtable.o:hashtable.c ${HEADERS}
 arraylist.o:arraylist.c ${HEADERS}
 
 clean :
-	$(call call_exec,rm -rf $(OBJECTS) $(TARGET).so $(TARGET).a core libjson.so.dSYM,"RM      $(OBJECTS)")
+	$(call call_exec,${RM} -rf $(OBJECTS) $(TARGET).so $(TARGET).a core libjson.so.dSYM,"RM      $(OBJECTS)")
 	$(call call_exec,${RM} -f ${TOPDIR}/$(TARGET).so ${TOPDIR}/$(TARGET).a,"RM     $(TARGET).so $(TARGET).a")
