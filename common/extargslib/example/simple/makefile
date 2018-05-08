@@ -11,11 +11,11 @@ CURDIR:=$(shell readlink -f .)
 
 SRCS:=main.c
 OBJS:=main.o
-LDFLAGS:= -Wall -L${TOPDIR}/src/
+LDFLAGS:= -Wall 
 ifeq (${STATICLIB},)
-LIBFLAGS:= -L${TOPDIR} -lextargs -ljson -luxlib
+LIBFLAGS += -L${TOPDIR} -lextargs -ljson -luxlib
 else
-LIBFLAGS:= -L${TOPDIR} -luxlib -lextargs -ljson
+LIBFLAGS += -L${TOPDIR} -lextargs -ljson -luxlib
 endif
 CFLAGS:= ${VERBOSE_CFLAGS} -I${TOPDIR}/common/extargslib -I${TOPDIR}/common -I${TOPDIR}/uxlib -Wall
 

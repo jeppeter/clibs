@@ -12,8 +12,10 @@ SOURCES = jvalue.c json.c jstring.c util.c hashtable.c arraylist.c
 OBJECTS = $(patsubst %.c,%.o,$(SOURCES))
 
 CFLAGS  = $(COMMON_CFLAGS)
-CFLAGS += -I${TOPDIR}/uxlib -I${TOPDIR}/common -I${TOPDIR}/common/jsonlib
-CFLAGS += -fPIC -Wall
+CFLAGS += -I${TOPDIR}/uxlib -I${TOPDIR}/common -I${TOPDIR}/common/jsonlib -Wall
+ifeq (${STATICLIB},)
+CFLAGS += -fPIC 
+endif
 LDFLAGS = 
 
 ifeq ($(SYSTEM_NAME), Linux)
@@ -27,10 +29,18 @@ endif
 all : build
 
 build: CFLAGS += $(BUILD_CFLAGS)
-build: ${TOPDIR}/$(TARGET).so ${TOPDIR}/$(TARGET).a
-
 debug: CFLAGS += $(DEBUG_CFLAGS)
-debug: ${TOPDIR}/$(TARGET).so ${TOPDIR}/$(TARGET).a
+
+
+ifeq (${STATICLIB},)
+build: ${TOPDIR}/$(TARGET).so
+debug: ${TOPDIR}/$(TARGET).so
+else
+build: ${TOPDIR}/$(TARGET).a
+debug: ${TOPDIR}/$(TARGET).a
+endif
+
+
 
 ${TOPDIR}/$(TARGET).so:$(TARGET).so
 	$(call call_exec,${CP} $(TARGET).so ${TOPDIR}/$(TARGET).so,"CP      ${TOPDIR}/$(TARGET).so")
