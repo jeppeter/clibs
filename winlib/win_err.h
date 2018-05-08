@@ -1,7 +1,7 @@
 #ifndef __WIN_ERR_H__
 #define __WIN_ERR_H__
 
-#include <windows.h>
+#include <Windows.h>
 #include <win_output_debug.h>
 
 #define SETERRNO(ret)         \
