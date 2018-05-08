@@ -35,22 +35,28 @@ endif
 
 
 ifeq (${STATICLIB},)
-all: ${TOPDIR}/${TARGET}.so
+all: ${DYNAMICDIR}/${TARGET}.so
 else
-all: ${TOPDIR}/${TARGET}.a
+all: ${STATICDIR}/${TARGET}.a
 endif
 
-${TOPDIR}/${TARGET}.a:${TARGET}.a
-	$(call call_exec,${CP} ${TARGET}.a ${TOPDIR}/${TARGET}.a,"CP      ${TOPDIR}/${TARGET}.a")
+${STATICDIR}/${TARGET}.a:${TARGET}.a ${STATICDIR}
+	$(call call_exec,${CP} ${TARGET}.a ${STATICDIR}/${TARGET}.a,"CP      ${STATICDIR}/${TARGET}.a")
 
-${TOPDIR}/${TARGET}.so:${TARGET}.so
-	$(call call_exec,${CP} ${TARGET}.so ${TOPDIR}/${TARGET}.so,"CP      ${TOPDIR}/${TARGET}.so")
+${DYNAMICDIR}/${TARGET}.so:${TARGET}.so ${DYNAMICDIR}
+	$(call call_exec,${CP} ${TARGET}.so ${DYNAMICDIR}/${TARGET}.so,"CP      ${DYNAMICDIR}/${TARGET}.so")
 
 ${TARGET}.a:${LIB_OBJS}
 	$(call call_exec,${AR} -rcs $@ $^,"AR      $@")
 
 ${TARGET}.so:${LIB_OBJS}
 	$(call call_exec,${CC} $(LDFLAGS) $^ -o $@,"LD      $@")
+
+${DYNAMICDIR}:
+	$(call call_exec,${MKDIR} -p $@,"MKDIR   $@")
+
+${STATICDIR}:
+	$(call call_exec,${MKDIR} -p $@,"MKDIR   $@")
 
 %.o:%.c ${HEADERS}
 	$(call call_exec,${CC} ${CFLAGS} -o $@ -c $<,"CC      $<")
@@ -61,4 +67,4 @@ debug_jvalue.o:debug_jvalue.c ${HEADERS}
 
 clean:
 	$(call call_exec,${RM} -f ${LIB_OBJS} *.o *.so *.a ${TARGET}.a ${TARGET}.so,"RM      ${LIB_OBJS}")
-	$(call call_exec,${RM} -f ${TOPDIR}/${TARGET}.so ${TOPDIR}/${TARGET}.a,"RM      ${TARGET}.so ${TARGET}.a")
+	$(call call_exec,${RM} -f ${DYNAMICDIR}/${TARGET}.so ${STATICDIR}/${TARGET}.a,"RM      ${TARGET}.so ${TARGET}.a")

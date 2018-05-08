@@ -33,17 +33,20 @@ debug: CFLAGS += $(DEBUG_CFLAGS)
 
 
 ifeq (${STATICLIB},)
-build: ${TOPDIR}/$(TARGET).so
-debug: ${TOPDIR}/$(TARGET).so
+build: ${DYNAMICDIR}/$(TARGET).so
+debug: ${DYNAMICDIR}/$(TARGET).so
 else
-build: ${TOPDIR}/$(TARGET).a
-debug: ${TOPDIR}/$(TARGET).a
+build: ${STATICDIR}/$(TARGET).a
+debug: ${STATICDIR}/$(TARGET).a
 endif
 
 
 
-${TOPDIR}/$(TARGET).so:$(TARGET).so
-	$(call call_exec,${CP} $(TARGET).so ${TOPDIR}/$(TARGET).so,"CP      ${TOPDIR}/$(TARGET).so")
+${DYNAMICDIR}/$(TARGET).so:$(TARGET).so ${DYNAMICDIR}
+	$(call call_exec,${CP} $(TARGET).so ${DYNAMICDIR}/$(TARGET).so,"CP      ${DYNAMICDIR}/$(TARGET).so")
+
+${DYNAMICDIR}:
+	$(call call_exec,${MKDIR} -p $@,"MKDIR   $@")
 
 $(TARGET).so: $(OBJECTS)
 	$(call call_exec,${CC} $(LDFLAGS)  -o $@  $^, "LD      $@")
@@ -52,8 +55,11 @@ $(TARGET).so: $(OBJECTS)
 $(TARGET): $(OBJECTS)
 	$(call call_exec,${CC} ${OBJECTS} -o $@ ${LDFLAGS} ${RPATH},"LD      $@")
 
-${TOPDIR}/$(TARGET).a:$(TARGET).a
-	$(call call_exec,${CP} $(TARGET).a ${TOPDIR}/$(TARGET).a,"CP      ${TOPDIR}/$(TARGET).a")
+${STATICDIR}/$(TARGET).a:$(TARGET).a ${STATICDIR}
+	$(call call_exec,${CP} $(TARGET).a ${STATICDIR}/$(TARGET).a,"CP      ${STATICDIR}/$(TARGET).a")
+
+${STATICDIR}:
+	$(call call_exec,${MKDIR} -p $@,"MKDIR   $@")
 
 $(TARGET).a: $(OBJECTS)
 	$(call call_exec,${AR} -rcs $@ $^,"AR      $@")
@@ -76,4 +82,4 @@ arraylist.o:arraylist.c ${HEADERS}
 
 clean :
 	$(call call_exec,${RM} -rf $(OBJECTS) $(TARGET).so $(TARGET).a core libjson.so.dSYM,"RM      $(OBJECTS)")
-	$(call call_exec,${RM} -f ${TOPDIR}/$(TARGET).so ${TOPDIR}/$(TARGET).a,"RM     $(TARGET).so $(TARGET).a")
+	$(call call_exec,${RM} -f ${DYNAMICDIR}/$(TARGET).so ${STATICDIR}/$(TARGET).a,"RM     $(TARGET).so $(TARGET).a")

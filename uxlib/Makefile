@@ -1,6 +1,11 @@
 EXTRA_CFLAGS=
 EXTRA_CXXFLAGS=
+
+ifeq (${STATICLIB},)
 EXTRA_LDFLAGS= -shared
+else
+EXTRA_LDFLAGS=
+endif
 
 include ../baseop.mak
 
@@ -10,12 +15,23 @@ LIBUX_SRCS=ux_output_debug.cpp ux_strop.cpp ux_args.cpp ux_time_op.cpp
 LIBUX_OFILES=$(patsubst %.cpp,%.o,${LIBUX_SRCS})
 
 ifeq (${STATICLIB},)
-COMMON_LIBS:= ${TOPDIR}/libextargs.so ${TOPDIR}/libjson.so
-COMMON_LDFLAGS:= -L${TOPDIR} -lextargs -ljson
+COMMON_LIBS:= ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so
+COMMON_LDFLAGS:= -L${DYNAMICDIR} -lextargs -ljson
 else
-COMMON_LIBS:= ${TOPDIR}/libextargs.a ${TOPDIR}/libjson.a
-COMMON_LDFLAGS:= -L${TOPDIR} -lextargs -ljson
+COMMON_LIBS:= ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a
+COMMON_LDFLAGS:= -L${STATICDIR} -lextargs -ljson
 endif
+
+INCLUDE_BASE_CFLAGS = -I${TOPDIR}/uxlib
+INCLUDE_BASE_CXXFLAGS = -I${TOPDIR}/uxlib
+INCLUDE_BASE_LDFLAGS= -L${TOPDIR}/uxlib
+INCLUDE_BASE_LIBFLAGS= -luxlib
+
+CFLAGS= ${INCLUDE_BASE_CFLAGS} ${EXTRA_CFLAGS} ${SHARED_CFLAGS} -Wall
+CXXFLAGS = ${INCLUDE_BASE_CXXFLAGS} ${EXTRA_CXXFLAGS} ${SHARED_CFLAGS} -Wall
+LDFLAGS= ${INCLUDE_BASE_LDFLAGS} ${EXTRA_LDFLAGS} -Wall
+LIBFLAGS= ${INCLUDE_BASE_LIBFLAGS} ${EXTRA_LIBFLAGS}
+
 
 ifeq (${STATICLIB},)
 unexport STATICLIB
@@ -24,34 +40,41 @@ export STATICLIB
 endif
 
 ifeq (${STATICLIB},)
-all:${TOPDIR}/${TARGET}.so
+all:${DYNAMICDIR}/${TARGET}.so
 
-${TOPDIR}/${TARGET}.so:${TARGET}.so
-	$(call call_exec,${CP} -f $< ${TOPDIR}/${TARGET}.so,"CP      ${TOPDIR}/${TARGET}.so")
+${DYNAMICDIR}/${TARGET}.so:${TARGET}.so ${DYNAMICDIR}
+	$(call call_exec,${CP} -f $< ${DYNAMICDIR}/${TARGET}.so,"CP      ${DYNAMICDIR}/${TARGET}.so")
+
+${DYNAMICDIR}:
+	$(call call_exec,${MKDIR} -p $@,"MKDIR   $@")
 
 ${TARGET}.so:${LIBUX_OFILES} ${COMMON_LIBS}
 	$(call call_exec,${LINK} ${LDFLAGS} -Wall -o $@ ${LIBUX_OFILES} ${COMMON_LDFLAGS},"LINK    $@")
 
-${TOPDIR}/libextargs.so:${TOPDIR}/common/extargslib
+${DYNAMICDIR}/libextargs.so:${TOPDIR}/common/extargslib
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/extargslib all, "MAKE    extargslib")
 
-${TOPDIR}/libjson.so:${TOPDIR}/common/jsonlib
+${DYNAMICDIR}/libjson.so:${TOPDIR}/common/jsonlib
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/jsonlib all,"MAKE    jsonlib")
 
 else
 
-all:${TOPDIR}/${TARGET}.a
+all:${STATICDIR}/${TARGET}.a
 
-${TOPDIR}/${TARGET}.a:${TARGET}.a
-	$(call call_exec,${CP} -f $< ${TOPDIR}/$<,"CP      ${TOPDIR}/$<")
+${STATICDIR}/${TARGET}.a:${TARGET}.a ${STATICDIR}
+	$(call call_exec,${CP} -f $< ${STATICDIR}/$<,"CP      ${STATICDIR}/$<")
+
+${STATICDIR}:
+	$(call call_exec,${MKDIR} -p $@,"MKDIR   $@")
+
 
 ${TARGET}.a:${LIBUX_OFILES} ${COMMON_LIBS}
 	$(call call_exec,${AR} -rcs $@ $^ ${COMMON_LIBS},"AR      $@")
 
-${TOPDIR}/libextargs.a:${TOPDIR}/common/extargslib
+${STATICDIR}/libextargs.a:${TOPDIR}/common/extargslib
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/extargslib all,"MAKE    extargslib")
 
-${TOPDIR}/libjson.a:${TOPDIR}/common/jsonlib
+${STATICDIR}/libjson.a:${TOPDIR}/common/jsonlib
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/jsonlib all,"MAKE    jsonlib")
 
 endif
@@ -72,4 +95,5 @@ clean_jsonlib:
 
 clean:clean_extargslib clean_jsonlib
 	$(call call_exec,${RM} -f ${TARGET}.so ${TARGET}.a,"RM      ${TARGET}")
+	$(call call_exec,${RM} -f ${STATICDIR}/${TARGET}.a ${DYNAMICDIR}/${TARGET}.so,"RM      ${TOPDIR}/${TARGET}")
 	$(call call_exec,${RM} -f ${LIBUX_OFILES},"RM      *.o")

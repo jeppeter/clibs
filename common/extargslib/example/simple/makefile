@@ -13,34 +13,49 @@ SRCS:=main.c
 OBJS:=main.o
 LDFLAGS:= -Wall 
 ifeq (${STATICLIB},)
-LIBFLAGS += -L${TOPDIR} -lextargs -ljson -luxlib
+LIBFLAGS += -L${DYNAMICDIR} -lextargs -ljson -luxlib
 else
-LIBFLAGS += -L${TOPDIR} -lextargs -ljson -luxlib
+LIBFLAGS += -L${STATICDIR} -lextargs -ljson -luxlib
 endif
 CFLAGS:= ${VERBOSE_CFLAGS} -I${TOPDIR}/common/extargslib -I${TOPDIR}/common -I${TOPDIR}/uxlib -Wall
 
 ifdef STATICLIB
 export STATICLIB
+else
+unexport STATICLIB
 endif
 
 all:opttest
 
 ifdef STATICLIB
-opttest:${OBJS} ${TOPDIR}/uxlib/libuxlib.a
+opttest:${OBJS} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a
 	$(call call_exec,${CC} ${LDFLAGS}  -o $@ ${OBJS} ${LIBFLAGS},"LINK    opttest(static)")
+
 else
-opttest:${OBJS} ${TOPDIR}/uxlib/libuxlib.so
+opttest:${OBJS} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so
 	$(call call_exec,${CC} ${LDFLAGS}  -o $@ ${OBJS} ${LIBFLAGS},"LINK    opttest(dynamic)")
 endif
 
 
 
-${TOPDIR}/uxlib/libuxlib.so:
+${DYNAMICDIR}/libuxlib.so:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"LINK    uxlib(dynamic)")
 
-${TOPDIR}/uxlib/libuxlib.a:
-	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"LINK    uxlib(static)")
+${DYNAMICDIR}/libextargs.so:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/extargslib all,"LINK    extargslib(dynamic)")
 
+${DYNAMICDIR}/libjson.so:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/jsonlib all,"LINK    jsonlib(dynamic)")
+
+
+${STATICDIR}/libuxlib.a:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG}  -C ${TOPDIR}/uxlib all,"LINK    uxlib(static)")
+
+${STATICDIR}/libjson.a:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/jsonlib all,"LINK    libjson(static)")
+
+${STATICDIR}/libextargs.a:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/extargslib all,"LINK    extargslib(static)")
 
 %.o:%.c
 	$(call call_exec,${CC} ${CFLAGS} -c $< -o $@,"CC      $<")

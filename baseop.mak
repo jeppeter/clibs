@@ -3,6 +3,8 @@ __BASEDEF_MAK__ := 1
 
 
 TOPDIR = $(shell dirname $(lastword $(MAKEFILE_LIST)))
+STATICDIR = ${TOPDIR}/staticlib
+DYNAMICDIR = ${TOPDIR}/dynmaiclib
 
 PRINTF:=$(shell which printf)
 OSNAME:=$(shell uname -s | tr [:upper:] [:lower:])
@@ -16,6 +18,7 @@ DIFF:=$(shell which diff)
 CHX:=$(shell which chmod) +x
 GIT:=$(shell which git)
 CP:=$(shell which cp)
+MKDIR:=$(shell which mkdir)
 
 
 ifeq (${CROSS_COMPILE},)
@@ -79,15 +82,6 @@ endef
 
 ECHO          = $(shell which echo)
 
-INCLUDE_BASE_CFLAGS = -I${TOPDIR}/uxlib -I${TOPDIR}/extargslib/src/
-INCLUDE_BASE_CXXFLAGS = -I${TOPDIR}/uxlib -I${TOPDIR}/extargslib/src/
-INCLUDE_BASE_LDFLAGS= -L${TOPDIR}/uxlib
-INCLUDE_BASE_LIBFLAGS= -luxlib
-
-CFLAGS= ${INCLUDE_BASE_CFLAGS} ${EXTRA_CFLAGS} ${SHARED_CFLAGS} -Wall
-CXXFLAGS = ${INCLUDE_BASE_CXXFLAGS} ${EXTRA_CXXFLAGS} ${SHARED_CFLAGS} -Wall
-LDFLAGS= ${INCLUDE_BASE_LDFLAGS} ${EXTRA_LDFLAGS} -Wall
-LIBFLAGS= ${INCLUDE_BASE_LIBFLAGS} ${EXTRA_LIBFLAGS}
 
 
 ## __BASEDEF_MAK__
