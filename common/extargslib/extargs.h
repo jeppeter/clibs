@@ -134,6 +134,12 @@ typedef int extargs_priority_t;
 #define  EXTARGS_PRIO_ENV_CMD_JSON       4
 #define  EXTARGS_PRIO_ENV_CMD            5
 
+#if defined(_WIN32) || defined(_WIN64)
+#define __EXTARGS_WIN__
+#else
+#undef __EXTARGS_WIN__
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif

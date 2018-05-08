@@ -456,3 +456,16 @@ int quote_string(char** ppquotestr,int *psize,const char* pstr,...)
     va_start(ap, pstr);
     return quote_stringv(ppquotestr, psize,pstr, ap);
 }
+
+char* safe_strdup(const char* str)
+{
+    int len = (int)strlen(str);
+    char* pretstr = NULL;
+
+    pretstr = (char*) malloc(len + 1);
+    if (pretstr == NULL) {
+        return NULL;
+    }
+    memcpy(pretstr, str, len + 1);
+    return pretstr;
+}
