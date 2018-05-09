@@ -118,10 +118,10 @@ class debug_opttest_case(unittest.TestCase):
         if self.__verbose >= 3:
             stdoutfile= None
             stderrfile = None
-        if 'EXTARGSLIB_STATICLIB' in os.environ.keys():
-            logging.info('EXTARGSLIB_STATICLIB')
+        if 'STATICLIB' in os.environ.keys():
+            logging.info('STATICLIB')
         else:
-            logging.info('no EXTARGSLIB_STATICLIB')
+            logging.info('no STATICLIB')
         subprocess.check_call(cmd,stdout=stdoutfile,stderr=stderrfile)
         #logging.info('runok cmd (%s)'%(cmd))
         return
@@ -156,8 +156,8 @@ class debug_opttest_case(unittest.TestCase):
         cmds = []
         if uname0 == 'linux':
             cmds.extend(['make','-C',optdir , '-f','makefile','opttest'])
-            if 'EXTARGSLIB_STATICLIB' in os.environ.keys():
-                cmds.append('EXTARGSLIB_STATICLIB=1')
+            if 'STATICLIB' in os.environ.keys():
+                cmds.append('STATICLIB=1')
         elif uname0 == 'windows':
             lastdir = os.getcwd()
             os.chdir(optdir)
@@ -2283,12 +2283,12 @@ def main():
     # to set the log level
     os.environ['EXTARGSPARSE_LOGLEVEL'] = '%d'%(args.verbose)
     if args.static:
-        os.environ['EXTARGSLIB_STATICLIB'] = '1'
+        os.environ['STATICLIB'] = '1'
         logging.info('use static')
     else:
-        if 'EXTARGSLIB_STATICLIB' in os.environ.keys():
-            del os.environ['EXTARGSLIB_STATICLIB']
-        sopath = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','..','src'))
+        if 'STATICLIB' in os.environ.keys():
+            del os.environ['STATICLIB']
+        sopath = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)),'..','..','dynamiclib'))
         __init_lib_paths(sopath)
         logging.info('use dynamic')
     if args.reserved:

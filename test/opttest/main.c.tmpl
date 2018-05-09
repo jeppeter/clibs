@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <cmn_strop.h>
+#include <cmn_output_debug.h>
 
 #ifdef __EXTARGS_WIN__
 #define PUTENV _putenv
@@ -15,13 +16,6 @@
 #define  UNSETENV unsetenv
 #endif
 
-#define DEBUG_LEVEL   3
-#define INFO_LEVEL    2
-#define WARN_LEVEL    1
-#define ERROR_LEVEL   0
-
-#define DEBUG_INFO(...)   debug_output(DEBUG_LEVEL,__FILE__,__LINE__,__VA_ARGS__)
-#define ERROR_INFO(...)   debug_output(ERROR_LEVEL,__FILE__,__LINE__,__VA_ARGS__)
 
 static int st_debugmode = 4;
 static FILE* st_debugfp = NULL;

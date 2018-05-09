@@ -47,7 +47,7 @@ INC_LDFLAGS = "$(DYNAMICDIR)\extargslib.lib" "$(DYNAMICDIR)\winlib.lib" "$(DYNAM
 
 
 INC_CFLAGS = /I"$(TOPDIR)\winlib" /I"$(TOPDIR)\common" /I"$(TOPDIR)\common\jsonlib" /I"$(TOPDIR)\common\extargslib"
-COM_CFLAGS = /Wall /wd"4710" /wd"4711"  /wd"4819" /wd"4820" /wd"4255" /wd"4127" /wd"4996" /wd"4826"
+COM_CFLAGS = /Wall /wd"4710" /wd"4711"  /wd"4819" /wd"4820" /wd"4255" /wd"4127" /wd"4996" /wd"4826" /wd"4668"
 REL_CFLAGS = 
 
 REL_LDFLAGS = 
@@ -106,11 +106,6 @@ opttest.exe:$(OBJECTS)  $(DYNAMICDIR)\extargslib.dll $(DYNAMICDIR)\winlib.dll $(
 main.c:main.c.tmpl
 	$(QUIETCMD)$(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\test.json -i $(CURDIR)\main.c.tmpl -o $(CURDIR)\main.c all
 
-$(TOPDIR)\src\extargslib.lib:
-	$(QUIETCMD) (cd $(TOPDIR)\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win all && cd $(CURDIR))  || cd $(CURDIR)
-
-$(TOPDIR)\src\extargslib.dll:
-	$(QUIETCMD) (cd $(TOPDIR)\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win all && cd $(CURDIR))  || cd $(CURDIR)	
 
 
 $(STATICDIR)\winlib.lib:
@@ -125,10 +120,10 @@ $(STATICDIR)\extargslib.lib:
 $(DYNAMICDIR)\winlib.dll:
 	$(QUIETCMD) (cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)")
 
-$(STATICDIR)\json.dll:
+$(DYNAMICDIR)\json.dll:
 	$(QUIETCMD) (cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)")
 
-$(STATICDIR)\extargslib.dll:
+$(DYNAMICDIR)\extargslib.dll:
 	$(QUIETCMD) (cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)")
 
 
