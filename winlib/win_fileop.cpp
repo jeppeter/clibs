@@ -97,41 +97,139 @@ fail:
     return ret;
 }
 
-int read_file_encoded(char* infile, char** ppoutbuf, int *bufsize)
-{
-    int ret = 0;
-    char* pretbuf = NULL;
-    int retsize = 0;
-    unsigned char* preadbuf = NULL;
-    char* curbuf = NULL;
-    wchar_t *pwbuf = NULL;
-    int filelen = 0;
-    int readlen = 0;
-    char *transbuf = NULL;
-    int transsize = 0;
-    FILE* fp = NULL;
-    __int64 offset;
-    int retlen;
+#define MIN_BUF_SIZE   0x10000
 
-    if (infile == NULL) {
-        if (ppoutbuf && *ppoutbuf) {
-            free(*ppoutbuf);
-        }
-        if (ppoutbuf) {
+int __read_fp_buffer(FILE* fp, char** ppoutbuf, int *pbufsize)
+{
+    int retlen = 0;
+    int curlen;
+    char* pretbuf = NULL;
+    char* pcurptr = NULL;
+    int retsize = 0;
+    char* ptmpbuf = NULL;
+    int ret;
+
+    if (fp == NULL) {
+        if (ppoutbuf != NULL) {
+            if (*ppoutbuf != NULL) {
+                free(*ppoutbuf);
+            }
             *ppoutbuf = NULL;
         }
-        if (bufsize) {
-            *bufsize = 0;
+        if (pbufsize != NULL) {
+            *pbufsize = 0;
         }
         return 0;
+    }
+
+    if (ppoutbuf == NULL || pbufsize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretbuf = *ppoutbuf;
+    retsize = *pbufsize;
+
+    if (retsize < MIN_BUF_SIZE || pretbuf == NULL) {
+        if (retsize < MIN_BUF_SIZE) {
+            retsize = MIN_BUF_SIZE;
+        }
+        pretbuf = (char*) malloc(retsize);
+        if (pretbuf == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", retsize, ret);
+            goto fail;
+        }
+        memset(pretbuf, 0 , retsize);
+    }
+
+
+    while (1) {
+        while (retlen >= retsize) {
+            retsize += MIN_BUF_SIZE;
+            if (retsize > retlen) {
+                ptmpbuf = (char*) malloc(retsize);
+                if (ptmpbuf == NULL) {
+                    GETERRNO(ret);
+                    ERROR_INFO("alloc %d error[%d]", retsize, ret);
+                    goto fail;
+                }
+                memset(ptmpbuf, 0 , retsize);
+                if (retlen > 0) {
+                    memcpy(ptmpbuf, pretbuf, retlen);
+                }
+                if (pretbuf != NULL && pretbuf != *ppoutbuf) {
+                    free(pretbuf);
+                }
+                pretbuf = ptmpbuf;
+                ptmpbuf = NULL;
+            }
+        }
+
+        curlen = retsize - retlen;
+        ret = fread(&(pretbuf[retlen]), 1, curlen, fp);
+        if (ret < 0) {
+            if (feof(fp)) {
+                break;
+            }
+            GETERRNO(ret);
+            ERROR_INFO("read [%d] error[%d]", retlen, ret);
+            goto fail;
+        }
+        retlen += ret;
+        if (ret != curlen) {
+            break;
+        }
+    }
+
+    if (ptmpbuf != NULL) {
+        free(ptmpbuf);
+    }
+    ptmpbuf = NULL;
+
+    if (*ppoutbuf != NULL && *ppoutbuf != pretbuf) {
+        free(*ppoutbuf);
+    }
+    *ppoutbuf = pretbuf;
+    *pbufsize = retsize;
+    return retlen;
+
+fail:
+    if (ptmpbuf != NULL) {
+        free(ptmpbuf);
+    }
+    ptmpbuf = NULL;
+    if (pretbuf != NULL && pretbuf != *ppoutbuf) {
+        free(pretbuf);
+    }
+    pretbuf = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int read_file_encoded(char* infile, char** ppoutbuf, int *bufsize)
+{
+    int ret;
+    FILE* fp = NULL;
+    char* pretbuf=NULL;
+    char* ptmpbuf=NULL;
+    int filelen;
+    int retlen;
+    char* preadbuf=NULL;
+    int readsize=0;
+    char* curbuf;
+    wchar_t *pwbuf;
+
+    if (infile == NULL) {
+        return UnicodeToAnsi(NULL,ppoutbuf,bufsize);
     }
 
     if (ppoutbuf == NULL || bufsize == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
         goto fail;
     }
-    pretbuf = *ppoutbuf;
-    retsize = *bufsize;
 
     fp = fopen(infile, "rb");
     if (fp == NULL) {
@@ -140,61 +238,14 @@ int read_file_encoded(char* infile, char** ppoutbuf, int *bufsize)
         goto fail;
     }
 
-    ret = _fseeki64(fp, 0, SEEK_END);
-    if (ret != 0) {
+
+    ret = __read_fp_buffer(fp,&preadbuf,&readsize);
+    if (ret < 0) {
         GETERRNO(ret);
-        ERROR_INFO("can not seek end [%s] error[%d]", infile, ret);
         goto fail;
     }
 
-    SETERRNO(0);
-    offset = _ftelli64(fp);
-    if (offset == (__int64) - 1) {
-        GETERRNO_DIRECT(ret);
-        if (ret != 0) {
-            ERROR_INFO("can not tell [%s] error[%d]", infile, ret);
-            goto fail;
-        }
-    }
-
-    filelen = (int)offset;
-    if (filelen < offset) {
-        ret = -ERROR_ARITHMETIC_OVERFLOW;
-        ERROR_INFO("[%s] overflow 32bit %lld %d", infile, offset, filelen);
-        goto fail;
-    }
-
-    preadbuf = (unsigned char*)malloc((size_t)filelen + 4);
-    if (preadbuf == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("can not malloc[%d]", filelen);
-        goto fail;
-    }
-    memset(preadbuf, 0, (size_t)(filelen + 4));
-
-    ret = _fseeki64(fp, 0, SEEK_SET);
-    if (ret != 0) {
-        GETERRNO(ret);
-        ERROR_INFO("can not rewind file[%s] error[%d]", infile, ret);
-        goto fail;
-    }
-
-    readlen = 0;
-    while (readlen < filelen) {
-        curbuf = (char*)(preadbuf + readlen);
-        ret = (int)fread(curbuf, 1, (size_t)(filelen - readlen), fp);
-        if (ret < 0) {
-            GETERRNO(ret);
-            ERROR_INFO("can not read at[%d][%s] error[%d]", readlen, infile, ret);
-            goto fail;
-        } else if (ret > 0) {
-            readlen += ret;
-        } else {
-            GETERRNO(ret);
-            ERROR_INFO("can not read [%d][%s] zero", readlen, infile);
-            goto fail;
-        }
-    }
+    filelen = ret;
 
 
     if (filelen > 2 && preadbuf[0] == 0xff && preadbuf[1] == 0xfe) {
@@ -204,96 +255,42 @@ int read_file_encoded(char* infile, char** ppoutbuf, int *bufsize)
     }
     pwbuf = (wchar_t*)curbuf;
 
-    ret = UnicodeToAnsi(pwbuf, &transbuf, &transsize);
+    ret = UnicodeToAnsi(pwbuf, ppoutbuf, bufsize);
     if (ret < 0) {
         goto fail;
     }
     retlen = ret;
 
-    if (retlen > retsize || pretbuf == NULL) {
-        retsize = retlen;
-        pretbuf = (char*)malloc((size_t)retsize);
-        if (pretbuf == NULL) {
-            GETERRNO(ret);
-            ERROR_INFO("can not malloc [%d]", retsize);
-            goto fail;
-        }
-    }
-
-    if (retlen > 0) {
-        memcpy(pretbuf, transbuf, (size_t)retlen);
-    }
-
-    if (*ppoutbuf && *ppoutbuf != pretbuf) {
-        free(*ppoutbuf);
-    }
-
-    *ppoutbuf = pretbuf;
-    *bufsize = retsize;
-
-    UnicodeToAnsi(NULL, &transbuf, &transsize);
-    if (preadbuf) {
-        free(preadbuf);
-    }
-    preadbuf = NULL;
-
+    __read_fp_buffer(NULL,&preadbuf,&readsize);
     if (fp != NULL) {
         fclose(fp);
     }
     fp = NULL;
     return retlen;
 fail:
-    UnicodeToAnsi(NULL, &transbuf, &transsize);
-    if (preadbuf) {
-        free(preadbuf);
-    }
-    preadbuf = NULL;
+    __read_fp_buffer(NULL,&preadbuf,&readsize);
 
     if (fp != NULL) {
         fclose(fp);
     }
     fp = NULL;
-
-    if (pretbuf && pretbuf != *ppoutbuf) {
-        free(pretbuf);
-    }
-    pretbuf = NULL;
     SETERRNO(-ret);
     return ret;
 }
 
+
 int read_file_whole(char* infile,char** ppoutbuf,int *bufsize)
 {
-    int ret = 0;
-    char* pretbuf = NULL;
-    int retsize = 0;
-    unsigned char* preadbuf = NULL;
-    char* curbuf=NULL;
-    int filelen = 0;
-    int readlen = 0;
-    FILE* fp = NULL;
-    __int64 offset;
-    int retlen;
-
+    int ret=0;
     if (infile == NULL) {
-        if (ppoutbuf && *ppoutbuf) {
-            free(*ppoutbuf);
-        }
-        if (ppoutbuf) {
-            *ppoutbuf = NULL;
-        }
-        if (bufsize) {
-            *bufsize = 0;
-        }
-        return 0;
+        return __read_fp_buffer(NULL,ppoutbuf,bufsize);
     }
 
     if (ppoutbuf == NULL || bufsize == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
-        goto fail;
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
     }
-    pretbuf = *ppoutbuf;
-    retsize = *bufsize;
 
     fp = fopen(infile, "rb");
     if (fp == NULL) {
@@ -302,90 +299,10 @@ int read_file_whole(char* infile,char** ppoutbuf,int *bufsize)
         goto fail;
     }
 
-    ret = _fseeki64(fp, 0, SEEK_END);
-    if (ret != 0) {
-        GETERRNO(ret);
-        ERROR_INFO("can not seek end [%s] error[%d]", infile, ret);
+    ret = __read_fp_buffer(fp,ppoutbuf,bufsize);
+    if (ret < 0) {
         goto fail;
     }
-
-    SETERRNO(0);
-    offset = _ftelli64(fp);
-    if (offset == (__int64) - 1) {
-        GETERRNO_DIRECT(ret);
-        if (ret != 0) {
-            ERROR_INFO("can not tell [%s] error[%d]", infile, ret);
-            goto fail;
-        }
-    }
-
-    filelen = (int)offset;
-    if (filelen < offset) {
-        ret = -ERROR_ARITHMETIC_OVERFLOW;
-        ERROR_INFO("[%s] overflow 32bit %lld %d", infile, offset, filelen);
-        goto fail;
-    }
-
-    preadbuf = (unsigned char*)malloc((size_t)filelen + 4);
-    if (preadbuf == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("can not malloc[%d]", filelen);
-        goto fail;
-    }
-    memset(preadbuf, 0, (size_t)(filelen + 4));
-
-    ret = _fseeki64(fp, 0, SEEK_SET);
-    if (ret != 0) {
-        GETERRNO(ret);
-        ERROR_INFO("can not rewind file[%s] error[%d]", infile, ret);
-        goto fail;
-    }
-
-    readlen = 0;
-    while (readlen < filelen) {
-        curbuf = (char*)(preadbuf + readlen);
-        ret = (int)fread(curbuf, 1, (size_t)(filelen - readlen), fp);
-        if (ret < 0) {
-            GETERRNO(ret);
-            ERROR_INFO("can not read at[%d][%s] error[%d]", readlen, infile, ret);
-            goto fail;
-        } else if (ret > 0) {
-            readlen += ret;
-        } else {
-            GETERRNO(ret);
-            ERROR_INFO("can not read [%d][%s] zero", readlen, infile);
-            goto fail;
-        }
-    }
-
-
-    retlen = readlen;
-
-    if (retlen > retsize || pretbuf == NULL) {
-        retsize = retlen;
-        pretbuf = (char*)malloc((size_t)retsize);
-        if (pretbuf == NULL) {
-            GETERRNO(ret);
-            ERROR_INFO("can not malloc [%d]", retsize);
-            goto fail;
-        }
-    }
-
-    if (retlen > 0) {
-        memcpy(pretbuf, preadbuf, (size_t)retlen);
-    }
-
-    if (*ppoutbuf && *ppoutbuf != pretbuf) {
-        free(*ppoutbuf);
-    }
-
-    *ppoutbuf = pretbuf;
-    *bufsize = retsize;
-
-    if (preadbuf) {
-        free(preadbuf);
-    }
-    preadbuf = NULL;
 
     if (fp != NULL) {
         fclose(fp);
@@ -393,24 +310,13 @@ int read_file_whole(char* infile,char** ppoutbuf,int *bufsize)
     fp = NULL;
     return retlen;
 fail:
-    if (preadbuf) {
-        free(preadbuf);
-    }
-    preadbuf = NULL;
-
     if (fp != NULL) {
         fclose(fp);
     }
     fp = NULL;
-
-    if (pretbuf && pretbuf != *ppoutbuf) {
-        free(pretbuf);
-    }
-    pretbuf = NULL;
     SETERRNO(-ret);
     return ret;
 }
-
 int delete_file(const char* infile)
 {
     int ret;
@@ -443,6 +349,15 @@ fail:
     AnsiToTchar(NULL, &ptfile, &tfilesize);
     SETERRNO(ret);
     return ret;
+}
+
+int read_stdin_whole(int freed,char** ppoutbuf,int *bufsize)
+{
+    if (freed) {
+        return __read_fp_buffer(NULL,ppoutbuf,bufsize);
+    }
+
+    return __read_fp_buffer(stdin,ppoutbuf,bufsize);
 }
 
 int get_full_path(char* pinfile, char** ppfullpath, int *pfullsize)

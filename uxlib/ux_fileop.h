@@ -6,6 +6,7 @@ extern "C" {
 #endif /* __cplusplus*/
 
 int read_file_whole(char* infile,char** ppoutbuf,int *bufsize);
+int read_stdin_whole(int freed,char** ppoutbuf,int *bufsize);
 
 #ifdef __cplusplus
 };
