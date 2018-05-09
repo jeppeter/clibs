@@ -20,12 +20,13 @@ int addstring_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 };
 #endif
 
-static int read_stdin_buffer(FILE* fp,char** ppoutbuf,int *pbufsize)
+int read_stdin_buffer(FILE* fp,char** ppoutbuf,int *pbufsize)
 {
 	int retlen=0;
 	char* pretbuf=NULL;
 	int retsize=0;
 	char* ptmpbuf=NULL;
+	int ret;
 
 	if (fp == NULL) {
 		if (ppoutbuf != NULL) {
@@ -40,6 +41,27 @@ static int read_stdin_buffer(FILE* fp,char** ppoutbuf,int *pbufsize)
 		return 0;
 	}
 
+	if (ppoutbuf == NULL || pbufsize == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	while(1) {
+		
+	}
+
+fail:
+	if (ptmpbuf != NULL) {
+		free(ptmpbuf);
+	}
+	ptmpbuf = NULL;
+	if (pretbuf != NULL && pretbuf != *ppoutbuf) {
+		free(pretbuf);
+	}
+	pretbuf = NULL;
+	SETERRNO(ret);
+	return ret;
 }
 
 int addstring_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
