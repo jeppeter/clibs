@@ -11,7 +11,7 @@
 * Jan 25th 2017 Release 0.1.2 to make coutput.py error in bug on freefunc and debugfunc subcommand
 * Dec 31st 2016 Release 0.1.0 to make first version in windows and linux test ok
 
-## simple example see [simple](https://github.com/jeppeter/extargslib/blob/master/example/simple/main.c.tmpl)
+## simple example see [simple](https://github.com/jeppeter/clibs/blob/master/common/extargslib/example/simple/main.c.tmpl)
 ```c
 #include <extargs.h>
 #include <stdlib.h>
@@ -56,7 +56,7 @@ out:
 }
 ```
 
-> you can define the flags in [test.json](https://github.com/jeppeter/extargslib/blob/master/example/simple/test.json)
+> you can define the flags in [test.json](https://github.com/jeppeter/clibs/blob/master/common/extargslib/example/simple/test.json)
 ```json
 {
     "verbose|v": "+",
