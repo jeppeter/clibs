@@ -63,6 +63,17 @@ ${STATICDIR}/libextargs.a:
 main.c:main.c.tmpl ${TOPDIR}/coutput.py
 	$(call call_exec,${PYTHON} ${TOPDIR}/coutput.py -j ${CURDIR}/test.json -i $< -o $@ all,"GEN     $@")
 
-clean:
+clean_extargslib:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/extargslib clean,"CLEAN   extargslib")
+
+clean_json:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/jsonlib clean,"CLEAN   jsonlib")
+
+
+clean_uxlib:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib clean,"CLEAN   uxlib")
+
+
+clean:clean_extargslib clean_json clean_uxlib
 	$(call call_exec,${RM} -f ${OBJS} opttest main.c, "RM     opttest main.c")
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib clean,"CLEAN   uxlib")

@@ -48,12 +48,10 @@ ${DYNAMICDIR}/$(TARGET).so:$(TARGET).so ${DYNAMICDIR}
 ${DYNAMICDIR}:
 	$(call call_exec,${MKDIR} -p $@,"MKDIR   $@")
 
-$(TARGET).so: $(OBJECTS)
+$(TARGET).so: $(OBJECTS) $(DYNAMICDIR)/libuxlib.so
 	$(call call_exec,${CC} $(LDFLAGS)  -o $@  $^, "LD      $@")
 	
 
-$(TARGET): $(OBJECTS)
-	$(call call_exec,${CC} ${OBJECTS} -o $@ ${LDFLAGS} ${RPATH},"LD      $@")
 
 ${STATICDIR}/$(TARGET).a:$(TARGET).a ${STATICDIR}
 	$(call call_exec,${CP} $(TARGET).a ${STATICDIR}/$(TARGET).a,"CP      ${STATICDIR}/$(TARGET).a")
@@ -61,8 +59,14 @@ ${STATICDIR}/$(TARGET).a:$(TARGET).a ${STATICDIR}
 ${STATICDIR}:
 	$(call call_exec,${MKDIR} -p $@,"MKDIR   $@")
 
-$(TARGET).a: $(OBJECTS)
+$(TARGET).a: $(OBJECTS) $(STATICDIR)/libuxlib.a
 	$(call call_exec,${AR} -rcs $@ $^,"AR      $@")
+
+$(DYNAMICDIR)/libuxlib.so:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"MAKE    uxlib(dynamic)")
+
+$(STATICDIR)/libuxlib.a:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}uxlib all,"MAKE    uxlib(static)")
 
 %.o:%.c ${HEADERS}
 	$(call call_exec,${CC} ${CFLAGS} -c $< -o $@,"CC      $<")
@@ -80,6 +84,9 @@ hashtable.o:hashtable.c ${HEADERS}
 
 arraylist.o:arraylist.c ${HEADERS}
 
-clean :
+clean_uxlib:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib clean,"CLEAN   uxlib")
+
+clean : clean_uxlib
 	$(call call_exec,${RM} -rf $(OBJECTS) $(TARGET).so $(TARGET).a core libjson.so.dSYM,"RM      $(OBJECTS)")
 	$(call call_exec,${RM} -f ${DYNAMICDIR}/$(TARGET).so ${STATICDIR}/$(TARGET).a,"RM      $(TARGET).so $(TARGET).a")

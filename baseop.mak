@@ -2,9 +2,9 @@ ifndef __BASEDEF_MAK__
 __BASEDEF_MAK__ := 1
 
 
-TOPDIR = $(shell dirname $(lastword $(MAKEFILE_LIST)))
+TOPDIR = $(shell readlink -f $(shell  dirname $(lastword $(MAKEFILE_LIST))))
 STATICDIR = ${TOPDIR}/staticlib
-DYNAMICDIR = ${TOPDIR}/dynmaiclib
+DYNAMICDIR = ${TOPDIR}/dynamiclib
 
 PRINTF:=$(shell which printf)
 OSNAME:=$(shell uname -s | tr [:upper:] [:lower:])

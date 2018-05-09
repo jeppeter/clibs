@@ -46,10 +46,10 @@ ${STATICDIR}/${TARGET}.a:${TARGET}.a ${STATICDIR}
 ${DYNAMICDIR}/${TARGET}.so:${TARGET}.so ${DYNAMICDIR}
 	$(call call_exec,${CP} ${TARGET}.so ${DYNAMICDIR}/${TARGET}.so,"CP      ${DYNAMICDIR}/${TARGET}.so")
 
-${TARGET}.a:${LIB_OBJS}
+${TARGET}.a:${LIB_OBJS}  $(STATICDIR)/libuxlib.a $(STATICDIR)/libjson.a
 	$(call call_exec,${AR} -rcs $@ $^,"AR      $@")
 
-${TARGET}.so:${LIB_OBJS}
+${TARGET}.so:${LIB_OBJS} $(DYNAMICDIR)/libuxlib.so $(DYNAMICDIR)/libjson.so
 	$(call call_exec,${CC} $(LDFLAGS) $^ -o $@,"LD      $@")
 
 ${DYNAMICDIR}:
@@ -58,6 +58,19 @@ ${DYNAMICDIR}:
 ${STATICDIR}:
 	$(call call_exec,${MKDIR} -p $@,"MKDIR   $@")
 
+$(STATICDIR)/libuxlib.a:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"MAKE    uxlib(static)")
+
+$(STATICDIR)/libjson.a:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/jsonlib all,"MAKE    jsonlib(static)")
+
+$(DYNAMICDIR)/libuxlib.so:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"MAKE    uxlib(dynamic)")
+
+$(DYNAMICDIR)/libjson.so:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/jsonlib all,"MAKE    jsonlib(dynamic)")
+
+
 %.o:%.c ${HEADERS}
 	$(call call_exec,${CC} ${CFLAGS} -o $@ -c $<,"CC      $<")
 
@@ -65,6 +78,11 @@ extargs.o:extargs.c ${HEADERS}
 
 debug_jvalue.o:debug_jvalue.c ${HEADERS}
 
-clean:
+clean_uxlib:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib clean,"CLEAN   uxlib")
+clean_json:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/jsonlib clean,"CLEAN   jsonlib")
+
+clean:clean_uxlib clean_json
 	$(call call_exec,${RM} -f ${LIB_OBJS} *.o *.so *.a ${TARGET}.a ${TARGET}.so,"RM      ${LIB_OBJS}")
 	$(call call_exec,${RM} -f ${DYNAMICDIR}/${TARGET}.so ${STATICDIR}/${TARGET}.a,"RM      ${TARGET}.so ${TARGET}.a")
