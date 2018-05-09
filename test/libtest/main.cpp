@@ -528,7 +528,7 @@ out:
     return ret;
 }
 
-void __close_handle_note(HANDLE *phd, const char* fmt, ...)
+void __close_handle_note_2(HANDLE *phd, const char* fmt, ...)
 {
     va_list ap;
     BOOL bret;
@@ -560,7 +560,7 @@ void __close_handle_note(HANDLE *phd, const char* fmt, ...)
 
 #define MIN_BUF_SIZE    0x400
 
-int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *pevt, int *pstate)
+int __create_pipe_2(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *pevt, int *pstate)
 {
     int ret;
     int res;
@@ -591,8 +591,8 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
                 ERROR_INFO("disconnect error[%d]", res);
             }
         }
-        __close_handle_note(pevt, "event close");
-        __close_handle_note(ppipe, "pipe close");
+        __close_handle_note_2(pevt, "event close");
+        __close_handle_note_2(ppipe, "pipe close");
         if (pov != NULL) {
             memset(pov, 0 , sizeof(*pov));
         }
@@ -670,8 +670,8 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
     return 0;
 fail:
     AnsiToTchar(NULL, &ptname, &tnamesize);
-    __close_handle_note(pevt, "%s event", name);
-    __close_handle_note(ppipe, "%s server pipe", name);
+    __close_handle_note_2(pevt, "%s event", name);
+    __close_handle_note_2(ppipe, "%s server pipe", name);
     memset(pov, 0, sizeof(*pov));
     SETERRNO(ret);
     return ret;
@@ -679,7 +679,7 @@ fail:
 
 #define LEAST_UNIQ_NUM    50
 
-int __get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
+int __get_temp_pipe_name_2(char* prefix, char** pptmp, int *psize)
 {
     TCHAR* tmpdirbuf = NULL;
     size_t tmpdirsize = 0, tmpdirlen;
@@ -857,7 +857,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     if (parsestate->leftargs != NULL && parsestate->leftargs[0] != NULL) {
         pipename = parsestate->leftargs[0];
     } else {
-        ret = __get_temp_pipe_name("pipe", &pipebasename, &pipebasesize);
+        ret = __get_temp_pipe_name_2("pipe", &pipebasename, &pipebasesize);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
@@ -873,7 +873,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
 
 
-    ret = __create_pipe(pipename, wr, &svrpipe, &ov, &evt, &state);
+    ret = __create_pipe_2(pipename, wr, &svrpipe, &ov, &evt, &state);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr, "create %s error[%d]\n", pipename, ret);
@@ -1087,14 +1087,14 @@ out:
     insize = 0;
 
     read_file_whole(NULL, &poutbuf, (int*)&outsize);
-    __create_pipe(NULL, 0, &svrpipe, &ov, &evt, &state);
+    __create_pipe_2(NULL, 0, &svrpipe, &ov, &evt, &state);
     snprintf_safe(&tmppipe, &tmppipesize, NULL);
-    __get_temp_pipe_name(NULL, &pipebasename, &pipebasesize);
+    __get_temp_pipe_name_2(NULL, &pipebasename, &pipebasesize);
     SETERRNO(ret);
     return ret;
 }
 
-int __connect_pipe(char* name, int wr, HANDLE* pcli)
+int __connect_pipe_2(char* name, int wr, HANDLE* pcli)
 {
     int ret;
     TCHAR* ptname = NULL;
@@ -1195,7 +1195,7 @@ int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         }
     }
 
-    ret = __connect_pipe(pipename, wr, &(hd));
+    ret = __connect_pipe_2(pipename, wr, &(hd));
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("client [%s] for %s error[%d]", pipename, wr ? "write" : "read", ret);
@@ -1275,7 +1275,7 @@ out:
         free(ptmpbuf);
     }
     ptmpbuf = NULL;
-    __connect_pipe(NULL, 0, &hd);
+    __connect_pipe_2(NULL, 0, &hd);
     SETERRNO(ret);
     return ret;
 }
