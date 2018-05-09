@@ -1,0 +1,147 @@
+
+CURDIR=$(MAKEDIR)
+TOPDIR=$(CURDIR)\..\..
+STATICDIR=$(TOPDIR)\staticlib
+DYNAMICDIR=$(TOPDIR)\dynamiclib
+
+CC      = cl.exe
+LD      = link.exe
+AR      = lib.exe
+RM      = del
+PYTHON  = python
+CP      = copy /Y
+MAKE    = nmake.exe
+MKDIR   = md.exe
+
+!IFDEF MAKEVERBOSE
+!IF $(MAKEVERBOSE) != 0
+QUIETCMD=
+NOLOGO_CFLAGS=
+NOLOGO_LDFLAGS=
+NOLOGO_MAKEFLAGS=
+!ELSE
+QUIETCMD=@
+NOLOGO_CFLAGS=/nologo
+NOLOGO_LDFLAGS=/nologo
+NOLOGO_MAKEFLAGS=/NOLOGO
+!ENDIF
+!ELSE
+QUIETCMD=@
+NOLOGO_CFLAGS=/nologo
+NOLOGO_LDFLAGS=/nologo
+NOLOGO_MAKEFLAGS=/NOLOGO
+!ENDIF
+
+!IFDEF STATICLIB
+!IF $(STATICLIB) != 0
+STATIC_LIB_CFLAGS=-DWINLIB_STATIC_EXPORT /MT
+INC_LDFLAGS = "$(STATICDIR)\extargslib.lib" "$(STATICDIR)\winlib.lib" "$(STATICDIR)\json.lib"
+!ELSE
+STATIC_LIB_CFLAGS=-DWINLIB_DLL_IMPORT /MT
+INC_LDFLAGS = "$(DYNAMICDIR)\extargslib.lib" "$(DYNAMICDIR)\winlib.lib" "$(DYNAMICDIR)\json.lib"
+!ENDIF
+!ELSE
+STATIC_LIB_CFLAGS=-DWINLIB_DLL_IMPORT /MT
+INC_LDFLAGS = "$(DYNAMICDIR)\extargslib.lib" "$(DYNAMICDIR)\winlib.lib" "$(DYNAMICDIR)\json.lib"
+!ENDIF
+
+
+INC_CFLAGS = /I"$(TOPDIR)\winlib" /I"$(TOPDIR)\common" /I"$(TOPDIR)\common\jsonlib" /I"$(TOPDIR)\common\extargslib"
+COM_CFLAGS = /Wall /wd"4710" /wd"4711"  /wd"4819" /wd"4820" /wd"4255" /wd"4127" /wd"4996" /wd"4826"
+REL_CFLAGS = 
+
+REL_LDFLAGS = 
+
+
+!IFDEF MAKEVERBOSE
+!IF $(MAKEVERBOSE) != 0
+DBG_CFLAGS = /Zi /Od /DEBUG:FULL
+DBG_LDFLAGS = /DEBUG
+
+!ELSE
+DBG_CFLAGS = /O2
+DBG_LDFLAGS = /NOLOGO
+!ENDIF
+
+!ELSE
+DBG_CFLAGS = /O2
+DBG_LDFLAGS = /NOLOGO
+!ENDIF
+
+
+
+CFLAGS  = $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(INC_CFLAGS) $(COM_CFLAGS) $(REL_CFLAGS) $(DBG_CFLAGS)
+LDFLAGS = $(NOLOGO_LDFLAGS) $(INC_LDFLAGS) $(REL_LDFLAGS) $(DBG_LDFLAGS)
+
+SOURCES=main.c
+OBJECTS=$(SOURCES:.c=.obj)
+
+all:opttest
+
+opttest:opttest.exe
+
+!IFDEF STATICLIB
+!IF $(STATICLIB) != 0
+opttest.exe:$(OBJECTS) $(STATICDIR)\extargslib.lib $(STATICDIR)\winlib.lib $(STATICDIR)\json.lib
+	$(QUIETCMD) echo "call static"
+	$(QUIETCMD)$(LD) -out:$@  $(LDFLAGS)  $(OBJECTS)
+	$(QUIETCMD)echo "use static lib"
+!ELSE
+opttest.exe:$(OBJECTS)  $(DYNAMICDIR)\extargslib.dll $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll
+	$(QUIETCMD) echo "call dynamic"
+	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
+	$(QUIETCMD)echo "use dynamic lib"
+!ENDIF	
+
+!ELSE
+opttest.exe:$(OBJECTS)  $(DYNAMICDIR)\extargslib.dll $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll
+	$(QUIETCMD) echo "call dynamic"
+	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
+	$(QUIETCMD)echo "use dynamic lib"
+!ENDIF
+
+.c.obj:
+	$(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
+
+main.c:main.c.tmpl
+	$(QUIETCMD)$(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\test.json -i $(CURDIR)\main.c.tmpl -o $(CURDIR)\main.c all
+
+$(TOPDIR)\src\extargslib.lib:
+	$(QUIETCMD) (cd $(TOPDIR)\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win all && cd $(CURDIR))  || cd $(CURDIR)
+
+$(TOPDIR)\src\extargslib.dll:
+	$(QUIETCMD) (cd $(TOPDIR)\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win all && cd $(CURDIR))  || cd $(CURDIR)	
+
+
+$(STATICDIR)\winlib.lib:
+	$(QUIETCMD) (cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)")
+
+$(STATICDIR)\json.lib:
+	$(QUIETCMD) (cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)")
+
+$(STATICDIR)\extargslib.lib:
+	$(QUIETCMD) (cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)")
+
+$(DYNAMICDIR)\winlib.dll:
+	$(QUIETCMD) (cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)")
+
+$(STATICDIR)\json.dll:
+	$(QUIETCMD) (cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)")
+
+$(STATICDIR)\extargslib.dll:
+	$(QUIETCMD) (cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)")
+
+
+clean_extargslib:
+	$(QUIETCMD) (cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd $(CURDIR)) || cd $(CURDIR)
+
+clean_json:
+	$(QUIETCMD) (cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd $(CURDIR)) || cd $(CURDIR)
+
+clean_winlib:
+	$(QUIETCMD) (cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd $(CURDIR)) || cd $(CURDIR)
+
+
+clean:clean_extargslib clean_json clean_winlib
+	$(QUIETCMD) $(RM) *.exe main.c *.obj 2>NUL
+	$(QUIETCMD) $(RM) *.pdb *.ilk 2>NUL

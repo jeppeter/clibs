@@ -1,0 +1,780 @@
+#include <extargs.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <cmn_strop.h>
+
+#ifdef __EXTARGS_WIN__
+#define PUTENV _putenv
+#define GETENV(envkey) getenv(envkey)
+#define UNSETENV(envkey) 0
+#else
+#define  PUTENV  putenv
+#define  GETENV  getenv
+#define  SETENV  setenv
+#define  UNSETENV unsetenv
+#endif
+
+#define DEBUG_LEVEL   3
+#define INFO_LEVEL    2
+#define WARN_LEVEL    1
+#define ERROR_LEVEL   0
+
+#define DEBUG_INFO(...)   debug_output(DEBUG_LEVEL,__FILE__,__LINE__,__VA_ARGS__)
+#define ERROR_INFO(...)   debug_output(ERROR_LEVEL,__FILE__,__LINE__,__VA_ARGS__)
+
+static int st_debugmode = 4;
+static FILE* st_debugfp = NULL;
+
+void debug_output(int loglvl, const char* file, int lineno, const char* fmt, ...)
+{
+    va_list ap;
+    if (loglvl > st_debugmode || st_debugfp == NULL) {
+        return;
+    }
+
+    fprintf(st_debugfp, "[%s:%d] ", file, lineno);
+    if (fmt != NULL) {
+        va_start(ap, fmt);
+        vfprintf(st_debugfp, fmt, ap);
+    }
+    fprintf(st_debugfp, "\n");
+    return;
+}
+
+int debug_2_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt)
+{
+    char**** pppc = (char****) ppdestopt;
+    char** oldpc ;
+    char** addpc = (char**)pvalue;
+    char** newpc = NULL;
+    int ret;
+    int cnt = 0;
+    int i,j;
+    int newsize=0;
+    popthelp = popthelp;
+
+    if (pppc == NULL || *pppc == NULL) {
+        ret = -EXTARGS_INVAL_PARAM;
+        goto fail;
+    }
+
+    if (addpc) {
+        for (i=0;;i++) {
+            if (addpc[i] == NULL) {
+                break;
+            }
+            cnt ++;
+        }
+    }
+
+    if ((cnt % 2) != 0) {
+        ret = -EXTARGS_INVAL_PARAM;
+        goto fail;
+    }
+
+    if (cnt > 0){
+        newsize = cnt / 2;
+        newpc = malloc(sizeof(*newpc)*(newsize + 1));
+        if (newpc == NULL) {
+            ret = -EXTARGS_NO_MEM;
+            goto fail;
+        }
+        memset(newpc,0, sizeof(*newpc)*(newsize + 1));
+        i = 0;
+        j = 0;
+        while (i < cnt) {
+            newpc[j] = safe_strdup(addpc[i]);
+            if (newpc[j] == NULL) {
+                ret = -EXTARGS_NO_MEM;
+                goto fail;
+            }
+            i += 2;
+            j ++;
+        }
+    }
+    oldpc = **pppc;
+    if (oldpc) {
+        /*now free the old memory*/
+        for (i=0;;i++) {
+            if (oldpc[i] == NULL) {
+                break;
+            }
+            free(oldpc[i]);
+            oldpc[i] = NULL;
+        }
+        free(oldpc);
+        oldpc = NULL;
+    }
+    **pppc = newpc;
+    return newsize;
+fail:
+    if (newpc) {
+        for (i=0;;i++) {
+            if (newpc[i] == NULL) {
+                break;
+            }
+            free(newpc[i]);
+            newpc[i] = NULL;
+        }
+        free(newpc);
+        newpc = NULL;
+    }
+    return ret;
+}
+
+int debug_upper_jsonfunc(struct __opt_help* popthelp,void* pvalue,void** ppdestopt)
+{
+    char*** ppchardest = (char***)ppdestopt;
+    char* pretval = NULL;
+    popthelp = popthelp;
+
+    if (ppchardest == NULL || *ppchardest == NULL) {
+        return -EXTARGS_INVAL_PARAM;
+    }
+
+    if (pvalue != NULL) {
+        pretval = safe_strdup(pvalue);
+        if (pretval != NULL) {
+            return -EXTARGS_NO_MEM;
+        }
+        str_upper_case(pretval);
+    }
+    /*we free the string first */
+    if (**ppchardest != NULL) {
+        free(**ppchardest);
+        **ppchardest = NULL;
+    }
+    **ppchardest = pretval;
+    return 1;
+}
+
+int debug_set_2_args(int argc,char* argv[],int validx,struct __opt_help* popthelp,void** ppdestopt)
+{
+    char**** pppc = (char****) ppdestopt;
+    char** oldpc = NULL;
+    char** newpc = NULL;
+    char** pptr;
+    int ret;
+    int cnt = 0;
+    int i;
+    char* arg1=NULL,*arg2=NULL;
+    popthelp = popthelp;
+    if (pppc == NULL || *pppc == NULL) {
+        ret = -EXTARGS_INVAL_PARAM;
+        goto fail;
+    }
+
+    if ((validx + 1) >= argc) {
+        ret = -EXTARGS_INVAL_PARAM;
+        goto fail;
+    }
+
+    oldpc = **pppc;
+
+    if (oldpc) {
+        pptr = oldpc;
+        while (pptr[cnt] != NULL) {
+            cnt ++;
+        }
+    }
+
+    /*one for new item ,one for end null*/
+    newpc = (char**)malloc(sizeof(*newpc) *  (cnt + 3));
+    if (newpc == NULL) {
+        ret = -EXTARGS_NO_MEM;
+        goto fail;
+    }
+
+    memset(newpc, 0, sizeof(*newpc) * (cnt + 3));
+    for (i = 0; i < cnt; i++) {
+        newpc[i] = oldpc[i];
+    }
+
+    arg1 = safe_strdup(argv[validx]);
+    if (arg1 == NULL) {
+        ret = -EXTARGS_NO_MEM;
+        goto fail;
+    }
+
+    arg2 = safe_strdup(argv[validx+1]);
+    if (arg2 == NULL) {
+        ret = -EXTARGS_NO_MEM;
+        goto fail;
+    }
+
+    newpc[cnt] = arg1;    
+    newpc[cnt + 1] = arg2;
+    if (oldpc) {
+        free(oldpc);
+    }
+    (**pppc) = newpc;
+    return 2;
+fail:
+    if (arg1) {
+        free(arg1);
+    }
+    arg1 = NULL;
+    if (arg2) {
+        free(arg2);
+    }
+    arg2 = NULL;
+    if (newpc != NULL) {
+        free(newpc);
+    }
+    newpc = NULL;
+    return ret;
+}
+
+char* debug_opthelp_set(struct __opt_help* popthelp)
+{
+    int nsize=0;
+    char* pretopt=NULL;
+    char* poptdest=NULL;
+    char* pcurptr=NULL;
+    int ret;
+    poptdest = safe_strdup(popthelp->m_longopt);
+    if (poptdest == NULL) {
+        goto fail;
+    }
+
+    pcurptr = poptdest;
+    while (*pcurptr != '\0') {
+        if (*pcurptr == '-') {
+            *pcurptr = '_';
+        } 
+        pcurptr ++;
+    }
+
+    ret = snprintf_safe(&pretopt,&nsize,"opthelp function set [%s] default value ([])",poptdest);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    if (poptdest) {
+        free(poptdest);
+    }
+    poptdest = NULL;
+
+    return pretopt;
+fail:
+    if (poptdest) {
+        free(poptdest);
+    }
+    poptdest = NULL;
+    if (pretopt) {
+        free(pretopt);
+    }
+    pretopt = NULL;
+    return NULL;
+}
+
+
+%EXTARGS_STRUCT%
+
+%EXTARGS_DEBUGFUNC%
+
+%EXTARGS_FREEFUNC%
+
+%EXTARGS_CMDSTRUCT%
+
+
+
+void Usage(int ec, const char* fmt, ...)
+{
+    FILE* fp = stderr;
+    va_list ap;
+    if (ec == 0) {
+        fp = stdout;
+    }
+    if (fmt != NULL) {
+        va_start(ap, fmt);
+        vfprintf(fp, fmt, ap);
+        fprintf(fp, "\n");
+    }
+    fprintf(fp, "opttest [OPTIONS] [--] [TEST_OPTIONS]\n");
+    fprintf(fp, "\t-h|--help                     to display this help information\n");
+    fprintf(fp, "\t-p|--priority priority        to specify priority specify it can accept SUBCMD_JSON|CMD_JSON|ENV_SUBCMD_JSON|ENV_CMD_JSON|ENV_CMD|NONE\n");
+    fprintf(fp, "\t-n|--nohelp                   to specify no help\n");
+    fprintf(fp, "\t-a|--argv0  argv0             to specify argv0\n");
+    fprintf(fp, "\t-E|--environ environ          to specify environment value to set default ([])\n");
+    fprintf(fp, "\t-v|--verbose                  to specify verbose mode\n");
+    fprintf(fp, "\t--screenwidth width           to specify the screen with default (%d)\n",EXTARGS_DEFAULT_SCREENWIDTH);
+    fprintf(fp, "\t--no-passall                  to specify not pass all\n");
+    fprintf(fp, "\t--longprefix longprefix       to specify long prefix\n");
+    fprintf(fp, "\t--shortprefix shortprefix     to specify short prefix\n");
+    fprintf(fp, "\t--jsonlong  jsonlong          to specify json long prefix\n");
+    fprintf(fp, "\t--usageout  cmdname           to specify usage output for command\n");
+    exit(ec);
+}
+
+int add_priority(const char* priorstr, int** ppout, int*priorsize)
+{
+    int prior = EXTARGS_PRIO_NONE;
+    int* pretprior = *ppout;
+    int retsize = *priorsize;
+    int ret;
+    if (strcmp(priorstr, "NONE") == 0) {
+        prior = EXTARGS_PRIO_NONE;
+    } else if (strcmp(priorstr, "SUBCMD_JSON") == 0) {
+        prior = EXTARGS_PRIO_SUBCMD_JSON;
+    } else if (strcmp(priorstr, "CMD_JSON") == 0) {
+        prior = EXTARGS_PRIO_CMD_JSON;
+    } else if (strcmp(priorstr, "ENV_SUBCMD_JSON") == 0)  {
+        prior = EXTARGS_PRIO_ENV_SUBCMD_JSON;
+    } else if (strcmp(priorstr, "ENV_CMD_JSON") == 0) {
+        prior = EXTARGS_PRIO_ENV_CMD_JSON;
+    } else if (strcmp(priorstr, "ENV_CMD") == 0) {
+        prior = EXTARGS_PRIO_ENV_CMD;
+    } else {
+        ret = -EXTARGS_INVAL_PARAM;
+        goto fail;
+    }
+
+    if (pretprior == NULL) {
+        retsize = 1;
+    } else {
+        retsize += 1;
+    }
+    pretprior = malloc(sizeof(*pretprior) * (retsize));
+    if (pretprior == NULL) {
+        ret = -EXTARGS_NO_MEM;
+        goto fail;
+    }
+    memset(pretprior,0,sizeof(*pretprior) * (retsize));
+    if (*ppout) {
+        memcpy(pretprior, *ppout, (*priorsize) * sizeof(*pretprior));
+    }
+    DEBUG_INFO("[%d] [%d] [%s]",retsize-1,prior,priorstr);
+    pretprior[retsize - 1] = prior;
+    if (*ppout && pretprior != *ppout) {
+        free(*ppout);
+    }
+    *ppout = pretprior;
+    *priorsize = retsize;
+    return retsize;
+fail:
+    if (pretprior && pretprior != *ppout) {
+        free(pretprior);
+    }
+    pretprior = NULL;
+    return ret;
+}
+
+void __free_environ(char*** pppenviron)
+{
+    int i = 0;
+    char** ppenviron;
+    if (pppenviron && *pppenviron) {
+        ppenviron = *pppenviron;
+        for (i = 0;; i++) {
+            if (ppenviron[i] == NULL) {
+                break;
+            }
+            free(ppenviron[i]);
+            ppenviron[i] = NULL;
+        }
+        free(ppenviron);
+        *pppenviron = NULL;
+    }
+    return;
+}
+
+int __add_environ(char***pppenviron, char* environstr)
+{
+    int i, cnt = 0;
+    int ret;
+    char** ppenviron = *pppenviron;
+    char** pptmpenv = NULL;
+    if (ppenviron) {
+        for (i = 0;; i++) {
+            if (ppenviron[i] == NULL) {
+                break;
+            }
+            cnt ++;
+        }
+    }
+
+    pptmpenv = (char**) malloc(sizeof(pptmpenv[0]) * (cnt + 2));
+    if (pptmpenv == NULL) {
+        ret = -EXTARGS_NO_MEM;
+        goto fail;
+    }
+    memset(pptmpenv, 0, sizeof(pptmpenv[0]) * (cnt + 2));
+    if (cnt > 0) {
+        for (i = 0; i < cnt; i++) {
+            pptmpenv[i] = ppenviron[i];
+        }
+    }
+
+    pptmpenv[cnt] = safe_strdup(environstr);
+    if (pptmpenv[cnt] == NULL) {
+        ret = -EXTARGS_NO_MEM;
+        goto fail;
+    }
+
+    if (ppenviron) {
+        free(ppenviron);
+    }
+    *pppenviron = pptmpenv;
+    return (cnt + 1);
+fail:
+    if (pptmpenv) {
+        free(pptmpenv);
+    }
+    pptmpenv = NULL;
+    return ret;
+}
+
+int __set_environ(char** ppenviron)
+{
+    int i;
+    char* envkey = NULL, *envval = NULL;
+    int keysize = 0, valsize = 0;
+    char* equalptr = NULL;
+    int cnt = 0;
+    int keylen;
+    int ret;
+    for (i = 0;; i++) {
+        if (ppenviron == NULL || ppenviron[i] == NULL) {
+            break;
+        }
+        equalptr = strchr(ppenviron[i], '=');
+        ret = snprintf_safe(&envkey, &keysize, "%s", ppenviron[i]);
+        if (ret < 0) {
+            ret = -EXTARGS_NO_MEM;
+            goto out;
+        }
+        if (equalptr == NULL) {
+            ret = snprintf_safe(&envval, &valsize, "1");
+        } else {
+            keylen = (int)((uintptr_t)equalptr - (uintptr_t)ppenviron[i]);
+            /*to set the value*/
+            envkey[keylen] = 0x0;
+            equalptr ++;
+            ret = snprintf_safe(&envval, &valsize, "%s", equalptr);
+        }
+        if (ret < 0) {
+            ret = -EXTARGS_NO_MEM;
+            goto out;
+        }
+
+        DEBUG_INFO("putenv %s", ppenviron[i]);
+        ret = PUTENV(ppenviron[i]);
+        if (ret < 0) {
+            ret = -EXTARGS_INVAL_RETURN;
+            goto out;
+        }
+        equalptr = GETENV(envkey);
+        if (equalptr) {
+            DEBUG_INFO("getenv [%s]=%s", envkey, equalptr);
+        } else {
+            DEBUG_INFO("getenv [%s]=NULL", envkey);
+        }
+        cnt ++;
+    }
+
+    ret = cnt;
+out:
+    snprintf_safe(&envkey, &keysize, NULL);
+    snprintf_safe(&envval, &valsize, NULL);
+    return ret;
+}
+
+int __unset_env(char** ppenviron)
+{
+    int i;
+    char* envkey = NULL;
+    int keysize = 0;
+    char* equalptr = NULL;
+    int cnt = 0;
+    int keylen;
+    int ret;
+    for (i = 0;; i++) {
+        if (ppenviron == NULL || ppenviron[i] == NULL) {
+            break;
+        }
+        equalptr = strchr(ppenviron[i], '=');
+        ret = snprintf_safe(&envkey, &keysize, "%s", ppenviron[i]);
+        if (ret < 0) {
+            ret = -EXTARGS_NO_MEM;
+            goto out;
+        }
+        if (equalptr != NULL) {
+            keylen = (int)((uintptr_t)equalptr - (uintptr_t)ppenviron[i]);
+            /*to set the value*/
+            envkey[keylen] = 0x0;
+        }
+        equalptr = GETENV(envkey);
+        if (equalptr) {
+            DEBUG_INFO("unsetenv [%s]=%s", envkey, equalptr);
+        } else {
+            DEBUG_INFO("unsetenv [%s]=NULL", envkey);
+        }
+        ret = UNSETENV(envkey);
+        if (ret < 0) {
+            ret = -EXTARGS_INVAL_RETURN;
+            goto out;
+        }
+        cnt ++;
+    }
+
+    ret = cnt;
+out:
+    snprintf_safe(&envkey, &keysize, NULL);
+    return ret;
+}
+
+int init_input_argc(int argc, char* argv[],
+                    int *pinputargc, char** pinputargv[],
+                    extargs_options_t* pextargsoptions, int**ppriority, 
+                    char*** pppenviron,char** ppusageout)
+{
+    int i, j;
+    int handled = 1;
+    int* priority = NULL, *ptmpprior = NULL;
+    int numpriority = 0;
+    char** inputargv = argv;
+    int inputargc = argc;
+    int ret;
+    int priorended = 0;
+    char** ppenviron = *pppenviron;
+    for (i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--") == 0) {
+            /*to skip this */
+            i ++;
+            handled = i;
+            break;
+        } else if (strcmp(argv[i], "-p") == 0 ||
+                   strcmp(argv[i], "--priority") == 0) {
+            if ((i + 1) >= argc) {
+                Usage(3, "%s need argv", argv[i]);
+            }
+            ret = add_priority(argv[i + 1], &priority, &numpriority);
+            if (ret < 0) {
+                Usage(3, "unknown %s prirority", argv[i + 1]);
+            }
+            i += 1;
+        } else if (strcmp(argv[i], "-h") == 0 ||
+                   strcmp(argv[i], "--help") == 0) {
+            Usage(0, NULL);
+        } else if (strcmp(argv[i], "--nohelp") == 0 ||
+                   strcmp(argv[i], "-n") == 0) {
+            pextargsoptions->m_nohelp = 1;
+        } else if (strcmp(argv[i], "-a") == 0 ||
+                   strcmp(argv[i], "--argv0") == 0) {
+            if ((i + 1) >= argc) {
+                Usage(3, "%s need argv", argv[i]);
+            }
+            pextargsoptions->m_argv0 = argv[i + 1];
+            i += 1;
+        } else if (strcmp(argv[i], "-E") == 0 ||
+                   strcmp(argv[i], "--environ") == 0) {
+            if ((i + 1) >= argc) {
+                Usage(3, "%s need argv", argv[i]);
+            }
+            ret = __add_environ(pppenviron, argv[i + 1]);
+            if (ret < 0) {
+                goto fail;
+            }
+            i += 1;
+        } else if (strcmp(argv[i], "-v") == 0 ||
+                   strcmp(argv[i], "--verbose") == 0) {
+            st_debugmode ++;
+        } else if (strcmp(argv[i],"--screenwidth") == 0) {
+            if ((i + 1) >= argc) {
+                Usage(3, "%s need argv", argv[i]);
+            }
+            pextargsoptions->m_screenwidth = atoi(argv[i+1]);
+            i ++;
+        } else if (strcmp(argv[i],"--no-passall") == 0) {
+            pextargsoptions->m_flags |= EXTARGS_FLAG_NO_PASSALL;
+        } else if (strcmp(argv[i],"--longprefix") == 0) {
+            if ((i + 1) >= argc) {
+                Usage(3, "%s need argv", argv[i]);
+            }
+            pextargsoptions->m_longprefix = argv[i+1];
+            i ++;            
+        } else if (strcmp(argv[i],"--shortprefix") == 0) {
+            if ((i + 1) >= argc) {
+                Usage(3, "%s need argv", argv[i]);
+            }
+            pextargsoptions->m_shortprefix = argv[i+1];
+            i ++;
+        } else if (strcmp(argv[i],"--jsonlong") == 0) {
+            if ((i + 1) >= argc) {
+                Usage(3, "%s need argv", argv[i]);
+            }
+            pextargsoptions->m_jsonlong = argv[i+1];
+            i ++;
+        } else if (strcmp(argv[i],"--usageout") == 0) {
+            if ((i + 1) >= argc) {
+                Usage(3, "%s need argv", argv[i]);
+            }
+            if (ppusageout) {
+                *ppusageout = argv[i+1];
+            }
+            i ++;
+        } else {
+            handled = i;
+            break;
+        }
+    }
+
+    if (handled != 1) {
+        inputargc = (argc - handled + 1);
+        inputargv = malloc(sizeof(*pinputargv) * (inputargc + 1));
+        if (inputargv == NULL) {
+            ret = -EXTARGS_NO_MEM;
+            goto fail;
+        }
+        memset(inputargv, 0, sizeof(*inputargv) * (inputargc + 1));
+        inputargv[0] = argv[0];
+        for (i = handled, j = 1; i < argc; i++, j++) {
+            inputargv[j] = argv[i];
+        }
+    }
+
+    if (priority != NULL) {
+        priorended = 0;
+        for (i = 0; i < numpriority; i++) {
+            if (priority[i] == EXTARGS_PRIO_NONE) {
+                priorended = 1;
+                break;
+            }
+        }
+
+        if (priorended == 0) {
+            ptmpprior = malloc(sizeof(*ptmpprior) * (numpriority + 1));
+            if (ptmpprior == NULL) {
+                ret = -EXTARGS_NO_MEM;
+                goto fail;
+            }
+            for (i = 0; i < numpriority; i++) {
+                ptmpprior[i] = priority[i];
+            }
+            ptmpprior[numpriority] = EXTARGS_PRIO_NONE;
+            numpriority ++;
+            if (priority != NULL && priority != *ppriority) {
+                free(priority);
+            }
+            priority = ptmpprior;
+            ptmpprior = NULL;
+        }
+    }
+    if (*ppriority && priority != *ppriority) {
+        free(*ppriority);
+    }
+    *ppriority = priority;
+
+    *pinputargv = inputargv;
+    *pinputargc = inputargc;
+    return inputargc;
+
+fail:
+    if (ptmpprior != NULL) {
+        free(ptmpprior);
+    }
+    ptmpprior = NULL;
+    if (priority != NULL && priority != *ppriority) {
+        free(priority);
+    }
+    priority = NULL;
+    if (inputargv != argv && inputargv != NULL) {
+        free(inputargv);
+    }
+    inputargv = NULL;
+    if (ppenviron) {
+        for (i = 0;; i++) {
+            if (ppenviron[i] == NULL) {
+                break;
+            }
+            free(ppenviron[i]);
+            ppenviron[i] = NULL;
+        }
+        if (ppenviron != *pppenviron) {
+            free(ppenviron);
+        }
+        ppenviron = NULL;
+    }
+    return ret;
+}
+
+INIT_EXTARGS_OPTIONS(st_extargs_options);
+
+int main(int argc, char* argv[])
+{
+    int ret;
+    args_options_t argsoption;
+    int inputargc = argc;
+    char** inputargv = argv;
+    int* priority = NULL;
+    char** ppenviron = NULL;
+    char* usage=NULL;
+    char* usagecmd=NULL;
+    pextargs_state_t pextstate = NULL;
+    memset(&argsoption, 0, sizeof(argsoption));    
+    st_debugfp = stderr;
+    ret = init_input_argc(argc, argv, &inputargc, &inputargv, &st_extargs_options, &priority, &ppenviron,&usagecmd);
+    if (ret < 0) {
+        goto out;
+    }
+
+    ret = __set_environ(ppenviron);
+    if (ret < 0) {
+        goto out;
+    }
+
+    free_extargs_state(&pextstate);
+    release_extargs_output(&argsoption);
+
+    ret = parse_param_smart(inputargc, inputargv, st_main_cmds, &argsoption, &pextstate, priority, &st_extargs_options);
+    if (ret < 0) {
+        fprintf(stderr, "can not parse error (%d)\n", ret);
+        goto out;
+    }
+
+    if (usagecmd != NULL) {
+        usage= help_usage(argv[0],usagecmd,st_main_cmds,NULL);
+        if (usage != NULL) {
+            ret = 0;
+            fprintf(stdout,"%s",usage);
+        } else {
+            ret = -1;
+            fprintf(stderr, "usage [%s] error",usagecmd);
+            goto out;
+        }
+
+    } else {
+        ret = debug_extargs_output(inputargc, inputargv, pextstate, &argsoption);
+        if (ret < 0) {
+            goto out;
+        }        
+    }
+
+    free_extargs_state(&pextstate);
+    release_extargs_output(&argsoption);
+
+    ret = 0;
+out:
+    __unset_env(ppenviron);
+    __free_environ(&ppenviron);
+    if (priority) {
+        free(priority);
+    }
+    priority = NULL;
+    if (inputargv != argv && inputargv != NULL) {
+        free(inputargv);
+    }
+    inputargv = NULL;
+    inputargc = 0;
+    free_extargs_state(&pextstate);
+    release_extargs_output(&argsoption);
+    extargs_deinit();
+    if (usage != NULL) {
+        free(usage);
+    }
+    usage = NULL;
+    return ret;
+}
+
