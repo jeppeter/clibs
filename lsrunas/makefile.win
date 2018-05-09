@@ -1,6 +1,8 @@
 
 CURDIR=$(MAKEDIR)
 TOPDIR=$(CURDIR)\..
+DYNAMICDIR=$(TOPDIR)\dynamiclib
+STATICDIR=$(TOPDIR)\staticlib
 
 CC      = cl.exe
 LD      = link.exe
@@ -34,26 +36,33 @@ GIT_VERBOSE=--quiet
 
 !IFDEF STATICLIB
 !IF $(STATICLIB) != 0
-STATIC_LIB_CFLAGS=-DWINLIB_STATIC_EXPORT /MD
+STATIC_LIB_CFLAGS=-DWINLIB_STATIC_EXPORT /MT
 EXTARGSLIB_VALUE=1
 WINLIB_VALUE=1
+
+INC_LDFLAGS = "$(STATICDIR)\extargslib.lib" "$(STATICDIR)\winlib.lib" "$(STATICDIR)\json.lib" Advapi32.lib
 !ELSE
-STATIC_LIB_CFLAGS=-DWINLIB_DLL_IMPORT /MD
+STATIC_LIB_CFLAGS=-DWINLIB_DLL_IMPORT /MT
 EXTARGSLIB_VALUE=0
 WINLIB_VALUE=0
+
+INC_LDFLAGS = "$(DYNAMICDIR)\extargslib.lib" "$(DYNAMICDIR)\winlib.lib" "$(DYNAMICDIR)\json.lib" Advapi32.lib
+
 !ENDIF
 !ELSE
-STATIC_LIB_CFLAGS=-DEXTARGS_DLL_IMPORT -DWINLIB_DLL_IMPORT /MD
+STATIC_LIB_CFLAGS=-DWINLIB_DLL_IMPORT /MT
 EXTARGSLIB_VALUE=0
 WINLIB_VALUE=0
+
+INC_LDFLAGS = "$(DYNAMICDIR)\extargslib.lib" "$(DYNAMICDIR)\winlib.lib" "$(DYNAMICDIR)\json.lib" Advapi32.lib
 !ENDIF
 
-INC_CFLAGS = /I"$(TOPDIR)\extargslib\src" /I"$(TOPDIR)\winlib"
+INC_CFLAGS = /I"$(TOPDIR)\common\extargslib" /I"$(TOPDIR)\winlib" /I"$(TOPDIR)\common" /I"$(TOPDIR)\common\jsonlib"
 COM_CFLAGS = /Wall /wd"4820" /wd"4668" /wd"4127" /wd"4510" /wd"4512" /wd"4610"
 REL_CFLAGS = 
 DBG_CFLAGS = /Zi /Od 
 
-INC_LDFLAGS = "$(TOPDIR)\extargslib\src\extargslib.lib" "$(TOPDIR)\winlib\winlib.lib" Advapi32.lib
+
 #INC_LDFLAGS = "$(TOPDIR)\winlib\winlib.lib" Advapi32.lib
 REL_LDFLAGS = 
 
@@ -67,19 +76,19 @@ all:lsrunas.exe
 
 !IFDEF STATICLIB
 !IF $(STATICLIB) != 0
-lsrunas.exe:$(OBJECTS) $(TOPDIR)\extargslib\src\extargslib.lib $(TOPDIR)\winlib\winlib.lib
+lsrunas.exe:$(OBJECTS) $(STATICDIR)\extargslib.lib $(STATICDIR)\winlib.lib $(STATICDIR)\json.lib
 	$(QUIETCMD) echo "call static $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@  $(LDFLAGS)  $(OBJECTS)
 	$(QUIETCMD)echo "use static lib"
 !ELSE
-lsrunas.exe:$(OBJECTS)  extargslib.dll winlib.dll
+lsrunas.exe:$(OBJECTS)  $(DYNAMICDIR)\extargslib.dll $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll
 	$(QUIETCMD) echo "call dynamic $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
 	$(QUIETCMD)echo "use dynamic lib"
 !ENDIF	
 
 !ELSE
-lsrunas.exe:$(OBJECTS)  extargslib.dll winlib.dll
+lsrunas.exe:$(OBJECTS)  $(DYNAMICDIR)\extargslib.dll $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll
 	$(QUIETCMD) echo "call dynamic $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
 	$(QUIETCMD)echo "use dynamic lib"
@@ -91,43 +100,45 @@ lsrunas.exe:$(OBJECTS)  extargslib.dll winlib.dll
 
 lsrunas.cpp:args_options64.cpp args_options32.cpp
 
-args_options64.cpp:args_options.cpp.tmpl lsrunas64.json $(TOPDIR)\extargslib\coutput.py
-	$(QUIETCMD)$(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas64.json -i $(CURDIR)\args_options.cpp.tmpl cmdstruct | \
-	 $(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas64.json -i - -o $(CURDIR)\args_options64.cpp freefunc
+args_options64.cpp:args_options.cpp.tmpl lsrunas64.json $(TOPDIR)\coutput.py
+	$(QUIETCMD)$(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\lsrunas64.json -i $(CURDIR)\args_options.cpp.tmpl cmdstruct | \
+	 $(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\lsrunas64.json -i - -o $(CURDIR)\args_options64.cpp freefunc
 
-args_options32.cpp:args_options.cpp.tmpl lsrunas32.json $(TOPDIR)\extargslib\coutput.py
-	$(QUIETCMD)$(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas32.json -i $(CURDIR)\args_options.cpp.tmpl cmdstruct | \
-	 $(PYTHON) $(TOPDIR)\extargslib\coutput.py -j $(CURDIR)\lsrunas32.json -i - -o $(CURDIR)\args_options32.cpp freefunc
+args_options32.cpp:args_options.cpp.tmpl lsrunas32.json $(TOPDIR)\coutput.py
+	$(QUIETCMD)$(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\lsrunas32.json -i $(CURDIR)\args_options.cpp.tmpl cmdstruct | \
+	 $(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\lsrunas32.json -i - -o $(CURDIR)\args_options32.cpp freefunc
 
 
-$(TOPDIR)\extargslib\coutput.py:$(TOPDIR)\extargslib
 
-extargslib.dll:$(TOPDIR)\extargslib\src\extargslib.lib
-	$(QUIETCMD)$(CP) $(TOPDIR)\extargslib\src\extargslib.dll extargslib.dll
+$(DYNAMICDIR)\extargslib.dll:
+	$(QUIETCMD)cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)"
 
-winlib.dll:$(TOPDIR)\winlib\winlib.lib
-	$(QUIETCMD)$(CP) $(TOPDIR)\winlib\winlib.dll winlib.dll
+$(DYNAMICDIR)\winlib.dll:
+	$(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)"
 
-$(TOPDIR)\extargslib\src\extargslib.lib: $(TOPDIR)\extargslib
-	$(QUIETCMD) (cd $(TOPDIR)\extargslib\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win EXTARGSLIB_STATICLIB=$(EXTARGSLIB_VALUE) all && cd $(CURDIR))  || cd $(CURDIR)
+$(DYNAMICDIR)\json.dll:
+	$(QUIETCMD)cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)"
 
-$(TOPDIR)\extargslib\src\extargslib.dll: $(TOPDIR)\extargslib
-	$(QUIETCMD) (cd $(TOPDIR)\extargslib\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win EXTARGSLIB_STATICLIB=$(EXTARGSLIB_VALUE) all && cd $(CURDIR))  || cd $(CURDIR)	
 
-$(TOPDIR)\winlib\winlib.lib:
-	$(QUIETCMD) (cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win WINLIB_STATICLIB=$(WINLIB_VALUE) all && cd $(CURDIR))  || cd $(CURDIR)
+$(STATICDIR)\extargslib.lib:
+	$(QUIETCMD)cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)"
 
-$(TOPDIR)\winlib\winlib.dll:
-	$(QUIETCMD) (cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win WINLIB_STATICLIB=$(WINLIB_VALUE) all && cd $(CURDIR))  || cd $(CURDIR)
+$(STATICDIR)\winlib.lib:
+	$(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)"
 
-$(TOPDIR)\extargslib:
-	$(QUIETCMD) (cd $(TOPDIR) && $(GIT) clone $(GIT_VERBOSE) https://github.com/jeppeter/extargslib.git extargslib && cd $(CURDIR)) || cd $(CURDIR)
+$(STATICDIR)\json.lib:
+	$(QUIETCMD)cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)"
 
-clean_lib:
-	$(QUIETCMD) if EXIST $(TOPDIR)\extargslib (cd $(TOPDIR)\extargslib\src && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd $(CURDIR)) 
-	$(QUIETCMD) (cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd $(CURDIR)) || cd $(CURDIR)
+clean_winlib:
+	$(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd "$(CURDIR)"
 
-clean:clean_lib
+clean_json:clean_winlib
+	$(QUIETCMD)cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd "$(CURDIR)"
+
+clean_extargslib: clean_json
+	$(QUIETCMD)cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd "$(CURDIR)"
+
+clean:clean_extargslib
 	$(QUIETCMD) $(RM) *.exe *.obj 2>NUL
 	$(QUIETCMD) $(RM) *.pdb *.ilk 2>NUL
 	$(QUIETCMD) $(RM) args_options32.cpp args_options64.cpp 2>NUL

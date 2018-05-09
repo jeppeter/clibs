@@ -6,10 +6,10 @@ DYNAMICDIR=$(TOPDIR)\dynamiclib
 STATICDIR=$(TOPDIR)\staticlib
 
 TARGET=extargslib
-
-
 SHAREDLIB_FILE=$(TARGET).dll
 STATICLIB_FILE=$(TARGET).lib
+
+
 CC         =cl.exe
 LD         =link.exe
 AR         =lib.exe
@@ -94,27 +94,27 @@ $(STATICLIB_FILE): $(OBJECTS) $(STATICDIR)\winlib.lib $(STATICDIR)\json.lib
 
 !ELSE
 
-all:$(DYNAMICDIR)\$(SHAREDLIB_FILE) $(STATICLIB_FILE)
+all:$(DYNAMICDIR)\$(SHAREDLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE)
 
 $(STATICLIB_FILE): $(OBJECTS)
     $(QUIETCMD)$(AR) $(ARFLAGS) /DEF -out:$@ $(OBJECTS)
 
 
 $(SHAREDLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll
-    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(TOPDIR)\winlib\winlib.lib $(TOPDIR)\common\jsonlib\json.lib
+    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(DYNAMICDIR)\winlib.lib $(DYNAMICDIR)\json.lib
 
 
 !ENDIF
 
 !ELSE
-all:$(DYNAMICDIR)\$(SHAREDLIB_FILE) $(STATICLIB_FILE)
+all:$(DYNAMICDIR)\$(SHAREDLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE)
 
 $(STATICLIB_FILE): $(OBJECTS)
     $(QUIETCMD)$(AR) $(ARFLAGS) /DEF -out:$@ $(OBJECTS)
 
 
 $(SHAREDLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll
-    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(TOPDIR)\winlib\winlib.lib $(TOPDIR)\common\jsonlib\json.lib
+    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(DYNAMICDIR)\winlib.lib $(DYNAMICDIR)\json.lib
 
 !ENDIF
 
@@ -123,6 +123,9 @@ $(DYNAMICDIR)\$(SHAREDLIB_FILE):$(SHAREDLIB_FILE) $(DYNAMICDIR)
 
 $(STATICDIR)\$(STATICLIB_FILE):$(STATICLIB_FILE) $(STATICDIR)
 	$(QUIETCMD)$(CP) $(STATICLIB_FILE) $(STATICDIR)\$(STATICLIB_FILE)
+
+$(DYNAMICDIR)\$(STATICLIB_FILE):$(STATICLIB_FILE) $(DYNAMICDIR)
+	$(QUIETCMD)$(CP) $(STATICLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE)
 
 $(STATICDIR)\winlib.lib:
 	$(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(MAKE_LOGO_FLAGS) /f makefile.win STATICLIB=1 all && cd "$(CURDIR)"
@@ -154,5 +157,5 @@ clean_json:
 clean:clean_winlib clean_json
     $(QUIETCMD)$(RM) *.pdb *.idb *.ilk *.exp *.lib *.dll *.obj 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(OBJECTS) 2>NUL || echo ""
-    $(QUIETCMD)$(RM) $(STATICLIB) $(SHAREDLIB) 2>NUL || echo ""
-    $(QUIETCMD)$(RM) $(DYNAMICDIR)\$(SHAREDLIB_FILE) $(STATICDIR)\$(STATICLIB_FILE) || echo ""
+    $(QUIETCMD)$(RM) $(STATICLIB_FILE) $(SHAREDLIB_FILE) 2>NUL || echo ""
+    $(QUIETCMD)$(RM) $(DYNAMICDIR)\$(SHAREDLIB_FILE) $(STATICDIR)\$(STATICLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE) 2>NUL || echo ""

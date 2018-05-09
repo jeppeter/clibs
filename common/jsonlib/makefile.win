@@ -13,8 +13,9 @@ CP      = copy /Y
 MKDIR   = md.exe
 MAKE    = nmake.exe
 
-STATICLIB_FILE = json.lib
-SHAREDLIB_FILE = json.dll
+TARGET=json
+STATICLIB_FILE = $(TARGET).lib
+SHAREDLIB_FILE = $(TARGET).dll
 
 HEADERS = jvalue.h jstring.h util.h hashtable.h arraylist.h
 SOURCES = jvalue.c json.c jstring.c util.c hashtable.c arraylist.c
@@ -25,14 +26,17 @@ OBJECTS = $(SOURCES:.c=.obj)
 !IF $(MAKEVERBOSE) != 0
 NOLOGO_CFLAGS = 
 QUIETCMD=
+NOLOG_MAKEFLAGS=
 !ELSE
 NOLOGO_CFLAGS = /nologo
 QUIETCMD=@
+NOLOG_MAKEFLAGS= /nologo
 !ENDIF
 
 !ELSE
 QUIETCMD=@
 NOLOGO_CFLAGS = /nologo
+NOLOG_MAKEFLAGS= /nologo
 !ENDIF
 
 !IFDEF STATICLIB
@@ -68,25 +72,24 @@ $(STATICLIB_FILE): $(OBJECTS) $(STATICDIR)\winlib.lib
 
 
 !ELSE
-all: $(STATICLIB_FILE) $(DYNAMICDIR)\$(SHAREDLIB_FILE)
+all: $(DYNAMICDIR)\$(STATICLIB_FILE) $(DYNAMICDIR)\$(SHAREDLIB_FILE)
 
 
-$(STATICLIB_FILE): $(OBJECTS) $(STATICDIR)\winlib.lib
+$(STATICLIB_FILE): $(OBJECTS)
     $(QUIETCMD)$(AR) $(ARFLAGS) -out:$@ $(OBJECTS)
 
 $(SHAREDLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\winlib.dll
-    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(TOPDIR)\winlib\winlib.lib
+    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(DYNAMICDIR)\winlib.lib
 
 !ENDIF
 !ELSE
-STATICLIB=0
-all: $(STATICLIB_FILE) $(DYNAMICDIR)\$(SHAREDLIB_FILE)
+all: $(DYNAMICDIR)\$(STATICLIB_FILE) $(DYNAMICDIR)\$(SHAREDLIB_FILE)
 
-$(STATICLIB_FILE): $(OBJECTS) $(STATICDIR)\winlib.lib
+$(STATICLIB_FILE): $(OBJECTS)
     $(QUIETCMD)$(AR) $(ARFLAGS) -out:$@ $(OBJECTS) 
 
 $(SHAREDLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\winlib.dll
-    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(TOPDIR)\winlib\winlib.lib
+    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(DYNAMICDIR)\winlib.lib
 
 
 !ENDIF
@@ -103,12 +106,14 @@ $(STATICDIR)\$(STATICLIB_FILE):$(STATICLIB_FILE) $(STATICDIR)
 $(STATICDIR):
 	$(QUIETCMD)$(MKDIR) $(STATICDIR) || echo "$(STATICDIR) already"
 
+$(DYNAMICDIR)\$(STATICLIB_FILE):$(STATICLIB_FILE) $(DYNAMICDIR)
+	$(QUIETCMD)$(CP) $(STATICLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE)
 
 $(STATICDIR)\winlib.lib:
-	$(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) STATICLIB=1 /f makefile.win  all && cd $(CURDIR)
+	$(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(NOLOG_MAKEFLAGS) STATICLIB=1 /f makefile.win  all && cd $(CURDIR)
 
 $(DYNAMICDIR)\winlib.dll:
-	$(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) STATICLIB=0 /f makefile.win all && cd $(CURDIR)
+	$(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(NOLOG_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd $(CURDIR)
 
 .c.obj:
     $(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
@@ -120,4 +125,4 @@ clean:clean_winlib
     $(QUIETCMD)$(RM) *.pdb *.idb *.ilk *.exp *.lib *.dll 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(OBJECTS) 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(STATICLIB_FILE) $(SHAREDLIB_FILE) 2>NUL || echo ""
-    $(QUIETCMD)$(RM) $(STATICDIR)\$(STATICLIB_FILE) $(DYNAMICDIR)\$(SHAREDLIB_FILE) 2>NUL || echo ""
+    $(QUIETCMD)$(RM) $(STATICDIR)\$(STATICLIB_FILE) $(DYNAMICDIR)\$(SHAREDLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE) 2>NUL || echo ""
