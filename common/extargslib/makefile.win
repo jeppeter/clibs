@@ -1,9 +1,9 @@
 TOPDIR=..\..\
 
-CURDIR=.
+CURDIR=%CD%
 
-DYNAMICDIR=$(TOPDIR)\dynamic
-STATICDIR=$(TOPDIR)\static
+DYNAMICDIR=$(TOPDIR)\dynamiclib
+STATICDIR=$(TOPDIR)\staticlib
 
 TARGET=extargslib
 
@@ -15,7 +15,7 @@ LD         =link.exe
 AR         =lib.exe
 RM         =del
 MAKE       =nmake.exe
-CP         =cp /Y
+CP         =copy /Y
 MKDIR      =md.exe
 
 !IFDEF MAKEVERBOSE
@@ -25,12 +25,14 @@ NOLOGO_CFLAGS= /D__EXTARGS_VERBOSE__
 NOLOGO_LDFLAGS=
 NOLOGO_ARFLAGS=
 VERBOSE_SOURCES=debug_jvalue.c
+MAKE_LOGO_FLAGS=
 !ELSE
 QUIETCMD=@
 NOLOGO_CFLAGS=/nologo
 NOLOGO_LDFLAGS=/nologo
 NOLOGO_ARFLAGS=/nologo
 VERBOSE_SOURCES=
+MAKE_LOGO_FLAGS=/nologo
 !ENDIF
 !ELSE
 QUIETCMD=@
@@ -38,6 +40,7 @@ NOLOGO_CFLAGS=/nologo
 NOLOGO_LDFLAGS=/nologo
 NOLOGO_ARFLAGS=/nologo
 VERBOSE_SOURCES=
+MAKE_LOGO_FLAGS=/nologo
 !ENDIF
 
 !IFDEF STATICLIB
@@ -86,7 +89,7 @@ OBJECTS = $(LIB_OBJECTS)
 !IF $(STATICLIB) != 0
 all:$(STATICDIR)\$(STATICLIB_FILE)
 
-$(STATICLIB_FILE): $(OBJECTS)
+$(STATICLIB_FILE): $(OBJECTS) $(STATICDIR)\winlib.lib $(STATICDIR)\json.lib
     $(QUIETCMD)$(AR) $(ARFLAGS) -out:$@ $(OBJECTS)
 
 !ELSE
@@ -97,8 +100,8 @@ $(STATICLIB_FILE): $(OBJECTS)
     $(QUIETCMD)$(AR) $(ARFLAGS) /DEF -out:$@ $(OBJECTS)
 
 
-$(SHAREDLIB_FILE): $(OBJECTS)
-    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS)
+$(SHAREDLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll
+    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(TOPDIR)\winlib\winlib.lib $(TOPDIR)\common\jsonlib\json.lib
 
 
 !ENDIF
@@ -110,8 +113,8 @@ $(STATICLIB_FILE): $(OBJECTS)
     $(QUIETCMD)$(AR) $(ARFLAGS) /DEF -out:$@ $(OBJECTS)
 
 
-$(SHAREDLIB_FILE): $(OBJECTS)
-    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS)
+$(SHAREDLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll
+    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(TOPDIR)\winlib\winlib.lib $(TOPDIR)\common\jsonlib\json.lib
 
 !ENDIF
 
@@ -121,17 +124,35 @@ $(DYNAMICDIR)\$(SHAREDLIB_FILE):$(SHAREDLIB_FILE) $(DYNAMICDIR)
 $(STATICDIR)\$(STATICLIB_FILE):$(STATICLIB_FILE) $(STATICDIR)
 	$(QUIETCMD)$(CP) $(STATICLIB_FILE) $(STATICDIR)\$(STATICLIB_FILE)
 
+$(STATICDIR)\winlib.lib:
+	$(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(MAKE_LOGO_FLAGS) /f makefile.win STATICLIB=1 all && cd "$(CURDIR)"
+
+$(STATICDIR)\json.lib:
+	$(QUIETCMD)cd $(TOPDIR)\common\jsonlib && $(MAKE) $(MAKE_LOGO_FLAGS) /f makefile.win STATICLIB=1 all && cd "$(CURDIR)"
+
+$(DYNAMICDIR)\winlib.dll:
+	$(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(MAKE_LOGO_FLAGS) /f makefile.win STATICLIB=0 all && cd "$(CURDIR)"
+
+$(DYNAMICDIR)\json.dll:
+	$(QUIETCMD)cd $(TOPDIR)\common\jsonlib && $(MAKE) $(MAKE_LOGO_FLAGS) /f makefile.win STATICLIB=0 all && cd "$(CURDIR)"
+
 $(DYNAMICDIR):
-	$(QUIETCMD)$(MKDIR) $(DYNAMICDIR)
+	$(QUIETCMD)$(MKDIR) $(DYNAMICDIR) || echo "$(DYNAMICDIR) already"
 
 $(STATICDIR):
-	$(QUIETCMD)$(MKDIR) $(STATICDIR)
+	$(QUIETCMD)$(MKDIR) $(STATICDIR) || echo "$(STATICDIR) already"
 
 .c.obj:
     $(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
 
-clean:
-    $(QUIETCMD)$(RM) *.pdb *.idb *.ilk *.exp 2>NUL || echo ""
+clean_winlib:
+	$(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(MAKE_LOGO_FLAGS) /f makefile.win clean && cd "$(CURDIR)"
+
+clean_json:
+	$(QUIETCMD)cd $(TOPDIR)\common\jsonlib && $(MAKE) $(MAKE_LOGO_FLAGS) /f makefile.win clean && cd "$(CURDIR)"
+
+clean:clean_winlib clean_json
+    $(QUIETCMD)$(RM) *.pdb *.idb *.ilk *.exp *.lib *.dll *.obj 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(OBJECTS) 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(STATICLIB) $(SHAREDLIB) 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(DYNAMICDIR)\$(SHAREDLIB_FILE) $(STATICDIR)\$(STATICLIB_FILE) || echo ""

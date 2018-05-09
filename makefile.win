@@ -1,5 +1,8 @@
 
 MAKE=nmake.exe
+TOPDIR=.
+DYNAMICDIR=$(TOPDIR)\dynamiclib
+STATICDIR=$(TOPDIR)\staticlib
 
 !IFDEF MAKEVERBOSE
 QUIETCMD=
@@ -12,14 +15,9 @@ CSCRIPT_VERBOSE=//Nologo
 
 all:lsrunas\lsrunas.exe
 
-lsrunas\lsrunas.exe:extargslib
+lsrunas\lsrunas.exe:
 	$(QUIETCMD)cd lsrunas && $(MAKE) /f makefile.win all && cd $(MAKEDIR)
 
-extargslib:check_git
-	$(QUIETCMD) If not EXIST $@ (git.exe clone https://github.com/jeppeter/extargslib.git extargslib)
-
-check_git:
-	$(QUIETCMD)cscript.exe $(CSCRIPT_VERBOSE) $(MAKEDIR)\check_env.vbs git 1.8
 
 clean:
 	$(QUIETCMD)cd lsrunas && $(MAKE) /f makefile.win clean && cd $(MAKEDIR)

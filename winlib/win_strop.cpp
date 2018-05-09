@@ -459,7 +459,7 @@ int quote_string(char** ppquotestr,int *psize,const char* pstr,...)
 
 char* safe_strdup(const char* str)
 {
-    int len = (int)strlen(str);
+    size_t len = strlen(str);
     char* pretstr = NULL;
 
     pretstr = (char*) malloc(len + 1);
@@ -468,4 +468,42 @@ char* safe_strdup(const char* str)
     }
     memcpy(pretstr, str, len + 1);
     return pretstr;
+}
+
+void __make_uppercase(const char* pstr)
+{
+    char* pcurptr = (char*) pstr;
+
+    while (pcurptr && *pcurptr != 0x0) {
+        if (*pcurptr >= 'a' && *pcurptr <= 'z') {
+            *pcurptr = *pcurptr - 'a' + 'A';
+        }
+        pcurptr ++;
+    }
+    return ;
+}
+
+void str_upper_case(const char* pstr)
+{
+    __make_uppercase(pstr);
+    return;
+}
+
+void __make_under_score(const char* pstr)
+{
+    char* pcurptr = (char*) pstr;
+
+    while (pcurptr && *pcurptr != 0x0) {
+        if (*pcurptr == '-') {
+            *pcurptr = '_';
+        }
+        pcurptr ++;
+    }
+    return ;
+}
+
+void str_underscore_case(const char* pstr)
+{
+    __make_under_score(pstr);
+    return;
 }

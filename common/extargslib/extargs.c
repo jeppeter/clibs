@@ -9,10 +9,10 @@
 #ifdef EXTARGS_VERBOSE
 #include <debug_jvalue.h>
 #define DEBUG_JVALUE(value,...)   do{if (st_extargs_loglevel >= EXTARGS_LOG_DEBUG) {debug_jvalue(stderr,value,FILE,LINE,__VA_ARGS__);}}while(0)
-#define DEBUG_BUFFER(ptr,size,...) do{if (st_extargs_loglevel >= EXTARGS_LOG_DEBUG) {debug_buffer(stderr,(ptr),(size),FILE,LINE,__VA_ARGS__);}}while(0)
+#define EXTARGS_DEBUG_BUFFER(ptr,size,...) do{if (st_extargs_loglevel >= EXTARGS_LOG_DEBUG) {EXTARGS_DEBUG_BUFFER(stderr,(ptr),(size),FILE,LINE,__VA_ARGS__);}}while(0)
 #else
 #define DEBUG_JVALUE(...)
-#define DEBUG_BUFFER(...)
+#define EXTARGS_DEBUG_BUFFER(...)
 #endif
 
 
@@ -3200,14 +3200,14 @@ try_again:
     pbuffer[bufnum] = 0x0;
     numread = bufnum + 1;
     EXTARGS_DEBUG("(%s) (%s)", jsonfile, pbuffer);
-    DEBUG_BUFFER(pbuffer, numread, NULL);
+    EXTARGS_DEBUG_BUFFER(pbuffer, numread, NULL);
     jval = jvalue_read(pbuffer, &numread);
     if (jval == NULL) {
         ret = 0;
         EXTARGS_WARN("can not parse (%s)file", jsonfile);
         goto out;
     }
-    DEBUG_BUFFER(pbuffer, numread, NULL);
+    EXTARGS_DEBUG_BUFFER(pbuffer, numread, NULL);
     DEBUG_JVALUE(jval, NULL);
     ret = load_jsonvalue(pmaincmd, pstate, popt, prefix, jval);
 out:

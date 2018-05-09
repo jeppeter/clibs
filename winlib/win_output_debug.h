@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <windows.h>
+#include <win_err.h>
 
 #define  BASE_LOG_FATAL        0
 #define  BASE_LOG_ERROR        10
