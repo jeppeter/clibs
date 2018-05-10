@@ -518,33 +518,28 @@ int str_case_cmp(const char* pstr, const char* pcmpstr)
     return strcmp(pstr,pcmpstr);
 }
 
+
 #define MIN_STR_SIZE    0x100
 
-int __get_basenum(char* ptr, unsigned char* pnum, int base, int maxbits)
+int __get_basenum(unsigned char* ptr, unsigned char* pnum, int base)
 {
     int i = 0;
     int ret;
-    char* pcurptr = ptr;
+    unsigned char* pcurptr = ptr;
     unsigned short cnum = 0;
+    int maxbits = 0;
     if (pcurptr == NULL || pnum == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
         goto fail;
     }
 
-    if (base != 8 && base != 10 && base != 16) {
-        ret = -ERROR_INVALID_PARAMETER;
-        goto fail;
-    }
-    if (base == 8 && maxbits > 3) {
-        ret = -ERROR_INVALID_PARAMETER;
-        goto fail;
-    }
-    if (base == 10 && maxbits > 3) {
-        ret = -ERROR_INVALID_PARAMETER;
-        goto fail;
-    }
-
-    if (base == 16 && maxbits > 2) {
+    if (base == 8 ) {
+        maxbits = 3;
+    } else if (base == 10) {
+        maxbits = 3;
+    } else if (base == 16) {
+        maxbits = 2;
+    } else {
         ret = -ERROR_INVALID_PARAMETER;
         goto fail;
     }
@@ -590,7 +585,7 @@ int __get_basenum(char* ptr, unsigned char* pnum, int base, int maxbits)
         goto fail;
     }
 
-    *pnum = cnum;
+    *pnum = (unsigned char)cnum;
     return i;
 fail:
     SETERRNO(ret);
@@ -599,12 +594,12 @@ fail:
 
 int unquote_string(char** ppstr, int *psize, char* pinput)
 {
-    char* pretstr = NULL;
-    int retsize = 0;
-    char* ptmpbuf = NULL;
+    unsigned char* pretstr = NULL;
+    size_t retsize = 0;
+    unsigned char* ptmpbuf = NULL;
     int ret;
-    int retlen = 0;
-    char* pcurptr = pinput;
+    size_t retlen = 0;
+    unsigned char* pcurptr = (unsigned char*)pinput;
     int quoted = 0;
     unsigned char addnum = 0;
 
@@ -625,14 +620,14 @@ int unquote_string(char** ppstr, int *psize, char* pinput)
         return ret;
     }
 
-    pretstr = *ppstr;
-    retsize = *psize;
+    pretstr = (unsigned char*)*ppstr;
+    retsize = (size_t)*psize;
 
     if (retsize < MIN_STR_SIZE || pretstr == NULL) {
         if (retsize < MIN_STR_SIZE) {
             retsize = MIN_STR_SIZE;
         }
-        pretstr = (char*) malloc(retsize);
+        pretstr = (unsigned char*) malloc(retsize);
         if (pretstr == NULL) {
             GETERRNO(ret);
             ERROR_INFO("alloc %d error[%d]", retsize, ret);
@@ -649,7 +644,7 @@ int unquote_string(char** ppstr, int *psize, char* pinput)
     while (*pcurptr != '\0') {
         if (retlen >= retsize) {
             retsize <<= 1;
-            ptmpbuf = (char*) malloc(retsize);
+            ptmpbuf = (unsigned char*) malloc(retsize);
             if (ptmpbuf == NULL) {
                 GETERRNO(ret);
                 ERROR_INFO("alloc %d error[%d]", retsize, ret);
@@ -659,7 +654,7 @@ int unquote_string(char** ppstr, int *psize, char* pinput)
             if (retlen > 0) {
                 memcpy(ptmpbuf, pretstr, retlen);
             }
-            if (pretstr != NULL && pretstr != *ppstr) {
+            if (pretstr != NULL && pretstr != (unsigned char*)*ppstr) {
                 free(pretstr);
             }
             pretstr = ptmpbuf;
@@ -689,12 +684,12 @@ int unquote_string(char** ppstr, int *psize, char* pinput)
                 pretstr[retlen] = '\n';
                 retlen ++;
             } else if (pcurptr[0] == 'r') {
-                pretstr[retlen] == '\r';
+                pretstr[retlen] = '\r';
                 retlen ++;
             } else if (pcurptr[0] == 'x') {
                 addnum = 0;
                 pcurptr ++;
-                ret = __get_basenum(pcurptr, &addnum, 16, 2);
+                ret = __get_basenum(pcurptr, &addnum, 16);
                 if (ret < 0) {
                     GETERRNO(ret);
                     ERROR_INFO("parse error %s at [%s]", pinput, pcurptr);
@@ -706,10 +701,10 @@ int unquote_string(char** ppstr, int *psize, char* pinput)
                 continue;
             } else if (pcurptr[0] == '0') {
                 addnum = 0;
-                ret = __get_basenum(pcurptr, &addnum, 8, 3);
+                ret = __get_basenum(pcurptr, &addnum, 8);
                 if (ret < 0) {
                     GETERRNO(ret);
-                    ERROR_INFO("parse error %s at [%s]", pinput, pcurptr);
+                    ERROR_INFO("parse %s error at [%s]", pinput, pcurptr);
                     goto fail;
                 }
                 pcurptr += ret;
@@ -718,6 +713,24 @@ int unquote_string(char** ppstr, int *psize, char* pinput)
                 continue;
             } else if (pcurptr[0] == '"') {
                 pretstr[retlen] = *pcurptr;
+                retlen ++;
+            } else if (pcurptr[0] >= '1' && pcurptr[0] <= '9') {
+                addnum = 0;
+                ret = __get_basenum(pcurptr,&addnum, 10) ;
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    ERROR_INFO("parse %s error at [%s]", pinput, pcurptr);
+                    goto fail;
+                }
+                pcurptr += ret;
+                pretstr[retlen] = addnum;
+                retlen ++;
+                continue;
+            } else if (pcurptr[0] == 'a') {
+                pretstr[retlen] = '\a';
+                retlen ++;
+            } else if (pcurptr[0] == 'v') {
+                pretstr[retlen] = '\v';
                 retlen ++;
             }
             pcurptr ++;
@@ -739,20 +752,20 @@ int unquote_string(char** ppstr, int *psize, char* pinput)
         free(ptmpbuf);
     }
     ptmpbuf = NULL;
-    if (*ppstr != NULL && *ppstr != pretstr) {
+    if (*ppstr != NULL && (unsigned char*)*ppstr != pretstr) {
         free(*ppstr);
     }
-    *ppstr = pretstr;
-    *psize = retsize;
+    *ppstr = (char*)pretstr;
+    *psize = (int)retsize;
 
-    return retlen;
+    return (int)retlen;
 fail:
     if (ptmpbuf != NULL) {
         free(ptmpbuf);
     }
     ptmpbuf = NULL;
 
-    if (pretstr != NULL && pretstr != *ppstr) {
+    if (pretstr != NULL && pretstr != (unsigned char*)*ppstr) {
         free(pretstr);
     }
     pretstr = NULL;
