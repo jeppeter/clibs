@@ -222,6 +222,57 @@ out:
     return ret;
 }
 
+int __check_valid_simple_string(char* value)
+{
+    int ret = 1;
+    char* pcurptr = value;
+    int quoted = 0;
+    if (*pcurptr == '"') {
+        quoted = 1;
+        pcurptr ++;
+    }
+    for (; *pcurptr != '\0'; pcurptr ++) {
+        if (*pcurptr >= '0' && *pcurptr <= '9') {
+            continue;
+        }
+        if ( (*pcurptr >= 'a' && *pcurptr <= 'z') ||
+                (*pcurptr >= 'A' && *pcurptr <= 'Z')) {
+            continue;
+        }
+        if (*pcurptr == '_' || *pcurptr == '-' ||
+                *pcurptr == ' ' || *pcurptr == '\t') {
+            continue;
+        }
+
+        if (quoted && *pcurptr == '\\' && pcurptr[1] != '\0') {
+            pcurptr ++;
+            continue;
+        }
+        if (quoted && *pcurptr != '"') {
+            continue;
+        }
+
+        if (quoted && *pcurptr == '"') {
+            if (pcurptr[1] != '\0') {
+                ret = 0;
+                break;
+            }
+            quoted = 0;
+            continue;
+        }
+
+        /*ok for the continue*/
+        ret = 0;
+        break;
+    }
+
+    if (quoted) {
+        /*this means it is error*/
+        return 0;
+    }
+    return ret;
+}
+
 int __add_object(jvalue* pj, char* pkey, char* value)
 {
     jvalue* pinsertval = NULL;
@@ -240,28 +291,33 @@ int __add_object(jvalue* pj, char* pkey, char* value)
     int64_t inum = 0;
     int added = 1;
     if (str_nocase_cmp(value, "null") == 0) {
+        DEBUG_INFO(" ");
         pinsertval = jnull_create();
     } else if (str_case_cmp(value, "false") == 0) {
+        DEBUG_INFO(" ");
         pinsertval = jbool_create(0);
     } else if (str_case_cmp(value, "true") == 0) {
+        DEBUG_INFO(" ");
         pinsertval = jbool_create(1);
     } else {
         ret = parse_int(value, &inum, &pretstr);
-        if (ret >= 0) {
-            if (pretstr != 0 && pretstr[0] == '\0') {
-                pinsertval = jint64_create(inum);
-            }
+        if (ret >= 0 && pretstr != NULL && pretstr[0] == '\0') {
+            pinsertval = jint64_create(inum);
         } else {
             ret = parse_number(value, &num, &pretstr);
-            if (ret >= 0) {
-                if (pretstr != NULL && pretstr[0] == '\0') {
-                    pinsertval = jint64_create((int64_t)num);
-                }
+            if (ret >= 0 && pretstr != NULL && pretstr[0] == '\0') {
+                pinsertval = jint64_create((int64_t)num);
             } else {
                 ret = parse_long_double(value, &dbl, &pretstr);
-                if (ret >= 0) {
-                    if (pretstr != NULL && pretstr[0] == '\0') {
-                        pinsertval = jreal_create((double)dbl);
+                if (ret >= 0 && pretstr != NULL && pretstr[0] == '\0') {
+                    pinsertval = jreal_create((double)dbl);
+                } else {
+                    DEBUG_INFO(" ");
+                    ret = __check_valid_simple_string(value);
+                    if (ret > 0) {
+                        DEBUG_INFO("string value");
+                        ret = 0;
+                        pinsertval = jstring_create(value, &ret);
                     }
                 }
             }
@@ -323,7 +379,7 @@ int __add_object(jvalue* pj, char* pkey, char* value)
         break;
     default:
         ret = -CMN_EINVAL;
-        ERROR_INFO("not valid type [%d] for\n%s", getval->type, value);
+        ERROR_INFO("not valid type [%d] JNULL[%d] for\n%s", getval->type, JNULL, value);
         goto fail;
     }
 

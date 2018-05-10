@@ -517,3 +517,245 @@ int str_case_cmp(const char* pstr, const char* pcmpstr)
 {
     return strcmp(pstr,pcmpstr);
 }
+
+#define MIN_STR_SIZE    0x100
+
+int __get_basenum(char* ptr, unsigned char* pnum, int base, int maxbits)
+{
+    int i = 0;
+    int ret;
+    char* pcurptr = ptr;
+    unsigned short cnum = 0;
+    if (pcurptr == NULL || pnum == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    if (base != 8 && base != 10 && base != 16) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+    if (base == 8 && maxbits > 3) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+    if (base == 10 && maxbits > 3) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    if (base == 16 && maxbits > 2) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    cnum = 0;
+    pcurptr = ptr;
+    for (i = 0; i < maxbits; i++, pcurptr ++) {
+        if (base == 8) {
+            if (*pcurptr >= '0' && *pcurptr <= '7') {
+                cnum *= 8;
+                cnum += *pcurptr - '0';
+            } else {
+                break;
+            }
+        } else if (base == 10) {
+            if (*pcurptr >= '0' && *pcurptr <= '9') {
+                cnum *= 10;
+                cnum += (*pcurptr - '0');
+            } else {
+                break;
+            }
+        } else if (base == 16) {
+            if (*pcurptr >= '0' && *pcurptr <= '9') {
+                cnum *= 16;
+                cnum += (*pcurptr - '0');
+            } else if (*pcurptr >= 'a' && *pcurptr <= 'f') {
+                cnum *= 16;
+                cnum += (*pcurptr - 'a');
+            } else if (*pcurptr >= 'A' && *pcurptr <= 'F') {
+                cnum *= 16;
+                cnum += (*pcurptr - 'A');
+            } else {
+                break;
+            }
+        } else {
+            ret = -ERROR_INVALID_PARAMETER;
+            goto fail;
+        }
+    }
+
+    if (cnum > 255) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    *pnum = cnum;
+    return i;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+int unquote_string(char** ppstr, int *psize, char* pinput)
+{
+    char* pretstr = NULL;
+    int retsize = 0;
+    char* ptmpbuf = NULL;
+    int ret;
+    int retlen = 0;
+    char* pcurptr = pinput;
+    int quoted = 0;
+    unsigned char addnum = 0;
+
+    if (pinput == NULL) {
+        if (ppstr != NULL && *ppstr != NULL) {
+            free(*ppstr);
+            *ppstr = NULL;
+        }
+        if (psize != NULL) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (ppstr == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretstr = *ppstr;
+    retsize = *psize;
+
+    if (retsize < MIN_STR_SIZE || pretstr == NULL) {
+        if (retsize < MIN_STR_SIZE) {
+            retsize = MIN_STR_SIZE;
+        }
+        pretstr = (char*) malloc(retsize);
+        if (pretstr == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", retsize, ret);
+            goto fail;
+        }
+    }
+    memset(pretstr, 0, retsize);
+    retlen = 0;
+    if (*pcurptr == '"') {
+        quoted = 1;
+        pcurptr ++;
+    }
+
+    while (*pcurptr != '\0') {
+        if (retlen >= retsize) {
+            retsize <<= 1;
+            ptmpbuf = (char*) malloc(retsize);
+            if (ptmpbuf == NULL) {
+                GETERRNO(ret);
+                ERROR_INFO("alloc %d error[%d]", retsize, ret);
+                goto fail;
+            }
+            memset(ptmpbuf, 0 , retsize);
+            if (retlen > 0) {
+                memcpy(ptmpbuf, pretstr, retlen);
+            }
+            if (pretstr != NULL && pretstr != *ppstr) {
+                free(pretstr);
+            }
+            pretstr = ptmpbuf;
+            ptmpbuf = NULL;
+        }
+
+        if (*pcurptr != '\\') {
+            if (quoted && *pcurptr == '"' && pcurptr[1] != '\0') {
+                ret = -ERROR_INVALID_PARAMETER;
+                goto fail;
+            } else if (quoted && *pcurptr == '"' && pcurptr[1] == '\0') {
+                quoted = 0;
+                break;
+            }
+            pretstr[retlen] = *pcurptr;
+            pcurptr ++;
+            retlen ++;
+        } else if (quoted) {
+            pcurptr ++;
+            if (pcurptr[0] == 'b') {
+                pretstr[retlen] = '\0';
+                retlen --;
+            } else if (pcurptr[0] == 't') {
+                pretstr[retlen] = '\t';
+                retlen ++;
+            } else if (pcurptr[0] == 'n') {
+                pretstr[retlen] = '\n';
+                retlen ++;
+            } else if (pcurptr[0] == 'r') {
+                pretstr[retlen] == '\r';
+                retlen ++;
+            } else if (pcurptr[0] == 'x') {
+                addnum = 0;
+                pcurptr ++;
+                ret = __get_basenum(pcurptr, &addnum, 16, 2);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    ERROR_INFO("parse error %s at [%s]", pinput, pcurptr);
+                    goto fail;
+                }
+                pcurptr += ret;
+                pretstr[retlen] = addnum;
+                retlen ++;
+                continue;
+            } else if (pcurptr[0] == '0') {
+                addnum = 0;
+                ret = __get_basenum(pcurptr, &addnum, 8, 3);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    ERROR_INFO("parse error %s at [%s]", pinput, pcurptr);
+                    goto fail;
+                }
+                pcurptr += ret;
+                pretstr[retlen] = addnum;
+                retlen ++;
+                continue;
+            } else if (pcurptr[0] == '"') {
+                pretstr[retlen] = *pcurptr;
+                retlen ++;
+            }
+            pcurptr ++;
+        } else {
+            pretstr[retlen] = *pcurptr;
+            pcurptr ++;
+            retlen ++;
+        }
+    }
+
+    if (quoted) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("not close quote string [%s]", pinput);
+        goto fail;
+    }
+
+
+    if (ptmpbuf != NULL) {
+        free(ptmpbuf);
+    }
+    ptmpbuf = NULL;
+    if (*ppstr != NULL && *ppstr != pretstr) {
+        free(*ppstr);
+    }
+    *ppstr = pretstr;
+    *psize = retsize;
+
+    return retlen;
+fail:
+    if (ptmpbuf != NULL) {
+        free(ptmpbuf);
+    }
+    ptmpbuf = NULL;
+
+    if (pretstr != NULL && pretstr != *ppstr) {
+        free(pretstr);
+    }
+    pretstr = NULL;
+    SETERRNO(ret);
+    return ret;
+}
