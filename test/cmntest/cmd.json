@@ -2,7 +2,7 @@
     "verbose|v<m_verbose>" : "+",
     "input|i<m_input>" : null,
     "output|o<m_output>" : null,
-    "addstring<addstring_handler>" : {
-        "$" : "*"
+    "addstring<addstring_handler>##add key value... into json##" : {
+        "$" : "+"
     }
 }
