@@ -471,3 +471,100 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int __write_fp_out(FILE* fp,char* poutbuf,int outsize)
+{
+    size_t outlen=0;
+    size_t curlen=0;
+    int ret;
+
+    if (fp == NULL || poutbuf == NULL || outsize < 0) {
+        ret  = -EINVAL;
+        goto fail;
+    }
+
+    while( (int)outlen < outsize) {
+        curlen = (outsize - outlen);
+        ret = (int) fwrite(&(poutbuf[outlen]), 1, curlen,fp);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("write [%d] error[%d]", outlen, ret);
+            goto fail;
+        }
+        outlen += ret;
+        if (ret == 0) {
+            /*it means we have something wrong*/
+            break;
+        }
+    }
+
+    return (int) outlen;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+int write_file_whole(char* outfile,char* poutbuf,int outsize)
+{
+    FILE* fp=NULL;
+    int ret=0;
+
+    if (outfile == NULL) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    fp = fopen(outfile,"wb");
+    if (fp == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("open [%s] error[%d]", outfile,ret);
+        goto fail;
+    }
+
+    ret = __write_fp_out(fp,poutbuf,outsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (fp != NULL) {
+        fclose(fp);
+    }
+    fp = NULL;
+    return ret;
+fail:
+    if (fp != NULL) {
+        fclose(fp);
+    }
+    fp = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int write_out_whole(int flag,char* poutbuf,int outsize)
+{
+    FILE* fp=NULL;
+    int ret;
+
+    if (flag == STDOUT_FILE_FLAG) {
+        fp = stdout;
+    } else if (flag == STDERR_FILE_FLAG) {
+        fp = stderr;
+    }
+
+    if (fp == NULL) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    ret = __write_fp_out(fp,poutbuf,outsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    return ret;
+fail:
+    SETERRNO(ret);
+    return ret;
+}

@@ -10,12 +10,18 @@
 extern "C" {
 #endif
 
+#define  STDOUT_FILE_FLAG         1
+#define  STDERR_FILE_FLAG         2
+
+
 WINLIB_API int mktempfile_safe(char* inputtemplate,char**ppoutput,int* bufsize);
 WINLIB_API int read_file_encoded(char* infile,char** ppoutbuf,int *bufsize);
 WINLIB_API int read_file_whole(char* infile,char** ppoutbuf,int *bufsize);
 WINLIB_API int read_stdin_whole(int freed,char** ppoutbuf,int *bufsize);
 WINLIB_API int delete_file(const char* infile);
 WINLIB_API int get_full_path(char* pinfile, char** ppfullpath, int *pfullsize);
+WINLIB_API int write_file_whole(char* outfile,char* poutbuf,int outsize);
+WINLIB_API int write_out_whole(int flag,char* poutbuf,int outsize);
 
 #ifdef __cplusplus
 };
