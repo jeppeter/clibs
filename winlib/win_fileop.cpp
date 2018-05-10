@@ -101,11 +101,10 @@ fail:
 
 int __read_fp_buffer(FILE* fp, char** ppoutbuf, int *pbufsize)
 {
-    int retlen = 0;
-    int curlen;
+    size_t retlen = 0;
+    size_t curlen;
     char* pretbuf = NULL;
-    char* pcurptr = NULL;
-    int retsize = 0;
+    size_t retsize = 0;
     char* ptmpbuf = NULL;
     int ret;
 
@@ -129,7 +128,7 @@ int __read_fp_buffer(FILE* fp, char** ppoutbuf, int *pbufsize)
     }
 
     pretbuf = *ppoutbuf;
-    retsize = *pbufsize;
+    retsize = (size_t)*pbufsize;
 
     if (retsize < MIN_BUF_SIZE || pretbuf == NULL) {
         if (retsize < MIN_BUF_SIZE) {
@@ -168,7 +167,7 @@ int __read_fp_buffer(FILE* fp, char** ppoutbuf, int *pbufsize)
         }
 
         curlen = retsize - retlen;
-        ret = fread(&(pretbuf[retlen]), 1, curlen, fp);
+        ret = (int)fread(&(pretbuf[retlen]), (size_t)1, curlen, fp);
         if (ret < 0) {
             if (feof(fp)) {
                 break;
@@ -178,7 +177,7 @@ int __read_fp_buffer(FILE* fp, char** ppoutbuf, int *pbufsize)
             goto fail;
         }
         retlen += ret;
-        if (ret != curlen) {
+        if (ret < (int)curlen) {
             break;
         }
     }
@@ -192,8 +191,8 @@ int __read_fp_buffer(FILE* fp, char** ppoutbuf, int *pbufsize)
         free(*ppoutbuf);
     }
     *ppoutbuf = pretbuf;
-    *pbufsize = retsize;
-    return retlen;
+    *pbufsize = (int)retsize;
+    return (int)retlen;
 
 fail:
     if (ptmpbuf != NULL) {
@@ -213,8 +212,6 @@ int read_file_encoded(char* infile, char** ppoutbuf, int *bufsize)
 {
     int ret;
     FILE* fp = NULL;
-    char* pretbuf=NULL;
-    char* ptmpbuf=NULL;
     int filelen;
     int retlen;
     char* preadbuf=NULL;
@@ -282,6 +279,7 @@ fail:
 int read_file_whole(char* infile,char** ppoutbuf,int *bufsize)
 {
     int ret=0;
+    FILE* fp=NULL;
     if (infile == NULL) {
         return __read_fp_buffer(NULL,ppoutbuf,bufsize);
     }
@@ -308,7 +306,7 @@ int read_file_whole(char* infile,char** ppoutbuf,int *bufsize)
         fclose(fp);
     }
     fp = NULL;
-    return retlen;
+    return ret;
 fail:
     if (fp != NULL) {
         fclose(fp);

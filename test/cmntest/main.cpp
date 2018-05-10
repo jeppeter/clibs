@@ -1,5 +1,6 @@
 #include <extargs.h>
 #include <cmn_args.h>
+#include <cmn_fileop.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -48,7 +49,8 @@ int init_log_verbose(pargs_options_t pargs)
 int read_input(pargs_options_t pargs, char** ppoutbuf,int *pbufsize)
 {
 	if (pargs == NULL) {
-		return read_file_whole(NULL, ppoutbuf,pbufsize);
+        SETERRNO(-1);
+		return -1;
 	}
 	if (pargs->m_input == NULL) {
 		return read_stdin_whole(0,ppoutbuf,pbufsize);
@@ -57,35 +59,63 @@ int read_input(pargs_options_t pargs, char** ppoutbuf,int *pbufsize)
 	return read_file_whole(pargs->m_input,ppoutbuf,pbufsize);
 }
 
+void free_input(pargs_options_t pargs, char** ppoutbuf, int *pbufsize)
+{
+    if (pargs == NULL) {
+        return;
+    }
+    if (pargs->m_input == NULL) {
+        read_stdin_whole(1,ppoutbuf,pbufsize);
+        return;
+    }
+    read_file_whole(NULL,ppoutbuf,pbufsize);
+    return;
+}
+
 
 int addstring_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	int stdined = 0;
 	args_options_t * pargs= (args_options_t*) popt;
 	int ret;
 	char* preadbuf=NULL;
 	int readsize=0;
 	int readlen=0;
+    int argcnt=0;
+
+    argc = argc;
+    argv = argv;
 
 	ret = init_log_verbose(pargs);
 	if (ret < 0){
 		goto out;
 	}
 
-	if (pargs->m_input == NULL) {
-		stdined = 1;
-	} 
+
+    if (parsestate->leftargs == NULL) {
+        while(parsestate->leftargs[argcnt] != NULL) {
+            argcnt ++;
+        }
+    }
+
+    if (argcnt < 2) {
+        ret = -CMN_EINVAL;
+        fprintf(stderr,"must at least 2 args for addstring\n");
+        goto out;
+    }
+
 	ret = read_input(pargs,&preadbuf,&readsize);
 	if (ret < 0) {
 		GETERRNO(ret);
-		ERROR_INFO("can not read [%s] error[%d]", pargs->m_input ? pargs->m_input : "stdin", ret);
+		fprintf(stderr,"can not read [%s] error[%d]\n", pargs->m_input ? pargs->m_input : "stdin", ret);
 		goto out;
 	}
+
+    readlen = ret;
 
 	
 
 out:
-	read_input(NULL,&preadbuf,&readsize);
+	free_input(pargs,&preadbuf,&readsize);
 	SETERRNO(ret);
     return ret;
 }

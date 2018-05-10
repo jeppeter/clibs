@@ -13,6 +13,8 @@
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
+#define  CMN_EINVAL            ERROR_INVALID_PARAMETER
+
 #elif defined(__GNUC__)
 /* this is for the unix gcc*/
 #include <ux_err.h>
@@ -24,6 +26,8 @@
 #include <ux_inner.h>
 
 #undef __UX_INNER_DEFINED__
+
+#define  CMN_EINVAL            EINVAL
 
 #else
 #error "not supported comilers"
