@@ -4,5 +4,8 @@
     "output|o<m_output>" : null,
     "addstring<addstring_handler>##add key value... into json##" : {
         "$" : "+"
+    },
+    "addobject<addobject_handler>##add key objstr... into json##" : {
+    	"$" : "+"
     }
 }

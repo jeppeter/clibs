@@ -19,6 +19,7 @@ extern "C" {
 #endif
 
 int addstring_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int addobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
@@ -94,9 +95,9 @@ void free_input(pargs_options_t pargs, char** ppoutbuf, int *pbufsize)
 int pretty_write_output(jvalue* pj, pargs_options_t pargs)
 {
     char* poutstr = NULL;
-    char* poutbuf =NULL ;
+    char* poutbuf = NULL ;
     int outsize = 0;
-    int outlen=0;
+    int outlen = 0;
     int strsize = 0;
     int ret;
 
@@ -107,10 +108,10 @@ int pretty_write_output(jvalue* pj, pargs_options_t pargs)
         goto fail;
     }
 
-    ret = snprintf_safe(&poutbuf,&outsize,"%s\n", poutstr);
+    ret = snprintf_safe(&poutbuf, &outsize, "%s\n", poutstr);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr,"can not add line error[%d]\n",ret);
+        fprintf(stderr, "can not add line error[%d]\n", ret);
         goto fail;
     }
     outlen = ret;
@@ -122,8 +123,8 @@ int pretty_write_output(jvalue* pj, pargs_options_t pargs)
         goto fail;
     }
 
-    snprintf_safe(&poutbuf,&outsize,NULL);
-    if(poutstr != NULL) {
+    snprintf_safe(&poutbuf, &outsize, NULL);
+    if (poutstr != NULL) {
         free(poutstr);
     }
     poutstr = NULL;
@@ -132,8 +133,8 @@ int pretty_write_output(jvalue* pj, pargs_options_t pargs)
     return ret;
 
 fail:
-    snprintf_safe(&poutbuf,&outsize,NULL);
-    if(poutstr != NULL) {
+    snprintf_safe(&poutbuf, &outsize, NULL);
+    if (poutstr != NULL) {
         free(poutstr);
     }
     poutstr = NULL;
@@ -195,7 +196,7 @@ int addstring_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
     for (i = 0; i < argcnt ; i += 2) {
         pkey = parsestate->leftargs[i];
-        pstr = parsestate->leftargs[i+1];
+        pstr = parsestate->leftargs[i + 1];
 
         ret = jobject_put_string(pj, pkey, pstr);
         if (ret < 0) {
@@ -205,7 +206,131 @@ int addstring_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         }
     }
 
-    ret = pretty_write_output(pj,pargs);
+    ret = pretty_write_output(pj, pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    ret = 0;
+out:
+    if (pj != NULL) {
+        jvalue_destroy(pj);
+    }
+    pj = NULL;
+    free_input(pargs, &preadbuf, &readsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int __add_object(jvalue* pj, char* pkey, char* value)
+{
+    jvalue* pinsertval = NULL;
+    char* parsestr
+    int ret = 0;
+    jvalue* pjret = NULL;
+    char* pretstr = NULL;
+    uint64_t num = 0;
+    int inum = 0;
+    if (str_nocase_cmp(value, "null") == 0) {
+        pinsertval = jnull_create();
+    } else if (str_case_cmp(value, "false") == 0) {
+        pinsertval = jbool_create(0);
+    } else if (str_case_cmp(value, "true") == 0) {
+        pinsertval = jbool_create(1);
+    } else {
+        ret = parse_int(value, &inum, &pretstr);
+        if (ret >= 0) {
+            if (pretstr != 0 && pretstr[0] == '\0') {
+                pinsertval = jint_create(inum);
+            }
+        } else {
+            ret = parse_number(value, &num, &pretstr);
+            if (ret >= 0) {
+                if (pretstr != NULL && pretstr[0] == '\0') {
+                    pinsertval = jint64_create(num);
+                }
+            }
+        }
+    }
+    if (pinsertval != NULL) {
+        pjret = jobject_put(pj, pkey, pinsertval, &ret);
+        if (pjret == NULL) {
+            GETERRNO(ret);
+            fprintf(stderr, "insert value [%s] error[%d]\n", value, ret);
+            jvalue_destroy(pinsertval);
+            return ret;
+        }
+        jvalue_destroy(pinsertval);
+        return 1;
+    }
+
+    /*now we do not detect whether the value is ,so we should use */
+
+
+}
+
+int addobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    args_options_t * pargs = (args_options_t*) popt;
+    int ret;
+    char* preadbuf = NULL;
+    int readsize = 0;
+    int retlen = 0;
+    int argcnt = 0;
+    jvalue* pj = NULL;
+    char* pkey = NULL;
+    char* pstr = NULL;
+    int i;
+
+    argc = argc;
+    argv = argv;
+
+    ret = init_log_verbose(pargs);
+    if (ret < 0) {
+        goto out;
+    }
+
+
+    if (parsestate->leftargs != NULL) {
+        while (parsestate->leftargs[argcnt] != NULL) {
+            argcnt ++;
+        }
+    }
+
+    if (argcnt < 2 || (argcnt % 2) != 0) {
+        ret = -CMN_EINVAL;
+        fprintf(stderr, "must at least 2 args for addstring[%d]\n", argcnt);
+        goto out;
+    }
+    ret = read_input(pargs, &preadbuf, &readsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not read [%s] error[%d]\n", pargs->m_input ? pargs->m_input : "stdin", ret);
+        goto out;
+    }
+
+    fprintf(stdout, "read json\n-----------------\n%s\n+++++++++++++++++\n", preadbuf);
+
+    pj = jvalue_read(preadbuf, (unsigned int*)&retlen);
+    if (pj == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "parse error[%d]\n", ret);
+        goto out;
+    }
+
+    for (i = 0; i < argcnt ; i += 2) {
+        pkey = parsestate->leftargs[i];
+        pstr = parsestate->leftargs[i + 1];
+
+        ret = jobject_put_string(pj, pkey, pstr);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "can not insert key[%s]=[%s] error[%d]\n", pkey, pstr, ret);
+            goto out;
+        }
+    }
+
+    ret = pretty_write_output(pj, pargs);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;

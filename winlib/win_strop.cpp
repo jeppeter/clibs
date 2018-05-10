@@ -507,3 +507,13 @@ void str_underscore_case(const char* pstr)
     __make_under_score(pstr);
     return;
 }
+
+int str_nocase_cmp(const char* pstr, const char* pcmpstr)
+{
+    return _stricmp(pstr,pcmpstr);
+}
+
+int str_case_cmp(const char* pstr, const char* pcmpstr)
+{
+    return _strcmp(pstr,pcmpstr);
+}

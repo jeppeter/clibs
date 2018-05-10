@@ -26,6 +26,8 @@ WINLIB_API int quote_stringv(char** ppquotestr,int *psize,const char* pstr,va_li
 WINLIB_API char* safe_strdup(const char* str);
 WINLIB_API void str_upper_case(const char* pstr);
 WINLIB_API void str_underscore_case(const char* pstr);
+WINLIB_API int str_nocase_cmp(const char* pstr, const char* pcmpstr);
+WINLIB_API int str_case_cmp(const char* pstr, const char* pcmpstr);
 
 
 #ifdef __cplusplus
