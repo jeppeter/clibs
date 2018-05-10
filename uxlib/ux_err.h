@@ -13,6 +13,16 @@ extern "C" {
 #define  GETERRNO_DIRECT(ret) do {int __ret = errno; if (__ret > 0) { __ret = -__ret;} ret = __ret;} while(0)
 
 
+#define ASSERT_IF(expr)  \
+	do\
+	{\
+		if (!(expr)){\
+			ERROR_INFO("expression %s not asserted",#expr);\
+			abort();\
+		}\
+	}\
+	while(0)
+
 #ifdef __cplusplus
 };
 #endif /* __cplusplus*/

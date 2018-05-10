@@ -20,6 +20,7 @@ extern "C" {
 
 int addstring_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int addobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int queryobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
@@ -313,16 +314,16 @@ int __add_object(jvalue* pj, char* pkey, char* value)
                 } else {
                     ret = __check_valid_simple_string(value);
                     if (ret > 0) {
-                        ret = unquote_string(&unquotestr,&unquotesize,value);
+                        ret = unquote_string(&unquotestr, &unquotesize, value);
                         if (ret >= 0) {
                             pinsertval = jstring_create(unquotestr, &ret);
-                            unquote_string(&unquotestr,&unquotesize,NULL);
+                            unquote_string(&unquotestr, &unquotesize, NULL);
                         } else {
                             GETERRNO(ret);
                             SETERRNO(ret);
                             return ret;
                         }
-                        
+
                     }
                 }
             }
@@ -518,6 +519,164 @@ out:
         jvalue_destroy(pj);
     }
     pj = NULL;
+    free_input(pargs, &preadbuf, &readsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+jvalue* __make_new_value(char* pkey, jvalue* getpj)
+{
+    jvalue* basepj = NULL, *clonepj = NULL, *oldpj = NULL;
+    int ret;
+    basepj = jobject_create();
+    if (basepj == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create object for [%s] error[%d]", pkey,ret);
+        goto fail;
+    }
+
+    clonepj = jvalue_clone(getpj);
+    if (clonepj == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("clone value for [%s] error[%d]", pkey,ret);
+        goto fail;
+    }
+
+    ret = 0;
+    oldpj = jobject_put(basepj, pkey, clonepj, &ret);
+    ASSERT_IF(oldpj == NULL);
+    if (ret != 0) {
+        if (ret > 0) {
+            ret = -ret;
+        }
+        ERROR_INFO("put [%s] error[%d]",pkey,ret);
+        goto fail;
+    }
+    clonepj = NULL;
+
+    return basepj;
+fail:
+    if (clonepj != NULL) {
+        jvalue_destroy(clonepj);
+    }
+    clonepj = NULL;
+    if (basepj != NULL) {
+        jvalue_destroy(basepj);
+    }
+    basepj = NULL;
+    SETERRNO(ret);
+    return NULL;
+}
+
+int __output_value(FILE* fp,char* pkey,jvalue* getpj)
+{
+    jvalue* basepj = NULL;
+    char* pstr = NULL;
+    int ret;
+    unsigned int outsize;
+
+    basepj = __make_new_value(pkey,getpj);
+    if (basepj == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pstr = jvalue_write_pretty(basepj,&outsize);
+    if (pstr == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("out [%s] error[%d]",pkey, ret);
+        goto fail;
+    }
+
+    fprintf(fp, "%s\n",pstr);
+
+    if (pstr != NULL) {
+        free(pstr);
+    }
+    pstr = NULL;    
+
+    if (basepj != NULL) {
+        jvalue_destroy(basepj);
+    }
+    basepj = NULL;
+    return 0;
+fail:
+    if (pstr != NULL) {
+        free(pstr);
+    }
+    pstr = NULL;
+    if (basepj != NULL) {
+        jvalue_destroy(basepj);
+    }
+    basepj = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int queryobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    args_options_t * pargs = (args_options_t*) popt;
+    char* preadbuf = NULL;
+    int readsize = 0;
+    unsigned int retlen = 0;
+    int argcnt = 0;
+    jvalue* pj = NULL;
+    char* pkey = NULL;
+    jvalue* getpj = NULL;
+    int i;
+
+    argc = argc;
+    argv = argv;
+
+    if (parsestate->leftargs != NULL) {
+        while (parsestate->leftargs[argcnt] != NULL) {
+            argcnt ++;
+        }
+    }
+
+    if (argcnt < 1) {
+        ret = -CMN_EINVAL;
+        ERROR_INFO("need at least one key");
+        goto out;
+    }
+
+    ret = read_input(pargs, &preadbuf, &readsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    fprintf(stdout, "read %s\n------------\n%s\n+++++++++++\n", pargs->m_input ? pargs->m_input : "stdin", preadbuf);
+
+    pj = jvalue_read(preadbuf, &retlen);
+    if (pj == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("parse error[%d]\n", ret);
+        goto out;
+    }
+
+    for (i = 0; i < argcnt; i++) {
+        pkey = parsestate->leftargs[i];
+        getpj = jobject_get(pj, pkey);
+        if (getpj == NULL) {
+            fprintf(stdout, "can not find [%s]\n", pkey);
+            continue;
+        }
+
+        ret = __output_value(stdout,pkey,getpj);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+    ret = 0;
+out:
+    if (pj != NULL) {
+        jvalue_destroy(pj);
+    }
+    pj = NULL;
+
     free_input(pargs, &preadbuf, &readsize);
     SETERRNO(ret);
     return ret;
