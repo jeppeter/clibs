@@ -124,3 +124,35 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int  parse_long_double(char* str, long double *pdbl, char** ppend)
+{
+	int ret;
+	long double retdbl;
+	char* pretstr=NULL;
+
+	if (pdbl == NULL || str == NULL) {
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	SETERRNO(0);
+	retdbl = strtold(str,&pretstr);
+	if (retdbl == 0.0 && str == pretstr) {
+		ret = -EINVAL;
+		goto fail;
+	} else if (retdbl == HUGE_VALL) {
+		GETERRNO(ret);
+		if (ret == -ERANGE) {
+			goto fail;
+		}
+	}
+	*pdbl = retdbl;
+	if (ppend) {
+		*ppend = pretstr;
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return;
+}

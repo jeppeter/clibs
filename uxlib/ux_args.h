@@ -11,6 +11,7 @@ void free_args(char*** pppargs);
 char** copy_args(int argc,char *argv[]);
 int  parse_number(char* str,uint64_t *pnum,char** ppend);
 int  parse_int(char* str,int64_t* pnum,char**ppend);
+int  parse_long_double(char* str, long double *pdbl, char** ppend);
 
 
 #ifdef __cplusplus
