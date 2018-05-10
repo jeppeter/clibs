@@ -18,6 +18,8 @@ int vsnprintf_safe(char** ppbuf,int *pbufsize,const char* fmt,va_list ap);
 int snprintf_safe(char** ppbuf,int *pbufsize,const char* fmt,...);
 int append_vsnprintf_safe(char** ppbuf,int *pbufsize,const char* fmt,va_list ap);
 int append_snprintf_safe(char**ppbuf,int*pbufsize,const char* fmt,...);
+int quote_string(char** ppquotestr,int *psize,const char* pstr,...);
+int quote_stringv(char** ppquotestr,int *psize,const char* pstr,va_list ap);
 int str_match_wildcard(const char* regpat,const char* str);
 void str_lower_case(const char* pstr);
 char* str_in_str(const char* pstr,const char *search);

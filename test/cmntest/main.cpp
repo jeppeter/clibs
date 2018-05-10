@@ -225,7 +225,11 @@ out:
 int __add_object(jvalue* pj, char* pkey, char* value)
 {
     jvalue* pinsertval = NULL;
-    char* parsestr
+    char* quotekey=NULL;
+    int qksize=0;
+    char* parsestr=NULL;
+    int parsesize=0;
+    int parselen=0;
     int ret = 0;
     jvalue* pjret = NULL;
     char* pretstr = NULL;
@@ -265,7 +269,7 @@ int __add_object(jvalue* pj, char* pkey, char* value)
     }
 
     /*now we do not detect whether the value is ,so we should use */
-
+    ret = snprintf_safe(&parsestr,&parsesize,"{  : %s }")
 
 }
 
