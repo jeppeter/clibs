@@ -290,14 +290,13 @@ int __add_object(jvalue* pj, char* pkey, char* value)
     uint64_t num = 0;
     int64_t inum = 0;
     int added = 1;
+    char* unquotestr = NULL;
+    int unquotesize = 0;
     if (str_nocase_cmp(value, "null") == 0) {
-        DEBUG_INFO(" ");
         pinsertval = jnull_create();
     } else if (str_case_cmp(value, "false") == 0) {
-        DEBUG_INFO(" ");
         pinsertval = jbool_create(0);
     } else if (str_case_cmp(value, "true") == 0) {
-        DEBUG_INFO(" ");
         pinsertval = jbool_create(1);
     } else {
         ret = parse_int(value, &inum, &pretstr);
@@ -312,12 +311,18 @@ int __add_object(jvalue* pj, char* pkey, char* value)
                 if (ret >= 0 && pretstr != NULL && pretstr[0] == '\0') {
                     pinsertval = jreal_create((double)dbl);
                 } else {
-                    DEBUG_INFO(" ");
                     ret = __check_valid_simple_string(value);
                     if (ret > 0) {
-                        DEBUG_INFO("string value");
-                        ret = 0;
-                        pinsertval = jstring_create(value, &ret);
+                        ret = unquote_string(&unquotestr,&unquotesize,value);
+                        if (ret >= 0) {
+                            pinsertval = jstring_create(unquotestr, &ret);
+                            unquote_string(&unquotestr,&unquotesize,NULL);
+                        } else {
+                            GETERRNO(ret);
+                            SETERRNO(ret);
+                            return ret;
+                        }
+                        
                     }
                 }
             }
