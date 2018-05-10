@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <math.h>
 
 void free_args(char*** pppargs)
 {
@@ -154,5 +155,5 @@ int  parse_long_double(char* str, long double *pdbl, char** ppend)
 	return 0;
 fail:
 	SETERRNO(ret);
-	return;
+	return ret;
 }

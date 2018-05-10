@@ -515,5 +515,5 @@ int str_nocase_cmp(const char* pstr, const char* pcmpstr)
 
 int str_case_cmp(const char* pstr, const char* pcmpstr)
 {
-    return _strcmp(pstr,pcmpstr);
+    return strcmp(pstr,pcmpstr);
 }

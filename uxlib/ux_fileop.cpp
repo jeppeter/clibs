@@ -264,12 +264,3 @@ fail:
     return ret;
 }
 
-int str_nocase_cmp(const char* pstr, const char* pcmpstr)
-{
-    return strcasecmp(pstr,pcmdpstr);
-}
-
-int str_case_cmp(const char* pstr, const char* pcmpstr)
-{
-    return strcmp(pstr,pcmpstr);
-}

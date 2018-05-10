@@ -1,11 +1,13 @@
 
 #include <ux_strop.h>
 #include <ux_err.h>
+#include <ux_output_debug.h>
 
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 void __make_uppercase(const char* pstr)
 {
@@ -419,7 +421,7 @@ int quote_stringv(char** ppquotestr,int *psize,const char* pstr,va_list ap)
     }
 
     if (ppquotestr == NULL || psize == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
+        ret = -EINVAL;
         SETERRNO(ret);
         return ret;
     }
@@ -504,4 +506,14 @@ int quote_string(char** ppquotestr,int *psize,const char* pstr,...)
     }
     va_start(ap, pstr);
     return quote_stringv(ppquotestr, psize,pstr, ap);
+}
+
+int str_nocase_cmp(const char* pstr, const char* pcmpstr)
+{
+    return strcasecmp(pstr,pcmpstr);
+}
+
+int str_case_cmp(const char* pstr, const char* pcmpstr)
+{
+    return strcmp(pstr,pcmpstr);
 }

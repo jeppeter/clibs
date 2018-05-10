@@ -225,6 +225,8 @@ out:
 int __add_object(jvalue* pj, char* pkey, char* value)
 {
     jvalue* pinsertval = NULL;
+    jvalue* parsepj=NULL;
+    long double dbl;
     char* quotekey=NULL;
     int qksize=0;
     char* parsestr=NULL;
@@ -234,7 +236,7 @@ int __add_object(jvalue* pj, char* pkey, char* value)
     jvalue* pjret = NULL;
     char* pretstr = NULL;
     uint64_t num = 0;
-    int inum = 0;
+    int64_t inum = 0;
     if (str_nocase_cmp(value, "null") == 0) {
         pinsertval = jnull_create();
     } else if (str_case_cmp(value, "false") == 0) {
@@ -245,13 +247,20 @@ int __add_object(jvalue* pj, char* pkey, char* value)
         ret = parse_int(value, &inum, &pretstr);
         if (ret >= 0) {
             if (pretstr != 0 && pretstr[0] == '\0') {
-                pinsertval = jint_create(inum);
+                pinsertval = jint64_create(inum);
             }
         } else {
             ret = parse_number(value, &num, &pretstr);
             if (ret >= 0) {
                 if (pretstr != NULL && pretstr[0] == '\0') {
-                    pinsertval = jint64_create(num);
+                    pinsertval = jint64_create((int64_t)num);
+                }
+            } else {
+                ret = parse_long_double(value,&dbl,&pretstr);
+                if (ret >= 0) {
+                    if (pretstr != NULL && pretstr[0] == '\0') {
+                        pinsertval = jreal_create((double)dbl);
+                    }
                 }
             }
         }
@@ -268,9 +277,74 @@ int __add_object(jvalue* pj, char* pkey, char* value)
         return 1;
     }
 
-    /*now we do not detect whether the value is ,so we should use */
-    ret = snprintf_safe(&parsestr,&parsesize,"{  : %s }")
+    ret = quote_string(&quotekey,&qksize,"%s", pkey);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
+    /*now we do not detect whether the value is ,so we should use */
+    ret = snprintf_safe(&parsestr,&parsesize,"{ %s : %s }", quotekey, value);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    parsepj = jvalue_read(parsestr,(unsigned int*)&parselen);
+    if (parsepj == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not parse -----------\n%s\nerror [%d]", parsestr, ret);
+        goto fail;
+    }
+
+    pinsertval = jobject_get(parsepj, pkey);
+    if (pinsertval == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("no [%s] found\n%s", pkey,parsestr);
+        goto fail;
+    }
+
+    switch(pinsertval->type) {
+        case JSTRING:
+        case JARRAY:
+        case JOBJECT:
+            break;
+        default:
+            ret = -CMN_EINVAL;
+            ERROR_INFO("not valid type [%d] for\n%s",pinsertval->type,value);
+            goto fail;
+    }
+
+    /*now insert it*/
+    pjret = jobject_put(pj,pkey,pinsertval,&ret);
+    if (pjret == NULL) {
+        if (ret > 0) {
+            ret = -ret;
+        }
+        if (ret == 0) {
+            ret = -1;
+        }
+        ERROR_INFO("can not insert value [%d]\n%s",pinsertval->type,value);
+        goto fail;
+    }
+
+    if (parsepj != NULL) {
+        jvalue_destroy(parsepj);
+    }
+    parsepj = NULL;
+    snprintf_safe(&parsestr,&parsesize,NULL);
+    quote_string(&quotekey,&qksize,NULL);
+
+    return 1;
+fail:
+    if (parsepj != NULL) {
+        jvalue_destroy(parsepj);
+    }
+    parsepj = NULL;
+    snprintf_safe(&parsestr,&parsesize,NULL);
+    quote_string(&quotekey,&qksize,NULL);
+    SETERRNO(ret);
+    return ret;
 }
 
 int addobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
@@ -326,7 +400,7 @@ int addobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         pkey = parsestate->leftargs[i];
         pstr = parsestate->leftargs[i + 1];
 
-        ret = jobject_put_string(pj, pkey, pstr);
+        ret = __add_object(pj, pkey, pstr);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "can not insert key[%s]=[%s] error[%d]\n", pkey, pstr, ret);

@@ -2,6 +2,8 @@
 #include <win_args.h>
 #include <win_uniansi.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
 #include <win_err.h>
 #include <win_output_debug.h>
 #include <win_strop.h>
@@ -140,7 +142,7 @@ int  parse_long_double(char* str, long double *pdbl, char** ppend)
 {
     int ret;
     long double retdbl;
-    char* pretstr=NULL;
+    char* pretstr = NULL;
 
     if (pdbl == NULL || str == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
@@ -148,16 +150,13 @@ int  parse_long_double(char* str, long double *pdbl, char** ppend)
     }
 
     errno = 0;
-    retdbl = _strtold(str,&pretstr);
+    retdbl = strtold(str, &pretstr);
     if (retdbl == 0.0 && str == pretstr) {
         ret = -ERROR_INVALID_PARAMETER;
         goto fail;
-    } else if (retdbl == HUGE_VALL) {
-        ret = errno;
-        if (ret == ERANGE) {
-            ret = -ERROR_INVALID_PARAMETER;
-            goto fail;
-        }
+    } else if (errno == ERANGE) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
     }
     *pdbl = retdbl;
     if (ppend) {
@@ -166,5 +165,5 @@ int  parse_long_double(char* str, long double *pdbl, char** ppend)
     return 0;
 fail:
     SETERRNO(ret);
-    return;
+    return ret;
 }
