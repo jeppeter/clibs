@@ -225,6 +225,7 @@ out:
 int __add_object(jvalue* pj, char* pkey, char* value)
 {
     jvalue* pinsertval = NULL;
+    jvalue* getval = NULL;
     jvalue* parsepj = NULL;
     long double dbl;
     char* quotekey = NULL;
@@ -281,10 +282,10 @@ int __add_object(jvalue* pj, char* pkey, char* value)
         }
         if (pjret != NULL) {
             jvalue_destroy(pjret);
-            added = 0;    
+            added = 0;
         }
-        
-        jvalue_destroy(pinsertval);
+        /*not destroy inserted value*/
+
         return added;
     }
 
@@ -308,21 +309,28 @@ int __add_object(jvalue* pj, char* pkey, char* value)
         goto fail;
     }
 
-    pinsertval = jobject_get(parsepj, pkey);
-    if (pinsertval == NULL) {
+    getval = jobject_get(parsepj, pkey);
+    if (getval == NULL) {
         GETERRNO(ret);
         ERROR_INFO("no [%s] found\n%s", pkey, parsestr);
         goto fail;
     }
 
-    switch (pinsertval->type) {
+    switch (getval->type) {
     case JSTRING:
     case JARRAY:
     case JOBJECT:
         break;
     default:
         ret = -CMN_EINVAL;
-        ERROR_INFO("not valid type [%d] for\n%s", pinsertval->type, value);
+        ERROR_INFO("not valid type [%d] for\n%s", getval->type, value);
+        goto fail;
+    }
+
+    pinsertval = jvalue_clone(getval);
+    if (pinsertval == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("clone value  error[%d]", ret);
         goto fail;
     }
 
@@ -339,6 +347,8 @@ int __add_object(jvalue* pj, char* pkey, char* value)
         goto fail;
     }
 
+    pinsertval = NULL;
+
     if (pjret != NULL) {
         jvalue_destroy(pjret);
         added = 0;
@@ -354,6 +364,11 @@ int __add_object(jvalue* pj, char* pkey, char* value)
 
     return added;
 fail:
+    if (pinsertval != NULL) {
+        jvalue_destroy(pinsertval);
+    }
+    pinsertval = NULL;
+
     if (pjret != NULL) {
         jvalue_destroy(pjret);
     }
