@@ -1022,3 +1022,4 @@ jvalue *juser_create(void *data, juser_write write, juser_destroy destroy)
   }
   return (jvalue *) value;
 }
+

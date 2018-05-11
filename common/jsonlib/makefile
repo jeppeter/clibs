@@ -8,7 +8,7 @@ SYSTEM_NAME:=$(shell uname)
 TARGET  = libjson
 
 HEADERS = jvalue.h jstring.h util.h hashtable.h arraylist.h
-SOURCES = jvalue.c json.c jstring.c util.c hashtable.c arraylist.c
+SOURCES = jvalue.c json.c jstring.c util.c hashtable.c arraylist.c jvalue_ex.c
 OBJECTS = $(patsubst %.c,%.o,$(SOURCES))
 
 CFLAGS  = $(COMMON_CFLAGS)

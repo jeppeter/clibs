@@ -18,6 +18,9 @@ MAKE       =nmake.exe
 CP         =copy /Y
 MKDIR      =md.exe
 
+# because the extargslib not use these two functions, so we should export by default
+LD_EXPORT_FLAGS = /EXPORT:free_jvalue /EXPORT:add_jobject
+
 !IFDEF MAKEVERBOSE
 !IF $(MAKEVERBOSE) != 0
 QUIETCMD=
@@ -29,7 +32,7 @@ MAKE_LOGO_FLAGS=
 !ELSE
 QUIETCMD=@
 NOLOGO_CFLAGS=/nologo
-NOLOGO_LDFLAGS=/nologo
+NOLOGO_LDFLAGS=/nologo 
 NOLOGO_ARFLAGS=/nologo
 VERBOSE_SOURCES=
 MAKE_LOGO_FLAGS=/nologo
@@ -46,34 +49,35 @@ MAKE_LOGO_FLAGS=/nologo
 !IFDEF STATICLIB
 !IF $(STATICLIB) != 0
 STATIC_LIB_CFLAGS=-DWINLIB_STATIC_EXPORT /MT
+REL_LDFLAGS = 
 !ELSE
 STATIC_LIB_CFLAGS=-DWINLIB_DLL_EXPORT /MT
+REL_LDFLAGS = $(LD_EXPORT_FLAGS)
 !ENDIF
 !ELSE
 STATIC_LIB_CFLAGS=-DWINLIB_DLL_EXPORT /MT
+REL_LDFLAGS = $(LD_EXPORT_FLAGS)
 !ENDIF
 
 INC_CFLAGS = "/I$(TOPDIR)\common\jsonlib" "/I$(TOPDIR)\winlib" "/I$(TOPDIR)\common" "/I$(TOPDIR)\common\extargslib"
 COM_CFLAGS =  /Wall /wd"4710" /wd"4702" /wd"4711" /wd"4820" /wd"4127" /wd"4996" /wd"4255" /wd"4826" /wd"4305" /wd"4668"
 REL_CFLAGS = 
 
-
 !IFDEF MAKEVERBOSE
 !IF $(MAKEVERBOSE) != 0
 DBG_CFLAGS = /Zi /Od /DEBUG:FULL
-DBG_LDFLAGS = /NOLOGO /DLL /DEBUG
+DBG_LDFLAGS = /DEBUG
 
 !ELSE
 DBG_CFLAGS = /O2
-DBG_LDFLAGS = /NOLOGO /DLL
+DBG_LDFLAGS = 
 !ENDIF
 
 !ELSE
 DBG_CFLAGS = /O2
-DBG_LDFLAGS = /NOLOGO /DLL
+DBG_LDFLAGS = 
 !ENDIF
 
-REL_LDFLAGS = /NOLOGO /DLL
 
 CFLAGS  = $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(INC_CFLAGS) $(COM_CFLAGS) $(REL_CFLAGS) $(DBG_CFLAGS)
 LDFLAGS = $(NOLOGO_LDFLAGS) $(REL_LDFLAGS) $(DBG_LDFLAGS)
@@ -99,9 +103,9 @@ all:$(DYNAMICDIR)\$(SHAREDLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE)
 $(STATICLIB_FILE): $(OBJECTS)
     $(QUIETCMD)$(AR) $(ARFLAGS) /DEF -out:$@ $(OBJECTS)
 
-
+#$(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(DYNAMICDIR)\winlib.lib $(DYNAMICDIR)\json.lib
 $(SHAREDLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll
-    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(DYNAMICDIR)\winlib.lib $(DYNAMICDIR)\json.lib
+	$(QUIETCMD)$(LD) $(LDFLAGS)  /DLL -out:$@ $(OBJECTS) $(DYNAMICDIR)\winlib.lib $(DYNAMICDIR)\json.lib
 
 
 !ENDIF
@@ -112,9 +116,9 @@ all:$(DYNAMICDIR)\$(SHAREDLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE)
 $(STATICLIB_FILE): $(OBJECTS)
     $(QUIETCMD)$(AR) $(ARFLAGS) /DEF -out:$@ $(OBJECTS)
 
-
+#$(QUIETCMD)$(LD) $(LDFLAGS)  -dll -out:$@ $(OBJECTS) $(DYNAMICDIR)\winlib.lib $(DYNAMICDIR)\json.lib
 $(SHAREDLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll
-    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(DYNAMICDIR)\winlib.lib $(DYNAMICDIR)\json.lib
+	$(QUIETCMD)$(LD) $(LDFLAGS)  /DLL -out:$@ $(OBJECTS) $(DYNAMICDIR)\winlib.lib $(DYNAMICDIR)\json.lib
 
 !ENDIF
 
@@ -158,4 +162,6 @@ clean:clean_winlib clean_json
     $(QUIETCMD)$(RM) *.pdb *.idb *.ilk *.exp *.lib *.dll *.obj 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(OBJECTS) 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(STATICLIB_FILE) $(SHAREDLIB_FILE) 2>NUL || echo ""
-    $(QUIETCMD)$(RM) $(DYNAMICDIR)\$(SHAREDLIB_FILE) $(STATICDIR)\$(STATICLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE) 2>NUL || echo ""
+    $(QUIETCMD)$(RM) $(DYNAMICDIR)\$(SHAREDLIB_FILE)   2>NUL || echo ""
+    $(QUIETCMD)$(RM) $(STATICDIR)\$(STATICLIB_FILE) 2>NUL || echo ""
+    $(QUIETCMD)$(RM) $(DYNAMICDIR)\$(STATICLIB_FILE) 2>NUL || echo ""

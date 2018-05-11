@@ -772,3 +772,54 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int check_valid_simple_string(const char* value)
+{
+    int ret = 1;
+    char* pcurptr = (char*)value;
+    int quoted = 0;
+    if (*pcurptr == '"') {
+        quoted = 1;
+        pcurptr ++;
+    }
+    for (; *pcurptr != '\0'; pcurptr ++) {
+        if (*pcurptr >= '0' && *pcurptr <= '9') {
+            continue;
+        }
+        if ( (*pcurptr >= 'a' && *pcurptr <= 'z') ||
+                (*pcurptr >= 'A' && *pcurptr <= 'Z')) {
+            continue;
+        }
+        if (*pcurptr == '_' || *pcurptr == '-' ||
+                *pcurptr == ' ' || *pcurptr == '\t') {
+            continue;
+        }
+
+        if (quoted && *pcurptr == '\\' && pcurptr[1] != '\0') {
+            pcurptr ++;
+            continue;
+        }
+        if (quoted && *pcurptr != '"') {
+            continue;
+        }
+
+        if (quoted && *pcurptr == '"') {
+            if (pcurptr[1] != '\0') {
+                ret = 0;
+                break;
+            }
+            quoted = 0;
+            continue;
+        }
+
+        /*ok for the continue*/
+        ret = 0;
+        break;
+    }
+
+    if (quoted) {
+        /*this means it is error*/
+        return 0;
+    }
+    return ret;
+}

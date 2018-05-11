@@ -120,4 +120,6 @@ clean:
     $(QUIETCMD)$(RM) *.pdb *.idb *.ilk *.exp 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(OBJECTS) 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(STATICLIB_FILE) $(SHAREDLIB_FILE) 2>NUL || echo ""
-    $(QUIETCMD)$(RM) $(DYNAMICDIR)\$(SHAREDLIB_FILE) $(STATICDIR)\$(STATICLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE) 2>NUL || echo ""
+    $(QUIETCMD)$(RM) $(DYNAMICDIR)\$(SHAREDLIB_FILE) 2>NUL || echo ""
+    $(QUIETCMD)$(RM) $(STATICDIR)\$(STATICLIB_FILE)  2>NUL || echo ""
+    $(QUIETCMD)$(RM) $(DYNAMICDIR)\$(STATICLIB_FILE) 2>NUL || echo ""

@@ -29,7 +29,7 @@ void str_underscore_case(const char* pstr);
 void str_upper_case(const char* pstr);
 int str_nocase_cmp(const char* pstr, const char* pcmpstr);
 int str_case_cmp(const char* pstr, const char* pcmpstr);
-
+int check_valid_simple_string(const char* value);
 
 #ifdef __cplusplus
 };

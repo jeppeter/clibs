@@ -18,7 +18,7 @@ STATICLIB_FILE = $(TARGET).lib
 SHAREDLIB_FILE = $(TARGET).dll
 
 HEADERS = jvalue.h jstring.h util.h hashtable.h arraylist.h
-SOURCES = jvalue.c json.c jstring.c util.c hashtable.c arraylist.c
+SOURCES = jvalue.c json.c jstring.c util.c hashtable.c arraylist.c jvalue_ex.c
 OBJECTS = $(SOURCES:.c=.obj)
 
 !IFDEF MAKEVERBOSE
@@ -41,12 +41,12 @@ NOLOG_MAKEFLAGS= /nologo
 
 !IFDEF STATICLIB
 !IF $(STATICLIB) != 0
-WINLIB_CFLAGS = -DWINLIB_STATIC_EXPORT
+WINLIB_CFLAGS = -DWINLIB_STATIC_EXPORT /MT
 !ELSE
-WINLIB_CFLAGS = -DWINLIB_DLL_EXPORT
+WINLIB_CFLAGS = -DWINLIB_DLL_EXPORT /MT
 !ENDIF
 !ELSE
-WINLIB_CFLAGS = -DWINLIB_DLL_EXPORT
+WINLIB_CFLAGS = -DWINLIB_DLL_EXPORT /MT
 !ENDIF
 
 
@@ -78,7 +78,7 @@ all: $(DYNAMICDIR)\$(STATICLIB_FILE) $(DYNAMICDIR)\$(SHAREDLIB_FILE)
 $(STATICLIB_FILE): $(OBJECTS)
     $(QUIETCMD)$(AR) $(ARFLAGS) -out:$@ $(OBJECTS)
 
-$(SHAREDLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\winlib.dll
+$(SHAREDLIB_FILE): $(OBJECTS) $(STATICLIB_FILE) $(DYNAMICDIR)\winlib.dll
     $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(DYNAMICDIR)\winlib.lib
 
 !ENDIF
@@ -88,7 +88,7 @@ all: $(DYNAMICDIR)\$(STATICLIB_FILE) $(DYNAMICDIR)\$(SHAREDLIB_FILE)
 $(STATICLIB_FILE): $(OBJECTS)
     $(QUIETCMD)$(AR) $(ARFLAGS) -out:$@ $(OBJECTS) 
 
-$(SHAREDLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\winlib.dll
+$(SHAREDLIB_FILE): $(OBJECTS) $(STATICLIB_FILE) $(DYNAMICDIR)\winlib.dll
     $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(DYNAMICDIR)\winlib.lib
 
 
@@ -125,4 +125,6 @@ clean:clean_winlib
     $(QUIETCMD)$(RM) *.pdb *.idb *.ilk *.exp *.lib *.dll 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(OBJECTS) 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(STATICLIB_FILE) $(SHAREDLIB_FILE) 2>NUL || echo ""
-    $(QUIETCMD)$(RM) $(STATICDIR)\$(STATICLIB_FILE) $(DYNAMICDIR)\$(SHAREDLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE) 2>NUL || echo ""
+    $(QUIETCMD)$(RM) /S $(STATICDIR)\$(STATICLIB_FILE)   2>NUL || echo ""
+    $(QUIETCMD)$(RM) /S $(DYNAMICDIR)\$(SHAREDLIB_FILE)  2>NUL || echo ""
+    $(QUIETCMD)$(RM) /S $(DYNAMICDIR)\$(STATICLIB_FILE)  2>NUL || echo ""

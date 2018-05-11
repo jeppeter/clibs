@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <jvalue.h>
+#include <jvalue_ex.h>
 
 typedef struct __args_options {
     int m_verbose;
@@ -214,238 +214,13 @@ int addstring_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
     ret = 0;
 out:
-    if (pj != NULL) {
-        jvalue_destroy(pj);
-    }
-    pj = NULL;
+    free_jvalue(&pj);
     free_input(pargs, &preadbuf, &readsize);
     SETERRNO(ret);
     return ret;
 }
 
-int __check_valid_simple_string(char* value)
-{
-    int ret = 1;
-    char* pcurptr = value;
-    int quoted = 0;
-    if (*pcurptr == '"') {
-        quoted = 1;
-        pcurptr ++;
-    }
-    for (; *pcurptr != '\0'; pcurptr ++) {
-        if (*pcurptr >= '0' && *pcurptr <= '9') {
-            continue;
-        }
-        if ( (*pcurptr >= 'a' && *pcurptr <= 'z') ||
-                (*pcurptr >= 'A' && *pcurptr <= 'Z')) {
-            continue;
-        }
-        if (*pcurptr == '_' || *pcurptr == '-' ||
-                *pcurptr == ' ' || *pcurptr == '\t') {
-            continue;
-        }
 
-        if (quoted && *pcurptr == '\\' && pcurptr[1] != '\0') {
-            pcurptr ++;
-            continue;
-        }
-        if (quoted && *pcurptr != '"') {
-            continue;
-        }
-
-        if (quoted && *pcurptr == '"') {
-            if (pcurptr[1] != '\0') {
-                ret = 0;
-                break;
-            }
-            quoted = 0;
-            continue;
-        }
-
-        /*ok for the continue*/
-        ret = 0;
-        break;
-    }
-
-    if (quoted) {
-        /*this means it is error*/
-        return 0;
-    }
-    return ret;
-}
-
-int __add_object(jvalue* pj, char* pkey, char* value)
-{
-    jvalue* pinsertval = NULL;
-    jvalue* getval = NULL;
-    jvalue* parsepj = NULL;
-    long double dbl;
-    char* quotekey = NULL;
-    int qksize = 0;
-    char* parsestr = NULL;
-    int parsesize = 0;
-    int parselen = 0;
-    int ret = 0;
-    jvalue* pjret = NULL;
-    char* pretstr = NULL;
-    uint64_t num = 0;
-    int64_t inum = 0;
-    int added = 1;
-    char* unquotestr = NULL;
-    int unquotesize = 0;
-    if (str_nocase_cmp(value, "null") == 0) {
-        pinsertval = jnull_create();
-    } else if (str_case_cmp(value, "false") == 0) {
-        pinsertval = jbool_create(0);
-    } else if (str_case_cmp(value, "true") == 0) {
-        pinsertval = jbool_create(1);
-    } else {
-        ret = parse_int(value, &inum, &pretstr);
-        if (ret >= 0 && pretstr != NULL && pretstr[0] == '\0') {
-            pinsertval = jint64_create(inum);
-        } else {
-            ret = parse_number(value, &num, &pretstr);
-            if (ret >= 0 && pretstr != NULL && pretstr[0] == '\0') {
-                pinsertval = jint64_create((int64_t)num);
-            } else {
-                ret = parse_long_double(value, &dbl, &pretstr);
-                if (ret >= 0 && pretstr != NULL && pretstr[0] == '\0') {
-                    pinsertval = jreal_create((double)dbl);
-                } else {
-                    ret = __check_valid_simple_string(value);
-                    if (ret > 0) {
-                        ret = unquote_string(&unquotestr, &unquotesize, value);
-                        if (ret >= 0) {
-                            pinsertval = jstring_create(unquotestr, &ret);
-                            unquote_string(&unquotestr, &unquotesize, NULL);
-                        } else {
-                            GETERRNO(ret);
-                            SETERRNO(ret);
-                            return ret;
-                        }
-
-                    }
-                }
-            }
-        }
-    }
-    if (pinsertval != NULL) {
-        pjret = jobject_put(pj, pkey, pinsertval, &ret);
-        if (ret > 0) {
-            if (ret > 0) {
-                ret = -ret;
-            }
-            if (ret == 0) {
-                ret = -1;
-            }
-            ERROR_INFO( "insert key[%s] value [%s] error[%d]\n", pkey, value, ret);
-            jvalue_destroy(pinsertval);
-            return ret;
-        }
-        if (pjret != NULL) {
-            jvalue_destroy(pjret);
-            added = 0;
-        }
-        /*not destroy inserted value*/
-
-        return added;
-    }
-
-    ret = quote_string(&quotekey, &qksize, "%s", pkey);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    /*now we do not detect whether the value is ,so we should use */
-    ret = snprintf_safe(&parsestr, &parsesize, "{ %s : %s }", quotekey, value);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    parsepj = jvalue_read(parsestr, (unsigned int*)&parselen);
-    if (parsepj == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("can not parse -----------\n%s\nerror [%d]", parsestr, ret);
-        goto fail;
-    }
-
-    getval = jobject_get(parsepj, pkey);
-    if (getval == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("no [%s] found\n%s", pkey, parsestr);
-        goto fail;
-    }
-
-    switch (getval->type) {
-    case JSTRING:
-    case JARRAY:
-    case JOBJECT:
-        break;
-    default:
-        ret = -CMN_EINVAL;
-        ERROR_INFO("not valid type [%d] JNULL[%d] for\n%s", getval->type, JNULL, value);
-        goto fail;
-    }
-
-    pinsertval = jvalue_clone(getval);
-    if (pinsertval == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("clone value  error[%d]", ret);
-        goto fail;
-    }
-
-    /*now insert it*/
-    pjret = jobject_put(pj, pkey, pinsertval, &ret);
-    if (ret > 0) {
-        if (ret > 0) {
-            ret = -ret;
-        }
-        if (ret == 0) {
-            ret = -1;
-        }
-        ERROR_INFO( "insert key[%s] value [%s] error[%d]\n", pkey, value, ret);
-        goto fail;
-    }
-
-    pinsertval = NULL;
-
-    if (pjret != NULL) {
-        jvalue_destroy(pjret);
-        added = 0;
-    }
-    pjret = NULL;
-
-    if (parsepj != NULL) {
-        jvalue_destroy(parsepj);
-    }
-    parsepj = NULL;
-    snprintf_safe(&parsestr, &parsesize, NULL);
-    quote_string(&quotekey, &qksize, NULL);
-
-    return added;
-fail:
-    if (pinsertval != NULL) {
-        jvalue_destroy(pinsertval);
-    }
-    pinsertval = NULL;
-
-    if (pjret != NULL) {
-        jvalue_destroy(pjret);
-    }
-    pjret = NULL;
-
-
-    if (parsepj != NULL) {
-        jvalue_destroy(parsepj);
-    }
-    parsepj = NULL;
-    snprintf_safe(&parsestr, &parsesize, NULL);
-    quote_string(&quotekey, &qksize, NULL);
-    SETERRNO(ret);
-    return ret;
-}
 
 int addobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -500,7 +275,7 @@ int addobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         pkey = parsestate->leftargs[i];
         pstr = parsestate->leftargs[i + 1];
 
-        ret = __add_object(pj, pkey, pstr);
+        ret = add_jobject(pj, pkey, pstr);
         if (ret < 0) {
             GETERRNO(ret);
             ERROR_INFO( "can not insert key[%s]=[%s] error[%d]\n", pkey, pstr, ret);
@@ -515,10 +290,7 @@ int addobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
     ret = 0;
 out:
-    if (pj != NULL) {
-        jvalue_destroy(pj);
-    }
-    pj = NULL;
+    free_jvalue(&pj);
     free_input(pargs, &preadbuf, &readsize);
     SETERRNO(ret);
     return ret;
@@ -595,20 +367,14 @@ int __output_value(FILE* fp,char* pkey,jvalue* getpj)
     }
     pstr = NULL;    
 
-    if (basepj != NULL) {
-        jvalue_destroy(basepj);
-    }
-    basepj = NULL;
+    free_jvalue(&basepj);
     return 0;
 fail:
     if (pstr != NULL) {
         free(pstr);
     }
     pstr = NULL;
-    if (basepj != NULL) {
-        jvalue_destroy(basepj);
-    }
-    basepj = NULL;
+    free_jvalue(&basepj);
     SETERRNO(ret);
     return ret;
 }
