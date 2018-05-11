@@ -450,7 +450,11 @@ out:
 
 #include "args_options.cpp"
 
+#if defined(_WIN32) || defined(_WIN64)
+int _tmain(int argc, TCHAR* argv[])
+#else
 int main(int argc, char* argv[])
+#endif
 {
     char** args = NULL;
     args_options_t argsoption;

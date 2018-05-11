@@ -1331,7 +1331,7 @@ out:
     return ret;
 }
 
-int main(int argc, char* argv[])
+int _tmain(int argc, TCHAR* argv[])
 {
     char** args = NULL;
     int ret = 0;
