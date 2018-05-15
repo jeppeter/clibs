@@ -10,5 +10,8 @@
     },
     "queryobject<queryobject_handler>##query key...  from json##" : {
     	"$" : "+"
+    },
+    "readobject<readobject_handler>##no key##" : {
+        "$" : 0
     }
 }

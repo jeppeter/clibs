@@ -21,6 +21,7 @@ extern "C" {
 int addstring_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int addobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int queryobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int readobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
@@ -345,21 +346,17 @@ int __output_value(FILE* fp,char* pkey,jvalue* getpj)
     jvalue* basepj = NULL;
     char* pstr = NULL;
     int ret;
-    unsigned int outsize;
+    unsigned int outsize=0;
 
-    basepj = __make_new_value(pkey,getpj);
-    if (basepj == NULL) {
-        GETERRNO(ret);
-        goto fail;
-    }
 
-    pstr = jvalue_write_pretty(basepj,&outsize);
+    pstr = jvalue_write_pretty(getpj,&outsize);
     if (pstr == NULL) {
         GETERRNO(ret);
         ERROR_INFO("out [%s] error[%d]",pkey, ret);
         goto fail;
     }
 
+    fprintf(fp,"key [%s]\n", pkey);
     fprintf(fp, "%s\n",pstr);
 
     if (pstr != NULL) {
@@ -444,6 +441,47 @@ out:
     pj = NULL;
 
     free_input(pargs, &preadbuf, &readsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int readobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    args_options_t * pargs = (args_options_t*) popt;
+    char* preadbuf = NULL;
+    int readsize = 0;
+    unsigned int retlen = 0;
+    jvalue* pj = NULL;
+
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+
+    ret = read_input(pargs, &preadbuf, &readsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    fprintf(stdout, "read %s\n------------\n%s\n+++++++++++\n", pargs->m_input ? pargs->m_input : "stdin", preadbuf);
+
+    pj = jvalue_read(preadbuf,&retlen);
+    if (pj == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("parse error[%d]",ret);
+        goto out;
+    }
+
+    ret = __output_value(stdout, "none", pj);
+    if (ret < 0 ) {
+        GETERRNO(ret);
+        goto out;
+    }
+    ret = 0;
+
+out:
+    free_input(pargs,&preadbuf,&readsize);
+    free_jvalue(&pj);
     SETERRNO(ret);
     return ret;
 }
