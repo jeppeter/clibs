@@ -10,6 +10,7 @@
 #include <win_netinter.h>
 #include <win_time.h>
 #include <win_uniansi.h>
+#include <win_envop.h>
 
 typedef struct __args_options {
     int m_verbose;
@@ -37,6 +38,8 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sendmsg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int setcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
@@ -395,7 +398,7 @@ out:
 
 void __debug_buf(FILE* fp, char* ptr, int size)
 {
-    int i,lasti;
+    int i, lasti;
     unsigned char* pcur = (unsigned char*)ptr;
     unsigned char* plast = pcur;
 
@@ -1325,6 +1328,116 @@ int sendmsg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
             SleepEx((DWORD)pargs->m_timeout, TRUE);
         }
     }
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int getcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* pcompname = NULL;
+    int compnamesize = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int num;
+
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
+    num = atoi(parsestate->leftargs[0]);
+    if (num < 1 || num > 7) {
+        ERROR_INFO("not valid type [%d]", num);
+        ret = -ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+    DEBUG_INFO("num %d", num);
+
+    if (num & COMPUTER_NAME_DNS) {
+        ret = get_computer_name(COMPUTER_NAME_DNS, &pcompname, &compnamesize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("error [%d]", ret);
+            goto out;
+        }
+        fprintf(stdout, "DNS computer name [%s]\n", pcompname);
+    }
+
+    if (num & COMPUTER_NAME_NETBIOS) {
+        ret = get_computer_name(COMPUTER_NAME_NETBIOS, &pcompname, &compnamesize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("error [%d]", ret);
+            goto out;
+        }
+        fprintf(stdout, "NETBIOS computer name [%s]\n", pcompname);
+    }
+
+    if (num & COMPUTER_NAME_PHYS) {
+        ret = get_computer_name(COMPUTER_NAME_PHYS, &pcompname, &compnamesize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("error [%d]", ret);
+            goto out;
+        }
+        fprintf(stdout, "PHYS computer name [%s]\n", pcompname);        
+    }
+
+    ret = 0;
+out:
+    get_computer_name(COMPUTER_NAME_NONE, &pcompname, &compnamesize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int setcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* compname = NULL;
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int num;
+
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
+    num = atoi(parsestate->leftargs[0]);
+    compname = parsestate->leftargs[1];
+    if (num < 1 || num > 7) {
+        ERROR_INFO("not valid type [%d]", num);
+        ret = -ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+
+    if (num & COMPUTER_NAME_DNS) {
+        ret = set_computer_name(COMPUTER_NAME_DNS, compname);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        fprintf(stdout, "set DNS compname [%s] succ\n", compname);
+    }
+
+    if (num & COMPUTER_NAME_NETBIOS) {
+        ret = set_computer_name(COMPUTER_NAME_NETBIOS, compname);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        fprintf(stdout, "set NETBIOS compname [%s] succ\n", compname);
+    }
+
+    if (num & COMPUTER_NAME_PHYS) {
+        ret = set_computer_name(COMPUTER_NAME_PHYS, compname);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        fprintf(stdout, "set PHYS compname [%s] succ\n", compname);
+    }
+
     ret = 0;
 out:
     SETERRNO(ret);

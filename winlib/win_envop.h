@@ -10,7 +10,14 @@
 extern "C" {
 #endif
 
+#define  COMPUTER_NAME_NONE         0
+#define  COMPUTER_NAME_DNS          1
+#define  COMPUTER_NAME_NETBIOS      2
+#define  COMPUTER_NAME_PHYS         4
+
 WINLIB_API int get_env_variable(char* envvar,char** ppenvval,int* pvalsize);
+WINLIB_API int get_computer_name(int type, char** ppname,int *pnamesize);
+WINLIB_API int set_computer_name(int type,char* pname);
 
 #ifdef __cplusplus
 };
