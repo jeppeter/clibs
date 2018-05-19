@@ -82,7 +82,6 @@ WINLIB_API int error_out(const char* fmt, ...);
 #define  DEBUG_BUFFER(ptr,blen) ConsoleBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL)
 #define  DEBUG_BUFFER_FMT(ptr,blen,...) ConsoleBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__)
 
-
 #elif defined(WIN_BACKGROUND_OUTPUT)
 
 #define  DEBUG_BUFFER(ptr,blen) DebugBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL)

@@ -858,6 +858,7 @@ int split_lines(const char* str, char*** ppplines, int *psize)
     char** pptmpbuf = NULL;
     char* pcurptr = NULL, *plastptr;
     char* pgetcurptr;
+    int mustchk = 0;
 
 
     if (str == NULL) {
@@ -865,7 +866,7 @@ int split_lines(const char* str, char*** ppplines, int *psize)
     }
 
     if (ppplines == NULL || psize == NULL) {
-        ret=  -ERROR_INVALID_PARAMETER;
+        ret =  -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
         return ret;
     }
@@ -912,7 +913,7 @@ int split_lines(const char* str, char*** ppplines, int *psize)
                 pptmpbuf = NULL;
             }
 
-            cursize = (size_t)(pgetcurptr - plastptr)+1;
+            cursize = (size_t)(pgetcurptr - plastptr) + 1;
             ppretlines[retlen] = (char*) malloc((cursize + 2));
             if (ppretlines[retlen] == NULL) {
                 GETERRNO(ret);
@@ -924,6 +925,22 @@ int split_lines(const char* str, char*** ppplines, int *psize)
                 memcpy(ppretlines[retlen], plastptr, cursize);
             }
             plastptr = (pcurptr + 1);
+            pgetcurptr = ppretlines[retlen];
+            mustchk = 0;
+            while (*pgetcurptr != '\0') {
+                if (mustchk) {
+                    if (*pgetcurptr != '\r' &&
+                            *pgetcurptr != '\0') {
+                        ret = -ERROR_INTERNAL_ERROR;
+                        goto fail;
+                    }
+                } else if (*pgetcurptr == '\r') {
+                    *pgetcurptr = '\0';
+                    mustchk = 1;
+                }
+                pgetcurptr ++;
+            }
+
             retlen ++;
         }
     }
@@ -954,7 +971,7 @@ int split_lines(const char* str, char*** ppplines, int *psize)
         pptmpbuf = NULL;
     }
 
-    cursize = (size_t)(pgetcurptr - plastptr)+1;
+    cursize = (size_t)(pgetcurptr - plastptr) + 1;
     ppretlines[retlen] = (char*) malloc(cursize + 2);
     if (ppretlines[retlen] == NULL) {
         GETERRNO(ret);
@@ -965,14 +982,33 @@ int split_lines(const char* str, char*** ppplines, int *psize)
     if (cursize > 0) {
         memcpy(ppretlines[retlen], plastptr, cursize);
     }
+
     plastptr = (pcurptr + 1);
+    pgetcurptr = ppretlines[retlen];
+    mustchk = 0;
+    while (*pgetcurptr != '\0') {
+        if (mustchk) {
+            if (*pgetcurptr != '\r' &&
+                    *pgetcurptr != '\0') {
+                ret = -ERROR_INTERNAL_ERROR;
+                goto fail;
+            }
+
+        } else if (*pgetcurptr == '\r') {
+            *pgetcurptr = '\0';
+            mustchk = 1;
+        }
+        pgetcurptr ++;
+    }
+
+
     retlen ++;
 
     if (pptmpbuf) {
         free(pptmpbuf);
     }
     pptmpbuf = NULL;
-    __inner_free(ppplines,psize);
+    __inner_free(ppplines, psize);
     *ppplines = ppretlines;
     *psize = retsize;
     return retlen;
