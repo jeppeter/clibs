@@ -22,6 +22,7 @@ int addstring_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int addobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int queryobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int readobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int splitlines_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
@@ -304,14 +305,14 @@ jvalue* __make_new_value(char* pkey, jvalue* getpj)
     basepj = jobject_create();
     if (basepj == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("create object for [%s] error[%d]", pkey,ret);
+        ERROR_INFO("create object for [%s] error[%d]", pkey, ret);
         goto fail;
     }
 
     clonepj = jvalue_clone(getpj);
     if (clonepj == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("clone value for [%s] error[%d]", pkey,ret);
+        ERROR_INFO("clone value for [%s] error[%d]", pkey, ret);
         goto fail;
     }
 
@@ -322,7 +323,7 @@ jvalue* __make_new_value(char* pkey, jvalue* getpj)
         if (ret > 0) {
             ret = -ret;
         }
-        ERROR_INFO("put [%s] error[%d]",pkey,ret);
+        ERROR_INFO("put [%s] error[%d]", pkey, ret);
         goto fail;
     }
     clonepj = NULL;
@@ -341,28 +342,28 @@ fail:
     return NULL;
 }
 
-int __output_value(FILE* fp,char* pkey,jvalue* getpj)
+int __output_value(FILE* fp, char* pkey, jvalue* getpj)
 {
     jvalue* basepj = NULL;
     char* pstr = NULL;
     int ret;
-    unsigned int outsize=0;
+    unsigned int outsize = 0;
 
 
-    pstr = jvalue_write_pretty(getpj,&outsize);
+    pstr = jvalue_write_pretty(getpj, &outsize);
     if (pstr == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("out [%s] error[%d]",pkey, ret);
+        ERROR_INFO("out [%s] error[%d]", pkey, ret);
         goto fail;
     }
 
-    fprintf(fp,"key [%s]\n", pkey);
-    fprintf(fp, "%s\n",pstr);
+    fprintf(fp, "key [%s]\n", pkey);
+    fprintf(fp, "%s\n", pstr);
 
     if (pstr != NULL) {
         free(pstr);
     }
-    pstr = NULL;    
+    pstr = NULL;
 
     free_jvalue(&basepj);
     return 0;
@@ -426,7 +427,7 @@ int queryobject_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
             continue;
         }
 
-        ret = __output_value(stdout,pkey,getpj);
+        ret = __output_value(stdout, pkey, getpj);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
@@ -465,14 +466,14 @@ int readobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     }
     fprintf(stdout, "read %s\n------------\n%s\n+++++++++++\n", pargs->m_input ? pargs->m_input : "stdin", preadbuf);
 
-    pj = jvalue_read(preadbuf,&retlen);
+    pj = jvalue_read(preadbuf, &retlen);
     if (pj == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("parse error[%d]",ret);
+        ERROR_INFO("parse error[%d]", ret);
         goto out;
     }
 
-    ret = __output_value(stdout, "none", pj);
+    ret = __output_value(stdout, (char*)"none", pj);
     if (ret < 0 ) {
         GETERRNO(ret);
         goto out;
@@ -480,8 +481,59 @@ int readobject_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     ret = 0;
 
 out:
-    free_input(pargs,&preadbuf,&readsize);
+    free_input(pargs, &preadbuf, &readsize);
     free_jvalue(&pj);
+    SETERRNO(ret);
+    return ret;
+}
+
+int splitlines_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* file = NULL;
+    char* preadbuf = NULL;
+    int readsize = 0;
+    char** pplines = NULL;
+    int lsize = 0, llen = 0;
+    int i;
+    int argcnt = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_verbose(pargs);
+    argc = argc;
+    argv = argv;
+
+    if (parsestate->leftargs != NULL) {
+        for (argcnt = 0; parsestate->leftargs[argcnt] != NULL; argcnt ++) {
+            file = parsestate->leftargs[argcnt];
+
+            ret = read_file_whole(file, &preadbuf, &readsize);
+            if (ret < 0) {
+                ERROR_INFO("can not read [%s] error[%d]", file, ret);
+                continue;
+            }
+
+            ret = split_lines(preadbuf, &pplines, &lsize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto out;
+            }
+            llen = ret;
+
+            fprintf(stdout, "read [%s] --------------\n", file);
+            for (i = 0; i < llen; i++) {
+                fprintf(stdout, "[%03d] %s\n", i, pplines[i]);
+            }
+            fprintf(stdout, "++++++++++++++++++++++++++++\n");
+
+        }
+    }
+
+    ret = 0;
+
+out:
+    split_lines(NULL, &pplines, &lsize);
+    read_file_whole(NULL, &preadbuf, &readsize);
     SETERRNO(ret);
     return ret;
 }

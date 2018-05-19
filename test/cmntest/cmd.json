@@ -13,5 +13,8 @@
     },
     "readobject<readobject_handler>##no key##" : {
         "$" : 0
+    },
+    "splitlines<splitlines_handler>##files ... to read files and split##" : {
+        "$" : "+"
     }
 }

@@ -823,3 +823,164 @@ int check_valid_simple_string(const char* value)
     }
     return ret;
 }
+
+int __inner_free(char*** ppplines, int *psize)
+{
+    char** pplines;
+    int retsize;
+    int i;
+    if (ppplines != NULL && *ppplines != NULL && psize != NULL) {
+        retsize = *psize;
+        pplines = *ppplines;
+        for (i = 0; i < retsize ; i ++) {
+            if (pplines[i] != NULL) {
+                free(pplines[i]);
+                pplines[i] = NULL;
+            }
+        }
+        free(pplines);
+        *ppplines = NULL;
+    }
+    if (psize != NULL) {
+        *psize = 0;
+    }
+    return 0;
+}
+
+int split_lines(const char* str, char*** ppplines, int *psize)
+{
+    int ret;
+    size_t cursize = 0;
+    int retsize = 0;
+    int retlen = 0;
+    char** ppretlines = NULL;
+    char** pptmpbuf = NULL;
+    char* pcurptr = NULL, *plastptr;
+    char* pgetcurptr;
+
+
+    if (str == NULL) {
+        return __inner_free(ppplines, psize);
+    }
+
+    if (ppplines == NULL || psize == NULL) {
+        ret=  -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    /*now first to get lines number*/
+    pcurptr = (char*)str;
+    plastptr = pcurptr;
+
+
+    retsize = 4;
+    retlen = 0;
+    ppretlines = (char**) malloc(sizeof(*ppretlines) * retsize);
+    if (ppretlines == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*ppretlines)*retsize, ret);
+        goto fail;
+    }
+    memset(ppretlines, 0 , sizeof(*ppretlines)*retsize);
+
+    for (; *pcurptr != '\0'; pcurptr++) {
+        if (*pcurptr == '\n') {
+            pgetcurptr = pcurptr;
+            pgetcurptr --;
+            if (*pgetcurptr == '\r') {
+                pgetcurptr --;
+            }
+
+            if (retlen >= retsize) {
+                retsize <<= 1;
+                pptmpbuf = (char**) malloc(sizeof(*ppretlines) * retsize);
+                if (pptmpbuf == NULL) {
+                    GETERRNO(ret);
+                    ERROR_INFO("alloc %d error[%d]", sizeof(*ppretlines)*retsize, ret);
+                    goto fail;
+                }
+                memset(pptmpbuf, 0 , sizeof(*pptmpbuf)*retsize);
+                if (retlen > 0) {
+                    memcpy(pptmpbuf, ppretlines, sizeof(*ppretlines)*retlen);
+                }
+                if (ppretlines != NULL) {
+                    free(ppretlines);
+                }
+                ppretlines = pptmpbuf;
+                pptmpbuf = NULL;
+            }
+
+            cursize = (size_t)(pgetcurptr - plastptr)+1;
+            ppretlines[retlen] = (char*) malloc((cursize + 2));
+            if (ppretlines[retlen] == NULL) {
+                GETERRNO(ret);
+                ERROR_INFO("alloc %d error[%d]", cursize + 2, ret);
+                goto fail;
+            }
+            memset(ppretlines[retlen], 0, cursize + 2);
+            if (cursize > 0) {
+                memcpy(ppretlines[retlen], plastptr, cursize);
+            }
+            plastptr = (pcurptr + 1);
+            retlen ++;
+        }
+    }
+
+    /*it is the last lines*/
+    pgetcurptr = pcurptr;
+    pgetcurptr --;
+    if (*pgetcurptr == '\r') {
+        pgetcurptr --;
+    }
+
+    if (retlen >= retsize) {
+        retsize <<= 1;
+        pptmpbuf = (char**) malloc(sizeof(*ppretlines) * retsize);
+        if (pptmpbuf == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", sizeof(*ppretlines)*retsize, ret);
+            goto fail;
+        }
+        memset(pptmpbuf, 0 , sizeof(*pptmpbuf)*retsize);
+        if (retlen > 0) {
+            memcpy(pptmpbuf, ppretlines, sizeof(*ppretlines)*retlen);
+        }
+        if (ppretlines != NULL) {
+            free(ppretlines);
+        }
+        ppretlines = pptmpbuf;
+        pptmpbuf = NULL;
+    }
+
+    cursize = (size_t)(pgetcurptr - plastptr)+1;
+    ppretlines[retlen] = (char*) malloc(cursize + 2);
+    if (ppretlines[retlen] == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", cursize + 2, ret);
+        goto fail;
+    }
+    memset(ppretlines[retlen], 0, cursize + 2);
+    if (cursize > 0) {
+        memcpy(ppretlines[retlen], plastptr, cursize);
+    }
+    plastptr = (pcurptr + 1);
+    retlen ++;
+
+    if (pptmpbuf) {
+        free(pptmpbuf);
+    }
+    pptmpbuf = NULL;
+    __inner_free(ppplines,psize);
+    *ppplines = ppretlines;
+    *psize = retsize;
+    return retlen;
+fail:
+    if (pptmpbuf) {
+        free(pptmpbuf);
+    }
+    pptmpbuf = NULL;
+    __inner_free(&ppretlines, &retsize);
+    SETERRNO(ret);
+    return ret;
+}

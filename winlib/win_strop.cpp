@@ -87,8 +87,8 @@ fail:
 int snprintf_safe(char** ppbuf, int *pbufsize, const char* fmt, ...)
 {
     va_list ap;
-    if (fmt == NULL){
-        if (*ppbuf){
+    if (fmt == NULL) {
+        if (*ppbuf) {
             free(*ppbuf);
         }
         *ppbuf = NULL;
@@ -97,10 +97,10 @@ int snprintf_safe(char** ppbuf, int *pbufsize, const char* fmt, ...)
     }
 
     va_start(ap, fmt);
-    return vsnprintf_safe(ppbuf,pbufsize,fmt,ap);
+    return vsnprintf_safe(ppbuf, pbufsize, fmt, ap);
 }
 
-int append_vsnprintf_safe(char** ppbuf,int *pbufsize,const char* fmt,va_list ap)
+int append_vsnprintf_safe(char** ppbuf, int *pbufsize, const char* fmt, va_list ap)
 {
     char* pRetBuf = *ppbuf;
     char* pTmpBuf = NULL;
@@ -212,23 +212,24 @@ fail:
 int append_snprintf_safe(char**ppbuf, int*pbufsize, const char* fmt, ...)
 {
     va_list ap;
-    if (fmt == NULL){
-        if (*ppbuf){
+    if (fmt == NULL) {
+        if (*ppbuf) {
             free(*ppbuf);
         }
         *ppbuf = NULL;
         *pbufsize = 0;
         return 0;
     }
-    va_start(ap,fmt);
-    return append_vsnprintf_safe(ppbuf,pbufsize,fmt,ap);
+    va_start(ap, fmt);
+    return append_vsnprintf_safe(ppbuf, pbufsize, fmt, ap);
 }
 
-void __make_lowercase(const char* pstr){
-    char* pcurptr =(char*) pstr;
+void __make_lowercase(const char* pstr)
+{
+    char* pcurptr = (char*) pstr;
 
-    while(pcurptr && *pcurptr != 0x0){
-        if (*pcurptr >= 'A' && *pcurptr <= 'Z'){
+    while (pcurptr && *pcurptr != 0x0) {
+        if (*pcurptr >= 'A' && *pcurptr <= 'Z') {
             *pcurptr = *pcurptr - 'A' + 'a';
         }
         pcurptr ++;
@@ -241,46 +242,46 @@ void str_lower_case(const char* pstr)
     return __make_lowercase(pstr);
 }
 
-char* str_in_str(const char* pstr,const char *search)
+char* str_in_str(const char* pstr, const char *search)
 {
-    return (char*)strstr(pstr,search);
+    return (char*)strstr(pstr, search);
 }
 
-int str_match_wildcard(const char* regpat,const char* str)
+int str_match_wildcard(const char* regpat, const char* str)
 {
-    int bmatched=0;
-    char* pcurstr=NULL;
+    int bmatched = 0;
+    char* pcurstr = NULL;
 
-    char* pcurpat=NULL,*pnextpat=NULL;
-    char* pcopypat=NULL;
-    char* pcopystr=NULL;
-    size_t patlen,slen;
+    char* pcurpat = NULL, *pnextpat = NULL;
+    char* pcopypat = NULL;
+    char* pcopystr = NULL;
+    size_t patlen, slen;
     int ret;
     addr_t curpatlen;
-    char* pmatchstr=NULL;
+    char* pmatchstr = NULL;
 
-    if (regpat == NULL || str == NULL){
+    if (regpat == NULL || str == NULL) {
         return 0;
-    } 
+    }
 
     /*now we copy the regular pattern*/
     patlen = strlen(regpat) + 1;
     pcopypat = (char*)malloc(patlen);
-    if (pcopypat == NULL){
+    if (pcopypat == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("can alloc(%d) error(%d)",patlen,ret);
+        ERROR_INFO("can alloc(%d) error(%d)", patlen, ret);
         goto out;
     }
 
     slen = strlen(str) + 1;
     pcopystr = (char*)malloc(slen);
-    if (pcopystr == NULL){
+    if (pcopystr == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("can alloc(%d) error(%d)",slen,ret);
+        ERROR_INFO("can alloc(%d) error(%d)", slen, ret);
         goto out;
     }
-    memcpy(pcopypat,regpat,patlen);
-    memcpy(pcopystr,str,slen);
+    memcpy(pcopypat, regpat, patlen);
+    memcpy(pcopystr, str, slen);
 
     __make_lowercase(pcopypat);
     __make_lowercase(pcopystr);
@@ -290,27 +291,27 @@ int str_match_wildcard(const char* regpat,const char* str)
 
 
 
-    for (;*pcurpat != 0x0;){
+    for (; *pcurpat != 0x0;) {
         pnextpat = pcurpat;
-        while (*pnextpat != 0x0 && *pnextpat != '*'){
+        while (*pnextpat != 0x0 && *pnextpat != '*') {
             pnextpat ++;
         }
 
         curpatlen = (addr_t)pnextpat - (addr_t)pcurpat;
-        if (curpatlen > 0){
+        if (curpatlen > 0) {
             /*it means we have something in the pattern,so we should give it to match*/
-            if (*pcurstr==0x0 || strlen(pcurstr) < curpatlen){
+            if (*pcurstr == 0x0 || strlen(pcurstr) < curpatlen) {
                 /*nothing to match*/
                 bmatched = 0;
                 goto out;
-            } 
+            }
             /*now search for it*/
-            if (*pnextpat == '*'){
-                *pnextpat = 0x0;            
+            if (*pnextpat == '*') {
+                *pnextpat = 0x0;
                 pnextpat ++;
             }
-            pmatchstr = strstr(pcurstr,pcurpat);
-            if (pmatchstr == NULL){
+            pmatchstr = strstr(pcurstr, pcurpat);
+            if (pmatchstr == NULL) {
                 /*nothing match*/
                 bmatched = 0;
                 goto out;
@@ -319,11 +320,11 @@ int str_match_wildcard(const char* regpat,const char* str)
             pcurstr = pmatchstr + curpatlen;
             pcurpat = pnextpat;
 
-        }else {
+        } else {
             /*nothing to do*/
-            if (*pnextpat == 0x0){
+            if (*pnextpat == 0x0) {
                 break;
-            }else if (*pnextpat == '*'){
+            } else if (*pnextpat == '*') {
                 *pnextpat = 0x0;
                 pnextpat ++;
                 pcurpat = pnextpat;
@@ -336,11 +337,11 @@ int str_match_wildcard(const char* regpat,const char* str)
     bmatched = 1;
 
 out:
-    if (pcopypat){
+    if (pcopypat) {
         free(pcopypat);
     }
     pcopypat = NULL;
-    if (pcopystr){
+    if (pcopystr) {
         free(pcopystr);
     }
     pcopystr = NULL;
@@ -348,15 +349,15 @@ out:
 }
 
 
-int quote_stringv(char** ppquotestr,int *psize,const char* pstr,va_list ap)
+int quote_stringv(char** ppquotestr, int *psize, const char* pstr, va_list ap)
 {
-    char* pret=NULL;
-    int retsize=0;
-    char* ptmp=NULL;
-    int tmpsize=0;
+    char* pret = NULL;
+    int retsize = 0;
+    char* ptmp = NULL;
+    int tmpsize = 0;
     int ret;
     int cnt;
-    char* pcursrc=NULL, *pcurdst=NULL;;
+    char* pcursrc = NULL, *pcurdst = NULL;;
 
     if (pstr == NULL) {
         if (ppquotestr && *ppquotestr) {
@@ -378,16 +379,16 @@ int quote_stringv(char** ppquotestr,int *psize,const char* pstr,va_list ap)
     pret = *ppquotestr;
     retsize = *psize;
 
-    ret = vsnprintf_safe(&ptmp,&tmpsize, pstr,ap);
+    ret = vsnprintf_safe(&ptmp, &tmpsize, pstr, ap);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
     /*we include the " at begin or end and the every two*/
-    if (pret == NULL || retsize < ((ret * 2)+3))  {
-        if (retsize < ((ret * 2)+3)) {
-            retsize = ((ret * 2)+3);
+    if (pret == NULL || retsize < ((ret * 2) + 3))  {
+        if (retsize < ((ret * 2) + 3)) {
+            retsize = ((ret * 2) + 3);
         }
         pret = (char*) malloc((size_t)retsize);
         if (pret == NULL) {
@@ -398,15 +399,15 @@ int quote_stringv(char** ppquotestr,int *psize,const char* pstr,va_list ap)
     }
 
 
-    memset(pret ,0 , (size_t)retsize);
+    memset(pret , 0 , (size_t)retsize);
     pcursrc = ptmp;
     pcurdst = pret;
     *pcurdst = '"';
     pcurdst ++;
 
-    while(*pcursrc) {
-        if (*pcursrc == '\\' || 
-            *pcursrc == '"') {
+    while (*pcursrc) {
+        if (*pcursrc == '\\' ||
+                *pcursrc == '"') {
             *pcurdst = '\\';
             pcurdst ++;
         }
@@ -435,15 +436,15 @@ fail:
     }
     pret = NULL;
     retsize = 0;
-    vsnprintf_safe(&ptmp,&tmpsize,NULL,ap);
+    vsnprintf_safe(&ptmp, &tmpsize, NULL, ap);
     SETERRNO(ret);
-    return ret;    
+    return ret;
 }
 
-int quote_string(char** ppquotestr,int *psize,const char* pstr,...)
+int quote_string(char** ppquotestr, int *psize, const char* pstr, ...)
 {
     va_list ap;
-    if (pstr ==NULL) {
+    if (pstr == NULL) {
         if (ppquotestr && *ppquotestr) {
             free(*ppquotestr);
             *ppquotestr = NULL;
@@ -454,7 +455,7 @@ int quote_string(char** ppquotestr,int *psize,const char* pstr,...)
         return 0;
     }
     va_start(ap, pstr);
-    return quote_stringv(ppquotestr, psize,pstr, ap);
+    return quote_stringv(ppquotestr, psize, pstr, ap);
 }
 
 char* safe_strdup(const char* str)
@@ -510,12 +511,12 @@ void str_underscore_case(const char* pstr)
 
 int str_nocase_cmp(const char* pstr, const char* pcmpstr)
 {
-    return _stricmp(pstr,pcmpstr);
+    return _stricmp(pstr, pcmpstr);
 }
 
 int str_case_cmp(const char* pstr, const char* pcmpstr)
 {
-    return strcmp(pstr,pcmpstr);
+    return strcmp(pstr, pcmpstr);
 }
 
 
@@ -621,7 +622,7 @@ int unquote_string(char** ppstr, int *psize, char* pinput)
     }
 
     pretstr = (unsigned char*)*ppstr;
-    retsize = (size_t)*psize;
+    retsize = (size_t) * psize;
 
     if (retsize < MIN_STR_SIZE || pretstr == NULL) {
         if (retsize < MIN_STR_SIZE) {
@@ -716,7 +717,7 @@ int unquote_string(char** ppstr, int *psize, char* pinput)
                 retlen ++;
             } else if (pcurptr[0] >= '1' && pcurptr[0] <= '9') {
                 addnum = 0;
-                ret = __get_basenum(pcurptr,&addnum, 10) ;
+                ret = __get_basenum(pcurptr, &addnum, 10) ;
                 if (ret < 0) {
                     GETERRNO(ret);
                     ERROR_INFO("parse %s error at [%s]", pinput, pcurptr);
@@ -821,5 +822,166 @@ int check_valid_simple_string(const char* value)
         /*this means it is error*/
         return 0;
     }
+    return ret;
+}
+
+int __inner_free(char*** ppplines, int *psize)
+{
+    char** pplines;
+    int retsize;
+    int i;
+    if (ppplines != NULL && *ppplines != NULL && psize != NULL) {
+        retsize = *psize;
+        pplines = *ppplines;
+        for (i = 0; i < retsize ; i ++) {
+            if (pplines[i] != NULL) {
+                free(pplines[i]);
+                pplines[i] = NULL;
+            }
+        }
+        free(pplines);
+        *ppplines = NULL;
+    }
+    if (psize != NULL) {
+        *psize = 0;
+    }
+    return 0;
+}
+
+int split_lines(const char* str, char*** ppplines, int *psize)
+{
+    int ret;
+    size_t cursize = 0;
+    int retsize = 0;
+    int retlen = 0;
+    char** ppretlines = NULL;
+    char** pptmpbuf = NULL;
+    char* pcurptr = NULL, *plastptr;
+    char* pgetcurptr;
+
+
+    if (str == NULL) {
+        return __inner_free(ppplines, psize);
+    }
+
+    if (ppplines == NULL || psize == NULL) {
+        ret=  -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    /*now first to get lines number*/
+    pcurptr = (char*)str;
+    plastptr = pcurptr;
+
+
+    retsize = 4;
+    retlen = 0;
+    ppretlines = (char**) malloc(sizeof(*ppretlines) * retsize);
+    if (ppretlines == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*ppretlines)*retsize, ret);
+        goto fail;
+    }
+    memset(ppretlines, 0 , sizeof(*ppretlines)*retsize);
+
+    for (; *pcurptr != '\0'; pcurptr++) {
+        if (*pcurptr == '\n') {
+            pgetcurptr = pcurptr;
+            pgetcurptr --;
+            if (*pgetcurptr == '\r') {
+                pgetcurptr --;
+            }
+
+            if (retlen >= retsize) {
+                retsize <<= 1;
+                pptmpbuf = (char**) malloc(sizeof(*ppretlines) * retsize);
+                if (pptmpbuf == NULL) {
+                    GETERRNO(ret);
+                    ERROR_INFO("alloc %d error[%d]", sizeof(*ppretlines)*retsize, ret);
+                    goto fail;
+                }
+                memset(pptmpbuf, 0 , sizeof(*pptmpbuf)*retsize);
+                if (retlen > 0) {
+                    memcpy(pptmpbuf, ppretlines, sizeof(*ppretlines)*retlen);
+                }
+                if (ppretlines != NULL) {
+                    free(ppretlines);
+                }
+                ppretlines = pptmpbuf;
+                pptmpbuf = NULL;
+            }
+
+            cursize = (size_t)(pgetcurptr - plastptr)+1;
+            ppretlines[retlen] = (char*) malloc((cursize + 2));
+            if (ppretlines[retlen] == NULL) {
+                GETERRNO(ret);
+                ERROR_INFO("alloc %d error[%d]", cursize + 2, ret);
+                goto fail;
+            }
+            memset(ppretlines[retlen], 0, cursize + 2);
+            if (cursize > 0) {
+                memcpy(ppretlines[retlen], plastptr, cursize);
+            }
+            plastptr = (pcurptr + 1);
+            retlen ++;
+        }
+    }
+
+    /*it is the last lines*/
+    pgetcurptr = pcurptr;
+    pgetcurptr --;
+    if (*pgetcurptr == '\r') {
+        pgetcurptr --;
+    }
+
+    if (retlen >= retsize) {
+        retsize <<= 1;
+        pptmpbuf = (char**) malloc(sizeof(*ppretlines) * retsize);
+        if (pptmpbuf == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", sizeof(*ppretlines)*retsize, ret);
+            goto fail;
+        }
+        memset(pptmpbuf, 0 , sizeof(*pptmpbuf)*retsize);
+        if (retlen > 0) {
+            memcpy(pptmpbuf, ppretlines, sizeof(*ppretlines)*retlen);
+        }
+        if (ppretlines != NULL) {
+            free(ppretlines);
+        }
+        ppretlines = pptmpbuf;
+        pptmpbuf = NULL;
+    }
+
+    cursize = (size_t)(pgetcurptr - plastptr)+1;
+    ppretlines[retlen] = (char*) malloc(cursize + 2);
+    if (ppretlines[retlen] == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", cursize + 2, ret);
+        goto fail;
+    }
+    memset(ppretlines[retlen], 0, cursize + 2);
+    if (cursize > 0) {
+        memcpy(ppretlines[retlen], plastptr, cursize);
+    }
+    plastptr = (pcurptr + 1);
+    retlen ++;
+
+    if (pptmpbuf) {
+        free(pptmpbuf);
+    }
+    pptmpbuf = NULL;
+    __inner_free(ppplines,psize);
+    *ppplines = ppretlines;
+    *psize = retsize;
+    return retlen;
+fail:
+    if (pptmpbuf) {
+        free(pptmpbuf);
+    }
+    pptmpbuf = NULL;
+    __inner_free(&ppretlines, &retsize);
+    SETERRNO(ret);
     return ret;
 }

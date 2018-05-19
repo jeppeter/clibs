@@ -30,6 +30,7 @@ void str_upper_case(const char* pstr);
 int str_nocase_cmp(const char* pstr, const char* pcmpstr);
 int str_case_cmp(const char* pstr, const char* pcmpstr);
 int check_valid_simple_string(const char* value);
+int split_lines(const char* str, char*** ppplines, int *psize);
 
 #ifdef __cplusplus
 };

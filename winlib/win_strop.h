@@ -30,6 +30,7 @@ WINLIB_API void str_underscore_case(const char* pstr);
 WINLIB_API int str_nocase_cmp(const char* pstr, const char* pcmpstr);
 WINLIB_API int str_case_cmp(const char* pstr, const char* pcmpstr);
 WINLIB_API int check_valid_simple_string(const char* value);
+WINLIB_API int split_lines(const char* str, char*** ppplines, int *psize);
 
 #ifdef __cplusplus
 };
