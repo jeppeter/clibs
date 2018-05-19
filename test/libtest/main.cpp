@@ -34,7 +34,9 @@ int fullpath_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int winverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int netinter_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int quote_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int runv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int outc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sendmsg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
@@ -444,7 +446,7 @@ void __debug_buf(FILE* fp, char* ptr, int size)
     return;
 }
 
-int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+int runv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     char* inbuf = NULL;
     int insize = 0;
@@ -527,6 +529,140 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 out:
     run_cmd_outputv(NULL, 0, &outbuf, &outsize, &errbuf, &errsize, &exitcode, -1, NULL);
     read_file_whole(NULL, &inbuf, &insize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int outc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+    char* ptmpbuf=NULL;
+    char* pinbuf=NULL;
+    int insize=0;
+    int inlen=0;
+    char** ppllines=NULL;
+    int lsize=0;
+    int llen=0;
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+    if (parsestate->leftargs != NULL) {
+        for(i=0;parsestate->leftargs[i] != NULL;i++) {
+            fprintf(stderr,"stderr %s\n",parsestate->leftargs[i]);
+            Sleep(1000);
+            fprintf(stdout,"stdout %s\n", parsestate->leftargs[i]);
+        }
+    } else {
+
+        insize = 1024;
+        pinbuf = (char*) malloc((size_t)insize);
+        if (pinbuf == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]",insize,ret);
+            goto out;
+        }
+        while(1) {
+            ret = (int)fread(&(pinbuf[inlen]),1,(size_t) (insize - inlen), stdin);
+            if (ret < 0 ){
+                if (feof(stdin)) {
+                    break;
+                }
+                GETERRNO(ret);
+                ERROR_INFO("read [%d] error[%d]", inlen,ret);
+                goto out;
+            }
+
+            inlen += ret;
+            if (ret == 0) {
+                break;
+            }
+            if (inlen >= insize) {
+                insize <<= 1;
+                ptmpbuf = (char*) malloc((size_t)insize);
+                if (ptmpbuf == NULL) {
+                    GETERRNO(ret);
+                    ERROR_INFO("alloc %d error[%d]",insize, ret);
+                    goto out;
+                }
+                memset(ptmpbuf, 0, (size_t)insize);
+                if (inlen > 0) {
+                    memcpy(pinbuf, ptmpbuf, (size_t)inlen);
+                }
+                if (pinbuf) {
+                    free(pinbuf);
+                }
+                pinbuf = ptmpbuf;
+                ptmpbuf = NULL;
+            }
+        }
+
+        ret = split_lines(pinbuf, &ppllines,&lsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        llen = ret;
+        for (i=0;i<llen;i++) {
+            fprintf(stderr,"stderr %s\n",ppllines[i]);
+            Sleep(1000);
+            fprintf(stdout,"stdout %s\n", ppllines[i]);
+        }
+    }
+    ret = 0;
+out:
+    split_lines(NULL,&ppllines,&lsize);
+    if (ptmpbuf != NULL) {
+        free(ptmpbuf);
+    }
+    ptmpbuf = NULL;
+    if (pinbuf != NULL) {
+        free(pinbuf);
+    }
+    pinbuf = NULL;
+    insize= 0;
+    inlen = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* pout=NULL;
+    int outsize=0;
+    char* perr=NULL;
+    int errsize=0;
+    int exitcode = 0;
+    pargs_options_t pargs= (pargs_options_t) popt;
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+    init_log_level(pargs);
+
+
+    ret = run_cmd_output(NULL,0,&pout,&outsize,&perr,&errsize,&exitcode,0,"libtest.exe", "outc","little","big",NULL);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    if(exitcode != 0) {
+        GETERRNO(ret);
+        ERROR_INFO("exitcode %d",ret);
+        goto out;
+    }
+
+    fprintf(stdout,"read stdout------------\n");
+    fprintf(stdout,"%s",pout);
+    fprintf(stdout,"++++++++++++++++++++++++++\n");
+    fprintf(stdout,"read stderr------------\n");
+    fprintf(stdout,"%s",perr);
+    fprintf(stdout,"++++++++++++++++++++++++++\n");
+
+    ret = 0;
+out:
+    run_cmd_output(NULL,0,&pout,&outsize,&perr,&errsize,NULL,0,NULL);
     SETERRNO(ret);
     return ret;
 }

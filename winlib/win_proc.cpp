@@ -1880,3 +1880,68 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int run_cmd_output(char* pin, int insize, char** ppout,int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog,...)
+{
+    va_list ap;
+    va_list oldap;
+    char** progv = NULL;
+    int i;
+    int retlen;
+    int ret;
+    char* curarg;
+    int cnt =0;
+    
+    if (prog == NULL) {
+        return run_cmd_outputv(pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,NULL);
+    }
+
+    cnt=1;
+    va_start(ap,prog);
+    va_copy(oldap,ap);
+    while(1) {
+        curarg = va_arg(ap,char*);
+        if (curarg == NULL) {
+            break;
+        }
+        cnt ++;
+    }
+
+    progv = (char**) malloc(sizeof(*progv ) * (cnt + 1));
+    if (progv == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*progv)*(cnt + 1),ret);
+        goto fail;
+    }
+
+    memset(progv, 0 ,sizeof(*progv)*(cnt+1));
+    va_copy(ap,oldap);
+    progv[0] = (char*)prog;
+    for (i=1;i<cnt ;i++) {
+        curarg = va_arg(ap,char*);
+        ASSERT_IF(curarg != NULL);
+        progv[i] = curarg;
+    }
+
+    curarg = va_arg(ap,char*);
+    ASSERT_IF(curarg == NULL);
+
+    ret = run_cmd_outputv(pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,progv);
+    if (ret < 0) {
+        GETERRNO(ret);        
+        goto fail;
+    }
+
+    retlen = ret;
+    free(progv);
+
+    return retlen;
+
+fail:
+    if (progv != NULL) {
+        free(progv);
+    }
+    progv = NULL;
+    SETERRNO(ret);
+    return ret;
+}

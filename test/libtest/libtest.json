@@ -29,7 +29,7 @@
     "quote<quote_handler>" : {
         "$" : "+"
     },
-    "run<run_handler>##make run command with output and input##" : {
+    "runv<runv_handler>##make run command with output and input##" : {
         "$" : "+"
     },
     "svrlap<svrlap_handler>##to make server overlapped##" : {
@@ -46,5 +46,12 @@
     },
     "getcompname<getcompname_handler>##type get computer name(1 or 2 or 3)##" : {
         "$" : 1
+    },
+    "run<run_handler>" : {
+        "$" : "*"
+    },
+    "outc<outc_handler>" : {
+        "$" : "*"
     }
+
 }
