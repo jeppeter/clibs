@@ -1747,7 +1747,7 @@ out_again:
                 }
                 if (ret > 0) {
                     DEBUG_BUFFER_FMT(&(pretout[outlen]), ret, "stdout new in");
-                }
+                } 
                 outlen += ret;
                 if (outlen >= outsize) {
                     ERROR_INFO("read [%s] outlen[%d] outsize [%d]", pproc->m_stdoutpipe->m_pipename, outlen, outsize);
@@ -1758,6 +1758,7 @@ out_again:
                     if (outlen == outsize) {
                         goto out_again;
                     } else {
+                        DEBUG_INFO("outlen %d outsize %d", outlen, outsize);
                         waithds[waitnum] = pproc->m_stdoutpipe->m_evt;
                         waitnum ++;
                         pproc->m_stdoutpipe->m_state = PIPE_WAIT_READ;
@@ -1827,6 +1828,7 @@ err_again:
                     if (errlen == errsize) {
                         goto err_again;
                     } else {
+                        DEBUG_INFO("errlen %d errsize %d", errlen ,errsize);
                         waithds[waitnum] = pproc->m_stderrpipe->m_evt;
                         waitnum ++;
                         pproc->m_stderrpipe->m_state = PIPE_WAIT_READ;
