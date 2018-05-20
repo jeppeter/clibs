@@ -52,6 +52,12 @@
     },
     "outc<outc_handler>" : {
         "$" : "*"
+    },
+    "regexec<regexec_handler>##restr instr .... to match regular expression##" : {
+        "$" : "+"
+    },
+    "iregexec<iregexec_handler>##restr instr .... to match regular expression##" : {
+        "$" : "+"
     }
 
 }
