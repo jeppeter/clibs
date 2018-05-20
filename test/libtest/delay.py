@@ -5,7 +5,7 @@ import time
 
 def main():
 	i = 0
-	wtime = 0.1
+	wtime = 0.01
 	if len(sys.argv[1:]) > 0:
 		try:
 			wtime = float(sys.argv[1])

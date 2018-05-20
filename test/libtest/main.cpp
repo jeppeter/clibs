@@ -477,6 +477,7 @@ int runv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt
             fprintf(stderr, "can not read [%s] error[%d]\n", pargs->m_input, ret);
             goto out;
         }
+        insize = ret;
     }
 
     if (pargs->m_output != NULL) {
@@ -563,6 +564,7 @@ int runsingle_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
             fprintf(stderr, "can not read [%s] error[%d]\n", pargs->m_input, ret);
             goto out;
         }
+        insize = ret;
     }
 
     if (pargs->m_output != NULL) {
