@@ -6,6 +6,8 @@
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
+#include <stdarg.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -27,6 +29,7 @@ WINLIB_API HANDLE proc_get_proc(void* proc);
 WINLIB_API int kill_proc(void* proc,int* exitcode);
 WINLIB_API int get_proc_exit(void* proc, int *exitcode);
 WINLIB_API int run_cmd_output(char* pin, int insize, char** ppout,int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog,...);
+WINLIB_API int run_cmd_outputa(char* pin,int insize,char** ppout,int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog,va_list ap);
 WINLIB_API int run_cmd_outputv(char* pin,int insize,char** ppout,int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[]);
 
 #ifdef __cplusplus

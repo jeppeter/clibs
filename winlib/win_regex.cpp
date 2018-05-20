@@ -124,7 +124,7 @@ int regex_exec(void* preg1,const char* instr, int** ppstartpos, int **ppendpos, 
     std::cmatch cm;
     pregex_header_t preg;
 
-    if (preg == NULL || instr == NULL) {
+    if (preg1 == NULL || instr == NULL) {
         if (ppstartpos && *ppstartpos) {
             free(*ppstartpos);
             *ppstartpos = NULL;

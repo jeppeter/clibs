@@ -1881,9 +1881,8 @@ fail:
     return ret;
 }
 
-int run_cmd_output(char* pin, int insize, char** ppout,int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog,...)
+int run_cmd_outputa(char* pin,int insize,char** ppout,int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog,va_list ap)
 {
-    va_list ap;
     va_list oldap;
     char** progv = NULL;
     int i;
@@ -1897,7 +1896,6 @@ int run_cmd_output(char* pin, int insize, char** ppout,int *poutsize, char** ppe
     }
 
     cnt=1;
-    va_start(ap,prog);
     va_copy(oldap,ap);
     while(1) {
         curarg = va_arg(ap,char*);
@@ -1944,4 +1942,14 @@ fail:
     progv = NULL;
     SETERRNO(ret);
     return ret;
+}
+
+int run_cmd_output(char* pin, int insize, char** ppout,int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog,...)
+{
+    va_list ap=NULL;
+    if (prog == NULL) {
+        return run_cmd_outputa(pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,NULL,ap);
+    }
+    va_start(ap, prog);
+    return run_cmd_outputa(pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog,ap);
 }
