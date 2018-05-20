@@ -853,7 +853,7 @@ void __free_proc_handle(pproc_handle_t* ppproc)
             pproc->m_exited = 1;
         }
         __close_handle_note(&(pproc->m_prochd), "proc handle");
-        __get_command_lines(&(pproc->m_cmdline), &(pproc->m_cmdlinesize), NULL);
+        snprintf_safe(&(pproc->m_cmdline), &(pproc->m_cmdlinesize), NULL);
 
         free(pproc);
         *ppproc = NULL;
@@ -1035,6 +1035,175 @@ fail:
     return ret;
 }
 
+
+void* start_cmd_single(int createflag, char* prog)
+{
+    pproc_handle_t pproc = NULL;
+    int ret;
+    PROCESS_INFORMATION  *pinfo = NULL;
+    STARTUPINFOW *pstartinfo = NULL;
+    int usehd = 0;
+    DWORD dwflag = 0;
+    BOOL bret;
+    wchar_t *wcmdline = NULL;
+    int wcmdsize = 0;
+    int res;
+
+    if (prog == NULL || prog[0] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    pproc = __alloc_proc_handle();
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    ret = __create_flags(pproc, createflag);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = snprintf_safe(&(pproc->m_cmdline),&(pproc->m_cmdlinesize),"%s",prog);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    /*now we should make this handle*/
+    pinfo = (PROCESS_INFORMATION*) malloc(sizeof(*pinfo));
+    if (pinfo == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pinfo), ret);
+        goto fail;
+    }
+    memset(pinfo, 0 , sizeof(*pinfo));
+
+    pstartinfo = (STARTUPINFOW*) malloc(sizeof(*pstartinfo));
+    if (pstartinfo == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pstartinfo), ret);
+        goto fail;
+    }
+    memset(pstartinfo, 0 , sizeof(*pstartinfo));
+
+    pstartinfo->cb = sizeof(*pstartinfo);
+    if (pproc->m_stdinpipe != NULL) {
+        pstartinfo->hStdInput  = pproc->m_stdinpipe->m_pipecli;
+        usehd ++;
+    } else if (pproc->m_stdinnull != NULL && pproc->m_stdinnull != INVALID_HANDLE_VALUE) {
+        pstartinfo->hStdInput = pproc->m_stdinnull;
+        usehd ++;
+    }
+
+    if (pproc->m_stdoutpipe != NULL) {
+        pstartinfo->hStdOutput = pproc->m_stdoutpipe->m_pipecli;
+        usehd ++;
+    } else if (pproc->m_stdoutnull != NULL && pproc->m_stdoutnull != INVALID_HANDLE_VALUE) {
+        pstartinfo->hStdOutput = pproc->m_stdoutnull;
+        usehd ++;
+    }
+
+    if (pproc->m_stderrpipe != NULL) {
+        pstartinfo->hStdError = pproc->m_stderrpipe->m_pipecli;
+        usehd ++;
+    } else if (pproc->m_stderrnull != NULL && pproc->m_stderrnull != INVALID_HANDLE_VALUE) {
+        pstartinfo->hStdError = pproc->m_stderrnull;
+        usehd ++;
+    }
+
+    if (usehd > 0) {
+        pstartinfo->dwFlags  |= STARTF_USESTDHANDLES;
+    }
+
+    if (usehd > 0) {
+        if (pstartinfo->hStdInput == NULL) {
+            pstartinfo->hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+        }
+
+        if (pstartinfo->hStdOutput == NULL) {
+            pstartinfo->hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+        }
+
+        if (pstartinfo->hStdError == NULL) {
+            pstartinfo->hStdError = GetStdHandle(STD_ERROR_HANDLE);
+        }
+    }
+
+    if (createflag & PROC_NO_WINDOW) {
+        dwflag |= CREATE_NO_WINDOW;
+    }
+
+    ret = AnsiToUnicode(pproc->m_cmdline, &wcmdline, &wcmdsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    bret = CreateProcessW(NULL, wcmdline,
+                          NULL, NULL,
+                          TRUE, dwflag,
+                          NULL, NULL,
+                          pstartinfo, pinfo);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("create [%s] error[%d]", pproc->m_cmdline
+                   , ret);
+        goto fail;
+    }
+
+    /*now started*/
+    pproc->m_exited = 0;
+    pproc->m_prochd = pinfo->hProcess;
+
+    if (pinfo->hThread != NULL) {
+        bret = CloseHandle(pinfo->hThread);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("close thread handle [%p] error[%d]", pinfo->hThread, ret);
+            goto fail;
+        }
+        pinfo->hThread = NULL;
+    }
+
+    DEBUG_INFO("start [%s] ok", pproc->m_cmdline);
+
+    AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
+    if (pinfo) {
+        free(pinfo);
+    }
+    pinfo = NULL;
+    if (pstartinfo) {
+        free(pstartinfo);
+    }
+    pstartinfo = NULL;
+
+    return (void*) pproc;
+fail:
+    AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
+    if (pinfo) {
+        if (pinfo->hThread != NULL && pinfo->hThread != INVALID_HANDLE_VALUE) {
+            bret = CloseHandle(pinfo->hThread);
+            if (!bret) {
+                GETERRNO(res);
+                ERROR_INFO("close thread [%p] error[%d]", pinfo->hThread, res);
+            }
+        }
+        pinfo->hThread = NULL;
+
+        free(pinfo);
+    }
+    pinfo = NULL;
+    if (pstartinfo) {
+        free(pstartinfo);
+    }
+    pstartinfo = NULL;
+    __free_proc_handle(&pproc);
+    SETERRNO(ret);
+    return NULL;    
+}
 
 void* start_cmdv(int createflag, char* prog[])
 {
@@ -1457,6 +1626,429 @@ int __get_overlapped(HANDLE hd, OVERLAPPED* pov, int *addlen, const char* fmt, .
 fail:
     SETERRNO(ret);
     return ret;
+}
+
+int run_cmd_output_single(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
+{
+    pproc_handle_t pproc = NULL;
+    int ret;
+    int createflag = 0;
+    int inlen = 0;
+    char* pretout = NULL;
+    int outsize = 0, outlen = 0;
+    char* preterr = NULL;
+    int errsize = 0, errlen = 0;
+    char* ptmpbuf = NULL;
+    HANDLE waithds[3];
+    int waitnum = 0;
+    DWORD dret = 0;
+    uint64_t sticks = 0, cticks = 0;
+    DWORD waittime;
+    HANDLE hd;
+    int pending;
+    int inwait = 0, outwait = 0, errwait = 0;
+
+    DEBUG_INFO(" ");
+    if (prog == NULL) {
+        if (ppout != NULL) {
+            if (*ppout != NULL) {
+                free(*ppout);
+            }
+            *ppout = NULL;
+        }
+        if (poutsize) {
+            *poutsize = 0;
+        }
+
+        if (pperr != NULL) {
+            if (*pperr != NULL) {
+                free(*pperr);
+            }
+            *pperr = NULL;
+        }
+        if (perrsize) {
+            *perrsize = 0;
+        }
+        return 0;
+    }
+
+    if (pin != NULL) {
+        createflag |= PROC_PIPE_STDIN;
+    } else {
+        createflag |= PROC_STDIN_NULL;
+    }
+
+    if (ppout != NULL) {
+        if (poutsize == NULL) {
+            ret = -ERROR_INVALID_PARAMETER;
+            goto fail;
+        }
+        createflag |= PROC_PIPE_STDOUT;
+        outsize = *poutsize;
+        pretout = *ppout;
+    } else {
+        //createflag |= PROC_STDOUT_NULL;
+    }
+
+    if (pperr != NULL) {
+        if (perrsize == NULL) {
+            ret = -ERROR_INVALID_PARAMETER;
+            goto fail;
+        }
+        createflag |= PROC_PIPE_STDERR;
+        errsize = *perrsize;
+        preterr = *pperr;
+    } else {
+        //createflag |= PROC_STDERR_NULL;
+    }
+    createflag |= PROC_NO_WINDOW;
+
+    DEBUG_INFO(" ");
+
+    pproc = (pproc_handle_t)start_cmd_single(createflag, prog);
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (timeout > 0) {
+        sticks = get_current_ticks();
+    }
+
+    while (1) {
+        ret = get_proc_exit(pproc, NULL);
+        if (ret >= 0) {
+            break;
+        }
+
+        /*now we should make waithds*/
+        memset(waithds, 0 , sizeof(waithds));
+        waitnum = 0;
+
+        if (pproc->m_stdinpipe != NULL) {
+            if (pproc->m_stdinpipe->m_state == PIPE_WAIT_CONNECT ||
+                    pproc->m_stdinpipe->m_state == PIPE_WAIT_WRITE) {
+                waithds[waitnum] = pproc->m_stdinpipe->m_evt;
+                waitnum ++;
+                DEBUG_INFO("add stdin");
+            } else if (pproc->m_stdinpipe->m_state == PIPE_READY) {
+                pending = 0;
+                ret = __write_file_sync(pproc->m_stdinpipe->m_pipesvr, &(pproc->m_stdinpipe->m_ov), &(pin[inlen]), (insize - inlen), &pending);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+
+                DEBUG_INFO("ret [%d] write[%d]", ret, (insize - inlen));
+
+                inlen += ret;
+                if (inlen > insize) {
+                    ERROR_INFO("write [%s] inlen [%d] insize[%d]", pproc->m_stdinpipe->m_pipename, inlen, insize);
+                    inlen = insize;
+                }
+
+                if (inlen == insize) {
+                    /*now we should close the handle*/
+                    DEBUG_INFO("close stdin");
+                    __close_handle_note(&(pproc->m_stdinpipe->m_pipesvr), "%s close", pproc->m_stdinpipe->m_pipename);
+                    pproc->m_stdinpipe->m_state = PIPE_NONE;
+                } else if (pending) {
+                    DEBUG_INFO("add stdin");
+                    pproc->m_stdinpipe->m_state = PIPE_WAIT_WRITE;
+                    waithds[waitnum] = pproc->m_stdinpipe->m_evt;
+                    waitnum ++;
+                }
+            }
+        }
+
+        if (pproc->m_stdoutpipe != NULL) {
+            if (pproc->m_stdoutpipe->m_state == PIPE_WAIT_CONNECT ||
+                    pproc->m_stdoutpipe->m_state == PIPE_WAIT_READ) {
+                waithds[waitnum] = pproc->m_stdoutpipe->m_evt;
+                waitnum ++;
+                DEBUG_INFO("add stdout");
+            } else if (pproc->m_stdoutpipe->m_state == PIPE_READY) {
+out_again:
+                if (pretout == NULL || outsize == outlen) {
+                    if (outsize < MIN_BUF_SIZE) {
+                        outsize = MIN_BUF_SIZE;
+                    } else if (outsize == outlen) {
+                        outsize <<= 1;
+                    }
+                    ptmpbuf = (char*) malloc((size_t)outsize);
+                    if (ptmpbuf == NULL) {
+                        GETERRNO(ret);
+                        ERROR_INFO("alloc %d error[%d]", outsize, ret);
+                        goto fail;
+                    }
+                    memset(ptmpbuf, 0 , (size_t)outsize);
+                    if (outlen > 0) {
+                        memcpy(ptmpbuf, pretout, (size_t)outlen);
+                    }
+                    if (pretout != NULL && pretout != *ppout) {
+                        free(pretout);
+                    }
+                    pretout = ptmpbuf;
+                    ptmpbuf = NULL;
+                }
+
+                pending = 0;
+                ret = __read_file_sync(pproc->m_stdoutpipe->m_pipesvr, &(pproc->m_stdoutpipe->m_ov), &(pretout[outlen]), (outsize - outlen), &pending);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                if (ret > 0) {
+                    DEBUG_BUFFER_FMT(&(pretout[outlen]), ret, "stdout new in");    
+                }                
+                outlen += ret;
+                if (outlen > outsize) {
+                    ERROR_INFO("read [%s] outlen[%d] outsize [%d]", pproc->m_stdoutpipe->m_pipename, outlen, outsize);
+                    outlen = outsize;
+                }
+
+                if (pending == 0) {
+                    if (outlen == outsize) {
+                        goto out_again;
+                    } else {
+                        waithds[waitnum] = pproc->m_stdoutpipe->m_evt;
+                        waitnum ++;
+                        pproc->m_stdoutpipe->m_state = PIPE_WAIT_READ;
+                        DEBUG_INFO("add stdout");
+                    }
+                } else if (pending == 2) {
+                    /*now close the file*/
+                    __close_handle_note(&(pproc->m_stdoutpipe->m_pipesvr), "%s", pproc->m_stdoutpipe->m_pipename);
+                    pproc->m_stdoutpipe->m_state = PIPE_NONE;
+                    DEBUG_INFO("close stdout");
+                } else {
+                    waithds[waitnum] = pproc->m_stdoutpipe->m_evt;
+                    waitnum ++;
+                    pproc->m_stdoutpipe->m_state = PIPE_WAIT_READ;
+                    DEBUG_INFO("add stdout");
+                }
+            }
+        }
+
+        if (pproc->m_stderrpipe != NULL) {
+            if (pproc->m_stderrpipe->m_state == PIPE_WAIT_CONNECT ||
+                    pproc->m_stderrpipe->m_state == PIPE_WAIT_READ) {
+                waithds[waitnum] = pproc->m_stderrpipe->m_evt;
+                waitnum ++;
+                DEBUG_INFO("add stderr");
+            } else if (pproc->m_stderrpipe->m_state == PIPE_READY) {
+err_again:
+                if (preterr == NULL || errsize == errlen) {
+                    if (errsize < MIN_BUF_SIZE) {
+                        errsize = MIN_BUF_SIZE;
+                    } else if (errsize == errlen) {
+                        errsize <<= 1;
+                    }
+                    ptmpbuf = (char*) malloc((size_t)errsize);
+                    if (ptmpbuf == NULL) {
+                        GETERRNO(ret);
+                        ERROR_INFO("alloc %d error[%d]", errsize, ret);
+                        goto fail;
+                    }
+                    memset(ptmpbuf, 0 , (size_t)errsize);
+                    if (errlen > 0) {
+                        memcpy(ptmpbuf, preterr, (size_t)errlen);
+                    }
+                    if (preterr != NULL && preterr != *pperr) {
+                        free(preterr);
+                    }
+                    preterr = ptmpbuf;
+                    ptmpbuf = NULL;
+                }
+                pending = 0;
+                ret = __read_file_sync(pproc->m_stderrpipe->m_pipesvr , &(pproc->m_stderrpipe->m_ov), &(preterr[errlen]), (errsize - errlen), &pending);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+
+                if (ret > 0) {
+                    DEBUG_BUFFER_FMT(&(preterr[errlen]), ret, "stderr new in");    
+                }                
+                errlen += ret;
+                if (errlen > errsize) {
+                    ERROR_INFO("read [%s] errlen[%d] errsize[%d]", pproc->m_stderrpipe->m_pipename, errlen, errsize);
+                    errlen = errsize;
+                }
+
+                if (pending == 0) {
+                    if (errlen == errsize) {
+                        goto err_again;
+                    } else {
+                        waithds[waitnum] = pproc->m_stderrpipe->m_evt;
+                        waitnum ++;
+                        pproc->m_stderrpipe->m_state = PIPE_WAIT_READ;
+                        DEBUG_INFO("add stderr");
+                    }
+                } else if (pending == 2) {
+                    __close_handle_note(&(pproc->m_stderrpipe->m_pipesvr), "%s", pproc->m_stderrpipe->m_pipename);
+                    pproc->m_stderrpipe->m_state = PIPE_NONE;
+                    DEBUG_INFO("close stderr");
+                } else {
+                    waithds[waitnum] = pproc->m_stderrpipe->m_evt;
+                    waitnum ++;
+                    pproc->m_stderrpipe->m_state = PIPE_WAIT_READ;
+                    DEBUG_INFO("add stderr");
+                }
+            }
+        }
+
+        waittime = INFINITE;
+        if (timeout > 0) {
+            cticks = get_current_ticks();
+            ret = need_wait_times(sticks, cticks, timeout);
+            if (ret < 0) {
+                ret = -WAIT_TIMEOUT;
+                goto fail;
+            }
+            waittime = (DWORD)ret;
+        }
+
+        if (waittime == INFINITE || waittime > 1000) {
+            waittime = 1000;
+        }
+
+        if (waitnum > 0 ) {
+            dret = WaitForMultipleObjectsEx((DWORD)waitnum, waithds, FALSE, waittime, TRUE);
+            DEBUG_INFO("dret [%d]", dret);
+            if ((dret >= WAIT_OBJECT_0) && (dret < (WAIT_OBJECT_0 + waitnum))) {
+                hd = waithds[(dret - WAIT_OBJECT_0)];
+                if (pproc->m_stdinpipe
+                        && (pproc->m_stdinpipe->m_state == PIPE_WAIT_CONNECT  || pproc->m_stdinpipe->m_state == PIPE_WAIT_WRITE)
+                        && hd == pproc->m_stdinpipe->m_evt) {
+                    DEBUG_INFO("stdin write");
+                    ret = __get_overlapped(pproc->m_stdinpipe->m_pipesvr, &(pproc->m_stdinpipe->m_ov), &inlen, "stdin result");
+                    if (ret < 0) {
+                        GETERRNO(ret);
+                        goto fail;
+                    }
+                    /*inwait over*/
+                    inwait = ret;
+                    if (inwait == 0) {
+                        if (pproc->m_stdinpipe->m_state == PIPE_WAIT_CONNECT) {
+                            pproc->m_stdinpipe->m_state = PIPE_READY;
+                        } else if (pproc->m_stdinpipe->m_state == PIPE_WAIT_WRITE) {
+                            pproc->m_stdinpipe->m_state = PIPE_READY;
+                        }
+                        DEBUG_INFO("stdin write inlen[%d]", inlen);
+                        /*already */
+                        if (inlen == insize) {
+                            __close_handle_note(&(pproc->m_stdinpipe->m_pipesvr), "%s", pproc->m_stdinpipe->m_pipename);
+                            pproc->m_stdinpipe->m_state = PIPE_NONE;
+                            DEBUG_INFO("close stdin");
+                        }
+                    }
+                } else if (pproc->m_stdoutpipe != NULL &&
+                           (pproc->m_stdoutpipe->m_state == PIPE_WAIT_READ || pproc->m_stdoutpipe->m_state == PIPE_WAIT_CONNECT)
+                           && hd == pproc->m_stdoutpipe->m_evt) {
+                    DEBUG_INFO("stdout read");
+                    outwait = outlen;
+                    ret = __get_overlapped(pproc->m_stdoutpipe->m_pipesvr, &(pproc->m_stdoutpipe->m_ov), &outlen, "get stdout result");
+                    if (ret < 0) {
+                        GETERRNO(ret);
+                        goto fail;
+                    }
+                    //DEBUG_BUFFER_FMT(&pretout[outwait], (outlen - outwait), "stdout ov");
+
+                    outwait = ret;
+                    if (outwait == 0) {
+                        if (pproc->m_stdoutpipe->m_state == PIPE_WAIT_CONNECT) {
+                            pproc->m_stdoutpipe->m_state = PIPE_READY;
+                        } else if (pproc->m_stdoutpipe->m_state == PIPE_WAIT_READ) {
+                            pproc->m_stdoutpipe->m_state = PIPE_READY;
+                        }
+                        DEBUG_INFO("ready stdout outlen[%d]", outlen);
+                    }
+
+                } else if (pproc->m_stderrpipe && (pproc->m_stderrpipe->m_state == PIPE_WAIT_CONNECT || pproc->m_stderrpipe->m_state == PIPE_WAIT_READ)
+                           && hd == pproc->m_stderrpipe->m_evt) {
+                    DEBUG_INFO("stderr read");
+                    errwait = errlen;
+                    ret = __get_overlapped(pproc->m_stderrpipe->m_pipesvr, &(pproc->m_stderrpipe->m_ov), &errlen, "get stdout result");
+                    if (ret < 0) {
+                        GETERRNO(ret);
+                        goto fail;
+                    }
+                    //DEBUG_BUFFER_FMT(&preterr[errwait], (errlen - errwait), "stderr ov");
+                    errwait = ret;
+                    if (errwait == 0) {
+                        if (pproc->m_stderrpipe->m_state == PIPE_WAIT_CONNECT) {
+                            pproc->m_stderrpipe->m_state = PIPE_READY;
+                        } else if (pproc->m_stderrpipe->m_state == PIPE_WAIT_READ) {
+                            pproc->m_stderrpipe->m_state = PIPE_READY;
+                        }
+                        DEBUG_INFO("ready stderr errlen[%d]", errlen);
+                    }
+                }
+            } else  if (dret == WAIT_TIMEOUT) { 
+                continue;
+            } else {
+                GETERRNO(ret);
+                ERROR_INFO("run cmd [%s] [%ld] error [%d]", pproc->m_cmdline, dret, ret);
+                goto fail;
+            }
+        } else {
+            /*nothing to wait ,so we should wait for the handle of proc*/
+            if (waittime != INFINITE && waittime < 100) {
+                SleepEx(waittime,TRUE);
+            } else {
+                SleepEx(100,TRUE);
+            }
+            DEBUG_INFO("prochd time");
+        }
+    }
+
+    /*now exited we will give the output*/
+
+    if (exitcode) {
+        *exitcode = pproc->m_exitcode;
+    }
+    if (ppout != NULL) {
+        if (*ppout != NULL && *ppout != pretout) {
+            free(*ppout);
+        }
+        *ppout = pretout;
+    }
+
+    if (pperr != NULL) {
+        if (*pperr != NULL && *pperr != preterr) {
+            free(*pperr);
+        }
+        *pperr = preterr;
+    }
+
+    if (perrsize) {
+        *perrsize = errlen;
+    }
+
+    if (poutsize) {
+        *poutsize = outlen;
+    }
+    __free_proc_handle(&pproc);
+    return 0;
+fail:
+
+    if (ptmpbuf) {
+        free(ptmpbuf);
+    }
+    ptmpbuf = NULL;
+    if (pretout && (ppout == NULL || pretout != *ppout)) {
+        free(pretout);
+    }
+    pretout = NULL;
+    if (preterr && (pperr == NULL || preterr != *pperr)) {
+        free(preterr);
+    }
+    preterr = NULL;
+    __free_proc_handle(&pproc);
+    SETERRNO(ret);
+    return ret;
+
 }
 
 int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])

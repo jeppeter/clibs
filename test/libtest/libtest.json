@@ -58,6 +58,9 @@
     },
     "iregexec<iregexec_handler>##restr instr .... to match regular expression##" : {
         "$" : "+"
+    },
+    "runsingle<runsingle_handler>##single ... to run output##" :{
+        "$" : 1
     }
 
 }

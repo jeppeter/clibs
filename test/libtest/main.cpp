@@ -36,6 +36,7 @@ int winverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int netinter_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int quote_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int runv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int runsingle_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int outc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
@@ -535,6 +536,79 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int runsingle_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* inbuf = NULL;
+    int insize = 0;
+    char* outbuf = NULL;
+    int outsize = 0;
+    char* errbuf = NULL;
+    int errsize = 0;
+    int exitcode;
+    int ret;
+    char** ppoutbuf = NULL;
+    int *poutsize = NULL;
+    char** pperrbuf = NULL;
+    int *perrsize = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    init_log_level(pargs);
+
+    argc = argc;
+    argv = argv;
+    if (pargs->m_input != NULL) {
+        ret = read_file_whole(pargs->m_input, &inbuf, &insize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "can not read [%s] error[%d]\n", pargs->m_input, ret);
+            goto out;
+        }
+    }
+
+    if (pargs->m_output != NULL) {
+        ppoutbuf = &outbuf;
+        poutsize = &outsize;
+    }
+
+    if (pargs->m_errout != NULL) {
+        pperrbuf = &errbuf;
+        perrsize = &errsize;
+    }
+
+    ret = run_cmd_output_single(inbuf, insize, ppoutbuf, poutsize, pperrbuf, perrsize, &exitcode, pargs->m_timeout, parsestate->leftargs[0]);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "run single cmd [%s] error[%d]\n", parsestate->leftargs[0],ret);
+        goto out;
+    }
+
+    fprintf(stdout, "run cmd [%s] succ\n", parsestate->leftargs[0]);
+    if (pargs->m_input != NULL) {
+        fprintf(stdout, "input --------------------\n");
+        __debug_buf(stdout, inbuf, insize);
+        fprintf(stdout, "input ++++++++++++++++++++\n");
+    }
+
+    if (pargs->m_output != NULL) {
+        fprintf(stdout, "output --------------------\n");
+        __debug_buf(stdout, outbuf, outsize);
+        fprintf(stdout, "output ++++++++++++++++++++\n");
+    }
+
+    if (pargs->m_errout != NULL) {
+        fprintf(stdout, "errout --------------------\n");
+        __debug_buf(stdout, errbuf, errsize);
+        fprintf(stdout, "errout ++++++++++++++++++++\n");
+    }
+
+    ret = 0;
+out:
+    run_cmd_output_single(NULL, 0, &outbuf, &outsize, &errbuf, &errsize, &exitcode, -1, NULL);
+    read_file_whole(NULL, &inbuf, &insize);
+    SETERRNO(ret);
+    return ret;
+}
+
 
 int outc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -1597,6 +1671,7 @@ int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     char* pmatchstr=NULL;
     size_t matchsize=0;
     size_t matchlen=0;
+    int handled =0;
 
     argc = argc;
     argv = argv;
@@ -1622,6 +1697,8 @@ int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
     for (i=1;i<argcnt;i++) {
         pcurstr = parsestate->leftargs[i];
+        handled = 0;
+    try_again:
         ret = regex_exec(preg,pcurstr,&pstartpos,&pendpos,&possize);
         if (ret < 0) {
             GETERRNO(ret);
@@ -1650,8 +1727,14 @@ int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
                 memcpy(pmatchstr, &(pcurstr[pstartpos[j]]), matchlen);
                 fprintf(stdout,"    [%03d] %s\n",j, pmatchstr);
             }
+            /*we move to the next to find*/
+            pcurstr = &(pcurstr[pendpos[0]]);
+            handled ++;
+            goto try_again;
         } else {
-            fprintf(stdout,"[%s] not find in [%s]\n",parsestate->leftargs[0], pcurstr);
+            if (handled == 0) {
+                fprintf(stdout,"[%s] not find in [%s]\n",parsestate->leftargs[0], pcurstr);    
+            }            
         }
     }
 
