@@ -57,7 +57,7 @@ int __create_pipe_async(char* name , int wr, HANDLE *ppipe,OVERLAPPED* pov, int 
 	BOOL bret;
 	int res;
 	int ret;
-	if (name == NULL || ppipe == NULL || *ppipe != NULL || pov == NULL || pstate == NULL) {
+	if ( name == NULL || ppipe == NULL || *ppipe != NULL || pov == NULL || pstate == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
 		return ret;
@@ -99,7 +99,7 @@ int __create_pipe_async(char* name , int wr, HANDLE *ppipe,OVERLAPPED* pov, int 
 	} else {
 		ret = PIPE_READY;
 	}
-	
+
 	AnsiToTchar(NULL,&ptname,&tnamesize);
 	return ret;
 fail:
@@ -114,4 +114,44 @@ fail:
 	*ppipe = NULL;
 	SETERRNO(ret);
 	return ret;       
+}
+
+int __connect_pipe_async(char* name,int wr, HANDLE *pcli)
+{
+	TCHAR* ptname=NULL;
+	int tnamesize = 0;
+	int ret;
+	int res;
+
+	if (name == NULL || pcli == NULL || (*pcli != NULL && *pcli != INVALID_HANDLE_VALUE)) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+	ret = AnsiToTchar(name,&ptname,&tnamesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	*pcli = CreateFile(ptname,GENERIC_READ| GENERIC_WRITE ,0,
+			NULL,OPEN_EXISTING,FILE_FLAG_OVERLAPPED,NULL);
+	if(*pcli == INVALID_HANDLE_VALUE) {
+		GETERRNO(ret);
+		ERROR_INFO("create pipe [%s] error[%d]", name, ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	if (*pcli != NULL && *pcli != INVALID_HANDLE_VALUE) {
+		bret = CloseHandle(*pcli);
+		if (!bret){
+			GETERRNO(res);
+			ERROR_INFO("close [%s] error[%d]", name, res);
+		}		
+	}
+	*pcli = NULL;
+	SETERRNO(ret);
+	return ret;
 }
