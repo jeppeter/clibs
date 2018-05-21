@@ -20,6 +20,7 @@ typedef struct __args_options {
     char* m_output;
     char* m_errout;
     int m_timeout;
+    int m_bufsize;
 } args_options_t, *pargs_options_t;
 
 #pragma comment(lib,"user32.lib")
@@ -1916,6 +1917,15 @@ int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         ERROR_INFO("create revt error[%d]",ret);
         goto out;
     }
+    rov.hEvent = revt;
+
+    wevt = CreateEvent(NULL,TRUE,TRUE,NULL);
+    if (wevt == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create wevt error[%d]",ret);
+        goto out;
+    }
+    wov.hEvent = wevt;
 
     if (wr) {
         pwname = pname1;
@@ -1924,7 +1934,35 @@ int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         prname = pname1;
         pwname = pname2;
     }
-    ret = __create_pipe_async(pname1,wr,pcurpipe,)
+    /*now to create prdaes*/
+    prdaes = __alloc_async_evt();
+    if (prdaes == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    pwrase = __alloc_async_evt();
+    if (pwrase == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = __create_pipe_async(pwname,1,&wpipe,&rov,pargs->m_bufsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    wstate = ret;
+
+    ret = __create_pipe_async(prname,0,&rpipe,&wov,pargs->m_bufsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    rstate = ret;
+
+
+
 
 
     ret = 0;
@@ -1973,7 +2011,12 @@ out:
 
 
     __create_pipe_async(NULL,0,&wpipe,NULL,0);
+    wstate = PIPE_NONE;
     __create_pipe_async(NULL,0,&rpipe,NULL,0);
+    rstate = PIPE_NONE;
+
+    __free_async_evt(&prdaes);
+    __free_async_evt(&pwrase);
     __get_temp_pipe_name_2(NULL,&ptemp1,&temp1size);
     __get_temp_pipe_name_2(NULL,&ptemp2,&temp2size);
     read_file_whole(NULL,&poutbuf,&outsize);
