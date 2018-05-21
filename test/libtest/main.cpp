@@ -2097,7 +2097,18 @@ rewait_io:
                             ptmpbuf = (char*) malloc(insize);
                             if (ptmpbuf ==NULL) {
                                 GETERRNO(ret);
+                                ERROR_INFO("alloc %d error[%d]", insize, ret);
+                                goto out;
                             }
+                            memset(ptmpbuf, 0 ,insize);
+                            if (inlen > 0) {
+                                memcpy(ptmpbuf, pinbuf, inlen);
+                            }
+                            if (pinbuf != NULL) {
+                                free(pinbuf);
+                            }
+                            pinbuf = ptmpbuf;
+                            ptmpbuf = NULL;
 
                         }
                     }
