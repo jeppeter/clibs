@@ -1948,10 +1948,19 @@ out:
     }
 
     if (wstate == PIPE_WAIT_CONNECT) {
-        bret = CancelIoEx(revt,&wov);
+        bret = CancelIoEx(wevt,&wov);
         if (!bret) {
-            
+            GETERRNO(res);
+            ERROR_INFO("cancel wevt [%s] error[%d]", pwname, res);
         }
+        wstate = PIPE_READY;
+    } else if (wstate == PIPE_WAIT_WRITE) {
+        bret = CancelIoEx(wevt,pwrase);
+        if (!bret) {
+            GETERRNO(res);
+            ERROR_INFO("cancel wevt [%s] error[%d]", pwname, res);
+        }
+        wstate = PIPE_READY;
     }
 
     if (revt != NULL && revt != INVALID_HANDLE_VALUE) {
@@ -1961,6 +1970,7 @@ out:
             ERROR_INFO("close revt error[%d]")
         }
     }
+
 
     __create_pipe_async(NULL,0,&wpipe,NULL,0);
     __create_pipe_async(NULL,0,&rpipe,NULL,0);
