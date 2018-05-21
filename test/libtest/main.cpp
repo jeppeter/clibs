@@ -2092,7 +2092,12 @@ rewait_io:
                             __create_pipe_async(NULL, 0, &rpipe, NULL, 0);
                             rstate = PIPE_NONE;
                         } else if (inlen == insize) {
-                            
+                            /*now expand to the out*/
+                            insize <<= 1;
+                            ptmpbuf = (char*) malloc(insize);
+                            if (ptmpbuf ==NULL) {
+                                GETERRNO(ret);
+                            }
 
                         }
                     }
