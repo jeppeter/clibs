@@ -56,6 +56,7 @@ int __create_pipe_async(char* name , int wr, HANDLE *ppipe,OVERLAPPED* pov, int 
 	int tnamesize=0;
 	BOOL bret;
 	int res;
+	int ret;
 	if (name == NULL || ppipe == NULL || *ppipe != NULL || pov == NULL || pstate == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
@@ -89,12 +90,28 @@ int __create_pipe_async(char* name , int wr, HANDLE *ppipe,OVERLAPPED* pov, int 
 			ERROR_INFO("can not connect [%s] error[%d]", name,ret);
 			goto fail;
 		}
+
+		if (ret == -ERROR_IO_PENDING) {
+			ret = PIPE_WAIT_CONNECT;
+		} else if (ret == -ERROR_PIPE_CONNECTED) {
+			ret =PIPE_READY;
+		}
+	} else {
+		ret = PIPE_READY;
 	}
-
-
-	return 0;
+	
+	AnsiToTchar(NULL,&ptname,&tnamesize);
+	return ret;
 fail:
-	CHECK_CLOSE_HANDLE_BARE(*ppipe);
+	AnsiToTchar(NULL,&ptname,&tnamesize);
+	if (*ppipe != NULL && *ppipe != INVALID_HANDLE_VALUE) {
+		bret = CloseHandle(*ppipe);
+		if (!bret) {
+			GETERRNO(res);
+			ERROR_INFO("close [%s] error[%d]", name,res);
+		}
+	}
+	*ppipe = NULL;
 	SETERRNO(ret);
 	return ret;       
 }

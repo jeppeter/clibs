@@ -7,6 +7,13 @@
 extern "C" {
 #endif /* __cplusplus*/
 
+#define PIPE_NONE                0
+#define PIPE_READY               1
+#define PIPE_WAIT_READ           2
+#define PIPE_WAIT_WRITE          3
+#define PIPE_WAIT_CONNECT        4
+
+
 typedef struct __async_evt {
     HANDLE m_evt;   /*this event must be manual set*/
     DWORD  m_errorcode;

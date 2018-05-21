@@ -772,11 +772,6 @@ void __close_handle_note_2(HANDLE *phd, const char* fmt, ...)
     return;
 }
 
-#define PIPE_NONE                0
-#define PIPE_READY               1
-#define PIPE_WAIT_READ           2
-#define PIPE_WAIT_WRITE          3
-#define PIPE_WAIT_CONNECT        4
 
 #define MIN_BUF_SIZE    0x400
 
