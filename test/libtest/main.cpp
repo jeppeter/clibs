@@ -1847,6 +1847,19 @@ int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     int outlen=0;
     int wr = 0;
     HANDLE rpipe=INVALID_HANDLE_VALUE,wpipe=INVALID_HANDLE_VALUE;
+    HANDLE pcurpipe=NULL;
+    HANDLE revt=NULL,wevt=NULL;
+    int rstate = PIPE_NONE;
+    int wstate = PIPE_NONE;
+    OVERLAPPED wov,rov;
+    OVERLAPPED awov,arov;
+    pasync_evt_t prdase=NULL, pwrase=NULL;
+    OVERLAPPED* pov=NULL;
+    int argcnt= 0;
+    char* pname1=NULL,*pname2=NULL;
+    char* ptemp1=NULL,*ptemp2=NULL;
+    char* prname=NULL,*pwname=NULL;
+    int temp1size=0,temp2size=0;
 
     init_log_level(pargs);
     if (pargs->m_input) {
@@ -1860,10 +1873,99 @@ int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         outlen= ret;
     }
 
+    if(parsestate->leftargs != NULL) {
+        while(parsestate->leftargs[argcnt] != NULL) {
+            argcnt ++;
+        }
+    }
+
+    if (argcnt == 0){
+        ret = __get_temp_pipe_name_2("tmppipe", &ptemp1, &temp1size);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not get temp1 name error[%d]",ret);
+            goto out;
+        }
+        pname1 = ptemp1;
+
+        ret = __get_temp_pipe_name_2("tmppipe",&ptemp2,&temp2size);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not get temp2 name error[%d]",ret);
+            goto out;
+        }
+        pname2 = ptemp2;
+    } else if (argcnt == 1) {
+        pname1 = parsestate->leftargs[0];
+        ret = __get_temp_pipe_name_2("tmppipe",&ptemp2,&temp2size);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not get temp2 name error[%d]",ret);
+            goto out;
+        }
+        pname2 = ptemp2;
+    } else if (argcnt >= 2) {
+        pname1 = parsestate->leftargs[0];
+        pname2 = parsestate->leftargs[1];
+    }
+    memset(&rov,0,sizeof(rov));
+    memset(&wov,0,sizoef(wov));
+    revt = CreateEvent(NULL,TRUE,TRUE,NULL);
+    if (revt == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create revt error[%d]",ret);
+        goto out;
+    }
+
+    if (wr) {
+        pwname = pname1;
+        prname = pname2;
+    } else {
+        prname = pname1;
+        pwname = pname2;
+    }
+    ret = __create_pipe_async(pname1,wr,pcurpipe,)
 
 
+    ret = 0;
 out:
-    
+    ASSERT_IF(rstate != PIPE_WAIT_WRITE);
+    ASSERT_IF(wstate != PIPE_WAIT_READ);
+    if (rstate == PIPE_WAIT_CONNECT ) {
+        bret = CancelIoEx(revt,&rov);
+        if (!bret) {
+            GETERRNO(res);
+            ERROR_INFO("cancel revt [%s] error[%d]", prname, res);
+        }
+        rstate = PIPE_READY;
+    } else if (rstate == PIPE_WAIT_READ) {
+        bret = CancelIoEx(revt,prdase);
+        if (!bret) {
+            GETERRNO(res);
+            ERROR_INFO("cancel revt [%s] error[%d]", prname,res);
+        }
+        rstate = PIPE_READY;
+    }
+
+    if (wstate == PIPE_WAIT_CONNECT) {
+        bret = CancelIoEx(revt,&wov);
+        if (!bret) {
+            
+        }
+    }
+
+    if (revt != NULL && revt != INVALID_HANDLE_VALUE) {
+        bret = CloseHandle(revt);
+        if (!bret) {
+            GETERRNO(res);
+            ERROR_INFO("close revt error[%d]")
+        }
+    }
+
+    __create_pipe_async(NULL,0,&wpipe,NULL,0);
+    __create_pipe_async(NULL,0,&rpipe,NULL,0);
+    __get_temp_pipe_name_2(NULL,&ptemp1,&temp1size);
+    __get_temp_pipe_name_2(NULL,&ptemp2,&temp2size);
     read_file_whole(NULL,&poutbuf,&outsize);
     SETERRNO(ret);
     return ret;
