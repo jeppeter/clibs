@@ -1844,9 +1844,27 @@ int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     int inlen =0;
     char* poutbuf= NULL;
     int outsize= 0;
+    int outlen=0;
+    int wr = 0;
+    HANDLE rpipe=INVALID_HANDLE_VALUE,wpipe=INVALID_HANDLE_VALUE;
+
+    init_log_level(pargs);
+    if (pargs->m_input) {
+        wr = 1;
+        ret = read_file_whole(pargs->m_input,&poutbuf,&outsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not read [%s] error[%d]", pargs->m_input, ret);
+            goto out;
+        }
+        outlen= ret;
+    }
+
 
 
 out:
+    
+    read_file_whole(NULL,&poutbuf,&outsize);
     SETERRNO(ret);
     return ret;
 }

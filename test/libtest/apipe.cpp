@@ -57,7 +57,18 @@ int __create_pipe_async(char* name , int wr, HANDLE *ppipe,OVERLAPPED* pov, int 
 	BOOL bret;
 	int res;
 	int ret;
-	if ( name == NULL || ppipe == NULL || *ppipe != NULL || pov == NULL || pstate == NULL) {
+	if (name == NULL) {
+		if (ppipe != NULL && *ppipe != NULL && *ppipe != INVALID_HANDLE_VALUE) {
+			bret = CloseHandle(*ppipe);
+			if (!bret) {
+				GETERRNO(res);
+				ERROR_INFO("can not close [%p] error[%d]", *ppipe,res);
+			}
+			*ppipe = NULL;
+		}
+		return 0;
+	}
+	if (  ppipe == NULL || *ppipe != NULL || pov == NULL || pstate == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
 		return ret;
