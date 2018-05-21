@@ -1839,11 +1839,7 @@ out:
     return ret;
 }
 
-typedef struct __async_evt {
-    HANDLE m_evt;   /*this event must be manual set*/
-    DWORD  m_errorcode;
-    DWORD  m_cbret;
-} async_evt_t,*pasync_evt_t;
+
 
 int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -1854,7 +1850,7 @@ int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     char* poutbuf= NULL;
     int outsize= 0;
 
-    
+
 out:
     SETERRNO(ret);
     return ret;
