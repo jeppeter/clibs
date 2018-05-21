@@ -583,7 +583,7 @@ int runsingle_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     ret = run_cmd_output_single(inbuf, insize, ppoutbuf, poutsize, pperrbuf, perrsize, &exitcode, pargs->m_timeout, parsestate->leftargs[0]);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr, "run single cmd [%s] error[%d]\n", parsestate->leftargs[0],ret);
+        fprintf(stderr, "run single cmd [%s] error[%d]\n", parsestate->leftargs[0], ret);
         goto out;
     }
 
@@ -620,21 +620,21 @@ int outc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt
     int ret;
     pargs_options_t pargs = (pargs_options_t) popt;
     int i;
-    char* ptmpbuf=NULL;
-    char* pinbuf=NULL;
-    int insize=0;
-    int inlen=0;
-    char** ppllines=NULL;
-    int lsize=0;
-    int llen=0;
+    char* ptmpbuf = NULL;
+    char* pinbuf = NULL;
+    int insize = 0;
+    int inlen = 0;
+    char** ppllines = NULL;
+    int lsize = 0;
+    int llen = 0;
     argc = argc;
     argv = argv;
     init_log_level(pargs);
     if (parsestate->leftargs != NULL) {
-        for(i=0;parsestate->leftargs[i] != NULL;i++) {
-            fprintf(stderr,"stderr %s\n",parsestate->leftargs[i]);
+        for (i = 0; parsestate->leftargs[i] != NULL; i++) {
+            fprintf(stderr, "stderr %s\n", parsestate->leftargs[i]);
             Sleep(1000);
-            fprintf(stdout,"stdout %s\n", parsestate->leftargs[i]);
+            fprintf(stdout, "stdout %s\n", parsestate->leftargs[i]);
         }
     } else {
 
@@ -642,17 +642,17 @@ int outc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt
         pinbuf = (char*) malloc((size_t)insize);
         if (pinbuf == NULL) {
             GETERRNO(ret);
-            ERROR_INFO("alloc %d error[%d]",insize,ret);
+            ERROR_INFO("alloc %d error[%d]", insize, ret);
             goto out;
         }
-        while(1) {
-            ret = (int)fread(&(pinbuf[inlen]),1,(size_t) (insize - inlen), stdin);
-            if (ret < 0 ){
+        while (1) {
+            ret = (int)fread(&(pinbuf[inlen]), 1, (size_t) (insize - inlen), stdin);
+            if (ret < 0 ) {
                 if (feof(stdin)) {
                     break;
                 }
                 GETERRNO(ret);
-                ERROR_INFO("read [%d] error[%d]", inlen,ret);
+                ERROR_INFO("read [%d] error[%d]", inlen, ret);
                 goto out;
             }
 
@@ -665,7 +665,7 @@ int outc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt
                 ptmpbuf = (char*) malloc((size_t)insize);
                 if (ptmpbuf == NULL) {
                     GETERRNO(ret);
-                    ERROR_INFO("alloc %d error[%d]",insize, ret);
+                    ERROR_INFO("alloc %d error[%d]", insize, ret);
                     goto out;
                 }
                 memset(ptmpbuf, 0, (size_t)insize);
@@ -680,21 +680,21 @@ int outc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt
             }
         }
 
-        ret = split_lines(pinbuf, &ppllines,&lsize);
+        ret = split_lines(pinbuf, &ppllines, &lsize);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
         }
         llen = ret;
-        for (i=0;i<llen;i++) {
-            fprintf(stderr,"stderr %s\n",ppllines[i]);
+        for (i = 0; i < llen; i++) {
+            fprintf(stderr, "stderr %s\n", ppllines[i]);
             Sleep(1000);
-            fprintf(stdout,"stdout %s\n", ppllines[i]);
+            fprintf(stdout, "stdout %s\n", ppllines[i]);
         }
     }
     ret = 0;
 out:
-    split_lines(NULL,&ppllines,&lsize);
+    split_lines(NULL, &ppllines, &lsize);
     if (ptmpbuf != NULL) {
         free(ptmpbuf);
     }
@@ -703,7 +703,7 @@ out:
         free(pinbuf);
     }
     pinbuf = NULL;
-    insize= 0;
+    insize = 0;
     inlen = 0;
     SETERRNO(ret);
     return ret;
@@ -712,39 +712,39 @@ out:
 int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
-    char* pout=NULL;
-    int outsize=0;
-    char* perr=NULL;
-    int errsize=0;
+    char* pout = NULL;
+    int outsize = 0;
+    char* perr = NULL;
+    int errsize = 0;
     int exitcode = 0;
-    pargs_options_t pargs= (pargs_options_t) popt;
+    pargs_options_t pargs = (pargs_options_t) popt;
     argc = argc;
     argv = argv;
     parsestate = parsestate;
     init_log_level(pargs);
 
 
-    ret = run_cmd_output(NULL,0,&pout,&outsize,&perr,&errsize,&exitcode,0,"libtest.exe", "outc","little","big",NULL);
+    ret = run_cmd_output(NULL, 0, &pout, &outsize, &perr, &errsize, &exitcode, 0, "libtest.exe", "outc", "little", "big", NULL);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
     }
-    if(exitcode != 0) {
+    if (exitcode != 0) {
         GETERRNO(ret);
-        ERROR_INFO("exitcode %d",ret);
+        ERROR_INFO("exitcode %d", ret);
         goto out;
     }
 
-    fprintf(stdout,"read stdout------------\n");
-    fprintf(stdout,"%s",pout);
-    fprintf(stdout,"++++++++++++++++++++++++++\n");
-    fprintf(stdout,"read stderr------------\n");
-    fprintf(stdout,"%s",perr);
-    fprintf(stdout,"++++++++++++++++++++++++++\n");
+    fprintf(stdout, "read stdout------------\n");
+    fprintf(stdout, "%s", pout);
+    fprintf(stdout, "++++++++++++++++++++++++++\n");
+    fprintf(stdout, "read stderr------------\n");
+    fprintf(stdout, "%s", perr);
+    fprintf(stdout, "++++++++++++++++++++++++++\n");
 
     ret = 0;
 out:
-    run_cmd_output(NULL,0,&pout,&outsize,&perr,&errsize,NULL,0,NULL);
+    run_cmd_output(NULL, 0, &pout, &outsize, &perr, &errsize, NULL, 0, NULL);
     SETERRNO(ret);
     return ret;
 }
@@ -1595,7 +1595,7 @@ int getcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
             ERROR_INFO("error [%d]", ret);
             goto out;
         }
-        fprintf(stdout, "PHYS computer name [%s]\n", pcompname);        
+        fprintf(stdout, "PHYS computer name [%s]\n", pcompname);
     }
 
     ret = 0;
@@ -1660,24 +1660,24 @@ out:
 
 int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    void* preg=NULL;
+    void* preg = NULL;
     pargs_options_t pargs = (pargs_options_t) popt;
-    int argcnt=0;
-    int i,j,retlen;
-    int *pstartpos=NULL,*pendpos=NULL;
-    int possize=0;
+    int argcnt = 0;
+    int i, j, retlen;
+    int *pstartpos = NULL, *pendpos = NULL;
+    int possize = 0;
     int ret;
-    char* pcurstr=NULL;
-    char* pmatchstr=NULL;
-    size_t matchsize=0;
-    size_t matchlen=0;
-    int handled =0;
+    char* pcurstr = NULL;
+    char* pmatchstr = NULL;
+    size_t matchsize = 0;
+    size_t matchlen = 0;
+    int handled = 0;
 
     argc = argc;
     argv = argv;
     init_log_level(pargs);
     if (parsestate->leftargs != NULL) {
-        while(parsestate->leftargs[argcnt] != NULL) {
+        while (parsestate->leftargs[argcnt] != NULL) {
             argcnt ++;
         }
     }
@@ -1688,44 +1688,44 @@ int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         goto out;
     }
 
-    ret = regex_compile(parsestate->leftargs[0],REGEX_NONE,&preg);
+    ret = regex_compile(parsestate->leftargs[0], REGEX_NONE, &preg);
     if (ret < 0) {
         GETERRNO(ret);
-        ERROR_INFO("can not compile [%s]",parsestate->leftargs[0]);
+        ERROR_INFO("can not compile [%s]", parsestate->leftargs[0]);
         goto out;
     }
 
-    for (i=1;i<argcnt;i++) {
+    for (i = 1; i < argcnt; i++) {
         pcurstr = parsestate->leftargs[i];
         handled = 0;
-    try_again:
-        ret = regex_exec(preg,pcurstr,&pstartpos,&pendpos,&possize);
+try_again:
+        ret = regex_exec(preg, pcurstr, &pstartpos, &pendpos, &possize);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("can not exec [%s] for [%s] error[%d]", pcurstr, parsestate->leftargs[0],ret);
+            ERROR_INFO("can not exec [%s] for [%s] error[%d]", pcurstr, parsestate->leftargs[0], ret);
             goto out;
         }
         retlen = ret;
         if (retlen > 0) {
-            fprintf(stdout, "[%s] find [%s]\n",parsestate->leftargs[0],pcurstr);
-            for (j=0;j<retlen;j++) {
+            fprintf(stdout, "[%s] find [%s]\n", parsestate->leftargs[0], pcurstr);
+            for (j = 0; j < retlen; j++) {
                 matchlen = (size_t)(pendpos[j] - pstartpos[j]);
-                if (matchlen>= matchsize || pmatchstr == NULL) {
+                if (matchlen >= matchsize || pmatchstr == NULL) {
                     if (pmatchstr) {
                         free(pmatchstr);
                     }
-                    pmatchstr= NULL;
+                    pmatchstr = NULL;
                     matchsize = (matchlen + 3);
                     pmatchstr = (char*) malloc(matchsize);
                     if (pmatchstr == NULL) {
                         GETERRNO(ret);
-                        ERROR_INFO("alloc %d error[%d]",matchsize,ret);
+                        ERROR_INFO("alloc %d error[%d]", matchsize, ret);
                         goto out;
                     }
                 }
-                memset(pmatchstr, 0 ,matchsize);
+                memset(pmatchstr, 0 , matchsize);
                 memcpy(pmatchstr, &(pcurstr[pstartpos[j]]), matchlen);
-                fprintf(stdout,"    [%03d] %s\n",j, pmatchstr);
+                fprintf(stdout, "    [%03d] %s\n", j, pmatchstr);
             }
             /*we move to the next to find*/
             pcurstr = &(pcurstr[pendpos[0]]);
@@ -1733,8 +1733,8 @@ int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
             goto try_again;
         } else {
             if (handled == 0) {
-                fprintf(stdout,"[%s] not find in [%s]\n",parsestate->leftargs[0], pcurstr);    
-            }            
+                fprintf(stdout, "[%s] not find in [%s]\n", parsestate->leftargs[0], pcurstr);
+            }
         }
     }
 
@@ -1745,31 +1745,31 @@ out:
     }
     pmatchstr = NULL;
     matchsize = 0;
-    regex_exec(NULL,NULL,&pstartpos,&pendpos,&possize);
-    regex_compile(NULL,REGEX_NONE,&preg);
+    regex_exec(NULL, NULL, &pstartpos, &pendpos, &possize);
+    regex_compile(NULL, REGEX_NONE, &preg);
     SETERRNO(ret);
     return ret;
 }
 
 int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    void* preg=NULL;
+    void* preg = NULL;
     pargs_options_t pargs = (pargs_options_t) popt;
-    int argcnt=0;
-    int i,j,retlen;
-    int *pstartpos=NULL,*pendpos=NULL;
-    int possize=0;
+    int argcnt = 0;
+    int i, j, retlen;
+    int *pstartpos = NULL, *pendpos = NULL;
+    int possize = 0;
     int ret;
-    char* pcurstr=NULL;
-    char* pmatchstr=NULL;
-    size_t matchsize=0;
-    size_t matchlen=0;
+    char* pcurstr = NULL;
+    char* pmatchstr = NULL;
+    size_t matchsize = 0;
+    size_t matchlen = 0;
 
     argc = argc;
     argv = argv;
     init_log_level(pargs);
     if (parsestate->leftargs != NULL) {
-        while(parsestate->leftargs[argcnt] != NULL) {
+        while (parsestate->leftargs[argcnt] != NULL) {
             argcnt ++;
         }
     }
@@ -1780,45 +1780,45 @@ int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         goto out;
     }
 
-    ret = regex_compile(parsestate->leftargs[0],REGEX_IGNORE_CASE,&preg);
+    ret = regex_compile(parsestate->leftargs[0], REGEX_IGNORE_CASE, &preg);
     if (ret < 0) {
         GETERRNO(ret);
-        ERROR_INFO("can not compile [%s]",parsestate->leftargs[0]);
+        ERROR_INFO("can not compile [%s]", parsestate->leftargs[0]);
         goto out;
     }
 
-    for (i=1;i<argcnt;i++) {
+    for (i = 1; i < argcnt; i++) {
         pcurstr = parsestate->leftargs[i];
-        ret = regex_exec(preg,pcurstr,&pstartpos,&pendpos,&possize);
+        ret = regex_exec(preg, pcurstr, &pstartpos, &pendpos, &possize);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("can not exec [%s] for [%s] error[%d]", pcurstr, parsestate->leftargs[0],ret);
+            ERROR_INFO("can not exec [%s] for [%s] error[%d]", pcurstr, parsestate->leftargs[0], ret);
             goto out;
         }
         retlen = ret;
         if (retlen > 0) {
-            fprintf(stdout, "[%s] find [%s]\n",parsestate->leftargs[0],pcurstr);
-            for (j=0;j<retlen;j++) {
+            fprintf(stdout, "[%s] find [%s]\n", parsestate->leftargs[0], pcurstr);
+            for (j = 0; j < retlen; j++) {
                 matchlen = (size_t)(pendpos[j] - pstartpos[j]);
-                if (matchlen>= matchsize || pmatchstr == NULL) {
+                if (matchlen >= matchsize || pmatchstr == NULL) {
                     if (pmatchstr) {
                         free(pmatchstr);
                     }
-                    pmatchstr= NULL;
+                    pmatchstr = NULL;
                     matchsize = (matchlen + 3);
                     pmatchstr = (char*) malloc(matchsize);
                     if (pmatchstr == NULL) {
                         GETERRNO(ret);
-                        ERROR_INFO("alloc %d error[%d]",matchsize,ret);
+                        ERROR_INFO("alloc %d error[%d]", matchsize, ret);
                         goto out;
                     }
                 }
-                memset(pmatchstr, 0 ,matchsize);
+                memset(pmatchstr, 0 , matchsize);
                 memcpy(pmatchstr, &(pcurstr[pstartpos[j]]), matchlen);
-                fprintf(stdout,"    [%03d] %s\n",j, pmatchstr);
+                fprintf(stdout, "    [%03d] %s\n", j, pmatchstr);
             }
         } else {
-            fprintf(stdout,"[%s] not find in [%s]\n",parsestate->leftargs[0], pcurstr);
+            fprintf(stdout, "[%s] not find in [%s]\n", parsestate->leftargs[0], pcurstr);
         }
     }
 
@@ -1829,8 +1829,8 @@ out:
     }
     pmatchstr = NULL;
     matchsize = 0;
-    regex_exec(NULL,NULL,&pstartpos,&pendpos,&possize);
-    regex_compile(NULL,REGEX_NONE,&preg);
+    regex_exec(NULL, NULL, &pstartpos, &pendpos, &possize);
+    regex_compile(NULL, REGEX_NONE, &preg);
     SETERRNO(ret);
     return ret;
 }
@@ -1840,68 +1840,79 @@ out:
 int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     pargs_options_t pargs = (pargs_options_t) popt;
-    char* pinbuf=NULL;
-    int insize=0;
-    int inlen =0;
-    char* poutbuf= NULL;
-    int outsize= 0;
-    int outlen=0;
+    char* pinbuf = NULL;
+    int insize = 0;
+    int inlen = 0;
+    char** ppllines = NULL;
+    int lsize = 0;
+    int llen = 0;
+    char* poutbuf = NULL;
+    int outsize = 0;
+    char* precvoutbuf = NULL;
+    int recvoutsize = 0;
+    int recvoutlen = 0;
+    int outlen = 0;
     int wr = 0;
-    HANDLE rpipe=INVALID_HANDLE_VALUE,wpipe=INVALID_HANDLE_VALUE;
-    HANDLE pcurpipe=NULL;
-    HANDLE revt=NULL,wevt=NULL;
+    HANDLE curhd;
+    HANDLE rpipe = INVALID_HANDLE_VALUE, wpipe = INVALID_HANDLE_VALUE;
+    HANDLE pcurpipe = NULL;
+    HANDLE revt = NULL, wevt = NULL;
     int rstate = PIPE_NONE;
     int wstate = PIPE_NONE;
-    OVERLAPPED wov,rov;
-    OVERLAPPED awov,arov;
-    pasync_evt_t prdase=NULL, pwrase=NULL;
-    OVERLAPPED* pov=NULL;
-    int argcnt= 0;
-    char* pname1=NULL,*pname2=NULL;
-    char* ptemp1=NULL,*ptemp2=NULL;
-    char* prname=NULL,*pwname=NULL;
-    int temp1size=0,temp2size=0;
+    OVERLAPPED wov, rov;
+    OVERLAPPED awov, arov;
+    pasync_evt_t prdase = NULL, pwrase = NULL;
+    OVERLAPPED* pov = NULL;
+    int argcnt = 0;
+    char* pname1 = NULL, *pname2 = NULL;
+    char* ptemp1 = NULL, *ptemp2 = NULL;
+    char* prname = NULL, *pwname = NULL;
+    int temp1size = 0, temp2size = 0;
+    HANDLE waithds[2];
+    int waitnum = 0;
+    DWORD curwait;
+    DWORD wcurlen = 0, rcurlen = 0;
 
     init_log_level(pargs);
     if (pargs->m_input) {
         wr = 1;
-        ret = read_file_whole(pargs->m_input,&poutbuf,&outsize);
+        ret = read_file_whole(pargs->m_input, &poutbuf, &outsize);
         if (ret < 0) {
             GETERRNO(ret);
             ERROR_INFO("can not read [%s] error[%d]", pargs->m_input, ret);
             goto out;
         }
-        outlen= ret;
+        outlen = ret;
     }
 
-    if(parsestate->leftargs != NULL) {
-        while(parsestate->leftargs[argcnt] != NULL) {
+    if (parsestate->leftargs != NULL) {
+        while (parsestate->leftargs[argcnt] != NULL) {
             argcnt ++;
         }
     }
 
-    if (argcnt == 0){
+    if (argcnt == 0) {
         ret = __get_temp_pipe_name_2("tmppipe", &ptemp1, &temp1size);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("can not get temp1 name error[%d]",ret);
+            ERROR_INFO("can not get temp1 name error[%d]", ret);
             goto out;
         }
         pname1 = ptemp1;
 
-        ret = __get_temp_pipe_name_2("tmppipe",&ptemp2,&temp2size);
+        ret = __get_temp_pipe_name_2("tmppipe", &ptemp2, &temp2size);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("can not get temp2 name error[%d]",ret);
+            ERROR_INFO("can not get temp2 name error[%d]", ret);
             goto out;
         }
         pname2 = ptemp2;
     } else if (argcnt == 1) {
         pname1 = parsestate->leftargs[0];
-        ret = __get_temp_pipe_name_2("tmppipe",&ptemp2,&temp2size);
+        ret = __get_temp_pipe_name_2("tmppipe", &ptemp2, &temp2size);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("can not get temp2 name error[%d]",ret);
+            ERROR_INFO("can not get temp2 name error[%d]", ret);
             goto out;
         }
         pname2 = ptemp2;
@@ -1909,20 +1920,20 @@ int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         pname1 = parsestate->leftargs[0];
         pname2 = parsestate->leftargs[1];
     }
-    memset(&rov,0,sizeof(rov));
-    memset(&wov,0,sizoef(wov));
-    revt = CreateEvent(NULL,TRUE,TRUE,NULL);
+    memset(&rov, 0, sizeof(rov));
+    memset(&wov, 0, sizoef(wov));
+    revt = CreateEvent(NULL, TRUE, TRUE, NULL);
     if (revt == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("create revt error[%d]",ret);
+        ERROR_INFO("create revt error[%d]", ret);
         goto out;
     }
     rov.hEvent = revt;
 
-    wevt = CreateEvent(NULL,TRUE,TRUE,NULL);
+    wevt = CreateEvent(NULL, TRUE, TRUE, NULL);
     if (wevt == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("create wevt error[%d]",ret);
+        ERROR_INFO("create wevt error[%d]", ret);
         goto out;
     }
     wov.hEvent = wevt;
@@ -1947,19 +1958,148 @@ int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         goto out;
     }
 
-    ret = __create_pipe_async(pwname,1,&wpipe,&rov,pargs->m_bufsize);
+    ret = __create_pipe_async(pwname, 1, &wpipe, &rov, pargs->m_bufsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
     }
     wstate = ret;
 
-    ret = __create_pipe_async(prname,0,&rpipe,&wov,pargs->m_bufsize);
+    ret = __create_pipe_async(prname, 0, &rpipe, &wov, pargs->m_bufsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
     }
     rstate = ret;
+
+    while (1) {
+        /*now check for the state*/
+        curwait = 15000;
+        if (pargs->m_timeout > 0) {
+            curwait = pargs->m_timeout;
+        }
+        memset(waithds, 0, sizeof(waithds));
+        waitnum = 0;
+        if (wstate == PIPE_WAIT_CONNECT) {
+            waithds[waitnum] = wov.hEvent;
+            waitnum ++;
+        }
+
+        if (rstate == PIPE_WAIT_CONNECT) {
+            waithds[waitnum] = rov.hEvent;
+            waitnum ++;
+        }
+
+        if (waitnum != 0) {
+            dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, curwait, TRUE);
+            if (dret == WAIT_TIMEOUT) {
+                continue;
+            } else if (dret >= WAIT_OBJECT_0 && dret < (WAIT_OBJECT_0 + waitnum)) {
+                curhd = waithds[(dret - WAIT_OBJECT_0)];
+                if (curhd == rpipe) {
+                    /*so we get connect state*/
+                    ret = __get_wait_connect(rpipe, &rov);
+                    if (ret < 0) {
+                        GETERRNO(ret);
+                        ERROR_INFO("rpipe [%s] error", prname);
+                        goto out;
+                    }
+                    rstate = ret;
+                } else if (curhd == wpipe) {
+                    ret = __get_wait_connect(wpipe, &wov);
+                    if (ret < 0) {
+                        GETERRNO(ret);
+                        ERROR_INFO("wpipe [%s] error", pwname);
+                        goto out;
+                    }
+                    wstate = ret;
+                } else {
+                    ret = -ERROR_INTERNAL_ERROR;
+                    ERROR_INFO("internal error wait connect");
+                    goto out;
+                }
+
+            } else if (dret == WAIT_IO_COMPLETION) {
+rewait_io:
+                memset(waithds, 0, sizeof(waithds));
+                waitnum = 0;
+                if (rstate == PIPE_WAIT_READ) {
+                    waithds[waitnum] = prdaes->m_evt;
+                    waitnum ++;
+                }
+                if (wstate == PIPE_WAIT_WRITE) {
+                    waithds[waitnum] = pwrase->m_evt;
+                    waitnum ++;
+                }
+                if (waitnum == 0) {
+                    /*nothing in the waiting ,is weired*/
+                    ret = -ERROR_INTERNAL_ERROR;
+                    ERROR_INFO("wait num 0 for WAIT_IO_COMPLETION");
+                    goto out;
+                }
+                dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, 10, TRUE);
+                if (dret == WAIT_IO_COMPLETION) {
+                    goto rewait_io;
+                } else if (dret == WAIT_TIMEOUT) {
+                    ret = -ERROR_INTERNAL_ERROR;
+                    ERROR_INFO("error for wait io timedout");
+                    goto out;
+                } else if (dret >= (WAIT_OBJECT_0) && dret < (WAIT_OBJECT_0 + waitnum)) {
+                    curhd = waithds[(dret - WAIT_OBJECT_0)];
+                    if (curhd == pwrase->m_evt) {
+                        /*now check for the evt*/
+                        bret = SetEvent(pwrase->m_evt);
+                        if (!bret) {
+                            GETERRNO(ret);
+                            ERROR_INFO("set [%s] wraes event error[%d]", pwname, ret);
+                            goto out;
+                        }
+                        if (pwrase->m_errorcode != 0) {
+                            ret = pwrase->m_errorcode;
+                            if (ret > 0) {
+                                ret = -ret;
+                            }
+                            ERROR_INFO("wr [%s] errorcode[%d]", pwname, ret);
+                            goto out;
+                        }
+
+                        if (pwrase->m_cbret != wcurlen) {
+                            ret = -ERROR_INVALID_PARAMETER;
+                            ERROR_INFO("wr [%s] %d != %d wcurlen", pwname, pwrase->m_cbret, wcurlen);
+                            goto out;
+                        }
+
+                        wstate = PIPE_READY;
+                    } else if (curhd == rpipe) {
+                        bret = SetEvent(prdase->m_evt);
+                        if (!bret) {
+                            GETERRNO(ret);
+                            ERROR_INFO("set [%s] wraes event error[%d]", prname, ret);
+                            goto out;
+                        }
+                        if (prdase->m_errorcode != 0) {
+                            ret = prdase->m_errorcode;
+                            if (ret > 0) {
+                                ret = -ret;
+                            }
+                            ERROR_INFO("rd [%s] errorcode[%d]", prname, ret);
+                            goto out;
+                        }
+                        /*now test if 0 ,it is broken pipe*/
+                        inlen += prdase->m_cbret;
+                        if (prdase->m_cbret == 0) {
+                            /*this is the close */
+                            __create_pipe_async(NULL, 0, &rpipe, NULL, 0);
+                            rstate = PIPE_NONE;
+                        } else if (inlen == insize) {
+                            
+
+                        }
+                    }
+                }
+            }
+        }
+    }
 
 
 
@@ -1970,30 +2110,30 @@ out:
     ASSERT_IF(rstate != PIPE_WAIT_WRITE);
     ASSERT_IF(wstate != PIPE_WAIT_READ);
     if (rstate == PIPE_WAIT_CONNECT ) {
-        bret = CancelIoEx(revt,&rov);
+        bret = CancelIoEx(revt, &rov);
         if (!bret) {
             GETERRNO(res);
             ERROR_INFO("cancel revt [%s] error[%d]", prname, res);
         }
         rstate = PIPE_READY;
     } else if (rstate == PIPE_WAIT_READ) {
-        bret = CancelIoEx(revt,prdase);
+        bret = CancelIoEx(revt, prdase);
         if (!bret) {
             GETERRNO(res);
-            ERROR_INFO("cancel revt [%s] error[%d]", prname,res);
+            ERROR_INFO("cancel revt [%s] error[%d]", prname, res);
         }
         rstate = PIPE_READY;
     }
 
     if (wstate == PIPE_WAIT_CONNECT) {
-        bret = CancelIoEx(wevt,&wov);
+        bret = CancelIoEx(wevt, &wov);
         if (!bret) {
             GETERRNO(res);
             ERROR_INFO("cancel wevt [%s] error[%d]", pwname, res);
         }
         wstate = PIPE_READY;
     } else if (wstate == PIPE_WAIT_WRITE) {
-        bret = CancelIoEx(wevt,pwrase);
+        bret = CancelIoEx(wevt, pwrase);
         if (!bret) {
             GETERRNO(res);
             ERROR_INFO("cancel wevt [%s] error[%d]", pwname, res);
@@ -2010,16 +2150,16 @@ out:
     }
 
 
-    __create_pipe_async(NULL,0,&wpipe,NULL,0);
+    __create_pipe_async(NULL, 0, &wpipe, NULL, 0);
     wstate = PIPE_NONE;
-    __create_pipe_async(NULL,0,&rpipe,NULL,0);
+    __create_pipe_async(NULL, 0, &rpipe, NULL, 0);
     rstate = PIPE_NONE;
 
     __free_async_evt(&prdaes);
     __free_async_evt(&pwrase);
-    __get_temp_pipe_name_2(NULL,&ptemp1,&temp1size);
-    __get_temp_pipe_name_2(NULL,&ptemp2,&temp2size);
-    read_file_whole(NULL,&poutbuf,&outsize);
+    __get_temp_pipe_name_2(NULL, &ptemp1, &temp1size);
+    __get_temp_pipe_name_2(NULL, &ptemp2, &temp2size);
+    read_file_whole(NULL, &poutbuf, &outsize);
     SETERRNO(ret);
     return ret;
 }

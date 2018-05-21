@@ -173,3 +173,23 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int __get_wait_connect(HANDLE pipe,OVERLAPPED *pov)
+{
+	BOOL bret;
+	int ret;
+	DWORD cbret=0;
+	bret = GetOverlappedResult(pipe,pov,&cbret,FALSE);
+	if (!bret) {
+		GETERRNO(ret);
+		ERROR_INFO("get [%p] connect result error[%d]",pipe,ret);
+		goto fail;
+	}
+
+	SetEvent(pov->hEvent);
+
+	return PIPE_READY;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
