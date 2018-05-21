@@ -46,6 +46,8 @@ int setcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int getcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int aclilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);;
 
 #ifdef __cplusplus
 };
@@ -1837,6 +1839,26 @@ out:
     return ret;
 }
 
+typedef struct __async_evt {
+    HANDLE m_evt;   /*this event must be manual set*/
+    DWORD  m_errorcode;
+    DWORD  m_cbret;
+} async_evt_t,*pasync_evt_t;
+
+int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* pinbuf=NULL;
+    int insize=0;
+    int inlen =0;
+    char* poutbuf= NULL;
+    int outsize= 0;
+
+    
+out:
+    SETERRNO(ret);
+    return ret;
+}
 
 int _tmain(int argc, TCHAR* argv[])
 {

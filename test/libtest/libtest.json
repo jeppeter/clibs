@@ -61,6 +61,12 @@
     },
     "runsingle<runsingle_handler>##single ... to run output##" :{
         "$" : 1
+    },
+    "asvrlap<asvrlap_handler>##asynchronouse svrpipe handle##" : {
+        "$" : 0
+    },
+    "aclilap<aclilap_handler>##asynchronouse clipipe handle##" : {
+        "$" : 0
     }
 
 }
