@@ -1633,7 +1633,7 @@ int __left_pipe_bytes(HANDLE hd)
     BOOL bret;
     DWORD totalbytes;
     int ret;
-    bret = PeekNamedPipe(hd,NULL,0,NULL,&totalbytes,NULL);
+    bret = PeekNamedPipe(hd, NULL, 0, NULL, &totalbytes, NULL);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("can not peek error[%d]", ret);
@@ -1765,7 +1765,7 @@ out_again:
                 }
                 if (ret > 0) {
                     DEBUG_BUFFER_FMT(&(pretout[outlen]), ret, "stdout new in");
-                } 
+                }
                 outlen += ret;
                 if (outlen > outsize) {
                     ERROR_INFO("read [%s] outlen[%d] outsize [%d]", pproc->m_stdoutpipe->m_pipename, outlen, outsize);
@@ -1775,7 +1775,7 @@ out_again:
                 if (pending == 0) {
                     if (outlen == outsize) {
                         goto out_again;
-                    } 
+                    }
                     /*because we only read some bytes , so let it ok next try*/
                 } else if (pending == 2) {
                     /*now close the file*/
@@ -1840,7 +1840,7 @@ err_again:
                 if (pending == 0) {
                     if (errlen == errsize) {
                         goto err_again;
-                    } 
+                    }
                     /*we only read this ,so just next try*/
                 } else if (pending == 2) {
                     __close_handle_note(&(pproc->m_stderrpipe->m_pipesvr), "%s", pproc->m_stderrpipe->m_pipename);
@@ -1973,16 +1973,84 @@ err_again:
             GETERRNO(ret);
             goto fail;
         }
-        if ((outsize - outlen) < curlen) {
-            outsize = (outsize - outlen +  curlen);
-            ptmpbuf = (char*) malloc(outsize);
-            if (ptmpbuf == NULL) {
+        curlen = ret;
+        if (curlen > 0) {
+            if ((outsize - outlen) < curlen) {
+                outsize = (outsize - outlen +  curlen);
+                ptmpbuf = (char*) malloc(outsize);
+                if (ptmpbuf == NULL) {
+                    GETERRNO(ret);
+                    ERROR_INFO("alloc %d error[%d]", outsize, ret);
+                    goto fail;
+                }
+                memset(ptmpbuf, 0, outsize);
+                if (outlen > 0) {
+                    memcpy(ptmpbuf, pretout, outlen);
+                }
+                if (pretout && pretout != *ppout) {
+                    free(pretout);
+                }
+                pretout = ptmpbuf;
+                ptmpbuf = NULL;
+            }
+            ret = __read_file_sync(pproc->m_stdoutpipe->m_pipesvr, &(pproc->m_stdoutpipe->m_ov), &(pretout[outlen]), curlen, &pending);
+            if (ret < 0) {
                 GETERRNO(ret);
-                ERROR_INFO("alloc %d error[%d]",outsize, ret);
                 goto fail;
             }
-        }
 
+
+            if (ret != curlen) {
+                ret = -ERROR_INTERNAL_ERROR;
+                ERROR_INFO("read stdout left error[%d]", ret);
+                goto fail;
+            }
+            DEBUG_BUFFER_FMT(&(pretout[outlen]), curlen, "new stdout");
+            outlen += ret;
+        }
+    }
+
+    if (pproc->m_stderrpipe != NULL ) {
+        DEBUG_INFO("stdout [%s]", pproc->m_stderrpipe->m_state == PIPE_READY ? "READY" : "WAIT");
+        ret = __left_pipe_bytes(pproc->m_stderrpipe->m_pipesvr);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        curlen = ret;
+        if (curlen > 0) {
+            if ((errsize - errlen) < curlen) {
+                errsize = (errsize - errlen +  curlen);
+                ptmpbuf = (char*) malloc(errsize);
+                if (ptmpbuf == NULL) {
+                    GETERRNO(ret);
+                    ERROR_INFO("alloc %d error[%d]", errsize, ret);
+                    goto fail;
+                }
+                memset(ptmpbuf, 0, errsize);
+                if (errlen > 0) {
+                    memcpy(ptmpbuf, preterr, errlen);
+                }
+                if (preterr && preterr != *pperr) {
+                    free(preterr);
+                }
+                preterr = ptmpbuf;
+                ptmpbuf = NULL;
+            }
+            ret = __read_file_sync(pproc->m_stderrpipe->m_pipesvr, &(pproc->m_stderrpipe->m_ov), &(preterr[errlen]), curlen, &pending);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+
+            if (ret != curlen) {
+                ret = -ERROR_INTERNAL_ERROR;
+                ERROR_INFO("read stderr left error[%d]", ret);
+                goto fail;
+            }
+            DEBUG_BUFFER_FMT(&(preterr[errlen]), curlen, "new stderr");
+            errlen += ret;
+        }
     }
 
     if (exitcode) {
@@ -2146,7 +2214,7 @@ out_again:
                 }
                 if (ret > 0) {
                     DEBUG_BUFFER_FMT(&(pretout[outlen]), ret, "stdout new in");
-                } 
+                }
                 outlen += ret;
                 if (outlen >= outsize) {
                     ERROR_INFO("read [%s] outlen[%d] outsize [%d]", pproc->m_stdoutpipe->m_pipename, outlen, outsize);
@@ -2227,7 +2295,7 @@ err_again:
                     if (errlen == errsize) {
                         goto err_again;
                     } else {
-                        DEBUG_INFO("errlen %d errsize %d", errlen ,errsize);
+                        DEBUG_INFO("errlen %d errsize %d", errlen , errsize);
                         waithds[waitnum] = pproc->m_stderrpipe->m_evt;
                         waitnum ++;
                         pproc->m_stderrpipe->m_state = PIPE_WAIT_READ;
@@ -3334,7 +3402,7 @@ int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** p
     int ret;
     int createflag = 0;
 
-    DEBUG_INFO(" ");
+    DEBUG_INFO("prog [%p]",prog);
     if (prog == NULL) {
         if (ppout != NULL) {
             if (*ppout != NULL) {
