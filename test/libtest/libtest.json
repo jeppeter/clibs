@@ -61,12 +61,5 @@
     },
     "runsingle<runsingle_handler>##single ... to run output##" :{
         "$" : 1
-    },
-    "asvrlap<asvrlap_handler>##[pipename1 pipename2] asynchronouse svrpipe handle (not set for temporary created)##" : {
-        "$" : "*"
-    },
-    "aclilap<aclilap_handler>##pipename1 pipename2 asynchronouse clipipe handle##" : {
-        "$" : 2
     }
-
 }

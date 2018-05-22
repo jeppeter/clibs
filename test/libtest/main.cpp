@@ -47,8 +47,13 @@ int setcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int getcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int aclilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);;
+
+#define PIPE_NONE                0
+#define PIPE_READY               1
+#define PIPE_WAIT_READ           2
+#define PIPE_WAIT_WRITE          3
+#define PIPE_WAIT_CONNECT        4
+
 
 #ifdef __cplusplus
 };
@@ -1836,7 +1841,7 @@ out:
 }
 
 
-
+#if 0
 int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     pargs_options_t pargs = (pargs_options_t) popt;
@@ -2179,6 +2184,7 @@ out:
     SETERRNO(ret);
     return ret;
 }
+#endif
 
 int _tmain(int argc, TCHAR* argv[])
 {
