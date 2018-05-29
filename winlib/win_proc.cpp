@@ -2204,6 +2204,7 @@ int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** p
         if (perrsize) {
             *perrsize = 0;
         }
+        DEBUG_INFO(" ");
         return 0;
     }
 
