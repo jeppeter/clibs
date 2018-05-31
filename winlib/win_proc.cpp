@@ -306,7 +306,7 @@ fail:
 #define PIPE_WAIT_CONNECT        4
 
 
-#define __OLD_USE__   0
+#define __OLD_USE__   1
 
 
 typedef struct __pipe_server {
@@ -825,12 +825,14 @@ int __create_pipe(char* name, int wr, HANDLE* pparent, HANDLE *pcli, OVERLAPPED*
         goto fail;
     }
 
+#if 0
     bret = SetHandleInformation(*pparent, HANDLE_FLAG_INHERIT, 0);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("can not set handle information for [%p] error[%d]", *pparent, ret);
         goto fail;
     }
+#endif
 
     *pstate = PIPE_READY;
 
