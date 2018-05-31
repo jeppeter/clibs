@@ -306,6 +306,9 @@ fail:
 #define PIPE_WAIT_CONNECT        4
 
 
+#define __OLD_USE__   1
+
+
 typedef struct __pipe_server {
     HANDLE m_pipesvr;
     HANDLE m_evt;
@@ -316,6 +319,67 @@ typedef struct __pipe_server {
     int m_wr;
     int m_state;
 } pipe_server_t, *ppipe_server_t;
+
+
+void __close_handle_note(HANDLE *phd, const char* fmt, ...)
+{
+    va_list ap;
+    BOOL bret;
+    char* errstr = NULL;
+    int errsize = 0;
+    int ret;
+    int res;
+    if (phd && *phd != INVALID_HANDLE_VALUE && *phd != NULL) {
+        bret = CloseHandle(*phd);
+        if (!bret && fmt != NULL) {
+            GETERRNO(ret);
+            va_start(ap, fmt);
+            res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
+            if (res >= 0) {
+                ERROR_INFO("%s error[%d]", errstr, ret);
+            }
+            vsnprintf_safe(&errstr, &errsize, NULL, ap);
+        }
+        *phd = INVALID_HANDLE_VALUE;
+    }
+    return;
+}
+
+void __free_pipe_server(ppipe_server_t *ppsvr)
+{
+    char* pipename = NULL;
+    BOOL bret;
+    int ret;
+    ppipe_server_t psvr;
+    if (ppsvr && *ppsvr) {
+        psvr = *ppsvr;
+        if (psvr->m_pipename) {
+            pipename = psvr->m_pipename;
+        } else {
+            pipename = "none";
+        }
+
+        if (psvr->m_state == PIPE_WAIT_CONNECT ||
+                psvr->m_state == PIPE_WAIT_READ ||
+                psvr->m_state == PIPE_WAIT_WRITE) {
+            bret = CancelIoEx(psvr->m_pipesvr, &(psvr->m_ov));
+            if (!bret) {
+                GETERRNO(ret);
+                ERROR_INFO("cancel [%s] [%d] error[%d]", pipename, psvr->m_state, ret);
+            }
+        }
+        psvr->m_state = PIPE_NONE;
+        __close_handle_note(&(psvr->m_evt), "%s evt", pipename);
+        __close_handle_note(&(psvr->m_pipecli), "%s child", pipename);
+        __close_handle_note(&(psvr->m_pipesvr), "%s parent", pipename);
+        snprintf_safe(&(psvr->m_pipename), &(psvr->m_pipesize), NULL);
+        memset(&(psvr->m_ov), 0, sizeof(psvr->m_ov));
+        free(psvr);
+        *ppsvr = NULL;
+    }
+}
+
+#if __OLD_USE__
 
 int __connect_pipe(char* name, int wr, HANDLE* pcli)
 {
@@ -384,64 +448,8 @@ fail:
     return ret;
 }
 
-void __close_handle_note(HANDLE *phd, const char* fmt, ...)
-{
-    va_list ap;
-    BOOL bret;
-    char* errstr = NULL;
-    int errsize = 0;
-    int ret;
-    int res;
-    if (phd && *phd != INVALID_HANDLE_VALUE && *phd != NULL) {
-        bret = CloseHandle(*phd);
-        if (!bret && fmt != NULL) {
-            GETERRNO(ret);
-            va_start(ap, fmt);
-            res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
-            if (res >= 0) {
-                ERROR_INFO("%s error[%d]", errstr, ret);
-            }
-            vsnprintf_safe(&errstr, &errsize, NULL, ap);
-        }
-        *phd = INVALID_HANDLE_VALUE;
-    }
-    return;
-}
 
 
-void __free_pipe_server(ppipe_server_t *ppsvr)
-{
-    char* pipename = NULL;
-    BOOL bret;
-    int ret;
-    ppipe_server_t psvr;
-    if (ppsvr && *ppsvr) {
-        psvr = *ppsvr;
-        if (psvr->m_pipename) {
-            pipename = psvr->m_pipename;
-        } else {
-            pipename = "none";
-        }
-
-        if (psvr->m_state == PIPE_WAIT_CONNECT ||
-                psvr->m_state == PIPE_WAIT_READ ||
-                psvr->m_state == PIPE_WAIT_WRITE) {
-            bret = CancelIoEx(psvr->m_pipesvr, &(psvr->m_ov));
-            if (!bret) {
-                GETERRNO(ret);
-                ERROR_INFO("cancel [%s] [%d] error[%d]", pipename, psvr->m_state, ret);
-            }
-        }
-        psvr->m_state = PIPE_NONE;
-        __close_handle_note(&(psvr->m_evt), "%s evt", pipename);
-        __close_handle_note(&(psvr->m_pipecli), "%s client", pipename);
-        __close_handle_note(&(psvr->m_pipesvr), "%s server", pipename);
-        snprintf_safe(&(psvr->m_pipename), &(psvr->m_pipesize), NULL);
-        memset(&(psvr->m_ov), 0, sizeof(psvr->m_ov));
-        free(psvr);
-        *ppsvr = NULL;
-    }
-}
 
 int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *pevt, int *pstate)
 {
@@ -750,7 +758,11 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+#else /* __OLD_USE__ */
 
+
+
+#endif /* __OLD_USE__ */
 
 typedef struct __proc_handle {
 #ifdef __PROC_DEBUG__
