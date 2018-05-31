@@ -1038,10 +1038,8 @@ fail:
     return ret;
 }
 
-
-void* start_cmd_single(int createflag, char* prog)
+int __start_proc(pproc_handle_t pproc, int createflag)
 {
-    pproc_handle_t pproc = NULL;
     int ret;
     PROCESS_INFORMATION  *pinfo = NULL;
     STARTUPINFOW *pstartinfo = NULL;
@@ -1051,6 +1049,152 @@ void* start_cmd_single(int createflag, char* prog)
     wchar_t *wcmdline = NULL;
     int wcmdsize = 0;
     int res;
+
+    if (pproc == NULL || pproc->m_exited == 0 ||
+        pproc->m_prochd != NULL){
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    /*now we should make this handle*/
+    pinfo = (PROCESS_INFORMATION*) malloc(sizeof(*pinfo));
+    if (pinfo == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pinfo), ret);
+        goto fail;
+    }
+    memset(pinfo, 0 , sizeof(*pinfo));
+
+    pstartinfo = (STARTUPINFOW*) malloc(sizeof(*pstartinfo));
+    if (pstartinfo == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pstartinfo), ret);
+        goto fail;
+    }
+    memset(pstartinfo, 0 , sizeof(*pstartinfo));
+
+    pstartinfo->cb = sizeof(*pstartinfo);
+    if (pproc->m_stdinpipe != NULL) {
+        pstartinfo->hStdInput  = pproc->m_stdinpipe->m_pipecli;
+        usehd ++;
+    } else if (pproc->m_stdinnull != NULL && pproc->m_stdinnull != INVALID_HANDLE_VALUE) {
+        pstartinfo->hStdInput = pproc->m_stdinnull;
+        usehd ++;
+    }
+
+    if (pproc->m_stdoutpipe != NULL) {
+        pstartinfo->hStdOutput = pproc->m_stdoutpipe->m_pipecli;
+        usehd ++;
+    } else if (pproc->m_stdoutnull != NULL && pproc->m_stdoutnull != INVALID_HANDLE_VALUE) {
+        pstartinfo->hStdOutput = pproc->m_stdoutnull;
+        usehd ++;
+    }
+
+    if (pproc->m_stderrpipe != NULL) {
+        pstartinfo->hStdError = pproc->m_stderrpipe->m_pipecli;
+        usehd ++;
+    } else if (pproc->m_stderrnull != NULL && pproc->m_stderrnull != INVALID_HANDLE_VALUE) {
+        pstartinfo->hStdError = pproc->m_stderrnull;
+        usehd ++;
+    }
+
+    if (usehd > 0) {
+        pstartinfo->dwFlags  |= STARTF_USESTDHANDLES;
+    }
+
+    if (usehd > 0) {
+        if (pstartinfo->hStdInput == NULL) {
+            pstartinfo->hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+        }
+
+        if (pstartinfo->hStdOutput == NULL) {
+            pstartinfo->hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+        }
+
+        if (pstartinfo->hStdError == NULL) {
+            pstartinfo->hStdError = GetStdHandle(STD_ERROR_HANDLE);
+        }
+    }
+
+    if (createflag & PROC_NO_WINDOW) {
+        dwflag |= CREATE_NO_WINDOW;
+    }
+
+    ret = AnsiToUnicode(pproc->m_cmdline, &wcmdline, &wcmdsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    bret = CreateProcessW(NULL, wcmdline,
+                          NULL, NULL,
+                          TRUE, dwflag,
+                          NULL, NULL,
+                          pstartinfo, pinfo);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("create [%s] error[%d]", pproc->m_cmdline
+                   , ret);
+        goto fail;
+    }
+
+    /*now started*/
+    pproc->m_exited = 0;
+    pproc->m_prochd = pinfo->hProcess;
+
+    if (pinfo->hThread != NULL) {
+        bret = CloseHandle(pinfo->hThread);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("close thread handle [%p] error[%d]", pinfo->hThread, ret);
+            goto fail;
+        }
+        pinfo->hThread = NULL;
+    }
+
+    DEBUG_INFO("start [%s] ok", pproc->m_cmdline);
+
+    AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
+    if (pinfo) {
+        free(pinfo);
+    }
+    pinfo = NULL;
+    if (pstartinfo) {
+        free(pstartinfo);
+    }
+    pstartinfo = NULL;
+    return 0;
+
+fail:
+    AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
+    if (pinfo) {
+        if (pinfo->hThread != NULL && pinfo->hThread != INVALID_HANDLE_VALUE) {
+            bret = CloseHandle(pinfo->hThread);
+            if (!bret) {
+                GETERRNO(res);
+                ERROR_INFO("close thread [%p] error[%d]", pinfo->hThread, res);
+            }
+        }
+        pinfo->hThread = NULL;
+
+        free(pinfo);
+    }
+    pinfo = NULL;
+    if (pstartinfo) {
+        free(pstartinfo);
+    }
+    pstartinfo = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+void* start_cmd_single(int createflag, char* prog)
+{
+    pproc_handle_t pproc = NULL;
+    int ret;
 
     if (prog == NULL || prog[0] == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
@@ -1074,135 +1218,14 @@ void* start_cmd_single(int createflag, char* prog)
         goto fail;
     }
 
-    /*now we should make this handle*/
-    pinfo = (PROCESS_INFORMATION*) malloc(sizeof(*pinfo));
-    if (pinfo == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pinfo), ret);
-        goto fail;
-    }
-    memset(pinfo, 0 , sizeof(*pinfo));
-
-    pstartinfo = (STARTUPINFOW*) malloc(sizeof(*pstartinfo));
-    if (pstartinfo == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pstartinfo), ret);
-        goto fail;
-    }
-    memset(pstartinfo, 0 , sizeof(*pstartinfo));
-
-    pstartinfo->cb = sizeof(*pstartinfo);
-    if (pproc->m_stdinpipe != NULL) {
-        pstartinfo->hStdInput  = pproc->m_stdinpipe->m_pipecli;
-        usehd ++;
-    } else if (pproc->m_stdinnull != NULL && pproc->m_stdinnull != INVALID_HANDLE_VALUE) {
-        pstartinfo->hStdInput = pproc->m_stdinnull;
-        usehd ++;
-    }
-
-    if (pproc->m_stdoutpipe != NULL) {
-        pstartinfo->hStdOutput = pproc->m_stdoutpipe->m_pipecli;
-        usehd ++;
-    } else if (pproc->m_stdoutnull != NULL && pproc->m_stdoutnull != INVALID_HANDLE_VALUE) {
-        pstartinfo->hStdOutput = pproc->m_stdoutnull;
-        usehd ++;
-    }
-
-    if (pproc->m_stderrpipe != NULL) {
-        pstartinfo->hStdError = pproc->m_stderrpipe->m_pipecli;
-        usehd ++;
-    } else if (pproc->m_stderrnull != NULL && pproc->m_stderrnull != INVALID_HANDLE_VALUE) {
-        pstartinfo->hStdError = pproc->m_stderrnull;
-        usehd ++;
-    }
-
-    if (usehd > 0) {
-        pstartinfo->dwFlags  |= STARTF_USESTDHANDLES;
-    }
-
-    if (usehd > 0) {
-        if (pstartinfo->hStdInput == NULL) {
-            pstartinfo->hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-        }
-
-        if (pstartinfo->hStdOutput == NULL) {
-            pstartinfo->hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-        }
-
-        if (pstartinfo->hStdError == NULL) {
-            pstartinfo->hStdError = GetStdHandle(STD_ERROR_HANDLE);
-        }
-    }
-
-    if (createflag & PROC_NO_WINDOW) {
-        dwflag |= CREATE_NO_WINDOW;
-    }
-
-    ret = AnsiToUnicode(pproc->m_cmdline, &wcmdline, &wcmdsize);
+    ret = __start_proc(pproc,createflag);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-
-    bret = CreateProcessW(NULL, wcmdline,
-                          NULL, NULL,
-                          TRUE, dwflag,
-                          NULL, NULL,
-                          pstartinfo, pinfo);
-    if (!bret) {
-        GETERRNO(ret);
-        ERROR_INFO("create [%s] error[%d]", pproc->m_cmdline
-                   , ret);
-        goto fail;
-    }
-
-    /*now started*/
-    pproc->m_exited = 0;
-    pproc->m_prochd = pinfo->hProcess;
-
-    if (pinfo->hThread != NULL) {
-        bret = CloseHandle(pinfo->hThread);
-        if (!bret) {
-            GETERRNO(ret);
-            ERROR_INFO("close thread handle [%p] error[%d]", pinfo->hThread, ret);
-            goto fail;
-        }
-        pinfo->hThread = NULL;
-    }
-
-    DEBUG_INFO("start [%s] ok", pproc->m_cmdline);
-
-    AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
-    if (pinfo) {
-        free(pinfo);
-    }
-    pinfo = NULL;
-    if (pstartinfo) {
-        free(pstartinfo);
-    }
-    pstartinfo = NULL;
-
     return (void*) pproc;
 fail:
-    AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
-    if (pinfo) {
-        if (pinfo->hThread != NULL && pinfo->hThread != INVALID_HANDLE_VALUE) {
-            bret = CloseHandle(pinfo->hThread);
-            if (!bret) {
-                GETERRNO(res);
-                ERROR_INFO("close thread [%p] error[%d]", pinfo->hThread, res);
-            }
-        }
-        pinfo->hThread = NULL;
-
-        free(pinfo);
-    }
-    pinfo = NULL;
-    if (pstartinfo) {
-        free(pstartinfo);
-    }
-    pstartinfo = NULL;
     __free_proc_handle(&pproc);
     SETERRNO(ret);
     return NULL;
@@ -1212,14 +1235,6 @@ void* start_cmdv(int createflag, char* prog[])
 {
     pproc_handle_t pproc = NULL;
     int ret;
-    PROCESS_INFORMATION  *pinfo = NULL;
-    STARTUPINFOW *pstartinfo = NULL;
-    int usehd = 0;
-    DWORD dwflag = 0;
-    BOOL bret;
-    wchar_t *wcmdline = NULL;
-    int wcmdsize = 0;
-    int res;
 
     if (prog == NULL || prog[0] == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
@@ -1243,135 +1258,14 @@ void* start_cmdv(int createflag, char* prog[])
         goto fail;
     }
 
-    /*now we should make this handle*/
-    pinfo = (PROCESS_INFORMATION*) malloc(sizeof(*pinfo));
-    if (pinfo == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pinfo), ret);
-        goto fail;
-    }
-    memset(pinfo, 0 , sizeof(*pinfo));
-
-    pstartinfo = (STARTUPINFOW*) malloc(sizeof(*pstartinfo));
-    if (pstartinfo == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pstartinfo), ret);
-        goto fail;
-    }
-    memset(pstartinfo, 0 , sizeof(*pstartinfo));
-
-    pstartinfo->cb = sizeof(*pstartinfo);
-    if (pproc->m_stdinpipe != NULL) {
-        pstartinfo->hStdInput  = pproc->m_stdinpipe->m_pipecli;
-        usehd ++;
-    } else if (pproc->m_stdinnull != NULL && pproc->m_stdinnull != INVALID_HANDLE_VALUE) {
-        pstartinfo->hStdInput = pproc->m_stdinnull;
-        usehd ++;
-    }
-
-    if (pproc->m_stdoutpipe != NULL) {
-        pstartinfo->hStdOutput = pproc->m_stdoutpipe->m_pipecli;
-        usehd ++;
-    } else if (pproc->m_stdoutnull != NULL && pproc->m_stdoutnull != INVALID_HANDLE_VALUE) {
-        pstartinfo->hStdOutput = pproc->m_stdoutnull;
-        usehd ++;
-    }
-
-    if (pproc->m_stderrpipe != NULL) {
-        pstartinfo->hStdError = pproc->m_stderrpipe->m_pipecli;
-        usehd ++;
-    } else if (pproc->m_stderrnull != NULL && pproc->m_stderrnull != INVALID_HANDLE_VALUE) {
-        pstartinfo->hStdError = pproc->m_stderrnull;
-        usehd ++;
-    }
-
-    if (usehd > 0) {
-        pstartinfo->dwFlags  |= STARTF_USESTDHANDLES;
-    }
-
-    if (usehd > 0) {
-        if (pstartinfo->hStdInput == NULL) {
-            pstartinfo->hStdInput = GetStdHandle(STD_INPUT_HANDLE);
-        }
-
-        if (pstartinfo->hStdOutput == NULL) {
-            pstartinfo->hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
-        }
-
-        if (pstartinfo->hStdError == NULL) {
-            pstartinfo->hStdError = GetStdHandle(STD_ERROR_HANDLE);
-        }
-    }
-
-    if (createflag & PROC_NO_WINDOW) {
-        dwflag |= CREATE_NO_WINDOW;
-    }
-
-    ret = AnsiToUnicode(pproc->m_cmdline, &wcmdline, &wcmdsize);
+    ret = __start_proc(pproc,createflag);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-
-    bret = CreateProcessW(NULL, wcmdline,
-                          NULL, NULL,
-                          TRUE, dwflag,
-                          NULL, NULL,
-                          pstartinfo, pinfo);
-    if (!bret) {
-        GETERRNO(ret);
-        ERROR_INFO("create [%s] error[%d]", pproc->m_cmdline
-                   , ret);
-        goto fail;
-    }
-
-    /*now started*/
-    pproc->m_exited = 0;
-    pproc->m_prochd = pinfo->hProcess;
-
-    if (pinfo->hThread != NULL) {
-        bret = CloseHandle(pinfo->hThread);
-        if (!bret) {
-            GETERRNO(ret);
-            ERROR_INFO("close thread handle [%p] error[%d]", pinfo->hThread, ret);
-            goto fail;
-        }
-        pinfo->hThread = NULL;
-    }
-
-    DEBUG_INFO("start [%s] ok", pproc->m_cmdline);
-
-    AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
-    if (pinfo) {
-        free(pinfo);
-    }
-    pinfo = NULL;
-    if (pstartinfo) {
-        free(pstartinfo);
-    }
-    pstartinfo = NULL;
-
     return (void*) pproc;
 fail:
-    AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
-    if (pinfo) {
-        if (pinfo->hThread != NULL && pinfo->hThread != INVALID_HANDLE_VALUE) {
-            bret = CloseHandle(pinfo->hThread);
-            if (!bret) {
-                GETERRNO(res);
-                ERROR_INFO("close thread [%p] error[%d]", pinfo->hThread, res);
-            }
-        }
-        pinfo->hThread = NULL;
-
-        free(pinfo);
-    }
-    pinfo = NULL;
-    if (pstartinfo) {
-        free(pstartinfo);
-    }
-    pstartinfo = NULL;
     __free_proc_handle(&pproc);
     SETERRNO(ret);
     return NULL;
