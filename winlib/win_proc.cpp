@@ -306,7 +306,6 @@ fail:
 #define PIPE_WAIT_CONNECT        4
 
 
-#define __OLD_USE__   1
 
 
 typedef struct __pipe_server {
@@ -379,7 +378,6 @@ void __free_pipe_server(ppipe_server_t *ppsvr)
     }
 }
 
-#if __OLD_USE__
 
 int __connect_pipe(char* name, int wr, HANDLE* pcli)
 {
@@ -758,137 +756,6 @@ fail:
     SETERRNO(ret);
     return ret;
 }
-#else /* __OLD_USE__ */
-
-int __create_pipe(char* name, int wr, HANDLE* pparent, HANDLE *pcli, OVERLAPPED* pov, HANDLE *pevt, int* pstate)
-{
-    int ret;
-    BOOL bret;
-    SECURITY_ATTRIBUTES attr;
-
-    if (name == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;
-    }
-
-    if (pparent == NULL || (*pparent != NULL && *pparent != INVALID_HANDLE_VALUE)) {
-        ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;
-    }
-
-    if (pcli == NULL || (*pcli != NULL && *pcli != INVALID_HANDLE_VALUE)) {
-        ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;
-    }
-
-    if (pevt == NULL || (*pevt != NULL && *pevt != INVALID_HANDLE_VALUE )) {
-        ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;
-    }
-
-    if (pstate == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;        
-    }
-
-    memset(pov, 0 , sizeof(*pov));
-    *pevt = CreateEvent(NULL, TRUE, TRUE, NULL);
-    if (*pevt == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("can not create event for[%s] error[%d]", name, ret);
-        goto fail;
-    }
-    pov->hEvent = *pevt;
-
-
-    memset(&attr, 0, sizeof(attr));
-    attr.nLength = sizeof(attr);
-    attr.bInheritHandle = TRUE;
-    attr.lpSecurityDescriptor = NULL;
-
-    *pstate= PIPE_NONE;
-
-
-    if (wr) {
-        bret = CreatePipe(pcli, pparent, &attr, 0);
-    } else {
-        bret = CreatePipe(pparent, pcli, &attr, 0);
-    }
-    if (!bret) {
-        GETERRNO(ret);
-        ERROR_INFO("create [%s] [%s] pipe error[%d]", name, wr ? "write" : "read", ret);
-        goto fail;
-    }
-
-#if 0
-    bret = SetHandleInformation(*pparent, HANDLE_FLAG_INHERIT, 0);
-    if (!bret) {
-        GETERRNO(ret);
-        ERROR_INFO("can not set handle information for [%p] error[%d]", *pparent, ret);
-        goto fail;
-    }
-#endif
-
-    *pstate = PIPE_READY;
-
-    return 0;
-fail:
-    SETERRNO(ret);
-    return ret;
-}
-
-ppipe_server_t __alloc_pipe_server(int wr, const char* fmt, ...)
-{
-    ppipe_server_t psvr = NULL;
-    int ret;
-    va_list ap;
-    if (fmt == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
-        goto fail;
-    }
-
-    psvr = (ppipe_server_t) malloc(sizeof(*psvr));
-    if (psvr == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc %d error[%d]", sizeof(*psvr), ret);
-        goto fail;
-    }
-    memset(psvr, 0 , sizeof(*psvr));
-    psvr->m_pipesvr = NULL;
-    psvr->m_evt = NULL;
-    psvr->m_pipecli = NULL;
-    memset(&(psvr->m_ov), 0 , sizeof(psvr->m_ov));
-    psvr->m_pipename = NULL;
-    psvr->m_pipesize = 0;
-    psvr->m_wr = wr;
-    psvr->m_state = PIPE_NONE;
-
-    va_start(ap, fmt);
-    ret = vsnprintf_safe(&(psvr->m_pipename), &(psvr->m_pipesize), fmt, ap);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = __create_pipe(psvr->m_pipename, wr, &(psvr->m_pipesvr), &(psvr->m_pipecli), &(psvr->m_ov), &(psvr->m_evt), &(psvr->m_state));
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    return psvr;
-fail:
-    __free_pipe_server(&psvr);
-    return NULL;
-}
-
-
-#endif /* __OLD_USE__ */
 
 typedef struct __proc_handle {
 #ifdef __PROC_DEBUG__
@@ -1078,8 +945,6 @@ int __create_flags(pproc_handle_t pproc, int flags)
     int ret;
     char* pipename = NULL;
     int pipesize = 0;
-
-#if __OLD_USE__
     char* tempname = NULL;
     int tempsize = 0;
     ret = __get_temp_pipe_name("pipe", &tempname, &tempsize);
@@ -1087,7 +952,6 @@ int __create_flags(pproc_handle_t pproc, int flags)
         GETERRNO(ret);
         goto fail;
     }
-#endif /*__OLD_USE__*/
 
     if (flags & PROC_PIPE_STDIN) {
         if (pproc->m_stdinpipe != NULL) {
@@ -1095,7 +959,6 @@ int __create_flags(pproc_handle_t pproc, int flags)
             goto fail;
         }
 
-#if __OLD_USE__
         ret = snprintf_safe(&pipename, &pipesize, "\\\\.\\pipe\\%s_stdin", tempname);
         if (ret < 0) {
             GETERRNO(ret);
@@ -1107,13 +970,6 @@ int __create_flags(pproc_handle_t pproc, int flags)
             GETERRNO(ret);
             goto fail;
         }
-#else /*__OLD_USE__*/
-        pproc->m_stdinpipe = __alloc_pipe_server(1, "stdin");
-        if (pproc->m_stdinpipe == NULL) {
-            GETERRNO(ret);
-            goto fail;
-        }
-#endif /*__OLD_USE__*/
     } else if (flags & PROC_STDIN_NULL) {
         ret = __create_nul(&(pproc->m_stdinnull), NULL, "null child stdin");
         if (ret < 0) {
@@ -1128,7 +984,6 @@ int __create_flags(pproc_handle_t pproc, int flags)
             goto fail;
         }
 
-#if __OLD_USE__
         ret = snprintf_safe(&pipename, &pipesize, "\\\\.\\pipe\\%s_stdout", tempname);
         if (ret < 0) {
             GETERRNO(ret);
@@ -1140,14 +995,6 @@ int __create_flags(pproc_handle_t pproc, int flags)
             GETERRNO(ret);
             goto fail;
         }
-#else  /*__OLD_USE__*/
-        pproc->m_stdoutpipe = __alloc_pipe_server(0, "stdout");
-        if (pproc->m_stdoutpipe == NULL) {
-            GETERRNO(ret);
-            goto fail;
-        }
-#endif /*__OLD_USE__*/
-
     } else if (flags & PROC_STDOUT_NULL) {
         ret = __create_nul(NULL, &(pproc->m_stdoutnull), "null child stdout");
         if (ret < 0) {
@@ -1162,7 +1009,6 @@ int __create_flags(pproc_handle_t pproc, int flags)
             goto fail;
         }
 
-#if __OLD_USE__
         ret = snprintf_safe(&pipename, &pipesize, "\\\\.\\pipe\\%s_stderr", tempname);
         if (ret < 0) {
             GETERRNO(ret);
@@ -1174,13 +1020,6 @@ int __create_flags(pproc_handle_t pproc, int flags)
             GETERRNO(ret);
             goto fail;
         }
-#else /*__OLD_USE__*/
-        pproc->m_stderrpipe = __alloc_pipe_server(0, "stderr");
-        if (pproc->m_stderrpipe == NULL) {
-            GETERRNO(ret);
-            goto fail;
-        }
-#endif /*__OLD_USE__*/
     } else if (flags & PROC_STDERR_NULL) {
         ret = __create_nul(NULL, &(pproc->m_stderrnull), "null child stderr");
         if (ret < 0) {
@@ -1190,15 +1029,11 @@ int __create_flags(pproc_handle_t pproc, int flags)
     }
 
     snprintf_safe(&pipename, &pipesize, NULL);
-#if __OLD_USE__    
     __get_temp_pipe_name(NULL, &tempname, &tempsize);
-#endif /*__OLD_USE__*/
     return 0;
 fail:
     snprintf_safe(&pipename, &pipesize, NULL);
-#if __OLD_USE__
     __get_temp_pipe_name(NULL, &tempname, &tempsize);
-#endif /*__OLD_USE__*/
     SETERRNO(ret);
     return ret;
 }
