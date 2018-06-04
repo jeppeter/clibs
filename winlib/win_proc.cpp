@@ -833,7 +833,7 @@ void __free_proc_handle(pproc_handle_t* ppproc)
     BOOL bret;
     int i;
     int maxcnt = 5;
-    if (ppproc != NULL) {
+    if (ppproc != NULL && *ppproc != NULL) {
         pproc = *ppproc;
         ASSERT_IF(CHECK_PROC_MAGIC(pproc));
         __free_pipe_server(&(pproc->m_stdinpipe));
@@ -1039,11 +1039,8 @@ fail:
     return ret;
 }
 
-
-void* start_cmd_single(int createflag, char* prog)
+int __start_proc(pproc_handle_t pproc, int createflag, char* prog)
 {
-    pproc_handle_t pproc = NULL;
-    int ret;
     PROCESS_INFORMATION  *pinfo = NULL;
     STARTUPINFOW *pstartinfo = NULL;
     int usehd = 0;
@@ -1052,22 +1049,7 @@ void* start_cmd_single(int createflag, char* prog)
     wchar_t *wcmdline = NULL;
     int wcmdsize = 0;
     int res;
-
-    if (prog == NULL || prog[0] == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
-        goto fail;
-    }
-
-    pproc = __alloc_proc_handle();
-    if (pproc == NULL) {
-        GETERRNO(ret);
-        goto fail;
-    }
-    ret = __create_flags(pproc, createflag);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
+    int ret;
 
     ret = snprintf_safe(&(pproc->m_cmdline), &(pproc->m_cmdlinesize), "%s", prog);
     if (ret < 0) {
@@ -1184,7 +1166,7 @@ void* start_cmd_single(int createflag, char* prog)
     }
     pstartinfo = NULL;
 
-    return (void*) pproc;
+    return 0;
 fail:
     AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
     if (pinfo) {
@@ -1204,6 +1186,39 @@ fail:
         free(pstartinfo);
     }
     pstartinfo = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+void* start_cmd_single(int createflag, char* prog)
+{
+    pproc_handle_t pproc = NULL;
+    int ret;
+
+    if (prog == NULL || prog[0] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    pproc = __alloc_proc_handle();
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    ret = __create_flags(pproc, createflag);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __start_proc(pproc,createflag, prog);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    return (void*) pproc;
+fail:
     __free_proc_handle(&pproc);
     SETERRNO(ret);
     return NULL;
