@@ -47,6 +47,9 @@ int setcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int getcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int runevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int runvevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int runsevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -1840,351 +1843,313 @@ out:
     return ret;
 }
 
+static HANDLE st_ExitEvt = NULL;
 
-#if 0
-int asvrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+BOOL WINAPI HandlerConsoleRoutine(DWORD dwCtrlType)
 {
-    pargs_options_t pargs = (pargs_options_t) popt;
-    char* pinbuf = NULL;
-    int insize = 0;
-    int inlen = 0;
-    char** ppllines = NULL;
-    int lsize = 0;
-    int llen = 0;
-    char* poutbuf = NULL;
+    BOOL bret = TRUE;
+    switch (dwCtrlType) {
+    case CTRL_C_EVENT:
+        DEBUG_INFO("CTRL_C_EVENT\n");
+        break;
+    case CTRL_BREAK_EVENT:
+        DEBUG_INFO("CTRL_BREAK_EVENT\n");
+        break;
+    case CTRL_CLOSE_EVENT:
+        DEBUG_INFO("CTRL_CLOSE_EVENT\n");
+        break;
+    case CTRL_LOGOFF_EVENT:
+        DEBUG_INFO("CTRL_LOGOFF_EVENT\n");
+        break;
+    case CTRL_SHUTDOWN_EVENT:
+        DEBUG_INFO("CTRL_SHUTDOWN_EVENT\n");
+        break;
+    default:
+        DEBUG_INFO("ctrltype %d\n", dwCtrlType);
+        bret = FALSE;
+        break;
+    }
+
+    if (bret && st_ExitEvt) {
+        DEBUG_INFO("setevent 0x%x\n", st_ExitEvt);
+        SetEvent(st_ExitEvt);
+    }
+
+    return bret;
+}
+
+
+int runevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* pout = NULL;
     int outsize = 0;
-    char* precvoutbuf = NULL;
-    int recvoutsize = 0;
-    int recvoutlen = 0;
-    int outlen = 0;
-    int wr = 0;
-    HANDLE curhd;
-    HANDLE rpipe = INVALID_HANDLE_VALUE, wpipe = INVALID_HANDLE_VALUE;
-    HANDLE pcurpipe = NULL;
-    HANDLE revt = NULL, wevt = NULL;
-    int rstate = PIPE_NONE;
-    int wstate = PIPE_NONE;
-    OVERLAPPED wov, rov;
-    OVERLAPPED awov, arov;
-    pasync_evt_t prdase = NULL, pwrase = NULL;
-    OVERLAPPED* pov = NULL;
-    int argcnt = 0;
-    char* pname1 = NULL, *pname2 = NULL;
-    char* ptemp1 = NULL, *ptemp2 = NULL;
-    char* prname = NULL, *pwname = NULL;
-    int temp1size = 0, temp2size = 0;
-    HANDLE waithds[2];
-    int waitnum = 0;
-    DWORD curwait;
-    DWORD wcurlen = 0, rcurlen = 0;
-
+    char* perr = NULL;
+    int errsize = 0;
+    int exitcode = 0;
+    BOOL bret;
+    int res;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
     init_log_level(pargs);
-    if (pargs->m_input) {
-        wr = 1;
-        ret = read_file_whole(pargs->m_input, &poutbuf, &outsize);
-        if (ret < 0) {
-            GETERRNO(ret);
-            ERROR_INFO("can not read [%s] error[%d]", pargs->m_input, ret);
-            goto out;
-        }
-        outlen = ret;
-    }
 
-    if (parsestate->leftargs != NULL) {
-        while (parsestate->leftargs[argcnt] != NULL) {
-            argcnt ++;
-        }
-    }
-
-    if (argcnt == 0) {
-        ret = __get_temp_pipe_name_2("tmppipe", &ptemp1, &temp1size);
-        if (ret < 0) {
-            GETERRNO(ret);
-            ERROR_INFO("can not get temp1 name error[%d]", ret);
-            goto out;
-        }
-        pname1 = ptemp1;
-
-        ret = __get_temp_pipe_name_2("tmppipe", &ptemp2, &temp2size);
-        if (ret < 0) {
-            GETERRNO(ret);
-            ERROR_INFO("can not get temp2 name error[%d]", ret);
-            goto out;
-        }
-        pname2 = ptemp2;
-    } else if (argcnt == 1) {
-        pname1 = parsestate->leftargs[0];
-        ret = __get_temp_pipe_name_2("tmppipe", &ptemp2, &temp2size);
-        if (ret < 0) {
-            GETERRNO(ret);
-            ERROR_INFO("can not get temp2 name error[%d]", ret);
-            goto out;
-        }
-        pname2 = ptemp2;
-    } else if (argcnt >= 2) {
-        pname1 = parsestate->leftargs[0];
-        pname2 = parsestate->leftargs[1];
-    }
-    memset(&rov, 0, sizeof(rov));
-    memset(&wov, 0, sizoef(wov));
-    revt = CreateEvent(NULL, TRUE, TRUE, NULL);
-    if (revt == NULL) {
+    st_ExitEvt = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (st_ExitEvt == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("create revt error[%d]", ret);
+        ERROR_INFO("create exit event %d\n", ret);
         goto out;
     }
-    rov.hEvent = revt;
-
-    wevt = CreateEvent(NULL, TRUE, TRUE, NULL);
-    if (wevt == NULL) {
+    bret = SetConsoleCtrlHandler(HandlerConsoleRoutine, TRUE);
+    if (!bret) {
         GETERRNO(ret);
-        ERROR_INFO("create wevt error[%d]", ret);
-        goto out;
-    }
-    wov.hEvent = wevt;
-
-    if (wr) {
-        pwname = pname1;
-        prname = pname2;
-    } else {
-        prname = pname1;
-        pwname = pname2;
-    }
-    /*now to create prdaes*/
-    prdaes = __alloc_async_evt();
-    if (prdaes == NULL) {
-        GETERRNO(ret);
+        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
         goto out;
     }
 
-    pwrase = __alloc_async_evt();
-    if (pwrase == NULL) {
-        GETERRNO(ret);
-        goto out;
-    }
 
-    ret = __create_pipe_async(pwname, 1, &wpipe, &rov, pargs->m_bufsize);
+    ret = run_cmd_event_output(st_ExitEvt, NULL, 0, &pout, &outsize, &perr, &errsize, &exitcode, 0, "libtest.exe", "outc", "little", "big", NULL);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
     }
-    wstate = ret;
-
-    ret = __create_pipe_async(prname, 0, &rpipe, &wov, pargs->m_bufsize);
-    if (ret < 0) {
+    if (exitcode != 0) {
         GETERRNO(ret);
+        ERROR_INFO("exitcode %d", ret);
         goto out;
     }
-    rstate = ret;
 
-    while (1) {
-        /*now check for the state*/
-        curwait = 15000;
-        if (pargs->m_timeout > 0) {
-            curwait = pargs->m_timeout;
-        }
-        memset(waithds, 0, sizeof(waithds));
-        waitnum = 0;
-        if (wstate == PIPE_WAIT_CONNECT) {
-            waithds[waitnum] = wov.hEvent;
-            waitnum ++;
-        }
-
-        if (rstate == PIPE_WAIT_CONNECT) {
-            waithds[waitnum] = rov.hEvent;
-            waitnum ++;
-        }
-
-        if (waitnum != 0) {
-            dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, curwait, TRUE);
-            if (dret == WAIT_TIMEOUT) {
-                continue;
-            } else if (dret >= WAIT_OBJECT_0 && dret < (WAIT_OBJECT_0 + waitnum)) {
-                curhd = waithds[(dret - WAIT_OBJECT_0)];
-                if (curhd == rpipe) {
-                    /*so we get connect state*/
-                    ret = __get_wait_connect(rpipe, &rov);
-                    if (ret < 0) {
-                        GETERRNO(ret);
-                        ERROR_INFO("rpipe [%s] error", prname);
-                        goto out;
-                    }
-                    rstate = ret;
-                } else if (curhd == wpipe) {
-                    ret = __get_wait_connect(wpipe, &wov);
-                    if (ret < 0) {
-                        GETERRNO(ret);
-                        ERROR_INFO("wpipe [%s] error", pwname);
-                        goto out;
-                    }
-                    wstate = ret;
-                } else {
-                    ret = -ERROR_INTERNAL_ERROR;
-                    ERROR_INFO("internal error wait connect");
-                    goto out;
-                }
-
-            } else if (dret == WAIT_IO_COMPLETION) {
-rewait_io:
-                memset(waithds, 0, sizeof(waithds));
-                waitnum = 0;
-                if (rstate == PIPE_WAIT_READ) {
-                    waithds[waitnum] = prdaes->m_evt;
-                    waitnum ++;
-                }
-                if (wstate == PIPE_WAIT_WRITE) {
-                    waithds[waitnum] = pwrase->m_evt;
-                    waitnum ++;
-                }
-                if (waitnum == 0) {
-                    /*nothing in the waiting ,is weired*/
-                    ret = -ERROR_INTERNAL_ERROR;
-                    ERROR_INFO("wait num 0 for WAIT_IO_COMPLETION");
-                    goto out;
-                }
-                dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, 10, TRUE);
-                if (dret == WAIT_IO_COMPLETION) {
-                    goto rewait_io;
-                } else if (dret == WAIT_TIMEOUT) {
-                    ret = -ERROR_INTERNAL_ERROR;
-                    ERROR_INFO("error for wait io timedout");
-                    goto out;
-                } else if (dret >= (WAIT_OBJECT_0) && dret < (WAIT_OBJECT_0 + waitnum)) {
-                    curhd = waithds[(dret - WAIT_OBJECT_0)];
-                    if (curhd == pwrase->m_evt) {
-                        /*now check for the evt*/
-                        bret = SetEvent(pwrase->m_evt);
-                        if (!bret) {
-                            GETERRNO(ret);
-                            ERROR_INFO("set [%s] wraes event error[%d]", pwname, ret);
-                            goto out;
-                        }
-                        if (pwrase->m_errorcode != 0) {
-                            ret = pwrase->m_errorcode;
-                            if (ret > 0) {
-                                ret = -ret;
-                            }
-                            ERROR_INFO("wr [%s] errorcode[%d]", pwname, ret);
-                            goto out;
-                        }
-
-                        if (pwrase->m_cbret != wcurlen) {
-                            ret = -ERROR_INVALID_PARAMETER;
-                            ERROR_INFO("wr [%s] %d != %d wcurlen", pwname, pwrase->m_cbret, wcurlen);
-                            goto out;
-                        }
-
-                        wstate = PIPE_READY;
-                    } else if (curhd == rpipe) {
-                        bret = SetEvent(prdase->m_evt);
-                        if (!bret) {
-                            GETERRNO(ret);
-                            ERROR_INFO("set [%s] wraes event error[%d]", prname, ret);
-                            goto out;
-                        }
-                        if (prdase->m_errorcode != 0) {
-                            ret = prdase->m_errorcode;
-                            if (ret > 0) {
-                                ret = -ret;
-                            }
-                            ERROR_INFO("rd [%s] errorcode[%d]", prname, ret);
-                            goto out;
-                        }
-                        /*now test if 0 ,it is broken pipe*/
-                        inlen += prdase->m_cbret;
-                        if (prdase->m_cbret == 0) {
-                            /*this is the close */
-                            __create_pipe_async(NULL, 0, &rpipe, NULL, 0);
-                            rstate = PIPE_NONE;
-                        } else if (inlen == insize) {
-                            /*now expand to the out*/
-                            insize <<= 1;
-                            ptmpbuf = (char*) malloc(insize);
-                            if (ptmpbuf ==NULL) {
-                                GETERRNO(ret);
-                                ERROR_INFO("alloc %d error[%d]", insize, ret);
-                                goto out;
-                            }
-                            memset(ptmpbuf, 0 ,insize);
-                            if (inlen > 0) {
-                                memcpy(ptmpbuf, pinbuf, inlen);
-                            }
-                            if (pinbuf != NULL) {
-                                free(pinbuf);
-                            }
-                            pinbuf = ptmpbuf;
-                            ptmpbuf = NULL;
-
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-
-
-
+    fprintf(stdout, "read stdout------------\n");
+    fprintf(stdout, "%s", pout);
+    fprintf(stdout, "++++++++++++++++++++++++++\n");
+    fprintf(stdout, "read stderr------------\n");
+    fprintf(stdout, "%s", perr);
+    fprintf(stdout, "++++++++++++++++++++++++++\n");
 
     ret = 0;
 out:
-    ASSERT_IF(rstate != PIPE_WAIT_WRITE);
-    ASSERT_IF(wstate != PIPE_WAIT_READ);
-    if (rstate == PIPE_WAIT_CONNECT ) {
-        bret = CancelIoEx(revt, &rov);
+    if (st_ExitEvt != NULL && st_ExitEvt != INVALID_HANDLE_VALUE) {
+        bret = CloseHandle(st_ExitEvt);
         if (!bret) {
             GETERRNO(res);
-            ERROR_INFO("cancel revt [%s] error[%d]", prname, res);
-        }
-        rstate = PIPE_READY;
-    } else if (rstate == PIPE_WAIT_READ) {
-        bret = CancelIoEx(revt, prdase);
-        if (!bret) {
-            GETERRNO(res);
-            ERROR_INFO("cancel revt [%s] error[%d]", prname, res);
-        }
-        rstate = PIPE_READY;
-    }
-
-    if (wstate == PIPE_WAIT_CONNECT) {
-        bret = CancelIoEx(wevt, &wov);
-        if (!bret) {
-            GETERRNO(res);
-            ERROR_INFO("cancel wevt [%s] error[%d]", pwname, res);
-        }
-        wstate = PIPE_READY;
-    } else if (wstate == PIPE_WAIT_WRITE) {
-        bret = CancelIoEx(wevt, pwrase);
-        if (!bret) {
-            GETERRNO(res);
-            ERROR_INFO("cancel wevt [%s] error[%d]", pwname, res);
-        }
-        wstate = PIPE_READY;
-    }
-
-    if (revt != NULL && revt != INVALID_HANDLE_VALUE) {
-        bret = CloseHandle(revt);
-        if (!bret) {
-            GETERRNO(res);
-            ERROR_INFO("close revt error[%d]")
+            ERROR_INFO("can not close[%p] error[%d]", st_ExitEvt, res);
         }
     }
-
-
-    __create_pipe_async(NULL, 0, &wpipe, NULL, 0);
-    wstate = PIPE_NONE;
-    __create_pipe_async(NULL, 0, &rpipe, NULL, 0);
-    rstate = PIPE_NONE;
-
-    __free_async_evt(&prdaes);
-    __free_async_evt(&pwrase);
-    __get_temp_pipe_name_2(NULL, &ptemp1, &temp1size);
-    __get_temp_pipe_name_2(NULL, &ptemp2, &temp2size);
-    read_file_whole(NULL, &poutbuf, &outsize);
+    st_ExitEvt = NULL;
+    run_cmd_event_output(st_ExitEvt, NULL, 0, &pout, &outsize, &perr, &errsize, NULL, 0, NULL);
     SETERRNO(ret);
     return ret;
 }
-#endif
+
+int runvevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* inbuf = NULL;
+    int insize = 0;
+    char* outbuf = NULL;
+    int outsize = 0;
+    char* errbuf = NULL;
+    int errsize = 0;
+    int exitcode;
+    int i;
+    int ret;
+    char** ppoutbuf = NULL;
+    int *poutsize = NULL;
+    char** pperrbuf = NULL;
+    int *perrsize = NULL;
+    BOOL bret;
+    int res;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    init_log_level(pargs);
+
+    st_ExitEvt = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (st_ExitEvt == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create exit event %d\n", ret);
+        goto out;
+    }
+    bret = SetConsoleCtrlHandler(HandlerConsoleRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
+        goto out;
+    }
+
+
+    argc = argc;
+    argv = argv;
+    if (pargs->m_input != NULL) {
+        ret = read_file_whole(pargs->m_input, &inbuf, &insize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "can not read [%s] error[%d]\n", pargs->m_input, ret);
+            goto out;
+        }
+        insize = ret;
+    }
+
+    if (pargs->m_output != NULL) {
+        ppoutbuf = &outbuf;
+        poutsize = &outsize;
+    }
+
+    if (pargs->m_errout != NULL) {
+        pperrbuf = &errbuf;
+        perrsize = &errsize;
+    }
+
+    ret = run_cmd_event_outputv(st_ExitEvt,inbuf, insize, ppoutbuf, poutsize, pperrbuf, perrsize, &exitcode, pargs->m_timeout, parsestate->leftargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "run cmd [");
+        for (i = 0; parsestate->leftargs[i] != NULL; i++) {
+            if (i > 0) {
+                fprintf(stderr, ",");
+            }
+            fprintf(stderr, "%s", parsestate->leftargs[i]);
+        }
+        fprintf(stderr, "] error[%d]\n", ret);
+        goto out;
+    }
+
+    fprintf(stdout, "run cmd [");
+    for (i = 0; parsestate->leftargs[i] != NULL; i++) {
+        if (i > 0) {
+            fprintf(stdout, ",");
+        }
+        fprintf(stdout, "%s", parsestate->leftargs[i]);
+    }
+    fprintf(stdout, "] succ\n");
+    if (pargs->m_input != NULL) {
+        fprintf(stdout, "input --------------------\n");
+        __debug_buf(stdout, inbuf, insize);
+        fprintf(stdout, "input ++++++++++++++++++++\n");
+    }
+
+    if (pargs->m_output != NULL) {
+        fprintf(stdout, "output --------------------\n");
+        __debug_buf(stdout, outbuf, outsize);
+        fprintf(stdout, "output ++++++++++++++++++++\n");
+    }
+
+    if (pargs->m_errout != NULL) {
+        fprintf(stdout, "errout --------------------\n");
+        __debug_buf(stdout, errbuf, errsize);
+        fprintf(stdout, "errout ++++++++++++++++++++\n");
+    }
+
+    ret = 0;
+out:
+    if (st_ExitEvt != NULL && st_ExitEvt != INVALID_HANDLE_VALUE) {
+        bret = CloseHandle(st_ExitEvt);
+        if (!bret) {
+            GETERRNO(res);
+            ERROR_INFO("can not close[%p] error[%d]", st_ExitEvt, res);
+        }
+    }
+    st_ExitEvt = NULL;
+    run_cmd_event_outputv(st_ExitEvt,NULL, 0, &outbuf, &outsize, &errbuf, &errsize, &exitcode, -1, NULL);
+    read_file_whole(NULL, &inbuf, &insize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int runsevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* inbuf = NULL;
+    int insize = 0;
+    char* outbuf = NULL;
+    int outsize = 0;
+    char* errbuf = NULL;
+    int errsize = 0;
+    int exitcode;
+    int ret;
+    char** ppoutbuf = NULL;
+    int *poutsize = NULL;
+    char** pperrbuf = NULL;
+    int *perrsize = NULL;
+    BOOL bret;
+    int res;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    init_log_level(pargs);
+
+    st_ExitEvt = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (st_ExitEvt == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create exit event %d\n", ret);
+        goto out;
+    }
+    bret = SetConsoleCtrlHandler(HandlerConsoleRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
+        goto out;
+    }
+
+    argc = argc;
+    argv = argv;
+    if (pargs->m_input != NULL) {
+        ret = read_file_whole(pargs->m_input, &inbuf, &insize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "can not read [%s] error[%d]\n", pargs->m_input, ret);
+            goto out;
+        }
+        insize = ret;
+    }
+
+    if (pargs->m_output != NULL) {
+        ppoutbuf = &outbuf;
+        poutsize = &outsize;
+    }
+
+    if (pargs->m_errout != NULL) {
+        pperrbuf = &errbuf;
+        perrsize = &errsize;
+    }
+
+    ret = run_cmd_event_output_single(st_ExitEvt,inbuf, insize, ppoutbuf, poutsize, pperrbuf, perrsize, &exitcode, pargs->m_timeout, parsestate->leftargs[0]);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "run single cmd [%s] error[%d]\n", parsestate->leftargs[0], ret);
+        goto out;
+    }
+
+    fprintf(stdout, "run cmd [%s] succ\n", parsestate->leftargs[0]);
+    if (pargs->m_input != NULL) {
+        fprintf(stdout, "input --------------------\n");
+        __debug_buf(stdout, inbuf, insize);
+        fprintf(stdout, "input ++++++++++++++++++++\n");
+    }
+
+    if (pargs->m_output != NULL) {
+        fprintf(stdout, "output --------------------\n");
+        __debug_buf(stdout, outbuf, outsize);
+        fprintf(stdout, "output ++++++++++++++++++++\n");
+    }
+
+    if (pargs->m_errout != NULL) {
+        fprintf(stdout, "errout --------------------\n");
+        __debug_buf(stdout, errbuf, errsize);
+        fprintf(stdout, "errout ++++++++++++++++++++\n");
+    }
+
+    ret = 0;
+out:
+    if (st_ExitEvt != NULL && st_ExitEvt != INVALID_HANDLE_VALUE) {
+        bret = CloseHandle(st_ExitEvt);
+        if (!bret) {
+            GETERRNO(res);
+            ERROR_INFO("can not close[%p] error[%d]", st_ExitEvt, res);
+        }
+    }
+    st_ExitEvt = NULL;
+    run_cmd_event_output_single(st_ExitEvt,NULL, 0, &outbuf, &outsize, &errbuf, &errsize, &exitcode, -1, NULL);
+    read_file_whole(NULL, &inbuf, &insize);
+    SETERRNO(ret);
+    return ret;
+}
+
 
 int _tmain(int argc, TCHAR* argv[])
 {
