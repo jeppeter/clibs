@@ -1529,7 +1529,7 @@ fail:
     return ret;
 }
 
-int __inner_run(pproc_handle_t pproc, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout)
+int __inner_run(pproc_handle_t pproc,HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout)
 {
     int inlen = 0;
     char* pretout = NULL;
@@ -1537,7 +1537,7 @@ int __inner_run(pproc_handle_t pproc, char* pin, int insize, char** ppout, int *
     char* preterr = NULL;
     int errsize = 0, errlen = 0;
     char* ptmpbuf = NULL;
-    HANDLE waithds[3];
+    HANDLE waithds[4];
     int waitnum = 0;
     DWORD dret = 0;
     uint64_t sticks = 0, cticks = 0;
@@ -1738,6 +1738,11 @@ err_again:
             }
         }
 
+        if (hevt != NULL && hevt != INVALID_HANDLE_VALUE) {
+            waithds[waitnum] = hevt;
+            waitnum ++;
+        }
+
         waittime = INFINITE;
         if (timeout > 0) {
             cticks = get_current_ticks();
@@ -1829,6 +1834,10 @@ err_again:
                         }
                         DEBUG_INFO("ready stderr errlen[%d]", errlen);
                     }
+                } else if (hevt != NULL && hevt != INVALID_HANDLE_VALUE && hd == hevt) {
+                    ret = -WSAEINTR;
+                    ERROR_INFO("interrupted");
+                    goto fail;
                 }
             } else  if (dret == WAIT_TIMEOUT) {
                 continue;
@@ -1978,8 +1987,7 @@ fail:
     return ret;
 }
 
-
-int run_cmd_output_single(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
+int run_cmd_event_output_single(HANDLE hevt,char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
 {
     pproc_handle_t pproc = NULL;
     int ret;
@@ -2044,7 +2052,7 @@ int run_cmd_output_single(char* pin, int insize, char** ppout, int *poutsize, ch
         goto fail;
     }
 
-    ret = __inner_run(pproc, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout);
+    ret = __inner_run(pproc, hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -2057,10 +2065,14 @@ fail:
     __free_proc_handle(&pproc);
     SETERRNO(ret);
     return ret;
-
 }
 
-int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
+int run_cmd_output_single(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
+{
+    return run_cmd_event_output_single(NULL,pin,insize,ppout,poutsize, pperr,perrsize, exitcode, timeout,prog);
+}
+
+int run_cmd_event_outputv(HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
 {
     pproc_handle_t pproc = NULL;
     int ret;
@@ -2125,7 +2137,7 @@ int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** p
         goto fail;
     }
 
-    ret = __inner_run(pproc, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout);
+    ret = __inner_run(pproc, hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -2139,7 +2151,12 @@ fail:
     return ret;
 }
 
-int run_cmd_outputa(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, va_list ap)
+int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
+{
+    return run_cmd_event_outputv(NULL, pin, insize, ppout,poutsize, pperr, perrsize, exitcode, timeout, prog);
+}
+
+int run_cmd_event_outputa(HANDLE hevt,char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, va_list ap)
 {
     va_list oldap;
     char** progv = NULL;
@@ -2150,7 +2167,7 @@ int run_cmd_outputa(char* pin, int insize, char** ppout, int *poutsize, char** p
     int cnt = 0;
 
     if (prog == NULL) {
-        return run_cmd_outputv(pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL);
+        return run_cmd_event_outputv(hevt,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL);
     }
 
     cnt = 1;
@@ -2182,7 +2199,7 @@ int run_cmd_outputa(char* pin, int insize, char** ppout, int *poutsize, char** p
     curarg = va_arg(ap, char*);
     ASSERT_IF(curarg == NULL);
 
-    ret = run_cmd_outputv(pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, progv);
+    ret = run_cmd_event_outputv(hevt,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, progv);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -2202,12 +2219,27 @@ fail:
     return ret;
 }
 
+int run_cmd_outputa(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, va_list ap)
+{
+    return run_cmd_event_outputa(NULL,pin, insize, ppout, poutsize, pperr,perrsize, exitcode,timeout,prog,ap);
+}
+
+int run_cmd_event_output(HANDLE hevt,char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
+{
+    va_list ap = NULL;
+    if (prog == NULL) {
+        return run_cmd_event_outputa(hevt,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL, ap);
+    }
+    va_start(ap, prog);
+    return run_cmd_event_outputa(NULL,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
+}
+
 int run_cmd_output(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
 {
     va_list ap = NULL;
     if (prog == NULL) {
-        return run_cmd_outputa(pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL, ap);
+        return run_cmd_event_outputa(NULL,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL, ap);
     }
     va_start(ap, prog);
-    return run_cmd_outputa(pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
+    return run_cmd_event_outputa(NULL,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
 }
