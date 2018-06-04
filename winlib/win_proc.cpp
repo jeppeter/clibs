@@ -378,7 +378,6 @@ void __free_pipe_server(ppipe_server_t *ppsvr)
     }
 }
 
-
 int __connect_pipe(char* name, int wr, HANDLE* pcli)
 {
     int ret;
@@ -947,6 +946,7 @@ int __create_flags(pproc_handle_t pproc, int flags)
     int pipesize = 0;
     char* tempname = NULL;
     int tempsize = 0;
+
     ret = __get_temp_pipe_name("pipe", &tempname, &tempsize);
     if (ret < 0) {
         GETERRNO(ret);
@@ -995,6 +995,7 @@ int __create_flags(pproc_handle_t pproc, int flags)
             GETERRNO(ret);
             goto fail;
         }
+
     } else if (flags & PROC_STDOUT_NULL) {
         ret = __create_nul(NULL, &(pproc->m_stdoutnull), "null child stdout");
         if (ret < 0) {
@@ -1038,8 +1039,10 @@ fail:
     return ret;
 }
 
-int __start_proc(pproc_handle_t pproc, int createflag)
+
+void* start_cmd_single(int createflag, char* prog)
 {
+    pproc_handle_t pproc = NULL;
     int ret;
     PROCESS_INFORMATION  *pinfo = NULL;
     STARTUPINFOW *pstartinfo = NULL;
@@ -1050,11 +1053,26 @@ int __start_proc(pproc_handle_t pproc, int createflag)
     int wcmdsize = 0;
     int res;
 
-    if (pproc == NULL || pproc->m_exited == 0 ||
-        pproc->m_prochd != NULL){
+    if (prog == NULL || prog[0] == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;
+        goto fail;
+    }
+
+    pproc = __alloc_proc_handle();
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    ret = __create_flags(pproc, createflag);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = snprintf_safe(&(pproc->m_cmdline), &(pproc->m_cmdlinesize), "%s", prog);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
     }
 
     /*now we should make this handle*/
@@ -1165,8 +1183,8 @@ int __start_proc(pproc_handle_t pproc, int createflag)
         free(pstartinfo);
     }
     pstartinfo = NULL;
-    return 0;
 
+    return (void*) pproc;
 fail:
     AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
     if (pinfo) {
@@ -1186,46 +1204,6 @@ fail:
         free(pstartinfo);
     }
     pstartinfo = NULL;
-    SETERRNO(ret);
-    return ret;
-}
-
-
-void* start_cmd_single(int createflag, char* prog)
-{
-    pproc_handle_t pproc = NULL;
-    int ret;
-
-    if (prog == NULL || prog[0] == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
-        goto fail;
-    }
-
-    pproc = __alloc_proc_handle();
-    if (pproc == NULL) {
-        GETERRNO(ret);
-        goto fail;
-    }
-    ret = __create_flags(pproc, createflag);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = snprintf_safe(&(pproc->m_cmdline), &(pproc->m_cmdlinesize), "%s", prog);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = __start_proc(pproc,createflag);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    return (void*) pproc;
-fail:
     __free_proc_handle(&pproc);
     SETERRNO(ret);
     return NULL;
@@ -1235,38 +1213,31 @@ void* start_cmdv(int createflag, char* prog[])
 {
     pproc_handle_t pproc = NULL;
     int ret;
+    char* pcmdline = NULL;
+    int cmdlinesize = 0;
 
     if (prog == NULL || prog[0] == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
         goto fail;
     }
 
-    pproc = __alloc_proc_handle();
+    ret = __get_command_lines(&pcmdline,&cmdlinesize,prog);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pproc = (pproc_handle_t) start_cmd_single(createflag,pcmdline);
     if (pproc == NULL) {
         GETERRNO(ret);
         goto fail;
     }
-    ret = __create_flags(pproc, createflag);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
 
-    ret = __get_command_lines(&(pproc->m_cmdline), &(pproc->m_cmdlinesize), prog);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = __start_proc(pproc,createflag);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
+    __get_command_lines(&pcmdline,&cmdlinesize,NULL);
     return (void*) pproc;
 fail:
     __free_proc_handle(&pproc);
+    __get_command_lines(&pcmdline,&cmdlinesize,NULL);
     SETERRNO(ret);
     return NULL;
 }
@@ -2080,7 +2051,7 @@ int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** p
     int ret;
     int createflag = 0;
 
-    DEBUG_INFO("prog [%p]", prog);
+    DEBUG_INFO("prog [%p]",prog);
     if (prog == NULL) {
         if (ppout != NULL) {
             if (*ppout != NULL) {
