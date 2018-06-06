@@ -518,10 +518,12 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
 
     if (wr) {
         omode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
-        pmode = PIPE_TYPE_MESSAGE | PIPE_WAIT;
+        //pmode = PIPE_TYPE_MESSAGE | PIPE_WAIT;
+        pmode = PIPE_TYPE_MESSAGE ;
     } else {
         omode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
-        pmode = PIPE_TYPE_MESSAGE  | PIPE_WAIT;
+        //pmode = PIPE_TYPE_MESSAGE  | PIPE_WAIT;
+        pmode = PIPE_TYPE_MESSAGE;
     }
 
     DEBUG_INFO("create %s [%s]", wr ? "write" : "read", name);
@@ -1656,9 +1658,12 @@ out_again:
                 }
 
                 if (pending == 0) {
+                    /*read again for it will give pending*/
+                    goto out_again;
+                    /*
                     if (outlen == outsize) {
                         goto out_again;
-                    }
+                    }*/
                     /*because we only read some bytes , so let it ok next try*/
                 } else if (pending == 2) {
                     /*now close the file*/
@@ -1721,9 +1726,12 @@ err_again:
                 }
 
                 if (pending == 0) {
+                    /*read again*/
+                    goto err_again;
+                    /*
                     if (errlen == errsize) {
                         goto err_again;
-                    }
+                    }*/
                     /*we only read this ,so just next try*/
                 } else if (pending == 2) {
                     __close_handle_note(&(pproc->m_stderrpipe->m_pipesvr), "%s", pproc->m_stderrpipe->m_pipename);
