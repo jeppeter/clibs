@@ -536,18 +536,143 @@ fail:
     return ret;
 }
 
-int __stop_depends(SC_HANDLE schd, SC_HANDLE shsv, int mills)
+int __get_enum_services(SC_HANDLE shsv, DWORD enumflag, ENUM_SERVICE_STATUSA** ppenums, int *penumsize)
 {
+    int ret;
+    DWORD needed = 0;
+    ENUM_SERVICE_STATUSA* pretenum = NULL;
+    int retsize = 0;
+    int numenum = 0;
+    DWORD returned;
+    if (shsv == NULL) {
+        if (ppenums && *ppenums) {
+            free(*ppenums);
+            *ppenums = NULL;
+        }
+        if (penumsize) {
+            *penumsize = 0;
+        }
+        return 0;
+    }
+    if (ppenums == NULL || penumsize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
 
+    pretenum = *ppenums;
+    retsize = *penumsize;
+try_again:
+    needed = 0;
+    bret = EnumDependentServicesA(shsv, enumflag , pretenum, retsize, &needed, &returned);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret != -ERROR_INSUFFICIENT_BUFFER) {
+            goto fail;
+        }
+
+        if (pretenum != NULL && pretenum != *ppenums) {
+            free(pretenum);
+        }
+        pretenum = NULL;
+        if (retsize < needed) {
+            retsize = needed;
+        } else {
+            retsize <<= 1;
+        }
+        pretenum = (ENUM_SERVICE_STATUSA*) malloc(retsize);
+        if (pretenum == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", retsize , ret);
+            goto fail;
+        }
+        memset(pretenum , 0 , retsize);
+        goto try_again;
+    }
+
+    numenum = returned;
+
+    if (*ppenums != NULL && *ppenums != pretenum) {
+        free(*ppenums);
+    }
+    *ppenums = pretenum;
+    *penumsize = retsize;
+    return numenum;
+fail:
+    if (pretenum != NULL && pretenum != *ppenums) {
+        free(pretenum);
+    }
+    pretenum = NULL;
+    retsize = 0;
+    SETERRNO(ret);
+    return ret;
 }
 
-int __handle_service(const char* name, int start, int mills)
+int __stop_depends(SC_HANDLE schd, SC_HANDLE shsv, int mills)
+{
+    ENUM_SERVICE_STATUSA* penum = NULL;
+    int enumsize = 0;
+    int num;
+    int i;
+
+    ret = __get_enum_services(shsv, SERVICE_ACTIVE, &penum, &enumsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    num = ret;
+
+    for (i = 0; i < num; i++) {
+        ret = __inner_stop_service(schd, penum[i].lpServiceName, mills);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    __get_enum_services(NULL, SERVICE_ACTIVE, &penum, &enumsize);
+    return 0;
+fail:
+    __get_enum_services(NULL, SERVICE_ACTIVE, &penum, &enumsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int stop_service(const char* name,  int mills)
 {
     SC_HANDLE schd = NULL;
     SC_HANDLE shsv = NULL;
     int ret;
     SERVICE_STATUS_PROCESS  ssp;
     BOOL bret;
+    uint64_t sticks, cticks;
+
+    schd = __open_scm(NULL, SERVICE_ALL_ACCESS);
+    if (schd == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __inner_stop_service(schd, name, mills);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    __close_scm(&schd);
+    return 0;
+fail:
+    __close_scm(&schd);
+    SETERRNO(ret);
+    return ret;
+}
+
+int start_service(const char* name, int mills)
+{
+    SC_HANDLE schd = NULL, shsv = NULL;
+    int ret;
+    SERVICE_STATUS_PROCESS ssp;
     uint64_t sticks, cticks;
 
     ret = __open_handle(name, &schd, &shsv, SERVICE_ALL_ACCESS, SERVICE_ALL_ACCESS);
@@ -557,72 +682,101 @@ int __handle_service(const char* name, int start, int mills)
     }
 
     sticks = get_current_ticks();
-    while (1) {
-        cticks = get_current_ticks();
-        if (mills > 0) {
-            ret = need_wait_times(sticks, cticks, mills);
+    /*now we should get the state*/
+    ret =  __inner_get_state(shsv, &ssp);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (ssp.dwCurrentState == SERVICE_RUNNING) {
+        goto succ;
+    } else if (ssp.dwCurrentState == SERVICE_START_PENDING) {
+        while (1) {
+            ret =  __inner_get_state(shsv, &ssp);
             if (ret < 0) {
-                ret = -ERROR_TIMEDOUT;
+                GETERRNO(ret);
                 goto fail;
             }
-        }
+            if (ssp.dwCurrentState == SERVICE_RUNNING) {
+                goto succ;
+            } else if (ssp.dwCurrentState != SERVICE_START_PENDING) {
+                ret = -ERROR_INNER_ERROR;
+                ERROR_INFO("[%s] state [%d]", name, ssp.dwCurrentState);
+                goto fail;
+            }
 
-
-        bret = QueryServiceStatusEx(shsv, SC_STATUS_PROCESS_INFO, (LPBYTE)&ssp, sizeof(ssp), &needed);
-        if (!bret) {
-            GETERRNO(ret);
-            ERROR_INFO("can not get [%s] info error[%d]", name, ret);
-            goto fail;
-        }
-
-        if (start && ssp.dwCurrentState == SERVICE_RUNNING) {
-            break;
-        } else (start == 0 && ssp.dwCurrentState == SERVICE_STOPPED) {
-            break;
-        }
-
-        if (start ) {
-            bret = StartService(shsv, 0, NULL);
-        } else {
-            bret = ControlService(shsv, SERVICE_CONTROL_STOP, &ssp);
-        }
-
-        if (!bret) {
-            GETERRNO(ret);
-            ERROR_INFO("%s service [%s] error[%d]", start ? "start" : "stop", name, ret);
-            goto fail;
-        }
-
-        ret = 100;
-        if (mills > 0) {
+            /*wait for a 100*/
+            ret = 100;
             cticks = get_current_ticks();
             if (mills > 0) {
                 ret = need_wait_times(sticks, cticks, mills);
                 if (ret < 0) {
                     ret = -ERROR_TIMEDOUT;
+                    ERROR_INFO("wait [%s] stopped timed out", name);
                     goto fail;
                 }
             }
+            if (ret > 100) {
+                ret = 100;
+            }
+            SleepEx(ret, TRUE);
         }
-        if (ret > 100) {
-            ret = 100;
-        }
-        SleepEx(ret, TRUE);
     }
 
+    bret = StartService(shsv,0,NULL);
+    if (!bret) {
+    	GETERRNO(ret);
+    	ERROR_INFO("start [%s] error[%d]", name, ret);
+    	goto fail;
+    }
+
+    ret =  __inner_get_state(shsv, &ssp);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (ssp.dwCurrentState == SERVICE_RUNNING) {
+        goto succ;
+    } else if (ssp.dwCurrentState == SERVICE_START_PENDING) {
+        while (1) {
+            ret =  __inner_get_state(shsv, &ssp);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            if (ssp.dwCurrentState == SERVICE_RUNNING) {
+                goto succ;
+            } else if (ssp.dwCurrentState != SERVICE_START_PENDING) {
+                ret = -ERROR_INNER_ERROR;
+                ERROR_INFO("[%s] state [%d]", name, ssp.dwCurrentState);
+                goto fail;
+            }
+
+            /*wait for a 100*/
+            ret = 100;
+            cticks = get_current_ticks();
+            if (mills > 0) {
+                ret = need_wait_times(sticks, cticks, mills);
+                if (ret < 0) {
+                    ret = -ERROR_TIMEDOUT;
+                    ERROR_INFO("wait [%s] stopped timed out", name);
+                    goto fail;
+                }
+            }
+            if (ret > 100) {
+                ret = 100;
+            }
+            SleepEx(ret, TRUE);
+        }
+    }
+
+succ:
     __open_handle(NULL, &schd, &shsv, SERVICE_ALL_ACCESS, SERVICE_ALL_ACCESS);
     return 0;
 fail:
     __open_handle(NULL, &schd, &shsv, SERVICE_ALL_ACCESS, SERVICE_ALL_ACCESS);
     SETERRNO(ret);
     return ret;
-}
-
-int stop_service(const char* name)
-{
-    int ret;
-
-    /*now we should change the state*/
-
-
 }
