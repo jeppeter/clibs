@@ -14,9 +14,13 @@ extern "C" {
 
 int is_service_exist(const char* name);
 int is_service_running(const char* name);
-int is_service_forbid(const char* name);
+int is_service_stopped(const char* name);
+int is_service_start_disabled(const char* name);
+int is_service_start_auto(const char* name);
 
-int stop_service(const char* name);
+
+int stop_service(const char* name,int mills);
+int start_service(const char* name, int mills);
 int forbid_service(const char* name);
 int enable_service(const char* name);
 
