@@ -15,6 +15,8 @@ extern "C" {
 #define  COMPUTER_NAME_NETBIOS      2
 #define  COMPUTER_NAME_PHYS         4
 
+#define  EN_US_CODEPAGE             437
+
 WINLIB_API int get_env_variable(char* envvar,char** ppenvval,int* pvalsize);
 WINLIB_API int get_computer_name(int type, char** ppname,int *pnamesize);
 WINLIB_API int set_computer_name(int type,char* pname);
