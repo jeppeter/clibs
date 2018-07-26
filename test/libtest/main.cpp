@@ -50,6 +50,8 @@ int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int runevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int runvevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int runsevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getcp_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int setcp_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -2150,6 +2152,53 @@ out:
     return ret;
 }
 
+int getcp_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int cp=0;
+    int ret =0;
+
+    argc = argc;
+    argv = argv;
+    popt = popt;
+    parsestate = parsestate;
+
+    cp = get_codepage();
+    if (cp < 0) {
+        ret = cp;
+        fprintf(stderr,"can not get code page error[%d]\n",ret);
+        goto out;
+    }
+    fprintf(stdout,"code page [%d]\n",cp);
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int setcp_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int cp;
+    int idx = 0;
+    int ret;
+    if (parsestate->leftargs == NULL || 
+        parsestate->leftargs[0] == NULL) {
+        fprintf(stderr,"no codepage specified\n");
+        ret = -ERROR_INVALID_PARAMETER;
+    }
+
+    GET_OPT_INT(cp, "code page");
+    ret = set_codepage(cp);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not set code page [%d] error[%d]\n", cp, ret);
+        goto out;
+    }
+    fprintf(stdout, "set code page[%d] succ\n",cp);
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
 
 int _tmain(int argc, TCHAR* argv[])
 {

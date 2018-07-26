@@ -18,6 +18,8 @@ extern "C" {
 WINLIB_API int get_env_variable(char* envvar,char** ppenvval,int* pvalsize);
 WINLIB_API int get_computer_name(int type, char** ppname,int *pnamesize);
 WINLIB_API int set_computer_name(int type,char* pname);
+WINLIB_API int get_codepage(void);
+WINLIB_API int set_codepage(int cp);
 
 #ifdef __cplusplus
 };

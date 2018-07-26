@@ -70,5 +70,11 @@
     },
     "runsevt<runsevt_handler>##single ... to run output with event##" : {
         "$" : "+"
+    },
+    "getcp<getcp_handler>##to get code page for console##" : {
+        "$" : 0
+    },
+    "setcp<setcp_handler>##cp   to set code page##" : {
+        "$" : 1
     }
 }

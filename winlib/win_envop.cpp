@@ -230,3 +230,39 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+
+int get_codepage(void)
+{
+    UINT cp=0;
+    int ret = 0;
+
+    cp = GetConsoleCP();
+    if (cp == 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not get cp error[%d]",ret);
+        goto fail;
+    }
+
+    return (int)cp;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+int set_codepage(int cp)
+{
+    BOOL bret;
+    int ret;
+
+    bret = SetConsoleCP((UINT)cp);
+    if (!bret){
+        GETERRNO(ret);
+        ERROR_INFO("can not set [%d] error[%d]", cp, ret);
+        goto fail;
+    }
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
