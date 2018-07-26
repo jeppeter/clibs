@@ -254,6 +254,13 @@ int set_codepage(int cp)
 {
     BOOL bret;
     int ret;
+    int oldcp=0;
+
+    oldcp = get_codepage();
+    if (oldcp < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
     bret = SetConsoleCP((UINT)cp);
     if (!bret){
@@ -261,8 +268,22 @@ int set_codepage(int cp)
         ERROR_INFO("can not set [%d] error[%d]", cp, ret);
         goto fail;
     }
+
+    bret = SetConsoleOutputCP((UINT)cp);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("can not set [%d] output error[%d]", cp, ret);
+        goto fail;
+    }
+
+
     return 0;
 fail:
+    if (oldcp > 0)  {
+        SetConsoleCP(cp);
+        SetConsoleOutputCP(cp);
+    }
+    oldcp = 0;
     SETERRNO(ret);
     return ret;
 }
