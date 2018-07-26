@@ -368,46 +368,8 @@ int service_start_mode(const char* name)
     	ret = SVC_START_ON_AUTO;
     } else if (state == )
     return ret;
-
 }
 
-int is_service_start_disabled(const char* name)
-{
-    int state = 0;
-    int ret;
-    int isdisabled = 0;
-
-    state = __get_service_start_state(name);
-    if (state < 0) {
-        GETERRNO(ret);
-        SETERRNO(ret);
-        return ret;
-    }
-
-    if (state == SERVICE_DISABLED) {
-        isdisabled = 1;
-    }
-    return isdisabled;
-}
-
-int is_service_start_auto(const char* name)
-{
-    int state = 0;
-    int ret;
-    int isauto = 0;
-
-    state = __get_service_start_state(name);
-    if (state < 0) {
-        GETERRNO(ret);
-        SETERRNO(ret);
-        return ret;
-    }
-
-    if (state == SERVICE_AUTO_START) {
-        isauto = 1;
-    }
-    return isauto;
-}
 
 static int __stop_depends(SC_HANDLE schd, SC_HANDLE shsv, int mills);
 
