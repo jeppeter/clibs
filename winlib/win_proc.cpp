@@ -1130,6 +1130,7 @@ int __start_proc(pproc_handle_t pproc, int createflag, char* prog)
     }
 
 
+    DEBUG_INFO("run cmd [%s]", pproc->m_cmdline);
     bret = CreateProcessW(NULL, wcmdline,
                           NULL, NULL,
                           TRUE, dwflag,
