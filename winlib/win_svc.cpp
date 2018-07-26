@@ -349,6 +349,28 @@ fail:
 
 }
 
+int service_start_mode(const char* name)
+{
+    int state = 0;
+    int ret;
+
+    state = __get_service_start_state(name);
+    if (state < 0) {
+        GETERRNO(ret);
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = SVC_START_ON_UNKNOWN;
+    if (state == SERVICE_DISABLED) {
+    	ret = SVC_START_ON_DISABLED;
+    } else if (state == SERVICE_AUTO_START) {
+    	ret = SVC_START_ON_AUTO;
+    } else if (state == )
+    return ret;
+
+}
+
 int is_service_start_disabled(const char* name)
 {
     int state = 0;
