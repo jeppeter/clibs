@@ -12,6 +12,7 @@
 #include <win_uniansi.h>
 #include <win_envop.h>
 #include <win_regex.h>
+#include <win_svc.h>
 
 typedef struct __args_options {
     int m_verbose;
@@ -52,6 +53,7 @@ int runvevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int runsevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getcp_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setcp_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int existsvc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -2180,6 +2182,11 @@ int setcp_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     int cp;
     int idx = 0;
     int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
     if (parsestate->leftargs == NULL || 
         parsestate->leftargs[0] == NULL) {
         fprintf(stderr,"no codepage specified\n");
@@ -2194,6 +2201,31 @@ int setcp_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
         goto out;
     }
     fprintf(stdout, "set code page[%d] succ\n",cp);
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int existsvc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int i;
+    int ret;
+    char* svcname=NULL;
+    int exist=0;
+
+    if (parsestate->leftargs != NULL) {
+        for (i=0;parsestate->leftargs[i] != NULL ;i++) {
+            svcname = parsestate->leftargs[i];
+            exist = is_service_exist(svcname);
+            if (exist < 0) {
+                GETERRNO(ret);
+                fprintf(stderr, "[%s] check error[%d]\n",svcname, ret );
+                goto out;
+            }
+            fprintf(stdout, "%s %s\n", svcname, exist ? "exists" : "not exists" );
+        }
+    }
     ret = 0;
 out:
     SETERRNO(ret);

@@ -76,5 +76,8 @@
     },
     "setcp<setcp_handler>##cp   to set code page##" : {
         "$" : 1
+    },
+    "existsvc<existsvc_handler>##svcname ... to check service exists##" : {
+        "$" : "+"
     }
 }
