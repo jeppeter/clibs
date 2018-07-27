@@ -8,18 +8,27 @@ extern "C" {
 
 #define  SVC_START_ON_UNKNOWN         0
 #define  SVC_START_ON_BOOT            1
-#define  SVC_START_ON_AUTO            2
-#define  SVC_START_ON_SYSTEM          3
+#define  SVC_START_ON_SYSTEM          2
+#define  SVC_START_ON_AUTO            3
 #define  SVC_START_ON_DEMAND          4
 #define  SVC_START_ON_DISABLED        5
+
+
+#define  SVC_STATE_UNKNOWN            0
+#define  SVC_STATE_STOPPED            1
+#define  SVC_STATE_START_PENDING      2
+#define  SVC_STATE_RUNNING            3
+#define  SVC_STATE_STOP_PENDING       4
+#define  SVC_STATE_PAUSED             5
+#define  SVC_STATE_PAUSE_PENDING      6
+#define  SVC_STATE_CONTINUE_PENDING   7
 
 
 int is_service_exist(const char* name);
 int is_service_running(const char* name);
 int is_service_stopped(const char* name);
 int service_start_mode(const char* name);
-int is_service_start_disabled(const char* name);
-int is_service_start_auto(const char* name);
+int service_running_mode(const char* name);
 
 
 int stop_service(const char* name,int mills);

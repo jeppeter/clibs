@@ -1,6 +1,8 @@
 #include <win_svc.h>
 #include <win_err.h>
 #include <win_uniansi.h>
+#include <win_types.h>
+#include <win_time.h>
 
 #pragma comment(lib,"Advapi32.lib")
 
@@ -41,7 +43,7 @@ SC_HANDLE __open_scm(const char* name, DWORD accmode)
     schd = OpenSCManager(ptname, NULL, accmode);
     if (schd == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("open %s err[%d]", name != NULL ? name : "local", ret);
+        ERROR_INFO("open %s scm err[%d]", name != NULL ? name : "local", ret);
         goto fail;
     }
 
@@ -158,12 +160,13 @@ fail:
     return ret;
 }
 
-int __inner_get_state(SC_HANDLE shsv, SC_STATUS_PROCESS_INFO* pssp)
+int __inner_get_state(SC_HANDLE shsv, SERVICE_STATUS_PROCESS* pssp)
 {
     BOOL bret;
     DWORD needed = 0;
+    int ret;
 
-    bret = QueryServiceStatusEx(shsv, SC_STATUS_PROCESS_INFO, pssp, sizeof(*pssp), &needed);
+    bret = QueryServiceStatusEx(shsv, SC_STATUS_PROCESS_INFO, (LPBYTE)pssp, sizeof(*pssp), &needed);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("query error[%d]", ret);
@@ -180,8 +183,6 @@ int __get_service_current_state(const char* name)
     int state;
     int ret;
     SERVICE_STATUS_PROCESS ssp;
-    BOOL bret;
-    DWORD needed;
 
     ret = __open_handle(name, &schd, &shsv, GENERIC_READ, GENERIC_READ);
     if (ret < 0) {
@@ -242,6 +243,47 @@ int is_service_stopped(const char* name)
     return 0;
 }
 
+int service_running_mode(const char* name)
+{
+    int state ;
+    int ret = SVC_STATE_UNKNOWN;
+
+    state = __get_service_current_state(name);
+    if (state < 0) {
+        GETERRNO(ret);
+        SETERRNO(ret);
+        return ret;
+    }
+
+    switch (state) {
+    case SERVICE_STOPPED:
+        ret = SVC_STATE_STOPPED;
+        break;
+    case SERVICE_START_PENDING:
+        ret = SVC_STATE_START_PENDING;
+        break;
+    case SERVICE_STOP_PENDING:
+        ret = SVC_STATE_STOP_PENDING;
+        break;
+    case SERVICE_RUNNING:
+        ret = SVC_STATE_RUNNING;
+        break;
+    case SERVICE_PAUSED:
+        ret = SVC_STATE_PAUSED;
+        break;
+    case SERVICE_PAUSE_PENDING:
+        ret = SVC_STATE_PAUSE_PENDING;
+        break;
+    case SERVICE_CONTINUE_PENDING:
+        ret = SVC_STATE_CONTINUE_PENDING;
+        break;
+    default:
+        ret = SVC_STATE_UNKNOWN;
+        break;
+    }
+    return ret;
+}
+
 int __inner_get_config(SC_HANDLE shsv , QUERY_SERVICE_CONFIGW** ppconfigw, int *psize)
 {
     int ret;
@@ -282,7 +324,7 @@ try_again:
             free(pretconfig);
         }
         pretconfig = NULL;
-        if (retsize < needed) {
+        if (retsize < (int)needed) {
             retsize = needed ;
         } else {
             retsize <<= 1;
@@ -313,16 +355,36 @@ fail:
     return ret;
 }
 
-int __get_service_start_state(const char* name)
+int __inner_set_configw(SC_HANDLE shsv , QUERY_SERVICE_CONFIGW* pconfigw, int size)
+{
+    BOOL bret;
+    int ret;
+
+    size = size;
+    bret = ChangeServiceConfigW(shsv, pconfigw->dwServiceType ,
+                                pconfigw->dwStartType, pconfigw->dwErrorControl ,
+                                pconfigw->lpBinaryPathName, pconfigw->lpLoadOrderGroup,
+                                &(pconfigw->dwTagId), pconfigw->lpDependencies,
+                                pconfigw->lpServiceStartName, NULL, pconfigw->lpDisplayName);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("can not change config error[%d]", ret);
+        goto fail;
+    }
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+int __get_service_start_mode(const char* name)
 {
     SC_HANDLE schd = NULL;
     SC_HANDLE shsv = NULL;
     int ret;
     int state;
     QUERY_SERVICE_CONFIGW* pconfigw = NULL;
-    DWORD needed = 0;
-    DWORD size = 0;
-    BOOL bret;
+    int size = 0;
 
     ret = __open_handle(name, &schd, &shsv, GENERIC_READ, GENERIC_READ);
     if (ret < 0) {
@@ -354,37 +416,135 @@ int service_start_mode(const char* name)
     int state = 0;
     int ret;
 
-    state = __get_service_start_state(name);
+    state = __get_service_start_mode(name);
     if (state < 0) {
         GETERRNO(ret);
         SETERRNO(ret);
         return ret;
     }
+    switch (state) {
+    case SERVICE_BOOT_START:
+        ret = SVC_START_ON_BOOT;
+        break;
+    case SERVICE_SYSTEM_START:
+        ret = SVC_START_ON_SYSTEM;
+        break;
+    case SERVICE_AUTO_START:
+        ret = SVC_START_ON_AUTO;
+        break;
+    case SERVICE_DEMAND_START:
+        ret = SVC_START_ON_DEMAND;
+        break;
+    case SERVICE_DISABLED:
+        ret = SVC_START_ON_DISABLED;
+        break;
+    default:
+        ret = SVC_START_ON_UNKNOWN;
+        break;
+    }
 
-    ret = SVC_START_ON_UNKNOWN;
-    if (state == SERVICE_DISABLED) {
-    	ret = SVC_START_ON_DISABLED;
-    } else if (state == SERVICE_AUTO_START) {
-    	ret = SVC_START_ON_AUTO;
-    } else if (state == )
+    return ret;
+}
+
+int config_service_start(const char* name, int startmode)
+{
+    int mode;
+    int ret;
+    SC_HANDLE shsv = NULL;
+    SC_HANDLE schd = NULL;
+    QUERY_SERVICE_CONFIGW* pconfigw = NULL;
+    int configsize = 0;
+
+    switch (startmode) {
+    case SVC_START_ON_BOOT:
+        mode = SERVICE_BOOT_START;
+        break;
+    case SVC_START_ON_SYSTEM:
+        mode = SERVICE_SYSTEM_START;
+        break;
+    case SVC_START_ON_AUTO:
+        mode = SERVICE_AUTO_START;
+        break;
+    case SVC_START_ON_DEMAND:
+        mode = SERVICE_DEMAND_START;
+        break;
+    case SVC_START_ON_DISABLED:
+        mode = SERVICE_DISABLED;
+        break;
+    default:
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = __open_handle(name, &schd, &shsv, SERVICE_ALL_ACCESS, SERVICE_ALL_ACCESS);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __inner_get_config(shsv, &pconfigw, &configsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (pconfigw->dwStartType != (DWORD) mode) {
+        pconfigw->dwStartType = mode;
+        ret =  __inner_set_configw(shsv, pconfigw, configsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("[%s] set [%d] error[%d]", name, startmode, ret);
+            goto fail;
+        }
+    }
+
+    __inner_get_config(NULL, &pconfigw, &configsize);
+    __open_handle(NULL, &schd, &shsv, SERVICE_ALL_ACCESS, SERVICE_ALL_ACCESS);
+    return 0;
+fail:
+    __inner_get_config(NULL, &pconfigw, &configsize);
+    __open_handle(NULL, &schd, &shsv, SERVICE_ALL_ACCESS, SERVICE_ALL_ACCESS);
+    SETERRNO(ret);
     return ret;
 }
 
 
 static int __stop_depends(SC_HANDLE schd, SC_HANDLE shsv, int mills);
 
+#define CALC_TIMEOUT()                                          \
+ do {                                                           \
+    cticks = get_current_ticks();                               \
+    if (mills > 0) {                                            \
+        ret = need_wait_times(sticks, cticks, mills);           \
+        if (ret < 0) {                                          \
+            ret = -WAIT_TIMEOUT;                                \
+            ERROR_INFO("wait [%s] stopped timed out", name);    \
+            goto fail;                                          \
+        }                                                       \
+    }                                                           \
+ } while(0)
+
 int __inner_stop_service(SC_HANDLE schd, const char* name, int mills)
 {
     SC_HANDLE shsv = NULL;
     int ret;
-    SC_STATUS_PROCESS_INFO* pssp = NULL;
+    SERVICE_STATUS_PROCESS* pssp = NULL;
+    SERVICE_STATUS* psvcsts=NULL;
     uint64_t sticks, cticks;
+    BOOL bret;
 
     sticks = get_current_ticks();
-    pssp = (SC_STATUS_PROCESS_INFO*) malloc(sizeof(*pssp));
+    pssp = (SERVICE_STATUS_PROCESS*) malloc(sizeof(*pssp));
     if (pssp == NULL) {
         GETERRNO(ret);
         ERROR_INFO("alloc %d error[%d]", sizeof(*pssp), ret);
+        goto fail;
+    }
+
+    shsv = __open_svc(schd, name , SERVICE_ALL_ACCESS);
+    if (shsv == NULL) {
+        GETERRNO(ret);
         goto fail;
     }
 
@@ -398,15 +558,7 @@ int __inner_stop_service(SC_HANDLE schd, const char* name, int mills)
         goto succ;
     } else if (pssp->dwCurrentState == SERVICE_STOP_PENDING) {
         while (1) {
-            cticks = get_current_ticks();
-            if (mills > 0) {
-                ret = need_wait_times(sticks, cticks, mills);
-                if (ret < 0) {
-                    ret = -ERROR_TIMEDOUT;
-                    ERROR_INFO("wait [%s] stopped timed out", name);
-                    goto fail;
-                }
-            }
+            CALC_TIMEOUT();
 
             ret = __inner_get_state(shsv, pssp);
             if (ret < 0) {
@@ -418,22 +570,14 @@ int __inner_stop_service(SC_HANDLE schd, const char* name, int mills)
                 if (pssp->dwCurrentState == SERVICE_STOPPED) {
                     goto succ;
                 }
-                ret = -ERROR_INNER_ERROR;
+                ret = -ERROR_INTERNAL_ERROR;
                 ERROR_INFO("[%s] state [%d]", name, pssp->dwCurrentState);
                 goto fail;
             }
 
             /*wait for a 100*/
             ret = 100;
-            cticks = get_current_ticks();
-            if (mills > 0) {
-                ret = need_wait_times(sticks, cticks, mills);
-                if (ret < 0) {
-                    ret = -ERROR_TIMEDOUT;
-                    ERROR_INFO("wait [%s] stopped timed out", name);
-                    goto fail;
-                }
-            }
+            CALC_TIMEOUT();
             if (ret > 100) {
                 ret = 100;
             }
@@ -448,7 +592,14 @@ int __inner_stop_service(SC_HANDLE schd, const char* name, int mills)
         goto fail;
     }
 
-    bret = ControlService(shsv, SERVICE_CONTROL_STOP, pssp);
+    psvcsts = (SERVICE_STATUS*) malloc(sizeof(*psvcsts));
+    if (psvcsts == NULL) {
+    	GETERRNO(ret);
+    	ERROR_INFO("alloc %d error[%d]", sizeof(*psvcsts), ret);
+    	goto fail;
+    }
+
+    bret = ControlService(shsv, SERVICE_CONTROL_STOP, psvcsts);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("can not stop [%s] error[%d]", name, ret);
@@ -464,7 +615,7 @@ int __inner_stop_service(SC_HANDLE schd, const char* name, int mills)
     if (pssp->dwCurrentState == SERVICE_STOPPED) {
         goto succ;
     } else if (pssp->dwCurrentState != SERVICE_STOP_PENDING) {
-        ret = - ERROR_INNER_ERROR;
+        ret = - ERROR_INTERNAL_ERROR;
         ERROR_INFO("[%s]not valid state [%d]", name, pssp->dwCurrentState);
         goto fail;
     }
@@ -480,22 +631,14 @@ int __inner_stop_service(SC_HANDLE schd, const char* name, int mills)
         if (pssp->dwCurrentState == SERVICE_STOPPED) {
             goto succ;
         } else if (pssp->dwCurrentState != SERVICE_STOP_PENDING) {
-            ret = - ERROR_INNER_ERROR;
+            ret = - ERROR_INTERNAL_ERROR;
             ERROR_INFO("[%s]not valid state [%d]", name, pssp->dwCurrentState);
             goto fail;
         }
 
         /*wait for a 100*/
         ret = 100;
-        cticks = get_current_ticks();
-        if (mills > 0) {
-            ret = need_wait_times(sticks, cticks, mills);
-            if (ret < 0) {
-                ret = -ERROR_TIMEDOUT;
-                ERROR_INFO("wait [%s] stopped timed out", name);
-                goto fail;
-            }
-        }
+        CALC_TIMEOUT();
         if (ret > 100) {
             ret = 100;
         }
@@ -504,6 +647,10 @@ int __inner_stop_service(SC_HANDLE schd, const char* name, int mills)
 
 
 succ:
+	if (psvcsts != NULL) {
+		free(psvcsts);
+	}
+	psvcsts = NULL;
     if (pssp != NULL) {
         free(pssp);
     }
@@ -511,6 +658,10 @@ succ:
     __close_svc(&shsv);
     return 0;
 fail:
+	if (psvcsts != NULL) {
+		free(psvcsts);
+	}
+	psvcsts = NULL;
     if (pssp != NULL) {
         free(pssp);
     }
@@ -528,6 +679,8 @@ int __get_enum_services(SC_HANDLE shsv, DWORD enumflag, ENUM_SERVICE_STATUSA** p
     int retsize = 0;
     int numenum = 0;
     DWORD returned;
+    BOOL bret;
+
     if (shsv == NULL) {
         if (ppenums && *ppenums) {
             free(*ppenums);
@@ -559,7 +712,7 @@ try_again:
             free(pretenum);
         }
         pretenum = NULL;
-        if (retsize < needed) {
+        if (retsize < (int)needed) {
             retsize = needed;
         } else {
             retsize <<= 1;
@@ -598,6 +751,7 @@ int __stop_depends(SC_HANDLE schd, SC_HANDLE shsv, int mills)
     int enumsize = 0;
     int num;
     int i;
+    int ret;
 
     ret = __get_enum_services(shsv, SERVICE_ACTIVE, &penum, &enumsize);
     if (ret < 0) {
@@ -625,11 +779,7 @@ fail:
 int stop_service(const char* name,  int mills)
 {
     SC_HANDLE schd = NULL;
-    SC_HANDLE shsv = NULL;
     int ret;
-    SERVICE_STATUS_PROCESS  ssp;
-    BOOL bret;
-    uint64_t sticks, cticks;
 
     schd = __open_scm(NULL, SERVICE_ALL_ACCESS);
     if (schd == NULL) {
@@ -658,6 +808,7 @@ int start_service(const char* name, int mills)
     int ret;
     SERVICE_STATUS_PROCESS ssp;
     uint64_t sticks, cticks;
+    BOOL bret;
 
     ret = __open_handle(name, &schd, &shsv, SERVICE_ALL_ACCESS, SERVICE_ALL_ACCESS);
     if (ret < 0) {
@@ -685,22 +836,14 @@ int start_service(const char* name, int mills)
             if (ssp.dwCurrentState == SERVICE_RUNNING) {
                 goto succ;
             } else if (ssp.dwCurrentState != SERVICE_START_PENDING) {
-                ret = -ERROR_INNER_ERROR;
+                ret = -ERROR_INTERNAL_ERROR;
                 ERROR_INFO("[%s] state [%d]", name, ssp.dwCurrentState);
                 goto fail;
             }
 
             /*wait for a 100*/
             ret = 100;
-            cticks = get_current_ticks();
-            if (mills > 0) {
-                ret = need_wait_times(sticks, cticks, mills);
-                if (ret < 0) {
-                    ret = -ERROR_TIMEDOUT;
-                    ERROR_INFO("wait [%s] stopped timed out", name);
-                    goto fail;
-                }
-            }
+            CALC_TIMEOUT();
             if (ret > 100) {
                 ret = 100;
             }
@@ -708,11 +851,11 @@ int start_service(const char* name, int mills)
         }
     }
 
-    bret = StartService(shsv,0,NULL);
+    bret = StartService(shsv, 0, NULL);
     if (!bret) {
-    	GETERRNO(ret);
-    	ERROR_INFO("start [%s] error[%d]", name, ret);
-    	goto fail;
+        GETERRNO(ret);
+        ERROR_INFO("start [%s] error[%d]", name, ret);
+        goto fail;
     }
 
     ret =  __inner_get_state(shsv, &ssp);
@@ -733,27 +876,23 @@ int start_service(const char* name, int mills)
             if (ssp.dwCurrentState == SERVICE_RUNNING) {
                 goto succ;
             } else if (ssp.dwCurrentState != SERVICE_START_PENDING) {
-                ret = -ERROR_INNER_ERROR;
+                ret = -ERROR_INTERNAL_ERROR;
                 ERROR_INFO("[%s] state [%d]", name, ssp.dwCurrentState);
                 goto fail;
             }
 
             /*wait for a 100*/
             ret = 100;
-            cticks = get_current_ticks();
-            if (mills > 0) {
-                ret = need_wait_times(sticks, cticks, mills);
-                if (ret < 0) {
-                    ret = -ERROR_TIMEDOUT;
-                    ERROR_INFO("wait [%s] stopped timed out", name);
-                    goto fail;
-                }
-            }
+            CALC_TIMEOUT();
             if (ret > 100) {
                 ret = 100;
             }
             SleepEx(ret, TRUE);
         }
+    } else {
+        ret = -ERROR_INTERNAL_ERROR;
+        ERROR_INFO("start [%s] not valid state [%d]", name, ssp.dwCurrentState);
+        goto fail;
     }
 
 succ:
