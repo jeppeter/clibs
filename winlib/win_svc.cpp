@@ -43,7 +43,7 @@ SC_HANDLE __open_scm(const char* name, DWORD accmode)
     schd = OpenSCManager(ptname, NULL, accmode);
     if (schd == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("open %s scm err[%d]", name != NULL ? name : "local", ret);
+        ERROR_INFO("open %s scm mode [0x%x|%d] err[%d]", name != NULL ? name : "local", accmode, accmode, ret);
         goto fail;
     }
 
@@ -355,17 +355,16 @@ fail:
     return ret;
 }
 
-int __inner_set_configw(SC_HANDLE shsv , QUERY_SERVICE_CONFIGW* pconfigw, int size)
+int __inner_set_config_start_mode(SC_HANDLE shsv , DWORD mode)
 {
     BOOL bret;
     int ret;
 
-    size = size;
-    bret = ChangeServiceConfigW(shsv, pconfigw->dwServiceType ,
-                                pconfigw->dwStartType, pconfigw->dwErrorControl ,
-                                pconfigw->lpBinaryPathName, pconfigw->lpLoadOrderGroup,
-                                &(pconfigw->dwTagId), pconfigw->lpDependencies,
-                                pconfigw->lpServiceStartName, NULL, pconfigw->lpDisplayName);
+    bret = ChangeServiceConfigW(shsv, SERVICE_NO_CHANGE,
+                                mode, SERVICE_NO_CHANGE,
+                                NULL, NULL,
+                                NULL, NULL,
+                                NULL, NULL, NULL);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("can not change config error[%d]", ret);
@@ -411,7 +410,7 @@ fail:
 
 }
 
-int service_start_mode(const char* name)
+int get_service_start_mode(const char* name)
 {
     int state = 0;
     int ret;
@@ -446,7 +445,7 @@ int service_start_mode(const char* name)
     return ret;
 }
 
-int config_service_start(const char* name, int startmode)
+int config_service_start_mode(const char* name, int startmode)
 {
     int mode;
     int ret;
@@ -477,7 +476,7 @@ int config_service_start(const char* name, int startmode)
         return ret;
     }
 
-    ret = __open_handle(name, &schd, &shsv, SERVICE_ALL_ACCESS, SERVICE_ALL_ACCESS);
+    ret = __open_handle(name, &schd, &shsv, SC_MANAGER_ALL_ACCESS, SERVICE_ALL_ACCESS);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -491,7 +490,7 @@ int config_service_start(const char* name, int startmode)
 
     if (pconfigw->dwStartType != (DWORD) mode) {
         pconfigw->dwStartType = mode;
-        ret =  __inner_set_configw(shsv, pconfigw, configsize);
+        ret =  __inner_set_config_start_mode(shsv, mode);
         if (ret < 0) {
             GETERRNO(ret);
             ERROR_INFO("[%s] set [%d] error[%d]", name, startmode, ret);
@@ -530,7 +529,7 @@ int __inner_stop_service(SC_HANDLE schd, const char* name, int mills)
     SC_HANDLE shsv = NULL;
     int ret;
     SERVICE_STATUS_PROCESS* pssp = NULL;
-    SERVICE_STATUS* psvcsts=NULL;
+    SERVICE_STATUS* psvcsts = NULL;
     uint64_t sticks, cticks;
     BOOL bret;
 
@@ -594,9 +593,9 @@ int __inner_stop_service(SC_HANDLE schd, const char* name, int mills)
 
     psvcsts = (SERVICE_STATUS*) malloc(sizeof(*psvcsts));
     if (psvcsts == NULL) {
-    	GETERRNO(ret);
-    	ERROR_INFO("alloc %d error[%d]", sizeof(*psvcsts), ret);
-    	goto fail;
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*psvcsts), ret);
+        goto fail;
     }
 
     bret = ControlService(shsv, SERVICE_CONTROL_STOP, psvcsts);
@@ -619,7 +618,6 @@ int __inner_stop_service(SC_HANDLE schd, const char* name, int mills)
         ERROR_INFO("[%s]not valid state [%d]", name, pssp->dwCurrentState);
         goto fail;
     }
-
 
     while (1) {
         ret = __inner_get_state(shsv, pssp);
@@ -646,11 +644,12 @@ int __inner_stop_service(SC_HANDLE schd, const char* name, int mills)
     }
 
 
+
 succ:
-	if (psvcsts != NULL) {
-		free(psvcsts);
-	}
-	psvcsts = NULL;
+    if (psvcsts != NULL) {
+        free(psvcsts);
+    }
+    psvcsts = NULL;
     if (pssp != NULL) {
         free(pssp);
     }
@@ -658,10 +657,10 @@ succ:
     __close_svc(&shsv);
     return 0;
 fail:
-	if (psvcsts != NULL) {
-		free(psvcsts);
-	}
-	psvcsts = NULL;
+    if (psvcsts != NULL) {
+        free(psvcsts);
+    }
+    psvcsts = NULL;
     if (pssp != NULL) {
         free(pssp);
     }
@@ -781,7 +780,7 @@ int stop_service(const char* name,  int mills)
     SC_HANDLE schd = NULL;
     int ret;
 
-    schd = __open_scm(NULL, SERVICE_ALL_ACCESS);
+    schd = __open_scm(NULL, SC_MANAGER_ALL_ACCESS);
     if (schd == NULL) {
         GETERRNO(ret);
         goto fail;
@@ -810,7 +809,7 @@ int start_service(const char* name, int mills)
     uint64_t sticks, cticks;
     BOOL bret;
 
-    ret = __open_handle(name, &schd, &shsv, SERVICE_ALL_ACCESS, SERVICE_ALL_ACCESS);
+    ret = __open_handle(name, &schd, &shsv, SC_MANAGER_ALL_ACCESS, SERVICE_ALL_ACCESS);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;

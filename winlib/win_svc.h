@@ -27,13 +27,13 @@ extern "C" {
 int is_service_exist(const char* name);
 int is_service_running(const char* name);
 int is_service_stopped(const char* name);
-int service_start_mode(const char* name);
+int get_service_start_mode(const char* name);
 int service_running_mode(const char* name);
 
 
 int stop_service(const char* name,int mills);
 int start_service(const char* name, int mills);
-int config_service_start(const char* name, int startmode);
+int config_service_start_mode(const char* name, int startmode);
 
 #ifdef __cplusplus
 };

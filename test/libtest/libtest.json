@@ -79,5 +79,14 @@
     },
     "existsvc<existsvc_handler>##svcname ... to check service exists##" : {
         "$" : "+"
+    },
+    "svcstate<svcstate_handler>##svcname ... to check service state##" : {
+        "$" : "+"
+    },
+    "svchdl<svchdl_handler>## [start|stop]  svcname ... to start or stop svc##" : {
+        "$" : "+"
+    },
+    "svcmode<svcmode_handler>##svcname [auto|system|disabled|demand|boot] to set service start mode only one name is for get##" : {
+        "$" : "+"
     }
 }
