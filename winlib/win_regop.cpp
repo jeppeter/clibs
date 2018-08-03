@@ -115,7 +115,9 @@ int __query_key_value(pregop_t pregop, const char* path, LPDWORD lptype, LPBYTE 
     lret = RegQueryValueEx(pregop->m_reghdl, ptpath, NULL, lptype, pdata, &retdatasize);
     if (lret != ERROR_SUCCESS) {
         GETLRET(ret, lret);
-        ERROR_INFO("can not query (%s) error(%d)", path, ret);
+        if (ret != -ERROR_MORE_DATA) {
+            ERROR_INFO("can not query (%s) error(%d)", path, ret);    
+        }        
         goto fail;
     }
 
