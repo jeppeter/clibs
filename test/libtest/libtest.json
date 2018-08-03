@@ -88,5 +88,11 @@
     },
     "svcmode<svcmode_handler>##svcname [auto|system|disabled|demand|boot] to set service start mode only one name is for get##" : {
         "$" : "+"
+    },
+    "regbinget<regbinget_handler>##path property  to query binary value##" : {
+        "$" : "+"
+    },
+    "regbinset<regbinset_handler>##path property offset val to set binary value##" : {
+        "$" : "+"
     }
 }
