@@ -571,7 +571,7 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
     char* ptmpbuf = NULL;
     int maxfd = 0;
     int timemills = 0;
-    int pending=0;
+    int pending = 0;
     int maxmills = 0;
     fd_set rset;
     fd_set wset;
@@ -732,46 +732,46 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
         STDERR_READ_EXPAND(read_err_later);
 
         if (evtfd >= 0) {
-        	fd[fdnum] = evtfd;
-        	fdnum ++;
-        	FD_SET(evtfd,&rset);
+            fd[fdnum] = evtfd;
+            fdnum ++;
+            FD_SET(evtfd, &rset);
         }
 
         if (timeout > 0) {
-        	cticks = get_cur_ticks();
-        	timemills = time_left(sticks, cticks,timeout);
-        	if (timemills < 0) {
-        		GETERRNO(ret);
-        		ERROR_INFO("wait timed out");
-        		goto fail;
-        	}
-        	maxmills = get_min(maxmills, timemills);
+            cticks = get_cur_ticks();
+            timemills = time_left(sticks, cticks, timeout);
+            if (timemills < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("wait timed out");
+                goto fail;
+            }
+            maxmills = get_min(maxmills, timemills);
         }
 
 
 
         if (fdnum > 0) {
-        	maxfd = 0;
-        	for (i=0;i<fdnum;i++) {
-        		if (maxfd <= fd[i]) {
-        			maxfd = fd[i] + 1;
-        		}
-        	}
-        	ret = select(maxfd,&rset,&wset,NULL,ptm);
-        	if (ret < 0) {
-        		GETERRNO(ret);
-        		if (ret == -EINTR) {
-        			continue;
-        		}
-        		ERROR_INFO("select error[%d]", ret);
-        		goto fail;
-        	}
+            maxfd = 0;
+            for (i = 0; i < fdnum; i++) {
+                if (maxfd <= fd[i]) {
+                    maxfd = fd[i] + 1;
+                }
+            }
+            ret = select(maxfd, &rset, &wset, NULL, ptm);
+            if (ret < 0) {
+                GETERRNO(ret);
+                if (ret == -EINTR) {
+                    continue;
+                }
+                ERROR_INFO("select error[%d]", ret);
+                goto fail;
+            }
 
-        	if (evtfd >= 0 && FD_ISSET(evtfd,&rset)) {
-        		ret = -ERFKILL;
-        		ERROR_INFO("user stopped");
-        		goto fail;
-        	}
+            if (evtfd >= 0 && FD_ISSET(evtfd, &rset)) {
+                ret = -ERFKILL;
+                ERROR_INFO("user stopped");
+                goto fail;
+            }
         }
     }
 
@@ -819,141 +819,253 @@ fail:
     return ret;
 }
 
-int run_cmd_event_outputv(int exitfd, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
+int run_cmd_event_outputv(int evtfd, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
 {
-	pproc_comm_t pproc=NULL;
-	int ret;
-	int flags = 0;
+    pproc_comm_t pproc = NULL;
+    int ret;
+    int flags = 0;
 
-	if (pin) {
-		flags |= STDIN_PIPE;
-	}
-	if (ppout) {
-		flags |= STDOUT_PIPE;
-	} else {
-		flags |= STDOUT_NULL;
-	}
+    if (prog == NULL) {
+    	if (ppout && *ppout) {
+    		free(*ppout);
+    		*ppout = NULL;
+    	}
+    	if (poutsize) {
+    		*poutsize = 0;
+    	}
+    	if (pperr && *pperr) {
+    		free(*pperr);
+    		*pperr = NULL;
+    	}
+    	if (perrsize) {
+    		*perrsize = 0;
+    	}
+    	if (exitcode) {
+    		*exitcode = 0;
+    	}
+    	return 0;
+    }
 
-	if (pperr) {
-		flags |= STDERR_PIPE;
-	} else {
-		flags |= STDERR_NULL;
-	}
+    if (pin) {
+        flags |= STDIN_PIPE;
+    }
+    if (ppout) {
+        flags |= STDOUT_PIPE;
+    } else {
+        flags |= STDOUT_NULL;
+    }
 
-	pproc = __start_proc(flags, prog);
-	if (pproc == NULL) {
-		GETERRNO(ret);
-		goto fail;
-	}
+    if (pperr) {
+        flags |= STDERR_PIPE;
+    } else {
+        flags |= STDERR_NULL;
+    }
 
-	ret = __inner_run(evtfd, pproc,pin, insize, ppout, poutsize, pperr, perrsize,exitcode, timeout);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
+    pproc = __start_proc(flags, prog);
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
-	__free_proc_comm(&pproc);
-	return 0;
+    ret = __inner_run(evtfd, pproc, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    __free_proc_comm(&pproc);
+    return 0;
 fail:
-	__free_proc_comm(&pproc);
+    __free_proc_comm(&pproc);
+    SETERRNO(ret);
+    return ret;
+}
+
+int __get_progs(char* prog, va_list ap, char** ppprogs[], int *psize)
+{
+    int i;
+    int ret;
+    int size = 0;
+    int cnt = 0;
+    char** pptmpprogs = NULL;
+    char** ppretprogs = NULL;
+    va_list oldap = NULL;
+    char* curarg;
+    if (prog == NULL) {
+        if (ppprogs && *ppprogs) {
+            ppretprogs = *ppprogs;
+            for (i = 0; ppretprogs[i]; i++) {
+                free(ppretprogs[i]);
+                ppretprogs[i] = NULL;
+            }
+            free(ppretprogs);
+            *ppprogs = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (ppprogs == NULL || psize == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ppretprogs = *ppprogs;
+    size = *psize;
+    if (ppretprogs) {
+        /*free memory*/
+        for (i = 0; i < size; i++) {
+            if (ppretprogs[i]) {
+                free(ppretprogs[i]);
+                ppretprogs[i] = NULL;
+            }
+        }
+    }
+
+    cnt = 1;
+    if (ap != NULL) {
+        va_copy(oldap, ap);
+        while (1) {
+            curarg = va_arg(ap, char*);
+            if (curarg == NULL) {
+                break;
+            }
+            cnt ++;
+        }
+    }
+
+    if (size <= cnt || ppretprogs == NULL) {
+        if (size <= cnt) {
+            size = cnt+1;
+        }
+        ppretprogs = malloc(sizeof(*ppretprogs) * size);
+        if (ppretprogs == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", sizeof(*ppretprogs)* size, ret);
+            goto fail;
+        }
+        memset(ppretprogs, 0 , sizeof(*ppretprogs) * size);
+    }
+
+    ppretprogs[0] = strdup(prog);
+    if (ppretprogs[cnt] == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("strdup [%s] error[%d]", prog, ret);
+        goto fail;
+    }
+
+    if (ap != NULL) {
+    	va_copy(ap,oldap);
+    	i = 0;
+        while (1) {
+            curarg = va_arg(ap, char*);
+            if (curarg == NULL) {
+                break;
+            }
+            ppretprogs[i] = strdup(curarg);
+            if (ppretprogs[i] == NULL) {
+            	GETERRNO(ret);
+            	ERROR_INFO("strdup [%d] [%s] error[%d]", i, curarg, ret);
+            	goto fail;
+            }
+            i++;
+        }
+        ASSERT_IF(cnt == i);
+    }
+
+    if (*ppprogs && *ppprogs != ppretprogs) {
+    	free(*ppprogs);
+    }
+    *ppprogs = ppretprogs;
+    *psize = size;
+    return cnt;
+fail:
+    if (pptmpprogs) {
+        free(pptmpprogs);
+    }
+    pptmpprogs = NULL;
+
+    if (ppretprogs) {
+        for (i = 0; ppretprogs[i]; i++) {
+            free(ppretprogs[i]);
+            ppretprogs[i] = NULL;
+        }
+        if (ppretprogs != *ppprogs) {
+            free(ppretprogs);
+        }
+    }
+    ppretprogs = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int run_cmd_event_outputa(int evtfd, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, va_list ap)
+{
+    char** progs = NULL;
+    int progsize = 0;
+    int ret;
+
+    if (prog == NULL) {
+    	return run_cmd_event_outputv(evtfd,pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,NULL);
+    }
+
+    ret = __get_progs(prog,ap,&progs,&progsize);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+
+    ret = run_cmd_event_outputv(evtfd,pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,progs);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+
+    __get_progs(NULL,NULL,&progs,&progsize);
+    return ret;
+fail:
+	__get_progs(NULL,NULL,&progs,&progsize);
 	SETERRNO(ret);
 	return ret;
 }
 
-int __get_progs(char* prog,va_list ap, char** ppprogs[], int *psize)
+int run_cmd_event_output(int evtfd, char* pin,  int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
 {
-	int i;
-	int ret;
-	int size = 0;
-	int cnt = 0;
-	char** pptmpprogs=NULL;
-	char** ppretprogs=NULL;
-	if (prog == NULL) {
-		if (ppprogs && *ppprogs) {
-			ppretprogs = *ppprogs;
-			for (i=0;ppretprogs[i];i++) {
-				free(ppretprogs[i]);
-				ppretprogs[i] = NULL;
-			}
-			free(ppretprogs);
-			*ppprogs = NULL;
-		}
-		if (psize) {
-			*psize = 0;
-		}
-		return 0;
+	va_list ap=NULL;
+	if (prog != NULL) {
+		va_start(ap,prog);
 	}
-
-	if (ppprogs == NULL || psize == NULL) {
-		ret = -EINVAL;
-		SETERRNO(ret);
-		return ret;
-	}
-
-	ppretprogs = *ppprogs;
-	size = *psize;
-	if (ppretprogs) {
-		/*free memory*/
-		for (i=0;i<size;i++) {
-			if (ppretprogs[i]) {
-				free(ppretprogs[i]);
-				ppretprogs[i] = NULL;
-			}
-		}
-	}
-
-	if (size < 4 || ppretprogs == NULL) {
-		if (size < 4) {
-			size = 4;
-		}
-		ppretprogs = malloc(sizeof(*ppretprogs) * size);
-		if (ppretprogs == NULL) {
-			GETERRNO(ret);
-			ERROR_INFO("alloc %d error[%d]", sizeof(*ppretprogs)* size, ret);
-			goto fail;
-		}
-		memset(ppretprogs, 0 ,sizeof(*ppretprogs) * size);
-	}
-
-	ppretprogs[cnt] = strdup(prog);
-	if (ppretprogs[cnt] == NULL) {
-		GETERRNO(ret);
-		ERROR_INFO("strdup [%s] error[%d]", prog,ret);
-		goto fail;
-	}
-	cnt ++;
-
-	if (ap != NULL) {
-		
-	}
-
-
-	return cnt;
-fail:
-	if (pptmpprogs) {
-		free(pptmpprogs);
-	}
-	pptmpprogs = NULL;
-
-	if (ppretprogs) {
-		for (i=0;ppretprogs[i];i++) {
-			free(ppretprogs[i]);
-			ppretprogs[i] = NULL;
-		}
-		if (ppretprogs != *ppprogs) {
-			free(ppretprogs);
-		}
-	}
-	ppretprogs = NULL;
-	SETERRNO(ret);
-	return ret;
+	return run_cmd_event_outputa(evtfd,pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog,ap);
 }
 
-
-int run_cmd_event_output(int exitfd, char* pin,  int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
+int run_cmd_event_output_single(int evtfd, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
 {
-	char* progs[]=NULL;
+	return run_cmd_event_outputa(evtfd,pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog,NULL);
+}
 
-fail:
+int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
+{
+	return run_cmd_event_outputv(-1, pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog);
+}
 
+int run_cmd_output_single(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
+{
+	return run_cmd_event_output_single(-1, pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog);
+}
+
+int run_cmd_outputa(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, va_list ap)
+{
+	return run_cmd_event_outputa(-1,pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog,ap);
+}
+
+int run_cmd_output(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
+{
+	va_list ap=NULL;
+	if (prog != NULL) {
+		va_start(ap,prog);
+	}
+	return run_cmd_outputa(pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog,ap);
 }
