@@ -1,123 +1,145 @@
 #include <win_ver.h>
 #include <win_err.h>
 #include <win_output_debug.h>
+#include <win_regop.h>
 
 
-int get_osversion(int freed,OSVERSIONINFOEXW **ppver,int *psize)
+#define  VERSION_REG_PATH   "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"
+#define  CURRENT_VERSION    "CurrentVersion"
+#define  INSTALLATION_TYPE  "InstallationType"
+
+int __get_version(int freed, char** ppversion,int *pversize)
 {
-	BOOL bret;
-	OSVERSIONINFOEXW* pretver=NULL;
-	int retsize=0;
-	int retlen=0;
+	void* pregop=NULL;
 	int ret;
+	int vlen=0;
+
 	if (freed) {
-		if (ppver && *ppver) {
-			free(*ppver);
-			*ppver = NULL;
-		}
-		if (*psize) {
-			*psize = 0;
-		}
+		query_hklm_string(NULL,NULL,ppversion,pversize);
 		return 0;
 	}
 
-	if (ppver == NULL || psize == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
-		SETERRNO(ret);
-		return ret;
-	}
-
-	pretver = *ppver;
-	retsize = *psize;
-	if (pretver == NULL || retsize < sizeof(*pretver)) {
-		if (retsize < sizeof(*pretver)) {
-			retsize = sizeof(*pretver);
-		}
-		pretver = (OSVERSIONINFOEXW*)malloc(retsize);
-		if (pretver == NULL) {
-			GETERRNO(ret);
-			ERROR_INFO("alloc %d error[%d]", retsize, ret);
-			goto fail;
-		}
-	}
-	memset(pretver, 0 ,retsize);
-	pretver->dwOSVersionInfoSize = retsize;
-
-	bret = GetVersionExW((OSVERSIONINFOW*)pretver);
-	if (!bret) {
+	pregop = open_hklm(VERSION_REG_PATH,ACCESS_KEY_READ);
+	if (pregop == NULL) {
 		GETERRNO(ret);
-		ERROR_INFO("can not get version error[%d]", ret);
 		goto fail;
 	}
 
-	retlen = retsize;
+	ret = query_hklm_string(pregop,CURRENT_VERSION,ppversion,pversize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
 
-	if (*ppver && *ppver != pretver) {
-		free(*ppver);
-	}
-	*ppver = pretver;
-	*psize = retsize;
-	return retlen;
+	vlen = ret;
+	close_hklm(&pregop);
+
+	return vlen;
+
 fail:
-	if (pretver && pretver != *ppver) {
-		free(pretver);
-	}
-	pretver =NULL;
+	query_hklm_string(NULL,NULL,ppversion,pversize);
+	close_hklm(&pregop);
 	SETERRNO(ret);
 	return ret;
 }
 
+int __get_type(int freed,char** pptype,int *ptypesize)
+{
+	void* pregop=NULL;
+	int ret;
+	int vlen=0;
+
+	if (freed) {
+		query_hklm_string(NULL,NULL,pptype,ptypesize);
+		return 0;
+	}
+
+	pregop = open_hklm(VERSION_REG_PATH,ACCESS_KEY_READ);
+	if (pregop == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = query_hklm_string(pregop,INSTALLATION_TYPE,pptype,ptypesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	vlen = ret;
+	close_hklm(&pregop);
+
+	return vlen;
+
+fail:
+	query_hklm_string(NULL,NULL,pptype,ptypesize);
+	close_hklm(&pregop);
+	SETERRNO(ret);
+	return ret;
+}
 
 int is_win7()
 {
-	OSVERSIONINFOEXW* posw=NULL;
-	int size=0;
-	int ret;
 	int isvalid = 0;
+	char* ptype=NULL;
+	int typesize=0;
+	char* pversion=NULL;
+	int versize=0;
+	int ret;
 
-	ret=  get_osversion(0, &posw,&size);
+	ret = __get_version(0,&pversion,&versize);
 	if (ret < 0) {
 		goto fail;
 	}
-	if (posw->dwMajorVersion == 6 && 
-		posw->dwMinorVersion == 1 && 
-		posw->wProductType  == VER_NT_WORKSTATION) {
+
+	ret = __get_type(0,&ptype,&typesize);
+	if (ret < 0) {
+		goto fail;
+	}
+
+	if (strcmp(pversion,"6.1") == 0 && 
+		_stricmp(ptype,"Client") == 0) {
 		isvalid = 1;
 	}
 
-	get_osversion(1,&posw,&size);
+	__get_version(1,&pversion,&versize);
+	__get_type(1, &ptype,&typesize);
 	return isvalid;
 fail:
-	get_osversion(1,&posw,&size);
+	__get_version(1,&pversion,&versize);
+	__get_type(1, &ptype,&typesize);
 	return 0;
 }
 
 int is_win10()
 {
-	OSVERSIONINFOEXW* posw=NULL;
-	int size=0;
-	int ret;
 	int isvalid = 0;
+	char* ptype=NULL;
+	int typesize=0;
+	char* pversion=NULL;
+	int versize=0;
+	int ret;
 
-	ret=  get_osversion(0, &posw,&size);
+	ret = __get_version(0,&pversion,&versize);
 	if (ret < 0) {
 		goto fail;
 	}
-	DEBUG_INFO("major %d minor %d type %ld buildnumber %d", posw->dwMajorVersion,posw->dwMinorVersion,posw->wProductType, posw->dwBuildNumber);
-	if (posw->dwMajorVersion == 10 && 
-		posw->dwMinorVersion == 0 && 
-		posw->wProductType  == VER_NT_WORKSTATION) {
-		isvalid = 1;
-	} else if (posw->dwMajorVersion == 6 && 
-		posw->dwMinorVersion == 2 && 
-		posw->wProductType == VER_NT_WORKSTATION && 
-		posw->dwBuildNumber >= 9200) {
+
+	ret = __get_type(0,&ptype,&typesize);
+	if (ret < 0) {
+		goto fail;
+	}
+
+	if (strcmp(pversion,"6.3") == 0 && 
+		_stricmp(ptype,"Client") == 0) {
 		isvalid = 1;
 	}
 
-	get_osversion(1,&posw,&size);
+	__get_version(1,&pversion,&versize);
+	__get_type(1, &ptype,&typesize);
 	return isvalid;
 fail:
-	get_osversion(1,&posw,&size);
-	return 0;	
+	__get_version(1,&pversion,&versize);
+	__get_type(1, &ptype,&typesize);
+	return 0;
 }
