@@ -408,6 +408,107 @@ fail:
 	return NULL;
 }
 
+int __write_nonblock(int fd,char* pbuf,int bufsize, int* pispending)
+{
+	int ret;
+	ret = write(fd,pbuf,bufsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+	}
+}
+
+int __read_nonbloc(int fd, char* pbuf,int bufsize, int* pispending)
+{
+
+}
+
+#define   MINI_BUFSIZE         1024
+
+int __inner_run(int evtfd,pproc_comm_t pproc,char* pin ,int insize, char** ppout, int *poutsize , char** pperr, int *perrsize,int *pexitcode,int timeout)
+{
+	int fd[4];
+	int fdnum =0;
+	struct timeval tm;
+	uint64_t sticks,cticks;
+	char* pretout=NULL;
+	int outsize=0, outlen=0;
+	char* preterr=NULL;
+	int errsize=0, errlen=0;
+	int ret;
+	int status;
+	int inlen = 0;
+	int exitcode=0;
+
+	if (ppout != NULL && poutsize == NULL) {
+		ret = -EINVAL;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (pperr != NULL && perrsize == NULL) {
+		ret = -EINVAL;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (ppout != NULL) {
+		pretout = *ppout;
+		outsize = *poutsize;
+		if (pretout == NULL || outsize < MINI_BUFSIZE)	 {
+			if (outsize < MINI_BUFSIZE) {
+				outsize = MINI_BUFSIZE;
+			}
+			pretout = malloc(outsize);
+			if (pretout == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("alloc %d error[%d]", outsize, ret);
+				goto fail;
+			}
+		}
+		memset(pretout, 0 ,outsize);
+	}
+	
+	if (pperr != NULL) {
+		preterr = *pperr;
+		errsize = *perrsize;
+		if (preterr == NULL || errsize < MINI_BUFSIZE) {
+			if (errsize < MINI_BUFSIZE) {
+				errsize = MINI_BUFSIZE;
+			}
+			preterr = malloc(errsize);
+			if (preterr == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("alloc %d error[%d]", errsize, ret);
+				goto fail;
+			}
+		}
+		memset(preterr, 0 ,errsize);
+	}
+
+	sticks = get_cur_ticks();
+	while(1) {
+		/*first to wait for the status*/
+		ret= waitpid(pproc->m_pid, &status,WNOHANG);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("wait [%d] error[%d]", pproc->m_pid, ret);
+			goto fail;
+		}
+		if (WIFSIGNALED(status) ) {
+			/**/
+			exitcode = WEXITSTATUS(status);
+			break;
+		} else if (WIFEXITED(status)) {
+			exitcode = WTERMSIG(status);
+			break;
+		}
+
+		if (pin && inlen < insize) {
+
+		}
+	}
+}
+
 int run_cmd_event_output(int exitfd, char* pin,  int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
 {
 
