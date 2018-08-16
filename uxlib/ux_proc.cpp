@@ -1,5 +1,15 @@
 #include <ux_proc.h>
+#include <ux_err.h>
+#include <ux_output_debug.h>
+#include <ux_strop.h>
+#include <ux_time_op.h>
 
+#include <sys/types.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <string.h>
 
 #define  CHLD_IDX       0
 #define  PARENT_IDX     1
@@ -48,9 +58,10 @@ void __close_pipefd(int fd[])
 int __set_nonblock(int fd)
 {
     int flags;
+    int ret;
     SETERRNO(0);
     flags = fcntl(fd, F_GETFL, 0);
-    if (flags < 0)  {
+    if (flags == -1)  {
         GETERRNO_DIRECT(ret);
         if (ret < 0) {
             ERROR_INFO("can not get fd[%d] flag error[%d]", fd, ret);
@@ -73,7 +84,6 @@ int __pipefd(int *rfd, int* wfd)
 {
     int ret;
     int fd[2] = { -1, -1};
-    int flags;
     if (rfd == NULL || wfd == NULL) {
         ret = -EINVAL;
         goto fail;
@@ -131,7 +141,7 @@ void __close_proc_comm(pproc_comm_t pproc)
             ret = waitpid(pproc->m_pid, &status, WNOHANG);
             if (ret < 0) {
                 GETERRNO(ret);
-                if (ret == -ECHLD) {
+                if (ret == -ECHILD) {
                     DEBUG_INFO("child not [%d]", pproc->m_pid);
                     break;
                 }
@@ -183,7 +193,7 @@ pproc_comm_t __alloc_proc(void)
     pproc_comm_t pproc = NULL;
     int ret;
 
-    pproc = malloc(sizeof(*pproc));
+    pproc = (pproc_comm_t)malloc(sizeof(*pproc));
     if (pproc == NULL) {
         GETERRNO(ret);
         ERROR_INFO("alloc [%d] error[%d]", sizeof(*pproc), ret);
@@ -236,7 +246,7 @@ pproc_comm_t __start_proc(int flags, char* prog[])
     if (prog == NULL || prog[0] == NULL) {
         ret = -EINVAL;
         SETERRNO(ret);
-        return ret;
+        return NULL;
     }
 
     if (((flags & STDIN_PIPE) && (flags & STDIN_NULL)) ||
@@ -244,7 +254,7 @@ pproc_comm_t __start_proc(int flags, char* prog[])
             ((flags & STDERR_PIPE) && (flags & STDERR_NULL))) {
         ret = -EINVAL;
         SETERRNO(ret);
-        return ret;
+        return NULL;
     }
 
     pproc = __alloc_proc();
@@ -400,6 +410,19 @@ pproc_comm_t __start_proc(int flags, char* prog[])
         goto fail;
     }
 
+    if (pproc->m_stdin[CHLD_IDX] >= 0) {
+    	close(pproc->m_stdin[CHLD_IDX]);
+    	pproc->m_stdin[CHLD_IDX] = -1;
+    }
+    if (pproc->m_stdout[CHLD_IDX] >= 0) {
+    	close(pproc->m_stdout[CHLD_IDX]);
+    	pproc->m_stdout[CHLD_IDX] = -1;
+    }
+    if (pproc->m_stderr[CHLD_IDX] >= 0){
+    	close(pproc->m_stderr[CHLD_IDX]);
+    	pproc->m_stderr[CHLD_IDX] = -1;
+    }
+
     return pproc;
 fail:
     __free_proc_comm(&pproc);
@@ -521,12 +544,13 @@ int get_min(int a, int b)
 				fdnum ++;                                                              \
 				FD_SET(pproc->fdmem[PARENT_IDX],&rset);                                \
 			} else {                                                                   \
-				if (ret == 0) {                                                        \
+				if (memlen < memsize) {                                                \
+					/*it mean all over*/                                               \
 					__close_pipefd(pproc->fdmem);                                      \
 				} else {                                                               \
 					ASSERT_IF(memlen == memsize);                                      \
 					memsize <<= 1;                                                     \
-					ptmpbuf = malloc(memsize);                                         \
+					ptmpbuf = (char*)malloc(memsize);                                  \
 					if (ptmpbuf == NULL) {                                             \
 						GETERRNO(ret);                                                 \
 						ERROR_INFO("alloc %d error[%d]", memsize, ret);                \
@@ -559,7 +583,7 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
     int fd[4];
     int fdnum = 0;
     struct timeval tm, *ptm;
-    uint64_t sticks, cticks;
+    uint64_t sticks;
     char* pretout = NULL;
     int outsize = 0, outlen = 0;
     char* preterr = NULL;
@@ -573,6 +597,7 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
     int timemills = 0;
     int pending = 0;
     int maxmills = 0;
+    int i;
     fd_set rset;
     fd_set wset;
 
@@ -596,7 +621,7 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
             if (outsize < MINI_BUFSIZE) {
                 outsize = MINI_BUFSIZE;
             }
-            pretout = malloc(outsize);
+            pretout = (char*)malloc(outsize);
             if (pretout == NULL) {
                 GETERRNO(ret);
                 ERROR_INFO("alloc %d error[%d]", outsize, ret);
@@ -613,7 +638,7 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
             if (errsize < MINI_BUFSIZE) {
                 errsize = MINI_BUFSIZE;
             }
-            preterr = malloc(errsize);
+            preterr = (char*)malloc(errsize);
             if (preterr == NULL) {
                 GETERRNO(ret);
                 ERROR_INFO("alloc %d error[%d]", errsize, ret);
@@ -656,10 +681,8 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
             FD_SET(evtfd, &rset);
         }
 
-        ptm = NULL;
         if (timeout > 0) {
-            cticks = get_cur_ticks();
-            timemills = time_left(sticks, cticks, timeout);
+            timemills = time_left(sticks, timeout);
             if (timemills < 0) {
                 ret = -ETIMEDOUT;
                 ERROR_INFO("timed out [%d]", timeout);
@@ -696,8 +719,6 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
                 ERROR_INFO("manually stopped");
                 goto fail;
             }
-            /*to read again*/
-            continue;
         } else {
             ret = select(0, NULL, NULL, NULL, ptm);
             if (ret < 0) {
@@ -708,7 +729,6 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
                 ERROR_INFO("select NULL error[%d]", ret);
                 goto fail;
             }
-            continue;
         }
     }
 
@@ -738,8 +758,7 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
         }
 
         if (timeout > 0) {
-            cticks = get_cur_ticks();
-            timemills = time_left(sticks, cticks, timeout);
+            timemills = time_left(sticks, timeout);
             if (timemills < 0) {
                 GETERRNO(ret);
                 ERROR_INFO("wait timed out");
@@ -749,6 +768,10 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
         }
 
 
+        memset(&tm, 0, sizeof(tm));
+        ptm = &tm;
+        ptm->tv_sec = (maxmills / 1000);
+        ptm->tv_usec = (maxmills % 1000) * 1000;
 
         if (fdnum > 0) {
             maxfd = 0;
@@ -769,7 +792,7 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
 
             if (evtfd >= 0 && FD_ISSET(evtfd, &rset)) {
                 ret = -ERFKILL;
-                ERROR_INFO("user stopped");
+                ERROR_INFO("manually stopped");
                 goto fail;
             }
         }
@@ -781,10 +804,10 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
     if (pperr) {
         *pperr = preterr;
     }
-
-    if (poutsize) {
-        *poutsize = outlen;
+    if (perrsize) {
+        *perrsize = errlen;
     }
+
 
     if (ppout != NULL && *ppout != pretout) {
         free(*ppout);
@@ -792,9 +815,8 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
     if (ppout != NULL) {
         *ppout = pretout;
     }
-
-    if (perrsize) {
-        *perrsize = errlen;
+    if (poutsize) {
+        *poutsize = outlen;
     }
 
     if (pexitcode) {
@@ -889,7 +911,7 @@ int __get_progs(char* prog, va_list ap, char** ppprogs[], int *psize)
     int cnt = 0;
     char** pptmpprogs = NULL;
     char** ppretprogs = NULL;
-    va_list oldap = NULL;
+    va_list oldap;
     char* curarg;
     if (prog == NULL) {
         if (ppprogs && *ppprogs) {
@@ -941,7 +963,7 @@ int __get_progs(char* prog, va_list ap, char** ppprogs[], int *psize)
         if (size <= cnt) {
             size = cnt+1;
         }
-        ppretprogs = malloc(sizeof(*ppretprogs) * size);
+        ppretprogs = (char**)malloc(sizeof(*ppretprogs) * size);
         if (ppretprogs == NULL) {
             GETERRNO(ret);
             ERROR_INFO("alloc %d error[%d]", sizeof(*ppretprogs)* size, ret);
@@ -1012,7 +1034,7 @@ int run_cmd_event_outputa(int evtfd, char* pin, int insize, char** ppout, int *p
     	return run_cmd_event_outputv(evtfd,pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,NULL);
     }
 
-    ret = __get_progs(prog,ap,&progs,&progsize);
+    ret = __get_progs((char*)prog,ap,&progs,&progsize);
     if (ret < 0) {
     	GETERRNO(ret);
     	goto fail;
@@ -1034,7 +1056,7 @@ fail:
 
 int run_cmd_event_output(int evtfd, char* pin,  int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
 {
-	va_list ap=NULL;
+	va_list ap;
 	if (prog != NULL) {
 		va_start(ap,prog);
 	}
@@ -1063,7 +1085,7 @@ int run_cmd_outputa(char* pin, int insize, char** ppout, int *poutsize, char** p
 
 int run_cmd_output(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
 {
-	va_list ap=NULL;
+	va_list ap;
 	if (prog != NULL) {
 		va_start(ap,prog);
 	}

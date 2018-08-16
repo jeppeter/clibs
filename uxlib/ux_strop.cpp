@@ -930,7 +930,7 @@ int split_lines(const char* str, char*** ppplines, int *psize)
                 if (mustchk) {
                     if (*pgetcurptr != '\r' &&
                             *pgetcurptr != '\0') {
-                        ret = -ERROR_INTERNAL_ERROR;
+                        ret = -EDQUOT;
                         goto fail;
                     }
                 } else if (*pgetcurptr == '\r') {
@@ -987,7 +987,7 @@ int split_lines(const char* str, char*** ppplines, int *psize)
         if (mustchk) {
             if (*pgetcurptr != '\r' &&
                     *pgetcurptr != '\0') {
-                ret = -ERROR_INTERNAL_ERROR;
+                ret = -EDQUOT;
                 goto fail;
             }
         } else if (*pgetcurptr == '\r') {

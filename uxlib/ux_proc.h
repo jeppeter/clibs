@@ -1,6 +1,8 @@
 #ifndef __UX_PROC_H_F4C0C7C240CEFC18D6E2FB745849834F__
 #define __UX_PROC_H_F4C0C7C240CEFC18D6E2FB745849834F__
 
+#include <stdarg.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus*/
