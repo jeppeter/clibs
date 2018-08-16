@@ -14,6 +14,7 @@
 #include <win_regex.h>
 #include <win_svc.h>
 #include <win_regop.h>
+#include <win_ver.h>
 
 typedef struct __args_options {
     int m_verbose;
@@ -60,6 +61,7 @@ int svchdl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int svcmode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regbinget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -2610,6 +2612,20 @@ out:
     return ret;
 }
 
+
+int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    init_log_level(pargs);
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+
+    fprintf(stdout,"win7 %s\n", is_win7() ? "true" : "false");
+    fprintf(stdout,"win10 %s\n", is_win10() ? "true" : "false");
+
+    return 0;
+}
 
 int _tmain(int argc, TCHAR* argv[])
 {
