@@ -241,7 +241,7 @@ pproc_comm_t __start_proc(int flags, char* prog[])
 {
     int ret, res;
     pproc_comm_t pproc = NULL;
-    int stdinnull = -1, stdoutnull = -1, stderrnull = -1;
+    int stdnull = -1;
 
     if (prog == NULL || prog[0] == NULL) {
         ret = -EINVAL;
@@ -293,37 +293,22 @@ pproc_comm_t __start_proc(int flags, char* prog[])
         int cmdsize = 0;
         int i;
         /*this is child*/
-        if (flags & STDIN_NULL) {
-            stdinnull = __open_nullfd(O_RDONLY);
-            if (stdinnull < 0) {
+        if (flags & STDIN_NULL || 
+        	flags & STDOUT_NULL || 
+        	flags & STDERR_NULL) {
+            stdnull = __open_nullfd(O_RDONLY);
+            if (stdnull < 0) {
                 ERROR_INFO("can not open [%s] for READ ONLY", NULL_FILE);
                 exit(3);
             }
         }
 
-        if (flags & STDOUT_NULL) {
-            stdoutnull = __open_nullfd(O_WRONLY);
-            if (stdinnull < 0) {
-                ERROR_INFO("can not open [%s] for WRITE ONLY", NULL_FILE);
-                exit(3);
-            }
-        }
-
-        if (flags & STDERR_NULL) {
-            stderrnull = 	__open_nullfd(O_WRONLY);
-            if (stdinnull < 0) {
-                ERROR_INFO("can not open [%s] for WRITE ONLY", NULL_FILE);
-                exit(3);
-            }
-        }
 
         for (i = 0; i < 1024; i++) {
             if (i == pproc->m_stdin[CHLD_IDX] ||
                     i == pproc->m_stdout[CHLD_IDX] ||
                     i == pproc->m_stderr[CHLD_IDX] ||
-                    i == stdinnull ||
-                    i == stdoutnull ||
-                    i == stderrnull ||
+                    i == stdnull ||
                     i == STDIN_FILENO ||
                     i == STDOUT_FILENO ||
                     i == STDERR_FILENO) {
@@ -362,30 +347,35 @@ pproc_comm_t __start_proc(int flags, char* prog[])
         }
 
         if (flags & STDIN_NULL) {
-            ret = __dup2_close(&stdinnull, STDIN_FILENO);
+        	ret = dup2(stdnull, STDIN_FILENO);
             if (ret < 0) {
                 GETERRNO(ret);
-                ERROR_INFO("can not dup2 stdin null [%d] error[%d]", stdinnull, ret);
+                ERROR_INFO("can not dup2 stdin null [%d] error[%d]", stdnull, ret);
                 exit(4);
             }
         }
 
         if (flags & STDOUT_NULL) {
-            ret = __dup2_close(&stdoutnull, STDOUT_FILENO);
+        	ret = dup2(stdnull, STDOUT_FILENO);
             if (ret < 0) {
                 GETERRNO(ret);
-                ERROR_INFO("can not dup2 stdout null [%d] error[%d]", stdoutnull, ret);
+                ERROR_INFO("can not dup2 stdout null [%d] error[%d]", stdnull, ret);
                 exit(4);
             }
         }
 
         if (flags & STDERR_NULL) {
-            ret = __dup2_close(&stderrnull, STDERR_FILENO);
+        	ret = dup2(stdnull, STDERR_FILENO);
             if (ret < 0) {
                 GETERRNO(ret);
-                ERROR_INFO("can not dup2 stderr null [%d] error[%d]", stderrnull, ret);
+                ERROR_INFO("can not dup2 stderr null [%d] error[%d]", stdnull, ret);
                 exit(4);
             }
+        }
+
+        if (stdnull >= 0) {
+        	close(stdnull);
+        	stdnull = -1;
         }
 
         /*now exec call*/
