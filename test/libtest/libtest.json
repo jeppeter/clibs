@@ -94,5 +94,8 @@
     },
     "regbinset<regbinset_handler>##path property offset val to set binary value##" : {
         "$" : "+"
+    },
+    "winver<winver_handler>##       check windows version##" : {
+        "$" : 0
     }
 }
