@@ -12,6 +12,7 @@ int read_file_whole(char* infile,char** ppoutbuf,int *bufsize);
 int read_stdin_whole(int freed,char** ppoutbuf,int *bufsize);
 int write_file_whole(char* outfile,char* poutbuf,int outsize);
 int write_out_whole(int flag,char* poutbuf,int outsize);
+int realpath_safe(char* path, char** pprealpath, int *psize);
 
 /*************************************
 * get_mount_dir : to get the device mounted directory

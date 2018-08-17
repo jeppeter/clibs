@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 
 #define MIN_BUF_SIZE   0x10000
@@ -266,6 +267,78 @@ fail:
     return ret;
 }
 
+#define  MIN_PATH_SIZE   0x100
+
+int realpath_safe(char* path, char** pprealpath, int *psize)
+{
+    char* pretstr=NULL;
+    int retsize=0;
+    int retlen=0;
+    int ret;
+    char* ptr;
+    int maxsize=0;
+    if (path == NULL) {
+        if (pprealpath && *pprealpath) {
+            free(*pprealpath);
+            *pprealpath = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+    if (pprealpath == NULL || psize == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretstr = *pprealpath;
+    retsize = *psize;
+
+    maxsize = pathconf(path,_PC_PATH_MAX);
+    if (maxsize < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get [%s] path max error[%d]", path, ret);
+        goto fail;
+    }
+
+    if (pretstr == NULL || retsize < maxsize) {
+        if (retsize < maxsize) {
+            retsize = maxsize;
+        }
+        pretstr = (char*) malloc(retsize);
+        if (pretstr == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", retsize,ret);
+            goto fail;
+        }
+    }
+
+
+    memset(pretstr, 0, retsize);
+    ptr = realpath(path, pretstr);
+    if (ptr == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("realpath [%s] error[%d]",  path, ret);
+        goto fail;
+    }
+
+    if (*pprealpath && *pprealpath != pretstr) {
+        free(*pprealpath);
+    }
+    *pprealpath = pretstr;
+    *psize = retsize;
+    return retlen;
+fail:
+    if (pretstr && pretstr != *pprealpath) {
+        free(pretstr);
+    }
+    pretstr = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
 #define  MTAB_FILE    "/etc/mtab"
 
 int __get_mtab_lines(int freed, char*** ppplines,int *plinesize)
@@ -410,5 +483,114 @@ fail:
 
 int path_get_mountdir(const char* path, char** ppmntdir,int *pmntsize)
 {
-    return 0;
+    char** pplines=NULL;
+    int lsize=0,llen=0;
+    int i;
+    char* pmatch=NULL;
+    int matchlen=0;
+    char* pcurptr,*plastptr;
+    int curlen;
+    char* pretstr=NULL;
+    int retsize=0;
+    int ret;
+
+    if (path == NULL) {
+        if (ppmntdir && *ppmntdir) {
+            free(*ppmntdir);
+            *ppmntdir = NULL;
+        }
+        if (pmntsize) {
+            *pmntsize = 0;
+        }
+        return 0;
+    }
+    if (*path != '/') {
+        ret= -EINVAL;
+        ERROR_INFO("path [%s] not absolute path", path);
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (ppmntdir == NULL || pmntsize == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretstr = *ppmntdir;
+    retsize = *pmntsize;
+
+    ret = __get_mtab_lines(0,&pplines,&lsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    llen = ret;
+
+    for (i=0;i < llen;i++) {
+        /*first to get the device*/
+        pcurptr = pplines[i];
+        plastptr = pcurptr;
+        while(*plastptr != '\0' && *plastptr != ' ') {
+            plastptr ++;
+        }
+        while(*plastptr == ' '){
+            plastptr ++;    
+        }
+        
+        /*get the mount dir*/
+        pcurptr = plastptr;
+        plastptr = pcurptr;
+        while(*plastptr != '\0' && *plastptr != ' ') {
+            plastptr ++;
+        }
+
+        curlen = plastptr - pcurptr;
+        if (matchlen < curlen) {
+            if (strncmp(path, pcurptr, curlen) == 0) {
+                matchlen = curlen;
+                pmatch = pcurptr;
+            }
+        }
+    }
+
+    if (matchlen > 0) {
+        if (pretstr == NULL || retsize < (matchlen + 1)) {
+            if (retsize < (matchlen + 1)) {
+                retsize = matchlen + 1;
+            }
+            pretstr = (char*) malloc(retsize);
+            if (pretstr == NULL) {
+                GETERRNO(ret);
+                ERROR_INFO("alloc %d error[%d]", retsize,ret);
+                goto fail;
+            }
+        }
+        memset(pretstr, 0 ,retsize);
+        memcpy(pretstr, pmatch, matchlen);
+    } else {
+        /*to give the null*/
+        if (pretstr != NULL) {
+            memset(pretstr, 0 ,retsize);
+        }
+    }
+
+    __get_mtab_lines(1,&pplines,&lsize);
+
+    if (*ppmntdir && *ppmntdir != pretstr) {
+        free(*ppmntdir);
+    }
+    *ppmntdir = pretstr;
+    *pmntsize = retsize;
+
+    return matchlen;
+fail:
+    if (pretstr && pretstr != *ppmntdir) {
+        free(pretstr);
+    }
+    pretstr = NULL;
+    retsize = 0;
+    __get_mtab_lines(1,&pplines,&lsize);
+    SETERRNO(ret);
+    return ret;
 }

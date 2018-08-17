@@ -16,5 +16,8 @@
     },
     "mntdir<mntdir_handler>" : {
         "$" : "+"
+    },
+    "getmnt<getmnt_handler>" : {
+        "$" : "+"
     }
 }

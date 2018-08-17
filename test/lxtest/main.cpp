@@ -25,6 +25,7 @@ int debug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int sleep_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int mntdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getmnt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
 
@@ -325,6 +326,46 @@ out:
     get_mount_dir(NULL,&mntdir,&mntsize);
     SETERRNO(ret);
     return ret;
+}
+
+int getmnt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* mntdir=NULL;
+    int mntsize=0;
+    int i;
+    char* path=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* prealpath=NULL;
+    int realsize=0;
+
+    init_log_verbose(pargs);
+    argc = argc;
+    argv = argv;
+
+    for (i=0;parsestate->leftargs[i]!=NULL;i++) {
+        path = parsestate->leftargs[i];
+        ret = realpath_safe(path,&prealpath,&realsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr,"get real path for [%s] error[%d]\n", path, ret);
+            goto out;
+        }
+        ret = path_get_mountdir(prealpath, &mntdir,&mntsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr,"can not get [%s] error[%d]", path,ret);
+            goto out;
+        }
+        fprintf(stdout,"[%s] mount [%s]\n", path, mntdir);
+    }
+
+    ret = 0;
+out:
+    realpath_safe(NULL,&prealpath,&realsize);
+    path_get_mountdir(NULL,&mntdir,&mntsize);
+    SETERRNO(ret);
+    return ret;    
 }
 
 int main(int argc, char* argv[])
