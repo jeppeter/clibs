@@ -1,9 +1,11 @@
 #include <ux_err.h>
 #include <ux_fileop.h>
+#include <ux_output_debug.h>
+#include <ux_strop.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ux_output_debug.h>
 
 
 #define MIN_BUF_SIZE   0x10000
@@ -260,6 +262,127 @@ int write_out_whole(int flag,char* poutbuf,int outsize)
 
     return ret;
 fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+#define  MTAB_FILE    "/etc/mtab"
+
+int get_mount_dir(const char* dev, char** ppmntdir,int *pmntsize)
+{
+    char* mtabcont=NULL;
+    int mtabsize=0;
+    char** pplines=NULL;
+    int linesize=0;
+    int linenum=0;
+    int retlen= 0;
+    int ret;
+    int i;
+    char* comparestr = NULL;
+    int comparesize=0;
+    char* pcurptr=NULL;
+    char* plastptr=NULL;
+    char* pretstr=NULL;
+    int retsize=0;
+
+
+    if (dev == NULL) {
+        if (ppmntdir && *ppmntdir) {
+            free(*ppmntdir);
+            *ppmntdir = NULL;
+        }
+        if (pmntsize) {
+            *pmntsize = 0;
+        }
+        return 0;
+    }
+
+    if (ppmntdir == NULL || pmntsize == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = read_file_whole((char*)MTAB_FILE, &mtabcont,&mtabsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not read [%s] error[%d]", MTAB_FILE, ret);
+        goto fail;
+    }
+
+    ret = split_lines(mtabcont,&pplines,&linesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not split lines [%d]",ret);
+        goto fail;
+    }
+    linenum = ret;
+    comparesize = strlen(dev);
+    /*added the compare space*/
+    comparestr = (char*) malloc(comparesize + 2);
+    if (comparestr == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", comparesize + 2, ret);
+        goto fail;
+    }
+    memset(comparestr, 0 ,comparesize + 2);
+    memcpy(comparestr, dev, comparesize);
+    strcat(comparestr, " ");
+
+
+    for (i=0;i<linenum;i++) {
+        if (strncmp(comparestr, pplines[i], comparesize+1) == 0) {
+            /*ok this is the lines ,so we found it*/
+            pcurptr = pplines[i] + comparesize+1;
+            plastptr = pcurptr;
+            while(*plastptr != ' ' && *plastptr != '\0') {
+                plastptr ++;
+            }
+            retlen = plastptr - pcurptr;
+            if (retsize < (retlen + 1) || pretstr == NULL) {
+                if (retsize < (retlen + 1)) {
+                    retsize = retlen + 1;
+                }
+                pretstr = (char*) malloc(retsize);
+                if (pretstr == NULL) {
+                    GETERRNO(ret);
+                    ERROR_INFO("alloc %d error[%d]", retsize, ret);
+                    goto fail;
+                }
+            }
+            memset(pretstr, 0 ,retsize);
+            memcpy(pretstr, pcurptr, retlen);
+            break;
+        }
+    }
+
+    if (comparestr) {
+        free(comparestr);
+    }
+    comparestr = NULL;
+    comparesize = 0;
+    split_lines(NULL,&pplines,&linesize);
+    read_file_whole(NULL,&mtabcont,&mtabsize);
+
+    if (*ppmntdir && *ppmntdir != pretstr) {
+        free(*ppmntdir);
+    }
+    *ppmntdir = pretstr;
+    *pmntsize = retsize;
+
+    return retlen;
+fail:
+    if (pretstr && pretstr != *ppmntdir) {
+        free(pretstr);
+    }
+    pretstr = NULL;
+    if (comparestr) {
+        free(comparestr);
+    }
+    comparestr = NULL;
+    comparesize = 0;
+    split_lines(NULL,&pplines,&linesize);
+    read_file_whole(NULL,&mtabcont,&mtabsize);
     SETERRNO(ret);
     return ret;
 }

@@ -13,5 +13,8 @@
     },
     "run<run_handler>" : {
     	"$" : "+"
+    },
+    "mntdir<mntdir_handler>" : {
+        "$" : "+"
     }
 }

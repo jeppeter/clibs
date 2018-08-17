@@ -24,6 +24,7 @@ typedef struct __args_options {
 int debug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sleep_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int mntdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
 
@@ -290,6 +291,41 @@ out:
     return ret;
 }
 
+
+int mntdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* mntdir=NULL;
+    int mntsize=0;
+    int i;
+    char* dev=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_verbose(pargs);
+    argc = argc;
+    argv = argv;
+
+    for (i=0;parsestate->leftargs[i]!=NULL;i++) {
+        dev = parsestate->leftargs[i];
+        ret = get_mount_dir(dev, &mntdir,&mntsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr,"can not get [%s] error[%d]", dev,ret);
+            goto out;
+        }
+        if (ret > 0) {
+            fprintf(stdout,"[%s] mount [%s]\n", dev, mntdir);
+        } else {
+            fprintf(stdout,"[%s] not mounted\n", dev);
+        }
+    }
+
+    ret = 0;
+out:
+    get_mount_dir(NULL,&mntdir,&mntsize);
+    SETERRNO(ret);
+    return ret;
+}
 
 int main(int argc, char* argv[])
 {
