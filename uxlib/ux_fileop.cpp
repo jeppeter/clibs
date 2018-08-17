@@ -268,10 +268,40 @@ fail:
 
 #define  MTAB_FILE    "/etc/mtab"
 
-int get_mount_dir(const char* dev, char** ppmntdir,int *pmntsize)
+int __get_mtab_lines(int freed, char*** ppplines,int *plinesize)
 {
     char* mtabcont=NULL;
     int mtabsize=0;
+    int ret;
+    int llen=0;
+    if (freed) {
+        split_lines(NULL,ppplines,plinesize);
+        return 0;
+    }
+    ret= read_file_whole((char*)MTAB_FILE,&mtabcont,&mtabsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = split_lines(mtabcont,ppplines,plinesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    llen = ret;
+
+    read_file_whole(NULL,&mtabcont,&mtabsize);
+    return llen;
+fail:
+    split_lines(NULL,ppplines,plinesize);
+    read_file_whole(NULL,&mtabcont,&mtabsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int get_mount_dir(const char* dev, char** ppmntdir,int *pmntsize)
+{
     char** pplines=NULL;
     int linesize=0;
     int linenum=0;
@@ -303,14 +333,7 @@ int get_mount_dir(const char* dev, char** ppmntdir,int *pmntsize)
         return ret;
     }
 
-    ret = read_file_whole((char*)MTAB_FILE, &mtabcont,&mtabsize);
-    if (ret < 0) {
-        GETERRNO(ret);
-        ERROR_INFO("can not read [%s] error[%d]", MTAB_FILE, ret);
-        goto fail;
-    }
-
-    ret = split_lines(mtabcont,&pplines,&linesize);
+    ret = __get_mtab_lines(0,&pplines,&linesize);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not split lines [%d]",ret);
@@ -361,8 +384,7 @@ int get_mount_dir(const char* dev, char** ppmntdir,int *pmntsize)
     }
     comparestr = NULL;
     comparesize = 0;
-    split_lines(NULL,&pplines,&linesize);
-    read_file_whole(NULL,&mtabcont,&mtabsize);
+    __get_mtab_lines(1,&pplines,&linesize);
 
     if (*ppmntdir && *ppmntdir != pretstr) {
         free(*ppmntdir);
@@ -381,9 +403,12 @@ fail:
     }
     comparestr = NULL;
     comparesize = 0;
-    split_lines(NULL,&pplines,&linesize);
-    read_file_whole(NULL,&mtabcont,&mtabsize);
+    __get_mtab_lines(1,&pplines,&linesize);
     SETERRNO(ret);
     return ret;
 }
 
+int path_get_mountdir(const char* path, char** ppmntdir,int *pmntsize)
+{
+    return 0;
+}

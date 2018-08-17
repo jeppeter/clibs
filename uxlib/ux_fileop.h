@@ -18,12 +18,37 @@ int write_out_whole(int flag,char* poutbuf,int outsize);
 * return value:
 *           length filled in the *ppmntdir
 *           0 for not mounted
+*           < 0 for error
 * params:
 *           dev  device name if NULL ,will free(*ppmntdir)
-*           ppmntdir the mount directory into day
+*           ppmntdir the mount directory to fill
 *           pmntsize the allocated size for *ppmntdir 
 *************************************/
 int get_mount_dir(const char* dev, char** ppmntdir,int *pmntsize);
+
+/*************************************
+* path_get_mountdir : to get he deivce to get the most directory for mount
+* return value:
+*           length filled in *ppmntdir
+*           < 0 for error
+* params:
+*           path path to search
+*           ppmntdir the mount directory to fill
+*           pmntsize the allocated size for *ppmntdir 
+*************************************/
+int path_get_mountdir(const char* path, char** ppmntdir,int *pmntsize);
+
+/*************************************
+* mountdir_get_device : to get the device for the mountdir
+* return value:
+*           length filled in *ppdev
+*           < 0 for error
+* params:
+*           path path to search
+*           ppdev the devices to fill
+*           pdevsize the allocated size for *ppdev 
+*************************************/
+int mountdir_get_device(const char* path,char** ppdev,int *pdevsize);
 
 #ifdef __cplusplus
 };
