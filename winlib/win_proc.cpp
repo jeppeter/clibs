@@ -1532,6 +1532,370 @@ fail:
     return ret;
 }
 
+#define   WRITE_WAIT(vpipename,ptrmem,memlen,memsize)                                             \
+    do {                                                                                          \
+        if (pproc->vpipename != NULL) {                                                           \
+            if (pproc->vpipename->m_state == PIPE_WAIT_CONNECT ||                                 \
+                pproc->vpipename->m_state == PIPE_WAIT_WRITE) {                                   \
+                waithds[waitnum] = pproc->vpipename->m_evt;                                       \
+                waitnum ++;                                                                       \
+                DEBUG_INFO("add %s", #vpipename);                                                 \
+            } else if (pproc->vpipename->m_state == PIPE_READY) {                                 \
+                pending = 0;                                                                      \
+                ret = __write_file_sync(pproc->vpipename->m_pipesvr,&(pproc->vpipename->m_ov),    \
+                        &(ptrmem[memlen]), (memsize - memlen), &pending);                         \
+                if (ret < 0) {                                                                    \
+                    GETERRNO(ret);                                                                \
+                    goto fail;                                                                    \
+                }                                                                                 \
+                DEBUG_INFO("ret [%d] write [%d]", ret, (memsize - memlen));                       \
+                memlen += ret;                                                                    \
+                if (memlen > memsize) {                                                           \
+                    ERROR_INFO("write [%s] inlen [%d] insize[%d]",                                \
+                        pproc->vpipename->m_pipename, memlen, memsize);                           \
+                    memlen = memsize;                                                             \
+                }                                                                                 \
+                if (memlen == memsize) {                                                          \
+                    DEBUG_INFO("close %s", #vpipename);                                           \
+                    __close_handle_note(&(pproc->vpipename->m_pipesvr),                           \
+                        "close %s",pproc->vpipename->m_pipename);                                 \
+                    pproc->vpipename->m_state = PIPE_NONE;                                        \
+                } else if (pending) {                                                             \
+                    DEBUG_INFO("add %s", #vpipename);                                             \
+                    pproc->vpipename->m_state = PIPE_WAIT_WRITE;                                  \
+                    waithds[waitnum] = pproc->vpipename->m_evt;                                   \
+                    waitnum ++;                                                                   \
+                }                                                                                 \
+            }                                                                                     \
+        }                                                                                         \
+    } while(0)
+
+#define  STDIN_WRITE_WAIT()        \
+    WRITE_WAIT(m_stdinpipe,pin, inlen, insize)
+
+
+#define  READ_EXPAND(vpipename,ptrmem, ppmemptr, memlen,memsize,gotolabel)                        \
+    do{                                                                                           \
+        if (pproc->vpipename != NULL) {                                                           \
+            if (pproc->vpipename->m_state == PIPE_WAIT_CONNECT ||                                 \
+                pproc->vpipename->m_state == PIPE_WAIT_READ) {                                    \
+                waithds[waitnum] = pproc->vpipename->m_evt;                                       \
+                waitnum ++;                                                                       \
+                DEBUG_INFO("add %s", #vpipename);                                                 \
+            } else if (pproc->vpipename->m_state == PIPE_READY) {                                 \
+        gotolabel:                                                                                \
+                if (ptrmem == NULL || memsize == memlen) {                                        \
+                    if (memsize < MIN_BUF_SIZE) {                                                 \
+                        memsize = MIN_BUF_SIZE;                                                   \
+                    } else {                                                                      \
+                        memsize <<= 1;                                                            \
+                    }                                                                             \
+                    ASSERT_IF(ptmpbuf == NULL);                                                   \
+                    ptmpbuf = (char*)malloc((size_t)(memsize));                                   \
+                    if (ptmpbuf == NULL) {                                                        \
+                        GETERRNO(ret);                                                            \
+                        ERROR_INFO("alloc %d error[%d]", memsize, ret);                           \
+                        goto fail;                                                                \
+                    }                                                                             \
+                    memset(ptmpbuf, 0, (size_t)(memsize));                                        \
+                    if (memlen > 0) {                                                             \
+                        memcpy(ptmpbuf, ptrmem, (size_t)(memlen));                                \
+                    }                                                                             \
+                    if (ptrmem != NULL && ptrmem != *ppmemptr) {                                  \
+                        free(ptrmem);                                                             \
+                    }                                                                             \
+                    ptrmem = ptmpbuf;                                                             \
+                    ptmpbuf = NULL;                                                               \
+                }                                                                                 \
+                pending = 0;                                                                      \
+                ret = __read_file_sync(pproc->vpipename->m_pipesvr,&(pproc->vpipename->m_ov),     \
+                        &(ptrmem[memlen]), (memsize- memlen), &pending);                          \
+                if (ret < 0) {                                                                    \
+                    GETERRNO(ret);                                                                \
+                    goto fail;                                                                    \
+                }                                                                                 \
+                if (ret > 0) {                                                                    \
+                    DEBUG_BUFFER_FMT(&(ptrmem[memlen]),ret,"read %s pending %d",                  \
+                            #vpipename,pending);                                                  \
+                }                                                                                 \
+                memlen += ret;                                                                    \
+                if (memlen > memsize) {                                                           \
+                    ERROR_INFO("read [%s] %s len[%d] %s size [%d]",                               \
+                        pproc->vpipename->m_pipename, #vpipename ,memlen,                         \
+                        #vpipename, memsize);                                                     \
+                    memlen = memsize;                                                             \
+                }                                                                                 \
+                if (pending == 0) {                                                               \
+                    goto gotolabel;                                                               \
+                } else if (pending == 2) {                                                        \
+                    __close_handle_note(&(pproc->vpipename->m_pipesvr),"%s",                      \
+                        pproc->vpipename->m_pipename);                                            \
+                    pproc->vpipename->m_state = PIPE_NONE;                                        \
+                    DEBUG_INFO("close %s", #vpipename);                                           \
+                } else {                                                                          \
+                    waithds[waitnum] = pproc->vpipename->m_evt;                                   \
+                    waitnum ++;                                                                   \
+                    pproc->vpipename->m_state = PIPE_WAIT_READ;                                   \
+                    DEBUG_INFO("add %s",#vpipename);                                              \
+                }                                                                                 \
+            }                                                                                     \
+        }                                                                                         \
+    }while(0)
+
+#define   STDOUT_READ_EXPAND(gotolabel)                                                           \
+    READ_EXPAND(m_stdoutpipe,pretout, ppout,outlen, outsize,gotolabel)
+
+#define   STDERR_READ_EXPAND(gotolabel)                                                           \
+    READ_EXPAND(m_stderrpipe,preterr, pperr,errlen, errsize,gotolabel)
+
+
+#define  WAIT_HANDLE(vpipename,ptrmem,memlen,memsize,waitflag,waitstate)                          \
+    do{                                                                                           \
+        if (pproc->vpipename != NULL &&                                                           \
+            (pproc->vpipename->m_state == PIPE_WAIT_CONNECT ||                                    \
+            pproc->vpipename->m_state == waitstate) &&                                            \
+            hd == pproc->vpipename->m_evt) {                                                      \
+            int lastlen= (memlen);                                                                \
+            DEBUG_INFO("handle %s", #vpipename);                                                  \
+            ret= __get_overlapped(pproc->vpipename->m_pipesvr,&(pproc->vpipename->m_ov),          \
+                    &(memlen),#vpipename" result");                                               \
+            if (ret < 0) {                                                                        \
+                GETERRNO(ret);                                                                    \
+                ERROR_INFO("%s get result error",#vpipename);                                     \
+                goto fail;                                                                        \
+            }                                                                                     \
+            if (waitstate == PIPE_WAIT_READ && lastlen != (memlen)) {                             \
+                DEBUG_BUFFER_FMT(&(ptrmem[lastlen]), (memlen - lastlen), "%s read",#vpipename);   \
+            }                                                                                     \
+            waitflag = ret;                                                                       \
+            if (waitflag == 0) {                                                                  \
+                if (pproc->vpipename->m_state == PIPE_WAIT_CONNECT ||                             \
+                    pproc->vpipename->m_state == waitstate) {                                     \
+                    pproc->vpipename->m_state = PIPE_READY;                                       \
+                }                                                                                 \
+                DEBUG_INFO("%s len[%d]", #vpipename, memlen);                                     \
+                if (memlen == memsize && waitstate == PIPE_WAIT_WRITE) {                          \
+                    __close_handle_note(&(pproc->vpipename->m_pipesvr),                           \
+                        "%s", pproc->vpipename->m_pipename);                                      \
+                    pproc->vpipename->m_state = PIPE_NONE;                                        \
+                }                                                                                 \
+            }                                                                                     \
+        }                                                                                         \
+    }while(0)
+
+#define   STDIN_WAIT_HANDLE()                                                                     \
+    WAIT_HANDLE(m_stdinpipe,pin,inlen,insize,inwait,PIPE_WAIT_WRITE)
+
+
+#define   STDOUT_WAIT_HANDLE()                                                                    \
+    WAIT_HANDLE(m_stdoutpipe,pretout,outlen,outsize,outwait,PIPE_WAIT_READ)
+
+#define   STDERR_WAIT_HANDLE()                                                                    \
+    WAIT_HANDLE(m_stderrpipe,preterr,errlen,errsize,errwait,PIPE_WAIT_READ)
+
+
+#define   READ_LEFT(vpipename,ptrmem, ppmemptr,memlen,memsize)                                    \
+    do{                                                                                           \
+        if (pproc->vpipename != NULL) {                                                           \
+            DEBUG_INFO("%s state %s", #vpipename,                                                 \
+                pproc->vpipename->m_state == PIPE_READY ? "READY" : "WAIT");                      \
+            ret = __left_pipe_bytes(pproc->vpipename->m_pipesvr);                                 \
+            if (ret < 0) {                                                                        \
+                GETERRNO(ret);                                                                    \
+                ERROR_INFO("get %s left bytes error[%d]", #vpipename,ret);                        \
+                goto fail;                                                                        \
+            }                                                                                     \
+            curlen = ret;                                                                         \
+            if (curlen > 0) {                                                                     \
+                if ((memsize - memlen) < curlen) {                                                \
+                    memsize = memsize - memlen + curlen;                                          \
+                    ptmpbuf = (char*)malloc((size_t)(memsize));                                   \
+                    if (ptmpbuf == NULL) {                                                        \
+                        GETERRNO(ret);                                                            \
+                        ERROR_INFO("alloc %d error[%d]", memsize,ret);                            \
+                        goto fail;                                                                \
+                    }                                                                             \
+                    memset(ptmpbuf,0, (size_t)(memsize));                                         \
+                    if (memlen > 0) {                                                             \
+                        memcpy(ptmpbuf, ptrmem, (size_t)(memlen));                                \
+                    }                                                                             \
+                    if (ptrmem != NULL && ptrmem != *ppmemptr) {                                  \
+                        free(ptrmem);                                                             \
+                    }                                                                             \
+                    ptrmem = ptmpbuf;                                                             \
+                    ptmpbuf = NULL;                                                               \
+                }                                                                                 \
+                ret = __read_file_sync(pproc->vpipename->m_pipesvr,&(pproc->vpipename->m_ov),     \
+                    &(ptrmem[memlen]), curlen, &pending);                                         \
+                if (ret < 0) {                                                                    \
+                    GETERRNO(ret);                                                                \
+                    goto fail;                                                                    \
+                }                                                                                 \
+                if (ret != curlen) {                                                              \
+                    ret = -ERROR_INTERNAL_ERROR;                                                  \
+                    ERROR_INFO("read %s left error[%d]", #vpipename,ret);                         \
+                    goto fail;                                                                    \
+                }                                                                                 \
+                DEBUG_BUFFER_FMT(&(ptrmem[memlen]), curlen, "new %s", #vpipename);                \
+                memlen += ret;                                                                    \
+            }                                                                                     \
+        }                                                                                         \
+    }while(0)
+
+
+#define  STDOUT_READ_LEFT()                                                                       \
+    READ_LEFT(m_stdoutpipe,pretout, ppout,outlen,outsize)
+
+#define  STDERR_READ_LEFT()                                                                       \
+    READ_LEFT(m_stderrpipe,preterr, pperr,errlen,errsize)
+
+#if 1
+int __inner_run(pproc_handle_t pproc,HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout)
+{
+    int inlen = 0;
+    char* pretout = NULL;
+    int outsize = 0, outlen = 0;
+    char* preterr = NULL;
+    int errsize = 0, errlen = 0;
+    char* ptmpbuf = NULL;
+    HANDLE waithds[4];
+    int waitnum = 0;
+    DWORD dret = 0;
+    uint64_t sticks = 0, cticks = 0;
+    DWORD waittime;
+    HANDLE hd;
+    int pending;
+    int inwait = 0, outwait = 0, errwait = 0;
+    int ret;
+    int curlen;
+
+    if (ppout != NULL) {
+        pretout = *ppout;
+        outsize = *poutsize;
+    }
+
+    if (pperr != NULL) {
+        preterr = *pperr;
+        errsize = *perrsize;
+    }
+
+    if (timeout > 0) {
+        sticks = get_current_ticks();
+    }
+
+    while (1) {
+        ret = get_proc_exit(pproc, NULL);
+        if (ret >= 0) {
+            DEBUG_INFO("proc exited");
+            break;
+        }
+
+        /*now we should make waithds*/
+        memset(waithds, 0 , sizeof(waithds));
+        waitnum = 0;
+
+        STDIN_WRITE_WAIT();
+        STDOUT_READ_EXPAND(out_again);
+        STDERR_READ_EXPAND(err_again);
+
+        if (hevt != NULL && hevt != INVALID_HANDLE_VALUE) {
+            waithds[waitnum] = hevt;
+            waitnum ++;
+        }
+
+        waittime = INFINITE;
+        if (timeout > 0) {
+            cticks = get_current_ticks();
+            ret = need_wait_times(sticks, cticks, timeout);
+            if (ret < 0) {
+                ret = -WAIT_TIMEOUT;
+                ERROR_INFO("wait time out");
+                goto fail;
+            }
+            waittime = (DWORD)ret;
+        }
+
+        if (waittime == INFINITE || waittime > 1000) {
+            waittime = 1000;
+        }
+
+        if (waitnum > 0 ) {
+            dret = WaitForMultipleObjectsEx((DWORD)waitnum, waithds, FALSE, waittime, FALSE);
+            DEBUG_INFO("dret [%d]", dret);
+            if ((dret >= WAIT_OBJECT_0) && (dret < (WAIT_OBJECT_0 + waitnum))) {
+                hd = waithds[(dret - WAIT_OBJECT_0)];
+                STDIN_WAIT_HANDLE();
+                STDOUT_WAIT_HANDLE();
+                STDERR_WAIT_HANDLE();
+
+                if (hevt != NULL && hevt != INVALID_HANDLE_VALUE && hd == hevt) {
+                    ret = -WSAEINTR;
+                    ERROR_INFO("interrupted");
+                    goto fail;
+                }
+            } else  if (dret == WAIT_TIMEOUT) {
+                continue;
+            } else {
+                GETERRNO(ret);
+                ERROR_INFO("run cmd [%s] [%ld] error [%d]", pproc->m_cmdline, dret, ret);
+                goto fail;
+            }
+        } else {
+            /*nothing to wait ,so we should wait for the handle of proc*/
+            if (waittime != INFINITE && waittime < 100) {
+                SleepEx(waittime, TRUE);
+            } else {
+                SleepEx(100, TRUE);
+            }
+            DEBUG_INFO("prochd time");
+        }
+    }
+
+    STDOUT_READ_LEFT();
+    STDERR_READ_LEFT();
+
+    if (exitcode) {
+        *exitcode = pproc->m_exitcode;
+    }
+    if (ppout != NULL) {
+        if (*ppout != NULL && *ppout != pretout) {
+            free(*ppout);
+        }
+        *ppout = pretout;
+    }
+
+    if (pperr != NULL) {
+        if (*pperr != NULL && *pperr != preterr) {
+            free(*pperr);
+        }
+        *pperr = preterr;
+    }
+
+    if (perrsize) {
+        *perrsize = errlen;
+    }
+
+    if (poutsize) {
+        *poutsize = outlen;
+    }
+    return 0;
+fail:
+    if (ptmpbuf) {
+        free(ptmpbuf);
+    }
+    ptmpbuf = NULL;
+    if (pretout && (ppout == NULL || pretout != *ppout)) {
+        free(pretout);
+    }
+    pretout = NULL;
+    if (preterr && (pperr == NULL || preterr != *pperr)) {
+        free(preterr);
+    }
+    preterr = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+#else
 int __inner_run(pproc_handle_t pproc,HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout)
 {
     int inlen = 0;
@@ -1995,6 +2359,8 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+#endif
 
 int run_cmd_event_output_single(HANDLE hevt,char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
 {
