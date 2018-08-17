@@ -594,3 +594,133 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int mountdir_get_device(const char* path,char** ppdev,int *pdevsize)
+{
+    char** pplines=NULL;
+    int lsize=0,llen=0;
+    int i;
+    int matchlen=0;
+    int pathlen=0;
+    char* pcurptr,*plastptr;
+    int curlen;
+    int mlen=0;
+    char* pdev=NULL;
+    char* pretstr=NULL;
+    int retsize=0;
+    int ret;
+    int origlen;
+
+    if (path == NULL) {
+        if (ppdev && *ppdev) {
+            free(*ppdev);
+            *ppdev = NULL;
+        }
+        if (pdevsize) {
+            *pdevsize = 0;
+        }
+        return 0;
+    }
+    if (*path != '/') {
+        ret= -EINVAL;
+        ERROR_INFO("path [%s] not absolute path", path);
+        SETERRNO(ret);
+        return ret;
+    }
+    /*we omit the path last / */
+    pathlen = (int)strlen(path);    
+    origlen = pathlen;
+    while( pathlen >= 0 && (path[pathlen] == '\0' ||
+        path[pathlen] == '/')) {
+        pathlen --;
+    }
+
+    if (pathlen != origlen) {
+        /*to give the more a byte*/
+        pathlen ++;
+    }
+
+    if (ppdev == NULL || pdevsize == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretstr = *ppdev;
+    retsize = *pdevsize;
+
+    ret = __get_mtab_lines(0,&pplines,&lsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    llen = ret;
+
+    for (i=0;i < llen;i++) {
+        /*first to get the device*/
+        pcurptr = pplines[i];
+        plastptr = pcurptr;
+        pdev = pplines[i];
+        while(*plastptr != '\0' && *plastptr != ' ') {
+            plastptr ++;
+        }
+        mlen = plastptr - pdev;
+        while(*plastptr == ' '){
+            plastptr ++;    
+        }
+        
+        /*get the mount dir*/
+        pcurptr = plastptr;
+        plastptr = pcurptr;
+        while(*plastptr != '\0' && *plastptr != ' ') {
+            plastptr ++;
+        }
+
+        curlen = plastptr - pcurptr;
+        if (curlen == pathlen && 
+            strncmp(path, pcurptr,curlen) == 0) {
+            matchlen = mlen;
+            break;
+        }
+    }
+
+    if (mlen > 0) {
+        if (pretstr == NULL || retsize < (matchlen + 1)) {
+            if (retsize < (matchlen + 1)) {
+                retsize = matchlen + 1;
+            }
+            pretstr = (char*) malloc(retsize);
+            if (pretstr == NULL) {
+                GETERRNO(ret);
+                ERROR_INFO("alloc %d error[%d]", retsize,ret);
+                goto fail;
+            }
+        }
+        memset(pretstr, 0 ,retsize);
+        memcpy(pretstr, pdev, matchlen);
+    } else {
+        /*to give the null*/
+        if (pretstr != NULL) {
+            memset(pretstr, 0 ,retsize);
+        }
+    }
+
+    __get_mtab_lines(1,&pplines,&lsize);
+
+    if (*ppdev && *ppdev != pretstr) {
+        free(*ppdev);
+    }
+    *ppdev = pretstr;
+    *pdevsize = retsize;
+
+    return matchlen;
+fail:
+    if (pretstr && pretstr != *ppdev) {
+        free(pretstr);
+    }
+    pretstr = NULL;
+    retsize = 0;
+    __get_mtab_lines(1,&pplines,&lsize);
+    SETERRNO(ret);
+    return ret;    
+}

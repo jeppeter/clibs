@@ -19,5 +19,8 @@
     },
     "getmnt<getmnt_handler>" : {
         "$" : "+"
+    },
+    "getdev<getdev_handler>" : {
+        "$" : "+"
     }
 }

@@ -26,6 +26,7 @@ int sleep_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int mntdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getmnt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getdev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
 
@@ -364,6 +365,43 @@ int getmnt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 out:
     realpath_safe(NULL,&prealpath,&realsize);
     path_get_mountdir(NULL,&mntdir,&mntsize);
+    SETERRNO(ret);
+    return ret;    
+}
+
+
+int getdev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* pdev=NULL;
+    int devsize=0;
+    int i;
+    char* path=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_verbose(pargs);
+    argc = argc;
+    argv = argv;
+
+    for (i=0;parsestate->leftargs[i]!=NULL;i++) {
+        path = parsestate->leftargs[i];
+        ret = mountdir_get_device(path,&pdev,&devsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "get [%s]device error[%d]\n", path, ret);
+            goto out;
+        }
+        if (ret > 0) {
+            fprintf(stdout,"[%s] mount [%s]\n", path, pdev);    
+        } else {
+            fprintf(stdout,"[%s] not device mount\n", path);
+        }
+        
+    }
+
+    ret = 0;
+out:
+    mountdir_get_device(NULL,&pdev,&devsize);
     SETERRNO(ret);
     return ret;    
 }
