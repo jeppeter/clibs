@@ -156,6 +156,10 @@ void __close_proc_comm(pproc_comm_t pproc)
             if (ret < 0) {
                 GETERRNO(ret);
                 ERROR_INFO("can not kill [%d] [%d] error[%d]", pproc->m_pid, sig, ret);
+                if (ret == -ESRCH || ret == -EPERM) {
+                    /*this is not process or can not kill ,so break*/
+                    break;
+                }
             }
             /*sleep 50 mill second*/
             if ((i % 20) == 0 && i > 0) {
@@ -533,7 +537,7 @@ int get_min(int a, int b)
                 #fdmem,sigpend);                                                       \
 			memlen += ret;                                                             \
 			if (sigpend == 0) {                                                        \
-				if (memlen < memsize || ret == 0) {                                    \
+				if (memlen < memsize ) {                                               \
 					/*it mean all over*/                                               \
 					__close_pipefd(pproc->fdmem);                                      \
                     sigpend = 0;                                                       \
