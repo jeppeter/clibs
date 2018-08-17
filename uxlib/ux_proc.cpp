@@ -146,7 +146,7 @@ void __close_proc_comm(pproc_comm_t pproc)
                     break;
                 }
                 ERROR_INFO("can not wait [%d] error[%d]", pproc->m_pid, ret);
-            } else {
+            } else if (ret == pproc->m_pid) {
                 if (WIFEXITED(status) || WIFSIGNALED(status)) {
                     break;
                 }
@@ -454,6 +454,9 @@ int __read_nonbloc(int fd, char* pbuf, int bufsize, int* pispending)
 {
     int ret;
     int readlen = 0;
+    if (pispending) {
+        *pispending = 0;
+    }
     while (readlen < bufsize) {
         ret = read(fd, &(pbuf[readlen]), bufsize - readlen);
         if (ret < 0) {
@@ -474,9 +477,6 @@ int __read_nonbloc(int fd, char* pbuf, int bufsize, int* pispending)
         }
         readlen += ret;
     }
-    if (pispending) {
-        *pispending = 0;
-    }
     return readlen;
 fail:
     SETERRNO(ret);
@@ -493,50 +493,51 @@ int get_min(int a, int b)
     return a;
 }
 
-#define  WRITE_WAIT(fdmem,ptrmem,memlen,memsize)                                       \
+#define  WRITE_WAIT(fdmem,ptrmem,memlen,memsize,sigpend)                               \
 	do {                                                                               \
-		if (pproc->fdmem[PARENT_IDX] >= 0) {                                           \
+		if (pproc->fdmem[PARENT_IDX] >= 0 && sigpend == 0) {                           \
 			ret = __write_nonblock(pproc->fdmem[PARENT_IDX],&(ptrmem[memlen]),         \
-				(memsize - memlen), &pending);                                         \
+				(memsize - memlen), &sigpend);                                         \
 			if (ret < 0) {                                                             \
 				GETERRNO(ret);                                                         \
 				ERROR_INFO("write %s error[%d]", #fdmem, ret);                         \
 				goto fail;                                                             \
 			}                                                                          \
 			memlen += ret;                                                             \
-			if (pending) {                                                             \
-				fd[fdnum] = pproc->fdmem[PARENT_IDX];                                  \
-				fdnum ++;                                                              \
-				FD_SET(pproc->fdmem[PARENT_IDX],&wset);                                \
-			} else {                                                                   \
+			if (sigpend == 0) {                                                        \
 				ASSERT_IF(memlen == memsize);                                          \
 				__close_pipefd(pproc->fdmem);                                          \
 			}                                                                          \
 		}                                                                              \
+        if (pproc->fdmem[PARENT_IDX] >=0 && sigpend != 0) {                            \
+            fd[fdnum] = pproc->fdmem[PARENT_IDX];                                      \
+            fdnum ++;                                                                  \
+            FD_SET(pproc->fdmem[PARENT_IDX],&wset);                                    \
+        }                                                                              \
 	} while(0)
 
-#define STDIN_WRITE_WAIT()  WRITE_WAIT(m_stdin,pin,inlen,insize)
+#define STDIN_WRITE_WAIT()  WRITE_WAIT(m_stdin,pin,inlen,insize,stdinpending)
 
-#define  READ_EXPAND(fdmem,ptrmem,pptrmem, memlen,memsize,gotolabel)                   \
+#define  READ_EXPAND(fdmem,ptrmem,pptrmem, memlen,memsize,sigpend,gotolabel)           \
 	do {                                                                               \
-		if (pproc->fdmem[PARENT_IDX] >= 0) {                                           \
+		if (pproc->fdmem[PARENT_IDX] >= 0 && sigpend == 0) {                           \
 		gotolabel:                                                                     \
 			ret = __read_nonbloc(pproc->fdmem[PARENT_IDX],&(ptrmem[memlen]),           \
-					(memsize - memlen), &pending);                                     \
+					(memsize - memlen), &sigpend);                                     \
 			if (ret < 0) {                                                             \
 				GETERRNO(ret);                                                         \
 				ERROR_INFO("read %s error[%d]", #fdmem, ret);                          \
 				goto fail;                                                             \
 			}                                                                          \
+            DEBUG_BUFFER_FMT(&(ptrmem[memlen]), ret, "%s read sigpend %d",             \
+                #fdmem,sigpend);                                                       \
 			memlen += ret;                                                             \
-			if (pending) {                                                             \
-				fd[fdnum] = pproc->fdmem[PARENT_IDX];                                  \
-				fdnum ++;                                                              \
-				FD_SET(pproc->fdmem[PARENT_IDX],&rset);                                \
-			} else {                                                                   \
-				if (memlen < memsize) {                                                \
+			if (sigpend == 0) {                                                        \
+				if (memlen < memsize || ret == 0) {                                    \
 					/*it mean all over*/                                               \
 					__close_pipefd(pproc->fdmem);                                      \
+                    sigpend = 0;                                                       \
+                    DEBUG_INFO("%s[PARENT_IDX] %d", #fdmem,pproc->fdmem[PARENT_IDX]);  \
 				} else {                                                               \
 					ASSERT_IF(memlen == memsize);                                      \
 					memsize <<= 1;                                                     \
@@ -559,13 +560,18 @@ int get_min(int a, int b)
 				}                                                                      \
 			}                                                                          \
 		}                                                                              \
+        if (pproc->fdmem[PARENT_IDX] >= 0 && sigpend != 0) {                           \
+            fd[fdnum] = pproc->fdmem[PARENT_IDX];                                      \
+            fdnum ++;                                                                  \
+            FD_SET(pproc->fdmem[PARENT_IDX],&rset);                                    \
+        }                                                                              \
 	} while(0)
 
 #define  STDOUT_READ_EXPAND(gotolabel)                                                 \
-	READ_EXPAND(m_stdout, pretout,ppout, outlen, outsize, gotolabel)
+	READ_EXPAND(m_stdout, pretout,ppout, outlen, outsize, stdoutpending, gotolabel)
 
 #define  STDERR_READ_EXPAND(gotolabel)                                                 \
-	READ_EXPAND(m_stderr, preterr,pperr, errlen, errsize, gotolabel)
+	READ_EXPAND(m_stderr, preterr,pperr, errlen, errsize, stderrpending, gotolabel)
 
 
 int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** ppout, int *poutsize , char** pperr, int *perrsize, int *pexitcode, int timeout)
@@ -585,9 +591,11 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
     char* ptmpbuf = NULL;
     int maxfd = 0;
     int timemills = 0;
-    int pending = 0;
     int maxmills = 0;
     int i;
+    int stdinpending=0;
+    int stdoutpending=0;
+    int stderrpending=0;
     fd_set rset;
     fd_set wset;
 
@@ -646,19 +654,24 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
         memset(fd, 0, sizeof(fd));
         maxmills = MAX_MILLS;
         /*first to wait for the status*/
+        status = 0;
         ret = waitpid(pproc->m_pid, &status, WNOHANG);
         if (ret < 0) {
             GETERRNO(ret);
             ERROR_INFO("wait [%d] error[%d]", pproc->m_pid, ret);
             goto fail;
         }
-        if (WIFSIGNALED(status) ) {
-            /**/
-            exitcode = WEXITSTATUS(status);
-            break;
-        } else if (WIFEXITED(status)) {
-            exitcode = WTERMSIG(status);
-            break;
+        if (ret == pproc->m_pid) {
+            if (WIFSIGNALED(status) ) {
+                /**/
+                exitcode = WTERMSIG(status);
+                DEBUG_INFO("signaled %d exitcode %d status %d", WIFSIGNALED(status),exitcode, status);
+                break;
+            } else if (WIFEXITED(status)) {
+                exitcode = WEXITSTATUS(status);
+                DEBUG_INFO("exited %d exitcode %d status %d", WIFEXITED(status),exitcode, status);
+                break;
+            }            
         }
 
         STDIN_WRITE_WAIT();
@@ -708,6 +721,17 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
                 ret = -ERFKILL;
                 ERROR_INFO("manually stopped");
                 goto fail;
+            }
+            if (stdinpending != 0 && FD_ISSET(pproc->m_stdin[PARENT_IDX],&wset)) {
+                stdinpending = 0;
+            }
+
+            if (stdoutpending != 0 && FD_ISSET(pproc->m_stdout[PARENT_IDX],&rset)) {
+                stdoutpending = 0;
+            }
+
+            if (stderrpending != 0 && FD_ISSET(pproc->m_stderr[PARENT_IDX],&rset)) {
+                stderrpending = 0;
             }
         } else {
             ret = select(0, NULL, NULL, NULL, ptm);
@@ -784,6 +808,18 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
                 ret = -ERFKILL;
                 ERROR_INFO("manually stopped");
                 goto fail;
+            }
+
+            if (stdinpending != 0 && FD_ISSET(pproc->m_stdin[PARENT_IDX],&wset)) {
+                stdinpending = 0;
+            }
+
+            if (stdoutpending != 0 && FD_ISSET(pproc->m_stdout[PARENT_IDX],&rset)) {
+                stdoutpending = 0;
+            }
+
+            if (stderrpending != 0 && FD_ISSET(pproc->m_stderr[PARENT_IDX],&rset)) {
+                stderrpending = 0;
             }
         }
     }
