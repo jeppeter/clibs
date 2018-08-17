@@ -27,6 +27,7 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 int mntdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getmnt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getdev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getfstype_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
 
@@ -402,6 +403,42 @@ int getdev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     ret = 0;
 out:
     mountdir_get_device(NULL,&pdev,&devsize);
+    SETERRNO(ret);
+    return ret;    
+}
+
+int getfstype_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* pfstype=NULL;
+    int fssize=0;
+    int i;
+    char* path=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_verbose(pargs);
+    argc = argc;
+    argv = argv;
+
+    for (i=0;parsestate->leftargs[i]!=NULL;i++) {
+        path = parsestate->leftargs[i];
+        ret = mountdir_get_fstype(path,&pfstype,&fssize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "get [%s]device error[%d]\n", path, ret);
+            goto out;
+        }
+        if (ret > 0) {
+            fprintf(stdout,"[%s] mount [%s]\n", path, pfstype);    
+        } else {
+            fprintf(stdout,"[%s] not mount directory\n", path);
+        }
+        
+    }
+
+    ret = 0;
+out:
+    mountdir_get_device(NULL,&pfstype,&fssize);
     SETERRNO(ret);
     return ret;    
 }

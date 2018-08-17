@@ -51,6 +51,18 @@ int path_get_mountdir(const char* path, char** ppmntdir,int *pmntsize);
 *************************************/
 int mountdir_get_device(const char* path,char** ppdev,int *pdevsize);
 
+/*************************************
+* mountdir_get_fstype : to get the fstype for the mountdir
+* return value:
+*           length filled in *ppfstype
+*           < 0 for error
+* params:
+*           path path to search
+*           ppfstype the devices to fill
+*           pfssize the allocated size for *ppfstype
+*************************************/
+int mountdir_get_fstype(const char* path,char** ppfstype,int *pfssize);
+
 #ifdef __cplusplus
 };
 #endif /* __cplusplus*/

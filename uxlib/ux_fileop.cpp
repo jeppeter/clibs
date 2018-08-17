@@ -595,6 +595,28 @@ fail:
     return ret;
 }
 
+int __validate_len(const char* path)
+{
+    int pathlen ;
+    int origlen = 0;
+    /*we omit the path last / */
+    pathlen = (int)strlen(path);    
+    origlen = pathlen;
+    while( pathlen >= 0 && (path[pathlen] == '\0' ||
+        path[pathlen] == '/')) {
+        pathlen --;
+    }
+
+    if (pathlen != origlen) {
+        /*to give the more a byte*/
+        pathlen ++; 
+        while(pathlen <= 0) {
+            pathlen ++;
+        }        
+    }
+    return pathlen;
+}
+
 int mountdir_get_device(const char* path,char** ppdev,int *pdevsize)
 {
     char** pplines=NULL;
@@ -609,7 +631,6 @@ int mountdir_get_device(const char* path,char** ppdev,int *pdevsize)
     char* pretstr=NULL;
     int retsize=0;
     int ret;
-    int origlen;
 
     if (path == NULL) {
         if (ppdev && *ppdev) {
@@ -627,18 +648,6 @@ int mountdir_get_device(const char* path,char** ppdev,int *pdevsize)
         SETERRNO(ret);
         return ret;
     }
-    /*we omit the path last / */
-    pathlen = (int)strlen(path);    
-    origlen = pathlen;
-    while( pathlen >= 0 && (path[pathlen] == '\0' ||
-        path[pathlen] == '/')) {
-        pathlen --;
-    }
-
-    if (pathlen != origlen) {
-        /*to give the more a byte*/
-        pathlen ++;
-    }
 
     if (ppdev == NULL || pdevsize == NULL) {
         ret = -EINVAL;
@@ -648,6 +657,8 @@ int mountdir_get_device(const char* path,char** ppdev,int *pdevsize)
 
     pretstr = *ppdev;
     retsize = *pdevsize;
+
+    pathlen = __validate_len(path);
 
     ret = __get_mtab_lines(0,&pplines,&lsize);
     if (ret < 0) {
@@ -684,7 +695,7 @@ int mountdir_get_device(const char* path,char** ppdev,int *pdevsize)
         }
     }
 
-    if (mlen > 0) {
+    if (matchlen > 0) {
         if (pretstr == NULL || retsize < (matchlen + 1)) {
             if (retsize < (matchlen + 1)) {
                 retsize = matchlen + 1;
@@ -723,4 +734,129 @@ fail:
     __get_mtab_lines(1,&pplines,&lsize);
     SETERRNO(ret);
     return ret;    
+}
+
+int mountdir_get_fstype(const char* path,char** ppfstype,int *pfssize)
+{
+    char** pplines=NULL;
+    int lsize=0,llen=0;
+    int i;
+    char* pmatch=NULL;
+    int matchlen=0;
+    int pathlen=0;
+    char* pcurptr,*plastptr;
+    int curlen;
+    char* pretstr=NULL;
+    int retsize=0;
+    int ret;
+
+    if (path == NULL) {
+        if (ppfstype && *ppfstype) {
+            free(*ppfstype);
+            *ppfstype = NULL;
+        }
+        if (pfssize) {
+            *pfssize = 0;
+        }
+        return 0;
+    }
+    if (*path != '/') {
+        ret= -EINVAL;
+        ERROR_INFO("path [%s] not absolute path", path);
+        SETERRNO(ret);
+        return ret;
+    }
+    /*we omit the path last / */
+    pathlen = __validate_len(path);
+
+    if (ppfstype == NULL || pfssize == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretstr = *ppfstype;
+    retsize = *pfssize;
+
+    ret = __get_mtab_lines(0,&pplines,&lsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    llen = ret;
+
+    for (i=0;i < llen;i++) {
+        /*first to get the device*/
+        pcurptr = pplines[i];
+        plastptr = pcurptr;
+        while(*plastptr != '\0' && *plastptr != ' ') {
+            plastptr ++;
+        }
+        while(*plastptr == ' '){
+            plastptr ++;    
+        }
+        
+        /*get the mount dir*/
+        pcurptr = plastptr;
+        plastptr = pcurptr;
+        while(*plastptr != '\0' && *plastptr != ' ') {
+            plastptr ++;
+        }
+
+        curlen = plastptr - pcurptr;
+        if (curlen == pathlen && 
+            strncmp(path, pcurptr,curlen) == 0) {
+            while(*plastptr == ' ') {
+                plastptr ++;
+            }
+            pcurptr = plastptr;
+            while(*plastptr != '\0' &&
+                    *plastptr != ' ') {
+                plastptr ++;
+            }
+            matchlen = plastptr - pcurptr;
+            pmatch = pcurptr;
+            break;
+        }
+    }
+
+    if (matchlen > 0) {
+        if (pretstr == NULL || retsize < (matchlen + 1)) {
+            if (retsize < (matchlen + 1)) {
+                retsize = matchlen + 1;
+            }
+            pretstr = (char*) malloc(retsize);
+            if (pretstr == NULL) {
+                GETERRNO(ret);
+                ERROR_INFO("alloc %d error[%d]", retsize,ret);
+                goto fail;
+            }
+        }
+        memset(pretstr, 0 ,retsize);
+        memcpy(pretstr, pmatch, matchlen);
+    } else {
+        /*to give the null*/
+        if (pretstr != NULL) {
+            memset(pretstr, 0 ,retsize);
+        }
+    }
+
+    __get_mtab_lines(1,&pplines,&lsize);
+
+    if (*ppfstype && *ppfstype != pretstr) {
+        free(*ppfstype);
+    }
+    *ppfstype = pretstr;
+    *pfssize = retsize;
+
+    return matchlen;
+fail:
+    if (pretstr && pretstr != *ppfstype) {
+        free(pretstr);
+    }
+    pretstr = NULL;
+    retsize = 0;
+    __get_mtab_lines(1,&pplines,&lsize);
+    SETERRNO(ret);
+    return ret;
 }

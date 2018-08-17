@@ -22,5 +22,8 @@
     },
     "getdev<getdev_handler>" : {
         "$" : "+"
+    },
+    "getfstype<getfstype_handler>" : {
+        "$" : "+"
     }
 }
