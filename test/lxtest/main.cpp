@@ -21,6 +21,7 @@ typedef struct __args_options {
     char* m_output;
     char* m_errout;
     int m_withevt;
+    int m_mask;
 } args_options_t, *pargs_options_t;
 
 int debug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
@@ -30,10 +31,13 @@ int mntdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int getmnt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getdev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getfstype_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int realpath_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int split_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int splitre_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int cpfile_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
 
@@ -449,6 +453,36 @@ out:
     return ret;
 }
 
+int realpath_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* prealpath = NULL;
+    int realsize = 0;
+    int i;
+    char* path = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_verbose(pargs);
+    argc = argc;
+    argv = argv;
+
+    for (i = 0; parsestate->leftargs[i] != NULL; i++) {
+        path = parsestate->leftargs[i];
+        ret = realpath_safe(path, &prealpath, &realsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "get [%s]realpath error[%d]\n", path, ret);
+            goto out;
+        }
+        fprintf(stdout,"[%d][%s] realpath [%s]\n", i, path, prealpath);
+    }
+
+    ret = 0;
+out:
+    realpath_safe(NULL,&prealpath,&realsize);
+    SETERRNO(ret);
+    return ret;
+}
 
 
 int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
@@ -753,6 +787,63 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* dir=NULL;
+    int i;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_verbose(pargs);
+    argc = argc;
+    argv = argv;
+
+    for (i=0;parsestate->leftargs != NULL && parsestate->leftargs[i]!=NULL;i++) {
+        dir = parsestate->leftargs[i];
+        ret = mkdir_p(dir,pargs->m_mask);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr,"can not mkdir [%s] error[%d]\n",dir,ret);
+            goto out;
+        }
+
+        fprintf(stdout,"[%d][%s] [%s]\n",i, dir, ret > 0 ? "created" : "exists");
+    }
+
+    ret  =0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+int cpfile_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* srcfile = NULL;
+    char* dstfile = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_verbose(pargs);
+    argc = argc;
+    argv = argv;
+
+
+    srcfile = parsestate->leftargs[0];
+    dstfile = parsestate->leftargs[1];
+    ret = cp_file(srcfile,dstfile);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"cp [%s] => [%s] error[%d]\n",srcfile,dstfile,ret);
+        goto out;
+    }
+
+    fprintf(stdout,"cp [%s] => [%s] size[%d]\n", srcfile,dstfile,ret);
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
 
 int main(int argc, char* argv[])
 {

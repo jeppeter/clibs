@@ -63,6 +63,18 @@ int mntdir_get_dev(const char* path,char** ppdev,int *pdevsize);
 *************************************/
 int mntdir_get_fstype(const char* path,char** ppfstype,int *pfssize);
 
+
+/*************************************
+* cp_file : to copy file from srcfile to dstfile
+*************************************/
+int cp_file(char* srcfile, char* dstfile);
+
+
+/*************************************
+* mkdir_p : to mkdir -p
+*************************************/
+int mkdir_p(const char* dname, int mask);
+
 #ifdef __cplusplus
 };
 #endif /* __cplusplus*/

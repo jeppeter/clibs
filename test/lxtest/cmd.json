@@ -5,6 +5,7 @@
     "output|o<m_output>"  : null,
     "errout|e<m_errout>" : null,
     "withevent<m_withevt>" : false,
+    "mask|m<m_mask>" : 504,
     "debug<debug_handler>" : {
         "$" : 0
     },
@@ -26,6 +27,9 @@
     "getfstype<getfstype_handler>" : {
         "$" : "+"
     },
+    "realpath<realpath_handler>" : {
+        "$" : "+"
+    },
     "regexec<regexec_handler>##restr instr... to match regular expression##" : {
         "$" : "+"
     },
@@ -37,5 +41,11 @@
     },
     "splitre<splitre_handler>##splitchar_regex instr ... to split instr with regular expression##" : {
         "$" : "+"
+    },
+    "mkdir<mkdir_handler>" : {
+        "$" : "+"
+    },
+    "cpfile<cpfile_handler>##srcfile dstfile to copy file##" : {
+        "$" : 2
     }
 }
