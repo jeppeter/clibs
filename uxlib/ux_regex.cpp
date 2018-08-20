@@ -99,7 +99,6 @@ int regex_compile(const char* restr, int flags, void**ppreg)
         ERROR_INFO("compile [%s] error[%d]", restr, ret);
         goto fail;
     }
-    DEBUG_INFO("compile [%s] cflags [0x%x]", restr, cflags);
 
     if (*ppreg && *ppreg != pretreg) {
         __free_regex((pex_regex_t*)ppreg);
@@ -126,7 +125,7 @@ int regex_exec(void* preg, const char* instr, int** ppstartpos, int **ppendpos, 
     int retlen = 0;
     int i;
     regmatch_t* pmatches = NULL;
-    int matchsize = 10;
+    int matchsize = 4;
     if (preg == NULL) {
         if (ppstartpos && *ppstartpos) {
             free(*ppstartpos);
@@ -175,6 +174,11 @@ try_again:
 
     ret = regexec(pregex->m_regex, instr, matchsize, pmatches, 0);
     if (ret != 0) {
+    	if (ret == REG_NOMATCH) {
+    		/*nothing to match*/
+    		retlen = 0;
+    		goto succ;
+    	}
         ERROR_INFO("can not match [%s] error[%d]", instr, ret);
         if (ret > 0 ){
         	ret = -ret;
@@ -184,9 +188,16 @@ try_again:
         }
         goto fail;
     }
-    DEBUG_INFO("ret [%d]", ret);
 
-    retlen = ret;
+    retlen = 0;
+    for (i=0;i<matchsize;i++) {
+    	if (pmatches[i].rm_so == -1 &&
+    		pmatches[i].rm_eo == -1) {
+    		break;
+    	}
+    }
+    retlen = i;
+
     if (retlen == matchsize) {
     	matchsize <<= 1;
     	goto try_again;
@@ -212,9 +223,9 @@ try_again:
     for (i=0;i<retlen;i++) {
     	pretstart[i] = pmatches[i].rm_so;
     	pretend[i] = pmatches[i].rm_eo;
-    	DEBUG_INFO("[%d] [%d] + [%d]", i, pretstart[i], pretend[i]);
     }
 
+succ:
     if (pmatches) {
         free(pmatches);
     }

@@ -519,6 +519,7 @@ try_again:
             }
             /*we move to the next to find*/
             pcurstr = &(pcurstr[pendpos[0]]);
+            fprintf(stdout,"    left[%s]\n", pcurstr);
             handled ++;
             goto try_again;
         } else {
@@ -555,6 +556,7 @@ int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     char* pmatchstr = NULL;
     size_t matchsize = 0;
     size_t matchlen = 0;
+    int handled = 0;
 
     argc = argc;
     argv = argv;
@@ -580,6 +582,8 @@ int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
     for (i = 1; i < argcnt; i++) {
         pcurstr = parsestate->leftargs[i];
+        handled = 0;
+    try_again:
         ret = regex_exec(preg, pcurstr, &pstartpos, &pendpos, &possize);
         if (ret < 0) {
             GETERRNO(ret);
@@ -608,8 +612,15 @@ int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
                 memcpy(pmatchstr, &(pcurstr[pstartpos[j]]), matchlen);
                 fprintf(stdout, "    [%03d] %s\n", j, pmatchstr);
             }
+            /*we move to the next to find*/
+            pcurstr = &(pcurstr[pendpos[0]]);
+            fprintf(stdout,"    left[%s]\n", pcurstr);
+            handled ++;
+            goto try_again;
         } else {
-            fprintf(stdout, "[%s] not find in [%s]\n", parsestate->leftargs[0], pcurstr);
+            if (handled == 0) {
+                fprintf(stdout, "[%s] not find in [%s]\n", parsestate->leftargs[0], pcurstr);
+            }
         }
     }
 
