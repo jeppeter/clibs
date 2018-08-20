@@ -32,6 +32,7 @@ int str_case_cmp(const char* pstr, const char* pcmpstr);
 int check_valid_simple_string(const char* value);
 int split_lines(const char* str, char*** ppplines, int *psize);
 int split_chars(const char* str, const char* sp, char*** ppparrs, int *psize);
+int split_chars_re(const char* str, const char* sp, int reflags, char*** ppparrs, int *psize);
 
 #ifdef __cplusplus
 };

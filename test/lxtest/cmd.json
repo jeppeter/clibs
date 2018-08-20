@@ -31,5 +31,11 @@
     },
     "iregexec<iregexec_handler>##restr instr ... to match regular expression ignore case##" : {
         "$" : "+"
+    },
+    "split<split_handler>##splitchars instr ... to split instr with splitchars##" : {
+        "$" : "+"
+    },
+    "splitre<splitre_handler>##splitchar_regex instr ... to split instr with regular expression##" : {
+        "$" : "+"
     }
 }

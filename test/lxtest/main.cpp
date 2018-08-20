@@ -6,6 +6,7 @@
 #include <ux_proc.h>
 #include <ux_fileop.h>
 #include <ux_regex.h>
+#include <ux_strop.h>
 
 #include <string.h>
 #include <unistd.h>
@@ -31,6 +32,8 @@ int getdev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int getfstype_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int split_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int splitre_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #include "args_options.cpp"
 
@@ -89,13 +92,13 @@ int debug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     WARN_BUFFER_FMT(pargs, sizeof(*pargs), "args for");
     ERROR_BUFFER_FMT(pargs, sizeof(*pargs), "args for");
     FATAL_BUFFER_FMT(pargs, sizeof(*pargs), "args for");
-    
+
     return 0;
 }
 
 int sleep_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    int ret=0;
+    int ret = 0;
     int i;
     int curmills;
     int smills;
@@ -109,31 +112,31 @@ int sleep_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     }
 
 
-    for (i=0;parsestate->leftargs[i] != NULL;i++) {
-    	curmills = atoi(parsestate->leftargs[i]);
-    	sticks = get_cur_ticks();
-    	smills = curmills;
-    	if ((i%2) == 0){
-    		if (smills > 50) {
-    			smills -= 10;
-    		}
-    	} else {
-    		if (smills > 50) {
-    			smills += 10;
-    		}
-    	}
-    	sched_out(smills);
-    	ret = time_left(sticks,curmills);
-    	cticks = get_cur_ticks();
-    	fprintf(stdout,"[%d] [%d] [%lld:0x%llx] [%lld:0x%llx] %s\n",
-    			i,curmills,(long long int)sticks,(long long unsigned int)sticks,
-    			(long long int) cticks,(long long unsigned int)cticks,
-    			(ret > 0 ? "not expired" : "expired"));
+    for (i = 0; parsestate->leftargs[i] != NULL; i++) {
+        curmills = atoi(parsestate->leftargs[i]);
+        sticks = get_cur_ticks();
+        smills = curmills;
+        if ((i % 2) == 0) {
+            if (smills > 50) {
+                smills -= 10;
+            }
+        } else {
+            if (smills > 50) {
+                smills += 10;
+            }
+        }
+        sched_out(smills);
+        ret = time_left(sticks, curmills);
+        cticks = get_cur_ticks();
+        fprintf(stdout, "[%d] [%d] [%lld:0x%llx] [%lld:0x%llx] %s\n",
+                i, curmills, (long long int)sticks, (long long unsigned int)sticks,
+                (long long int) cticks, (long long unsigned int)cticks,
+                (ret > 0 ? "not expired" : "expired"));
     }
 
     ret = 0;
-	SETERRNO(ret);
-	return ret;
+    SETERRNO(ret);
+    return ret;
 }
 
 static int st_evtfd = -1;
@@ -144,10 +147,10 @@ void sig_handler(int signo)
     int ret;
     if (st_evtfd >= 0) {
         u = 1;
-        ret = write(st_evtfd,&u,sizeof(u));
+        ret = write(st_evtfd, &u, sizeof(u));
         if (ret != sizeof(u)) {
             GETERRNO(ret);
-            fprintf(stderr,"int write error[%d]",ret);
+            fprintf(stderr, "int write error[%d]", ret);
         }
     }
     return;
@@ -205,27 +208,27 @@ void __debug_buf(FILE* fp, char* ptr, int size)
 
 int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    int ret=0;
-    char** ppout=NULL;
-    char** pperr=NULL;
-    char* pin=NULL;
-    int insize=0;
-    int inlen=0;
-    char* pout=NULL;
-    int outsize=0;
-    char* perr=NULL;
-    int errsize=0;
-    sighandler_t sighdl=SIG_ERR;
+    int ret = 0;
+    char** ppout = NULL;
+    char** pperr = NULL;
+    char* pin = NULL;
+    int insize = 0;
+    int inlen = 0;
+    char* pout = NULL;
+    int outsize = 0;
+    char* perr = NULL;
+    int errsize = 0;
+    sighandler_t sighdl = SIG_ERR;
     int exitcode;
     int i;
     pargs_options_t pargs = (pargs_options_t) popt;
 
     init_log_verbose(pargs);
     if (pargs->m_input) {
-        ret = read_file_whole(pargs->m_input,&pin,&insize);
+        ret = read_file_whole(pargs->m_input, &pin, &insize);
         if (ret < 0) {
             GETERRNO(ret);
-            fprintf(stderr,"read [%s] error[%d]\n", pargs->m_input,ret);
+            fprintf(stderr, "read [%s] error[%d]\n", pargs->m_input, ret);
             goto out;
         }
         inlen = ret;
@@ -240,55 +243,55 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
     }
 
     if (pargs->m_withevt) {
-        st_evtfd = eventfd(0,0);
+        st_evtfd = eventfd(0, 0);
         if (st_evtfd < 0) {
             GETERRNO(ret);
-            fprintf(stderr, "can not create event fd error[%d]\n",ret);
+            fprintf(stderr, "can not create event fd error[%d]\n", ret);
             goto out;
         }
 
         sighdl = signal(SIGINT, sig_handler);
         if (sighdl == SIG_ERR) {
             GETERRNO(ret);
-            fprintf(stderr,"signal SIGINT error[%d]",ret);
+            fprintf(stderr, "signal SIGINT error[%d]", ret);
             goto out;
         }
     }
 
-    ret = run_cmd_event_outputv(st_evtfd,pin,inlen,ppout,&outsize,pperr,&errsize,&exitcode,pargs->m_timeout,parsestate->leftargs);
+    ret = run_cmd_event_outputv(st_evtfd, pin, inlen, ppout, &outsize, pperr, &errsize, &exitcode, pargs->m_timeout, parsestate->leftargs);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr,"run command error [%d]\n",ret);
+        fprintf(stderr, "run command error [%d]\n", ret);
         goto out;
     }
 
-    fprintf(stdout,"run command [");
-    for (i=0;parsestate->leftargs[i];i++) {
+    fprintf(stdout, "run command [");
+    for (i = 0; parsestate->leftargs[i]; i++) {
         if (i > 0) {
-            fprintf(stdout,",");
+            fprintf(stdout, ",");
         }
-        fprintf(stdout,"%s", parsestate->leftargs[i]);
+        fprintf(stdout, "%s", parsestate->leftargs[i]);
     }
-    fprintf(stdout,"] exitcode [%d]\n", exitcode);
+    fprintf(stdout, "] exitcode [%d]\n", exitcode);
     if (pargs->m_input != NULL) {
-        fprintf(stdout,"input out\n");
-        __debug_buf(stdout,pin,inlen);
+        fprintf(stdout, "input out\n");
+        __debug_buf(stdout, pin, inlen);
     }
 
     if (pargs->m_output != NULL) {
-        fprintf(stdout,"output\n");
-        __debug_buf(stdout,pout,outsize);
+        fprintf(stdout, "output\n");
+        __debug_buf(stdout, pout, outsize);
     }
 
     if (pargs->m_errout != NULL) {
-        fprintf(stdout,"errout\n");
-        __debug_buf(stdout,perr,errsize);
+        fprintf(stdout, "errout\n");
+        __debug_buf(stdout, perr, errsize);
     }
 
     ret = 0;
 out:
-    run_cmd_event_outputv(-1, NULL, 0,&pout, &outsize, &perr, &errsize, NULL, 0, NULL);
-    read_file_whole(NULL,&pin,&insize);
+    run_cmd_event_outputv(-1, NULL, 0, &pout, &outsize, &perr, &errsize, NULL, 0, NULL);
+    read_file_whole(NULL, &pin, &insize);
     if (st_evtfd >= 0) {
         close(st_evtfd);
     }
@@ -301,34 +304,34 @@ out:
 int mntdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
-    char* mntdir=NULL;
-    int mntsize=0;
+    char* mntdir = NULL;
+    int mntsize = 0;
     int i;
-    char* dev=NULL;
+    char* dev = NULL;
     pargs_options_t pargs = (pargs_options_t) popt;
 
     init_log_verbose(pargs);
     argc = argc;
     argv = argv;
 
-    for (i=0;parsestate->leftargs[i]!=NULL;i++) {
+    for (i = 0; parsestate->leftargs[i] != NULL; i++) {
         dev = parsestate->leftargs[i];
-        ret = dev_get_mntdir(dev, &mntdir,&mntsize);
+        ret = dev_get_mntdir(dev, &mntdir, &mntsize);
         if (ret < 0) {
             GETERRNO(ret);
-            fprintf(stderr,"can not get [%s] error[%d]", dev,ret);
+            fprintf(stderr, "can not get [%s] error[%d]", dev, ret);
             goto out;
         }
         if (ret > 0) {
-            fprintf(stdout,"[%s] mount [%s]\n", dev, mntdir);
+            fprintf(stdout, "[%s] mount [%s]\n", dev, mntdir);
         } else {
-            fprintf(stdout,"[%s] not mounted\n", dev);
+            fprintf(stdout, "[%s] not mounted\n", dev);
         }
     }
 
     ret = 0;
 out:
-    dev_get_mntdir(NULL,&mntdir,&mntsize);
+    dev_get_mntdir(NULL, &mntdir, &mntsize);
     SETERRNO(ret);
     return ret;
 }
@@ -336,114 +339,114 @@ out:
 int getmnt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
-    char* mntdir=NULL;
-    int mntsize=0;
+    char* mntdir = NULL;
+    int mntsize = 0;
     int i;
-    char* path=NULL;
+    char* path = NULL;
     pargs_options_t pargs = (pargs_options_t) popt;
-    char* prealpath=NULL;
-    int realsize=0;
+    char* prealpath = NULL;
+    int realsize = 0;
 
     init_log_verbose(pargs);
     argc = argc;
     argv = argv;
 
-    for (i=0;parsestate->leftargs[i]!=NULL;i++) {
+    for (i = 0; parsestate->leftargs[i] != NULL; i++) {
         path = parsestate->leftargs[i];
-        ret = realpath_safe(path,&prealpath,&realsize);
+        ret = realpath_safe(path, &prealpath, &realsize);
         if (ret < 0) {
             GETERRNO(ret);
-            fprintf(stderr,"get real path for [%s] error[%d]\n", path, ret);
+            fprintf(stderr, "get real path for [%s] error[%d]\n", path, ret);
             goto out;
         }
-        ret = path_get_mntdir(prealpath, &mntdir,&mntsize);
+        ret = path_get_mntdir(prealpath, &mntdir, &mntsize);
         if (ret < 0) {
             GETERRNO(ret);
-            fprintf(stderr,"can not get [%s] error[%d]", path,ret);
+            fprintf(stderr, "can not get [%s] error[%d]", path, ret);
             goto out;
         }
-        fprintf(stdout,"[%s] mount [%s]\n", path, mntdir);
+        fprintf(stdout, "[%s] mount [%s]\n", path, mntdir);
     }
 
     ret = 0;
 out:
-    realpath_safe(NULL,&prealpath,&realsize);
-    path_get_mntdir(NULL,&mntdir,&mntsize);
+    realpath_safe(NULL, &prealpath, &realsize);
+    path_get_mntdir(NULL, &mntdir, &mntsize);
     SETERRNO(ret);
-    return ret;    
+    return ret;
 }
 
 
 int getdev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
-    char* pdev=NULL;
-    int devsize=0;
+    char* pdev = NULL;
+    int devsize = 0;
     int i;
-    char* path=NULL;
+    char* path = NULL;
     pargs_options_t pargs = (pargs_options_t) popt;
 
     init_log_verbose(pargs);
     argc = argc;
     argv = argv;
 
-    for (i=0;parsestate->leftargs[i]!=NULL;i++) {
+    for (i = 0; parsestate->leftargs[i] != NULL; i++) {
         path = parsestate->leftargs[i];
-        ret = mntdir_get_dev(path,&pdev,&devsize);
+        ret = mntdir_get_dev(path, &pdev, &devsize);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "get [%s]device error[%d]\n", path, ret);
             goto out;
         }
         if (ret > 0) {
-            fprintf(stdout,"[%s] mount [%s]\n", path, pdev);    
+            fprintf(stdout, "[%s] mount [%s]\n", path, pdev);
         } else {
-            fprintf(stdout,"[%s] not device mount\n", path);
+            fprintf(stdout, "[%s] not device mount\n", path);
         }
-        
+
     }
 
     ret = 0;
 out:
-    mntdir_get_dev(NULL,&pdev,&devsize);
+    mntdir_get_dev(NULL, &pdev, &devsize);
     SETERRNO(ret);
-    return ret;    
+    return ret;
 }
 
 int getfstype_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
-    char* pfstype=NULL;
-    int fssize=0;
+    char* pfstype = NULL;
+    int fssize = 0;
     int i;
-    char* path=NULL;
+    char* path = NULL;
     pargs_options_t pargs = (pargs_options_t) popt;
 
     init_log_verbose(pargs);
     argc = argc;
     argv = argv;
 
-    for (i=0;parsestate->leftargs[i]!=NULL;i++) {
+    for (i = 0; parsestate->leftargs[i] != NULL; i++) {
         path = parsestate->leftargs[i];
-        ret = mntdir_get_fstype(path,&pfstype,&fssize);
+        ret = mntdir_get_fstype(path, &pfstype, &fssize);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "get [%s]device error[%d]\n", path, ret);
             goto out;
         }
         if (ret > 0) {
-            fprintf(stdout,"[%s] mount [%s]\n", path, pfstype);    
+            fprintf(stdout, "[%s] mount [%s]\n", path, pfstype);
         } else {
-            fprintf(stdout,"[%s] not mount directory\n", path);
+            fprintf(stdout, "[%s] not mount directory\n", path);
         }
-        
+
     }
 
     ret = 0;
 out:
-    mntdir_get_fstype(NULL,&pfstype,&fssize);
+    mntdir_get_fstype(NULL, &pfstype, &fssize);
     SETERRNO(ret);
-    return ret;    
+    return ret;
 }
 
 
@@ -519,7 +522,7 @@ try_again:
             }
             /*we move to the next to find*/
             pcurstr = &(pcurstr[pendpos[0]]);
-            fprintf(stdout,"    left[%s]\n", pcurstr);
+            fprintf(stdout, "    left[%s]\n", pcurstr);
             handled ++;
             goto try_again;
         } else {
@@ -583,7 +586,7 @@ int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     for (i = 1; i < argcnt; i++) {
         pcurstr = parsestate->leftargs[i];
         handled = 0;
-    try_again:
+try_again:
         ret = regex_exec(preg, pcurstr, &pstartpos, &pendpos, &possize);
         if (ret < 0) {
             GETERRNO(ret);
@@ -614,7 +617,7 @@ int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             }
             /*we move to the next to find*/
             pcurstr = &(pcurstr[pendpos[0]]);
-            fprintf(stdout,"    left[%s]\n", pcurstr);
+            fprintf(stdout, "    left[%s]\n", pcurstr);
             handled ++;
             goto try_again;
         } else {
@@ -637,6 +640,119 @@ out:
     return ret;
 }
 
+
+int split_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* splitchars = NULL;
+    char* instr = NULL;
+    int i, j;
+    int cnt = 0;
+    char** pparrs = NULL;
+    int arrsize = 0, arrlen = 0;
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    if (parsestate->leftargs) {
+        while (parsestate->leftargs[cnt] != NULL) {
+            cnt ++;
+        }
+    }
+    argc = argc;
+    argv = argv;
+    init_log_verbose(pargs);
+
+
+    if (cnt < 1) {
+        ret = -EINVAL;
+        fprintf(stderr, "[spltichars] instr ... to set\n");
+        goto out;
+    }
+
+    if (cnt == 1) {
+        instr = parsestate->leftargs[0];
+        ret = split_chars(instr, NULL, &pparrs, &arrsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "split [%s] error[%d]", instr, ret);
+            goto out;
+        }
+        arrlen = ret;
+        fprintf(stdout, "split [%s] with NULL\n", instr);
+        for (i = 0; i < arrlen; i++) {
+            fprintf(stdout, "    [%d]=[%s]\n", i, pparrs[i]);
+        }
+    } else {
+        splitchars = parsestate->leftargs[0];
+        for (i = 1; i < cnt; i++) {
+            instr = parsestate->leftargs[i];
+            ret = split_chars(instr, splitchars, &pparrs, &arrsize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                fprintf(stderr, "split [%s] with [%s] error[%d]\n", instr, splitchars, ret);
+                goto out;
+            }
+            arrlen = ret;
+            fprintf(stdout, "split [%s] with [%s]\n", instr, splitchars);
+            for (j = 0; j < arrlen; j++) {
+                fprintf(stdout, "    [%d]=[%s]\n", j, pparrs[j]);
+            }
+        }
+    }
+
+    ret = 0;
+out:
+    split_chars(NULL, NULL, &pparrs, &arrsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int splitre_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* splitchars = NULL;
+    char* instr = NULL;
+    int i, j;
+    int cnt = 0;
+    char** pparrs = NULL;
+    int arrsize = 0, arrlen = 0;
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    if (parsestate->leftargs) {
+        while (parsestate->leftargs[cnt] != NULL) {
+            cnt ++;
+        }
+    }
+    argc = argc;
+    argv = argv;
+    init_log_verbose(pargs);
+
+
+    if (cnt < 2) {
+        ret = -EINVAL;
+        fprintf(stderr, "splti_regular_expression instr ... to set\n");
+        goto out;
+    }
+
+    splitchars = parsestate->leftargs[0];
+    for (i = 1; i < cnt; i++) {
+        instr = parsestate->leftargs[i];
+        ret = split_chars_re(instr, splitchars ,REGEX_NONE, &pparrs, &arrsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "split [%s] with [%s] error[%d]\n", instr, splitchars, ret);
+            goto out;
+        }
+        arrlen = ret;
+        fprintf(stdout, "split [%s] with [%s]\n", instr, splitchars);
+        for (j = 0; j < arrlen; j++) {
+            fprintf(stdout, "    [%d]=[%s]\n", j, pparrs[j]);
+        }
+    }
+
+    ret = 0;
+out:
+    split_chars_re(NULL, NULL, REGEX_NONE, &pparrs, &arrsize);
+    SETERRNO(ret);
+    return ret;
+}
 
 int main(int argc, char* argv[])
 {

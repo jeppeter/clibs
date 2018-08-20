@@ -2,6 +2,7 @@
 #include <ux_strop.h>
 #include <ux_err.h>
 #include <ux_output_debug.h>
+#include <ux_regex.h>
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -1018,20 +1019,20 @@ fail:
 
 int split_chars(const char* str, const char* sp, char*** ppparrs, int *psize)
 {
-    char** ppretarrs=NULL;
-    char** pptmpbuf=NULL;
-    int retsize=0;
-    int retlen=0;
+    char** ppretarrs = NULL;
+    char** pptmpbuf = NULL;
+    int retsize = 0;
+    int retlen = 0;
     int i;
-    char* pcur=NULL,*plastptr=NULL;
-    int curlen=0;
-    int cmplen=0;
+    char* pcur = NULL, *plastptr = NULL;
+    int curlen = 0;
+    int cmplen = 0;
     int ret;
 
     if (str == NULL) {
         if (ppparrs && *ppparrs) {
             ppretarrs = *ppparrs;
-            for (i=0;ppretarrs[i];i++) {
+            for (i = 0; ppretarrs[i]; i++) {
                 free(ppretarrs[i]);
                 ppretarrs[i] = NULL;
             }
@@ -1054,7 +1055,7 @@ int split_chars(const char* str, const char* sp, char*** ppparrs, int *psize)
     retsize = *psize;
     if (ppretarrs != NULL) {
         /*now free it*/
-        for (i=0;i<retsize;i++) {
+        for (i = 0; i < retsize; i++) {
             if (ppretarrs[i]) {
                 free(ppretarrs[i]);
                 ppretarrs[i] = NULL;
@@ -1078,7 +1079,7 @@ int split_chars(const char* str, const char* sp, char*** ppparrs, int *psize)
             memset(ppretarrs, 0, sizeof(*ppretarrs) * retsize);
         }
 
-        for (i=0;i<retlen;i++) {
+        for (i = 0; i < retlen; i++) {
             ASSERT_IF(ppretarrs[i] == NULL);
             ppretarrs[i] = (char*)malloc(2);
             if (ppretarrs[i] == NULL) {
@@ -1086,17 +1087,17 @@ int split_chars(const char* str, const char* sp, char*** ppparrs, int *psize)
                 ERROR_INFO("alloc 2 error[%d]", ret);
                 goto fail;
             }
-            memset(ppretarrs[i], 0 ,2);
+            memset(ppretarrs[i], 0 , 2);
             ppretarrs[i][0] = str[i];
         }
     } else {
         /*now to copy*/
         cmplen = strlen(sp);
         plastptr = pcur;
-        while(*pcur != '\0') {
-            if (strncmp(pcur,sp,cmplen) == 0) {
-            copy_one:
-                if (retlen >= (retsize-1) || ppretarrs == NULL) {
+        while (*pcur != '\0') {
+            if (strncmp(pcur, sp, cmplen) == 0) {
+copy_one:
+                if (retlen >= (retsize - 1) || ppretarrs == NULL) {
                     if (retsize < 2) {
                         retsize = 4;
                     } else {
@@ -1111,7 +1112,7 @@ int split_chars(const char* str, const char* sp, char*** ppparrs, int *psize)
                     }
                     memset(pptmpbuf, 0 , retsize * sizeof(*pptmpbuf));
                     if (retlen > 0) {
-                        memcpy(pptmpbuf, ppretarrs,retlen * sizeof(*pptmpbuf));
+                        memcpy(pptmpbuf, ppretarrs, retlen * sizeof(*pptmpbuf));
                     }
                     if (ppretarrs != NULL && ppretarrs != *ppparrs) {
                         free(ppretarrs);
@@ -1125,11 +1126,11 @@ int split_chars(const char* str, const char* sp, char*** ppparrs, int *psize)
                     ERROR_INFO("alloc %d error[%d]", curlen + 1, ret);
                     goto fail;
                 }
-                memset(ppretarrs[retlen], 0 ,curlen + 1);
+                memset(ppretarrs[retlen], 0 , curlen + 1);
                 memcpy(ppretarrs[retlen], plastptr, curlen);
                 if (*pcur != '\0') {
-                    pcur += cmplen;    
-                }                
+                    pcur += cmplen;
+                }
                 plastptr = pcur;
                 curlen = 0;
                 retlen ++;
@@ -1152,19 +1153,156 @@ int split_chars(const char* str, const char* sp, char*** ppparrs, int *psize)
     return retlen;
 
 fail:
-    if (pptmpbuf!=NULL) {
+    if (pptmpbuf != NULL) {
         free(pptmpbuf);
     }
     pptmpbuf = NULL;
     if (ppretarrs) {
-        for (i=0;ppretarrs[i] != NULL;i++) {
+        for (i = 0; ppretarrs[i] != NULL; i++) {
             free(ppretarrs[i]);
             ppretarrs[i] = NULL;
         }
 
         if (ppretarrs != *ppparrs) {
             free(ppretarrs);
-        }        
+        }
+    }
+    ppretarrs = NULL;
+    retsize = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+int split_chars_re(const char* str, const char* sp, int reflags, char*** ppparrs, int *psize)
+{
+    char** ppretarrs = NULL;
+    char** pptmpbuf = NULL;
+    int retsize = 0;
+    int retlen = 0;
+    int i;
+    char* pcur = NULL;
+    int curlen = 0;
+    int ret;
+    void* preg = NULL;
+    int *pstartpos = NULL, *pendpos = NULL;
+    int resize = 0;
+    int cend = 0;
+
+    if (str == NULL) {
+        if (ppparrs && *ppparrs) {
+            ppretarrs = *ppparrs;
+            for (i = 0; ppretarrs[i]; i++) {
+                free(ppretarrs[i]);
+                ppretarrs[i] = NULL;
+            }
+            free(ppretarrs);
+            *ppparrs = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (ppparrs == NULL || psize == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ppretarrs = *ppparrs;
+    retsize = *psize;
+    if (ppretarrs != NULL) {
+        /*now free it*/
+        for (i = 0; i < retsize; i++) {
+            if (ppretarrs[i]) {
+                free(ppretarrs[i]);
+                ppretarrs[i] = NULL;
+            }
+        }
+    }
+
+    ret = regex_compile(sp, reflags, &preg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pcur = (char*)str;
+    while (*pcur != '\0') {
+        ret = regex_exec(preg, pcur, &pstartpos, &pendpos, &resize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        } else if (ret == 0) {
+            curlen = strlen(pcur);
+            cend = strlen(pcur);
+        } else {
+            curlen = pstartpos[0];
+            cend = pendpos[0];
+        }
+        if (retlen >= (retsize - 1) || ppretarrs == NULL) {
+            if (retsize < 2) {
+                retsize = 4;
+            } else {
+                retsize <<= 1;
+            }
+
+            pptmpbuf = (char**) malloc(retsize * sizeof(*pptmpbuf));
+            if (pptmpbuf == NULL) {
+                GETERRNO(ret);
+                ERROR_INFO("alloc %d error[%d]", retsize * sizeof(*pptmpbuf), ret);
+                goto fail;
+            }
+            memset(pptmpbuf, 0 , retsize * sizeof(*pptmpbuf));
+            if (retlen > 0) {
+                memcpy(pptmpbuf, ppretarrs, retlen * sizeof(*pptmpbuf));
+            }
+            if (ppretarrs != NULL && ppretarrs != *ppparrs) {
+                free(ppretarrs);
+            }
+            ppretarrs = pptmpbuf;
+            pptmpbuf = NULL;
+        }
+        ppretarrs[retlen] = (char*)malloc(curlen + 1);
+        if (ppretarrs[retlen] == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", curlen + 1, ret);
+            goto fail;
+        }
+        memset(ppretarrs[retlen], 0 , curlen + 1);
+        memcpy(ppretarrs[retlen], pcur, curlen);
+        pcur += cend;
+        curlen = 0;
+        retlen ++;
+    }
+
+    regex_exec(NULL,NULL, &pstartpos, &pendpos, &resize);
+    regex_compile(NULL, 0, &preg);
+
+    if (*ppparrs && *ppparrs != ppretarrs) {
+        free(*ppparrs);
+    }
+    *ppparrs = ppretarrs;
+    *psize = retsize;
+    return retlen;
+
+fail:
+    regex_exec(NULL,NULL, &pstartpos, &pendpos, &resize);
+    regex_compile(NULL, 0, &preg);
+    if (pptmpbuf != NULL) {
+        free(pptmpbuf);
+    }
+    pptmpbuf = NULL;
+    if (ppretarrs) {
+        for (i = 0; ppretarrs[i] != NULL; i++) {
+            free(ppretarrs[i]);
+            ppretarrs[i] = NULL;
+        }
+
+        if (ppretarrs != *ppparrs) {
+            free(ppretarrs);
+        }
     }
     ppretarrs = NULL;
     retsize = 0;
