@@ -310,7 +310,7 @@ int mntdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     for (i=0;parsestate->leftargs[i]!=NULL;i++) {
         dev = parsestate->leftargs[i];
-        ret = get_mount_dir(dev, &mntdir,&mntsize);
+        ret = dev_get_mntdir(dev, &mntdir,&mntsize);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr,"can not get [%s] error[%d]", dev,ret);
@@ -325,7 +325,7 @@ int mntdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     ret = 0;
 out:
-    get_mount_dir(NULL,&mntdir,&mntsize);
+    dev_get_mntdir(NULL,&mntdir,&mntsize);
     SETERRNO(ret);
     return ret;
 }
@@ -353,7 +353,7 @@ int getmnt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
             fprintf(stderr,"get real path for [%s] error[%d]\n", path, ret);
             goto out;
         }
-        ret = path_get_mountdir(prealpath, &mntdir,&mntsize);
+        ret = path_get_mntdir(prealpath, &mntdir,&mntsize);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr,"can not get [%s] error[%d]", path,ret);
@@ -365,7 +365,7 @@ int getmnt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     ret = 0;
 out:
     realpath_safe(NULL,&prealpath,&realsize);
-    path_get_mountdir(NULL,&mntdir,&mntsize);
+    path_get_mntdir(NULL,&mntdir,&mntsize);
     SETERRNO(ret);
     return ret;    
 }
@@ -386,7 +386,7 @@ int getdev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     for (i=0;parsestate->leftargs[i]!=NULL;i++) {
         path = parsestate->leftargs[i];
-        ret = mountdir_get_device(path,&pdev,&devsize);
+        ret = mntdir_get_dev(path,&pdev,&devsize);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "get [%s]device error[%d]\n", path, ret);
@@ -402,7 +402,7 @@ int getdev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     ret = 0;
 out:
-    mountdir_get_device(NULL,&pdev,&devsize);
+    mntdir_get_dev(NULL,&pdev,&devsize);
     SETERRNO(ret);
     return ret;    
 }
@@ -422,7 +422,7 @@ int getfstype_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
     for (i=0;parsestate->leftargs[i]!=NULL;i++) {
         path = parsestate->leftargs[i];
-        ret = mountdir_get_fstype(path,&pfstype,&fssize);
+        ret = mntdir_get_fstype(path,&pfstype,&fssize);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "get [%s]device error[%d]\n", path, ret);
@@ -438,7 +438,7 @@ int getfstype_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
     ret = 0;
 out:
-    mountdir_get_device(NULL,&pfstype,&fssize);
+    mntdir_get_fstype(NULL,&pfstype,&fssize);
     SETERRNO(ret);
     return ret;    
 }

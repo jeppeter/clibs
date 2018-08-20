@@ -373,7 +373,26 @@ fail:
     return ret;
 }
 
-int get_mount_dir(const char* dev, char** ppmntdir,int *pmntsize)
+char* __get_line_item(char* ptr, int *plen)
+{
+    int len=0;
+    char* pcurptr = ptr;
+    while(*pcurptr == ' ') {
+        pcurptr ++;
+    }
+    ptr = pcurptr;
+    while(*pcurptr != '\0' && *pcurptr != ' ') {
+        pcurptr ++;
+    }
+
+    len = pcurptr - ptr;
+    if (plen) {
+        *plen = len;
+    }
+    return pcurptr;
+}
+
+int dev_get_mntdir(const char* dev, char** ppmntdir,int *pmntsize)
 {
     char** pplines=NULL;
     int linesize=0;
@@ -387,6 +406,7 @@ int get_mount_dir(const char* dev, char** ppmntdir,int *pmntsize)
     char* plastptr=NULL;
     char* pretstr=NULL;
     int retsize=0;
+    int curlen=0;
 
 
     if (dev == NULL) {
@@ -429,12 +449,11 @@ int get_mount_dir(const char* dev, char** ppmntdir,int *pmntsize)
     for (i=0;i<linenum;i++) {
         if (strncmp(comparestr, pplines[i], comparesize+1) == 0) {
             /*ok this is the lines ,so we found it*/
-            pcurptr = pplines[i] + comparesize+1;
-            plastptr = pcurptr;
-            while(*plastptr != ' ' && *plastptr != '\0') {
-                plastptr ++;
-            }
-            retlen = plastptr - pcurptr;
+            pcurptr = pplines[i];
+            plastptr = __get_line_item(pcurptr, &curlen);
+            pcurptr = plastptr;
+            plastptr = __get_line_item(pcurptr, &retlen);
+            plastptr -= retlen;
             if (retsize < (retlen + 1) || pretstr == NULL) {
                 if (retsize < (retlen + 1)) {
                     retsize = retlen + 1;
@@ -447,7 +466,7 @@ int get_mount_dir(const char* dev, char** ppmntdir,int *pmntsize)
                 }
             }
             memset(pretstr, 0 ,retsize);
-            memcpy(pretstr, pcurptr, retlen);
+            memcpy(pretstr, plastptr, retlen);
             break;
         }
     }
@@ -481,7 +500,7 @@ fail:
     return ret;
 }
 
-int path_get_mountdir(const char* path, char** ppmntdir,int *pmntsize)
+int path_get_mntdir(const char* path, char** ppmntdir,int *pmntsize)
 {
     char** pplines=NULL;
     int lsize=0,llen=0;
@@ -530,26 +549,15 @@ int path_get_mountdir(const char* path, char** ppmntdir,int *pmntsize)
     for (i=0;i < llen;i++) {
         /*first to get the device*/
         pcurptr = pplines[i];
-        plastptr = pcurptr;
-        while(*plastptr != '\0' && *plastptr != ' ') {
-            plastptr ++;
-        }
-        while(*plastptr == ' '){
-            plastptr ++;    
-        }
-        
-        /*get the mount dir*/
+        /*second item*/
+        plastptr = __get_line_item(pcurptr,&curlen);
         pcurptr = plastptr;
-        plastptr = pcurptr;
-        while(*plastptr != '\0' && *plastptr != ' ') {
-            plastptr ++;
-        }
-
-        curlen = plastptr - pcurptr;
+        plastptr = __get_line_item(pcurptr,&curlen);
+        plastptr -= curlen;
         if (matchlen < curlen) {
-            if (strncmp(path, pcurptr, curlen) == 0) {
+            if (strncmp(path, plastptr, curlen) == 0) {
                 matchlen = curlen;
-                pmatch = pcurptr;
+                pmatch = plastptr;
             }
         }
     }
@@ -602,22 +610,20 @@ int __validate_len(const char* path)
     /*we omit the path last / */
     pathlen = (int)strlen(path);    
     origlen = pathlen;
-    while( pathlen >= 0 && (path[pathlen] == '\0' ||
+    /*we more than 0 for / simple one*/
+    while( pathlen > 0 && (path[pathlen] == '\0' ||
         path[pathlen] == '/')) {
         pathlen --;
     }
 
     if (pathlen != origlen) {
         /*to give the more a byte*/
-        pathlen ++; 
-        while(pathlen <= 0) {
-            pathlen ++;
-        }        
+        pathlen ++;
     }
     return pathlen;
 }
 
-int mountdir_get_device(const char* path,char** ppdev,int *pdevsize)
+int mntdir_get_dev(const char* path,char** ppdev,int *pdevsize)
 {
     char** pplines=NULL;
     int lsize=0,llen=0;
@@ -669,27 +675,12 @@ int mountdir_get_device(const char* path,char** ppdev,int *pdevsize)
 
     for (i=0;i < llen;i++) {
         /*first to get the device*/
-        pcurptr = pplines[i];
-        plastptr = pcurptr;
         pdev = pplines[i];
-        while(*plastptr != '\0' && *plastptr != ' ') {
-            plastptr ++;
-        }
-        mlen = plastptr - pdev;
-        while(*plastptr == ' '){
-            plastptr ++;    
-        }
-        
-        /*get the mount dir*/
-        pcurptr = plastptr;
-        plastptr = pcurptr;
-        while(*plastptr != '\0' && *plastptr != ' ') {
-            plastptr ++;
-        }
-
-        curlen = plastptr - pcurptr;
+        pcurptr = __get_line_item(pdev,&mlen);
+        plastptr = __get_line_item(pcurptr,&curlen);
+        plastptr -= curlen;
         if (curlen == pathlen && 
-            strncmp(path, pcurptr,curlen) == 0) {
+            strncmp(path, plastptr,curlen) == 0) {
             matchlen = mlen;
             break;
         }
@@ -736,7 +727,7 @@ fail:
     return ret;    
 }
 
-int mountdir_get_fstype(const char* path,char** ppfstype,int *pfssize)
+int mntdir_get_fstype(const char* path,char** ppfstype,int *pfssize)
 {
     char** pplines=NULL;
     int lsize=0,llen=0;
@@ -788,34 +779,19 @@ int mountdir_get_fstype(const char* path,char** ppfstype,int *pfssize)
     for (i=0;i < llen;i++) {
         /*first to get the device*/
         pcurptr = pplines[i];
-        plastptr = pcurptr;
-        while(*plastptr != '\0' && *plastptr != ' ') {
-            plastptr ++;
-        }
-        while(*plastptr == ' '){
-            plastptr ++;    
-        }
-        
-        /*get the mount dir*/
+        plastptr = __get_line_item(pcurptr,&curlen);
         pcurptr = plastptr;
-        plastptr = pcurptr;
-        while(*plastptr != '\0' && *plastptr != ' ') {
-            plastptr ++;
-        }
-
-        curlen = plastptr - pcurptr;
+        plastptr = __get_line_item(pcurptr,&curlen);
+        plastptr -= curlen;
         if (curlen == pathlen && 
-            strncmp(path, pcurptr,curlen) == 0) {
-            while(*plastptr == ' ') {
-                plastptr ++;
-            }
+            strncmp(path, plastptr,curlen) == 0) {
             pcurptr = plastptr;
-            while(*plastptr != '\0' &&
-                    *plastptr != ' ') {
-                plastptr ++;
-            }
-            matchlen = plastptr - pcurptr;
-            pmatch = pcurptr;
+            plastptr = __get_line_item(pcurptr,&curlen);
+            pcurptr = plastptr ;
+            plastptr = __get_line_item(pcurptr,&curlen);
+            plastptr -= curlen;
+            pmatch = plastptr;
+            matchlen = curlen;
             break;
         }
     }

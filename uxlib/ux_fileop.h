@@ -15,7 +15,7 @@ int write_out_whole(int flag,char* poutbuf,int outsize);
 int realpath_safe(char* path, char** pprealpath, int *psize);
 
 /*************************************
-* get_mount_dir : to get the device mounted directory
+* dev_get_mntdir : to get the device mounted directory
 * return value:
 *           length filled in the *ppmntdir
 *           0 for not mounted
@@ -25,10 +25,10 @@ int realpath_safe(char* path, char** pprealpath, int *psize);
 *           ppmntdir the mount directory to fill
 *           pmntsize the allocated size for *ppmntdir 
 *************************************/
-int get_mount_dir(const char* dev, char** ppmntdir,int *pmntsize);
+int dev_get_mntdir(const char* dev, char** ppmntdir,int *pmntsize);
 
 /*************************************
-* path_get_mountdir : to get he deivce to get the most directory for mount
+* path_get_mntdir : to get he deivce to get the most directory for mount
 * return value:
 *           length filled in *ppmntdir
 *           < 0 for error
@@ -37,10 +37,10 @@ int get_mount_dir(const char* dev, char** ppmntdir,int *pmntsize);
 *           ppmntdir the mount directory to fill
 *           pmntsize the allocated size for *ppmntdir 
 *************************************/
-int path_get_mountdir(const char* path, char** ppmntdir,int *pmntsize);
+int path_get_mntdir(const char* path, char** ppmntdir,int *pmntsize);
 
 /*************************************
-* mountdir_get_device : to get the device for the mountdir
+* mntdir_get_dev : to get the device for the mountdir
 * return value:
 *           length filled in *ppdev
 *           < 0 for error
@@ -49,10 +49,10 @@ int path_get_mountdir(const char* path, char** ppmntdir,int *pmntsize);
 *           ppdev the devices to fill
 *           pdevsize the allocated size for *ppdev 
 *************************************/
-int mountdir_get_device(const char* path,char** ppdev,int *pdevsize);
+int mntdir_get_dev(const char* path,char** ppdev,int *pdevsize);
 
 /*************************************
-* mountdir_get_fstype : to get the fstype for the mountdir
+* mntdir_get_fstype : to get the fstype for the mountdir
 * return value:
 *           length filled in *ppfstype
 *           < 0 for error
@@ -61,7 +61,7 @@ int mountdir_get_device(const char* path,char** ppdev,int *pdevsize);
 *           ppfstype the devices to fill
 *           pfssize the allocated size for *ppfstype
 *************************************/
-int mountdir_get_fstype(const char* path,char** ppfstype,int *pfssize);
+int mntdir_get_fstype(const char* path,char** ppfstype,int *pfssize);
 
 #ifdef __cplusplus
 };
