@@ -38,6 +38,29 @@ int split_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int splitre_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int cpfile_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int readoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int writeoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+
+#define  GET_OPT_TYPE(num, desc, typeof)                                          \
+do{                                                                               \
+    char* __pendptr;                                                              \
+    uint64_t __num;                                                               \
+    if (parsestate->leftargs &&                                                   \
+        parsestate->leftargs[idx] != NULL) {                                      \
+        ret = parse_number(parsestate->leftargs[idx],&__num,&__pendptr);          \
+        if (ret < 0) {                                                            \
+            GETERRNO(ret);                                                        \
+            fprintf(stderr,"%s error[%d]\n", desc, ret);                          \
+            goto out;                                                             \
+        }                                                                         \
+        num = (typeof)__num;                                                      \
+        idx ++;                                                                   \
+    }                                                                             \
+} while(0)
+
+#define  GET_OPT_NUM64(num,desc)          GET_OPT_TYPE(num,desc, uint64_t)
+#define  GET_OPT_INT(num, desc)           GET_OPT_TYPE(num,desc,int)
+
 
 #include "args_options.cpp"
 
@@ -840,6 +863,109 @@ int cpfile_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     fprintf(stdout,"cp [%s] => [%s] size[%d]\n", srcfile,dstfile,ret);
     ret = 0;
 out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int readoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* infile=NULL;
+    char* pbuf=NULL;
+    int bufsize=0, buflen=0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int idx=0;
+    uint64_t offset=0;
+    init_log_verbose(pargs);
+    argc = argc;
+    argv = argv;
+
+    GET_OPT_NUM64(offset,"offset");
+    GET_OPT_INT(bufsize, "buffer size");
+
+    if (pargs->m_input == NULL) {
+        ret = -EINVAL;
+        fprintf(stderr,"need specified the input by --input|-i\n");
+        goto out;
+    }
+    infile = pargs->m_input;
+
+    pbuf = (char*)malloc(bufsize);
+    if (pbuf == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr,"alloc %d error[%d]\n", bufsize, ret);
+        goto out;
+    }
+
+    ret = read_file_offset(infile,offset,pbuf,bufsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "read [%s] error[%d]\n",infile, ret );
+        goto  out;
+    }
+    buflen = ret;
+    fprintf(stdout,"read [%s] ret[%d]\n", infile,buflen);
+    __debug_buf(stdout,pbuf,buflen);
+    ret = 0;
+out:
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int writeoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* infile=NULL;
+    char* outfile=NULL;
+    char* pbuf=NULL;
+    int bufsize=0, buflen=0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int idx=0;
+    uint64_t offset=0;
+    init_log_verbose(pargs);
+    argc = argc;
+    argv = argv;
+
+    GET_OPT_NUM64(offset,"offset");
+
+    if (pargs->m_input == NULL) {
+        ret = -EINVAL;
+        fprintf(stderr,"need specified the input by --input|-i\n");
+        goto out;
+    }
+    infile = pargs->m_input;
+    if (pargs->m_output == NULL) {
+        ret = -EINVAL;
+        fprintf(stderr,"need specified the output by --output|-o\n");
+        goto out;
+    }
+    outfile = pargs->m_output;
+
+    ret = read_file_whole(infile,&pbuf,&bufsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "read [%s] error[%d]\n",infile,ret );
+        goto out;
+    }
+    buflen = ret;
+
+    ret = write_file_offset(outfile,offset,pbuf,buflen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"write [%s] error[%d]\n", outfile, ret);
+        goto out;
+    }
+
+    fprintf(stdout,"read [%s] => [%s] offset[%ld:0x%lx] len[%d]\n", infile, outfile, offset,offset,buflen);
+    __debug_buf(stdout,pbuf,buflen);
+    ret = 0;
+out:
+    read_file_whole(NULL,&pbuf,&bufsize);
     SETERRNO(ret);
     return ret;
 }

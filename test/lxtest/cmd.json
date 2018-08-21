@@ -47,5 +47,11 @@
     },
     "cpfile<cpfile_handler>##srcfile dstfile to copy file##" : {
         "$" : 2
+    },
+    "writeoffset<writeoffset_handler>##offset  to write offset from input to output##" : {
+        "$" : 1
+    },
+    "readoffset<readoffset_handler>##[offset] [size] offset size to read from input##" : {
+        "$" : 2
     }
 }

@@ -553,6 +553,127 @@ fail:
     return ret;
 }
 
+int read_file_offset(char* infile,unsigned long long offset,char* pbuf,int bufsize)
+{
+    int rfd=-1;
+    int ret;
+    int retlen=0;
+    off64_t retoff;
+
+    if (infile == NULL || pbuf == NULL || bufsize <= 0) {
+        ret =-EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    rfd = open(infile,O_RDONLY);
+    if (rfd < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not open[%s] error[%d]", infile, ret);
+        goto fail;
+    }
+
+    if (offset != 0) {
+        SETERRNO(0);
+        retoff = lseek64(rfd, offset, SEEK_SET);
+        if (retoff == (off64_t) -1) {
+            GETERRNO_DIRECT(ret);
+            if (ret != 0) {
+                ERROR_INFO("seek [%s] offset [%lld:0x%llx] error[%d]",
+                    infile,offset,offset, ret);
+                goto fail;
+            }
+        }
+    }
+
+    while(retlen < bufsize) {
+        ret = read(rfd,&(pbuf[retlen]), (bufsize - retlen));
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("read [%s] offset[%lld:0x%llx] error[%d]",
+                infile, (offset + retlen),(offset + retlen), ret);
+            goto fail;
+        } else if (ret == 0){
+            break;
+        }
+        retlen += ret;
+    }
+
+    if (rfd>=0) {
+        close(rfd);
+    }
+    rfd = -1;
+
+    return retlen;
+fail:
+    if (rfd>=0) {
+        close(rfd);
+    }
+    rfd = -1;
+    SETERRNO(ret);
+    return ret;
+}
+
+int write_file_offset(char* outfile,unsigned long long offset,char* pbuf,int bufsize)
+{
+    int wfd=-1;
+    int ret;
+    int retlen=0;
+    off64_t retoff;
+
+    if (outfile == NULL || pbuf == NULL || bufsize <= 0) {
+        ret =-EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    wfd = open(outfile,O_RDWR | O_CREAT,0660);
+    if (wfd < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not open[%s] error[%d]", outfile, ret);
+        goto fail;
+    }
+
+    if (offset != 0) {
+        SETERRNO(0);
+        retoff = lseek64(wfd, offset, SEEK_SET);
+        if (retoff == (off64_t) -1) {
+            GETERRNO_DIRECT(ret);
+            if (ret != 0) {
+                ERROR_INFO("seek [%s] offset [%lld:0x%llx] error[%d]",
+                    outfile,offset,offset, ret);
+                goto fail;
+            }
+        }
+    }
+
+    while(retlen < bufsize) {
+        ret = write(wfd,&(pbuf[retlen]), (bufsize - retlen));
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("write [%s] offset[%lld:0x%llx] error[%d]",
+                outfile, (offset + retlen),(offset + retlen), ret);
+            goto fail;
+        } 
+        retlen += ret;
+    }
+
+    if (wfd>=0) {
+        close(wfd);
+    }
+    wfd = -1;
+
+    return retlen;
+fail:
+    if (wfd>=0) {
+        close(wfd);
+    }
+    wfd = -1;
+    SETERRNO(ret);
+    return ret;
+}
+
+
 #define  MTAB_FILE    "/etc/mtab"
 
 int __get_mtab_lines(int freed, char*** ppplines, int *plinesize)
