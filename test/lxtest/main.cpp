@@ -40,6 +40,7 @@ int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int cpfile_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int readoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int writeoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int readlines_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
 do{                                                                               \
@@ -970,6 +971,48 @@ out:
     return ret;
 }
 
+int readlines_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char** pplines=NULL;
+    int lsize=0,llen=0;
+    int i,j;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* infile=NULL;
+    int ret;
+    int maxlen = 0;
+    int maxi;
+
+    init_log_verbose(pargs);
+
+    for (i=0;parsestate->leftargs != NULL && parsestate->leftargs[i] != NULL ; i++) {
+        infile = parsestate->leftargs[i];
+        ret = read_file_lines(infile,&pplines,&lsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr,"read [%s] error[%d]\n",infile, ret);
+            goto out;
+        }
+        llen = ret;
+
+        maxi = 1;
+        maxlen = 1;
+        while(maxi < llen) {
+            maxi *= 10;
+            maxlen ++;
+        }
+
+        fprintf(stdout,"[%d] [%s] lines[%d]\n", i, infile, llen);
+        for (j=0;j<llen;j++) {
+            fprintf(stdout,"    [%*d][%s]\n",maxlen,j,pplines[j]);
+        }
+    }
+
+    ret = 0;
+out:
+    read_file_lines(NULL,&pplines,&lsize);
+    SETERRNO(ret);
+    return ret;
+}
 
 int main(int argc, char* argv[])
 {

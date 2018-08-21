@@ -53,5 +53,8 @@
     },
     "readoffset<readoffset_handler>##[offset] [size] offset size to read from input##" : {
         "$" : 2
+    },
+    "readlines<readlines_handler>" : {
+        "$" : "+"
     }
 }

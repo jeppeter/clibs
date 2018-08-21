@@ -674,6 +674,36 @@ fail:
 }
 
 
+int read_file_lines(char* infile,char*** pplines, int *psize)
+{
+    char* pcont = NULL;
+    int contsize = 0;
+    int ret;
+    int retlen = 0;
+
+    if (infile == NULL) {
+        return split_lines(NULL, pplines, psize);
+    }
+    ret = read_file_whole(infile, &pcont, &contsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = split_lines(pcont, pplines, psize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = ret;
+    read_file_whole(NULL, &pcont, &contsize);
+    return retlen;
+fail:
+    read_file_whole(NULL, &pcont, &contsize);
+    SETERRNO(ret);
+    return ret;    
+}
+
 #define  MTAB_FILE    "/etc/mtab"
 
 int __get_mtab_lines(int freed, char*** ppplines, int *plinesize)
