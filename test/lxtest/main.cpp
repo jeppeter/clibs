@@ -897,7 +897,7 @@ int readoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, void
         goto out;
     }
 
-    ret = read_file_offset(infile,offset,pbuf,bufsize);
+    ret = read_offset_file(infile,offset,pbuf,bufsize);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr, "read [%s] error[%d]\n",infile, ret );
@@ -954,7 +954,7 @@ int writeoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
     }
     buflen = ret;
 
-    ret = write_file_offset(outfile,offset,pbuf,buflen);
+    ret = write_offset_file(outfile,offset,pbuf,buflen);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr,"write [%s] error[%d]\n", outfile, ret);

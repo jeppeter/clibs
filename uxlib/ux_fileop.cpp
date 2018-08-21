@@ -553,7 +553,7 @@ fail:
     return ret;
 }
 
-int read_file_offset(char* infile,unsigned long long offset,char* pbuf,int bufsize)
+int read_offset_file(char* infile,unsigned long long offset,char* pbuf,int bufsize)
 {
     int rfd=-1;
     int ret;
@@ -614,7 +614,7 @@ fail:
     return ret;
 }
 
-int write_file_offset(char* outfile,unsigned long long offset,char* pbuf,int bufsize)
+int write_offset_file(char* outfile,unsigned long long offset,char* pbuf,int bufsize)
 {
     int wfd=-1;
     int ret;

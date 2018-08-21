@@ -13,8 +13,8 @@ int read_stdin_whole(int freed,char** ppoutbuf,int *bufsize);
 int write_file_whole(char* outfile,char* poutbuf,int outsize);
 int write_out_whole(int flag,char* poutbuf,int outsize);
 int realpath_safe(char* path, char** pprealpath, int *psize);
-int read_file_offset(char* infile,unsigned long long offset,char* pbuf,int bufsize);
-int write_file_offset(char* outfile,unsigned long long offset,char* pbuf,int bufsize);
+int read_offset_file(char* infile,unsigned long long offset,char* pbuf,int bufsize);
+int write_offset_file(char* outfile,unsigned long long offset,char* pbuf,int bufsize);
 
 /*************************************
 * dev_get_mntdir : to get the device mounted directory
