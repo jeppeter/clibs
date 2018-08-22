@@ -305,7 +305,7 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
         fprintf(stdout, "input out\n");
         __debug_buf(stdout, pin, inlen);
     } else {
-        fprintf(stdout,"input none\n");
+        fprintf(stdout, "input none\n");
     }
 
     if (pargs->m_output != NULL) {
@@ -500,12 +500,12 @@ int realpath_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             fprintf(stderr, "get [%s]realpath error[%d]\n", path, ret);
             goto out;
         }
-        fprintf(stdout,"[%d][%s] realpath [%s]\n", i, path, prealpath);
+        fprintf(stdout, "[%d][%s] realpath [%s]\n", i, path, prealpath);
     }
 
     ret = 0;
 out:
-    realpath_safe(NULL,&prealpath,&realsize);
+    realpath_safe(NULL, &prealpath, &realsize);
     SETERRNO(ret);
     return ret;
 }
@@ -620,6 +620,8 @@ int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     size_t matchsize = 0;
     size_t matchlen = 0;
     int handled = 0;
+    char** pplines=NULL;
+    int lsize=0,llen=0;
 
     argc = argc;
     argv = argv;
@@ -630,7 +632,7 @@ int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         }
     }
 
-    if (argcnt < 2) {
+    if (argcnt < 2 && pargs->m_input == NULL) {
         ret = -EINVAL;
         ERROR_INFO("arg must restr instr...");
         goto out;
@@ -643,47 +645,101 @@ int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         goto out;
     }
 
-    for (i = 1; i < argcnt; i++) {
-        pcurstr = parsestate->leftargs[i];
-        handled = 0;
+    if (argcnt >= 2) {
+        for (i = 1; i < argcnt; i++) {
+            pcurstr = parsestate->leftargs[i];
+            handled = 0;
 try_again:
-        ret = regex_exec(preg, pcurstr, &pstartpos, &pendpos, &possize);
+            ret = regex_exec(preg, pcurstr, &pstartpos, &pendpos, &possize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not exec [%s] for [%s] error[%d]", pcurstr, parsestate->leftargs[0], ret);
+                goto out;
+            }
+            retlen = ret;
+            if (retlen > 0) {
+                fprintf(stdout, "[%s] find [%s]\n", parsestate->leftargs[0], pcurstr);
+                for (j = 0; j < retlen; j++) {
+                    matchlen = (size_t)(pendpos[j] - pstartpos[j]);
+                    if (matchlen >= matchsize || pmatchstr == NULL) {
+                        if (pmatchstr) {
+                            free(pmatchstr);
+                        }
+                        pmatchstr = NULL;
+                        matchsize = (matchlen + 3);
+                        pmatchstr = (char*) malloc(matchsize);
+                        if (pmatchstr == NULL) {
+                            GETERRNO(ret);
+                            ERROR_INFO("alloc %d error[%d]", matchsize, ret);
+                            goto out;
+                        }
+                    }
+                    memset(pmatchstr, 0 , matchsize);
+                    memcpy(pmatchstr, &(pcurstr[pstartpos[j]]), matchlen);
+                    fprintf(stdout, "    [%03d] %s\n", j, pmatchstr);
+                }
+                /*we move to the next to find*/
+                pcurstr = &(pcurstr[pendpos[0]]);
+                fprintf(stdout, "    left[%s]\n", pcurstr);
+                handled ++;
+                goto try_again;
+            } else {
+                if (handled == 0) {
+                    fprintf(stdout, "[%s] not find in [%s]\n", parsestate->leftargs[0], pcurstr);
+                }
+            }
+        }
+    } else {
+        ret = read_file_lines(pargs->m_input, &pplines,&lsize);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("can not exec [%s] for [%s] error[%d]", pcurstr, parsestate->leftargs[0], ret);
+            fprintf(stderr, "can not read [%s] error[%d]\n", pargs->m_input, ret);
             goto out;
         }
-        retlen = ret;
-        if (retlen > 0) {
-            fprintf(stdout, "[%s] find [%s]\n", parsestate->leftargs[0], pcurstr);
-            for (j = 0; j < retlen; j++) {
-                matchlen = (size_t)(pendpos[j] - pstartpos[j]);
-                if (matchlen >= matchsize || pmatchstr == NULL) {
-                    if (pmatchstr) {
-                        free(pmatchstr);
+        llen = ret;
+        for (i=0;i<llen;i++) {
+            pcurstr = pplines[i];
+            handled = 0;
+file_try_again:
+            ret = regex_exec(preg, pcurstr, &pstartpos, &pendpos, &possize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not exec [%s] for [%s] error[%d]", pcurstr, parsestate->leftargs[0], ret);
+                goto out;
+            }
+            retlen = ret;
+            if (retlen > 0) {
+                fprintf(stdout, "[%s] find [%s]\n", parsestate->leftargs[0], pcurstr);
+                for (j = 0; j < retlen; j++) {
+                    matchlen = (size_t)(pendpos[j] - pstartpos[j]);
+                    if (matchlen >= matchsize || pmatchstr == NULL) {
+                        if (pmatchstr) {
+                            free(pmatchstr);
+                        }
+                        pmatchstr = NULL;
+                        matchsize = (matchlen + 3);
+                        pmatchstr = (char*) malloc(matchsize);
+                        if (pmatchstr == NULL) {
+                            GETERRNO(ret);
+                            ERROR_INFO("alloc %d error[%d]", matchsize, ret);
+                            goto out;
+                        }
                     }
-                    pmatchstr = NULL;
-                    matchsize = (matchlen + 3);
-                    pmatchstr = (char*) malloc(matchsize);
-                    if (pmatchstr == NULL) {
-                        GETERRNO(ret);
-                        ERROR_INFO("alloc %d error[%d]", matchsize, ret);
-                        goto out;
-                    }
+                    memset(pmatchstr, 0 , matchsize);
+                    memcpy(pmatchstr, &(pcurstr[pstartpos[j]]), matchlen);
+                    fprintf(stdout, "    [%03d] %s\n", j, pmatchstr);
                 }
-                memset(pmatchstr, 0 , matchsize);
-                memcpy(pmatchstr, &(pcurstr[pstartpos[j]]), matchlen);
-                fprintf(stdout, "    [%03d] %s\n", j, pmatchstr);
+                /*we move to the next to find*/
+                pcurstr = &(pcurstr[pendpos[0]]);
+                fprintf(stdout, "    left[%s]\n", pcurstr);
+                handled ++;
+                goto file_try_again;
+            } else {
+                if (handled == 0) {
+                    fprintf(stdout, "[%s] not find in [%s]\n", parsestate->leftargs[0], pcurstr);
+                }
             }
-            /*we move to the next to find*/
-            pcurstr = &(pcurstr[pendpos[0]]);
-            fprintf(stdout, "    left[%s]\n", pcurstr);
-            handled ++;
-            goto try_again;
-        } else {
-            if (handled == 0) {
-                fprintf(stdout, "[%s] not find in [%s]\n", parsestate->leftargs[0], pcurstr);
-            }
+
         }
     }
 
@@ -694,6 +750,7 @@ out:
     }
     pmatchstr = NULL;
     matchsize = 0;
+    read_file_lines(NULL,&pplines,&lsize);
     regex_exec(NULL, NULL, &pstartpos, &pendpos, &possize);
     regex_compile(NULL, REGEX_NONE, &preg);
     SETERRNO(ret);
@@ -794,7 +851,7 @@ int splitre_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     splitchars = parsestate->leftargs[0];
     for (i = 1; i < cnt; i++) {
         instr = parsestate->leftargs[i];
-        ret = split_chars_re(instr, splitchars ,REGEX_NONE, &pparrs, &arrsize);
+        ret = split_chars_re(instr, splitchars , REGEX_NONE, &pparrs, &arrsize);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "split [%s] with [%s] error[%d]\n", instr, splitchars, ret);
@@ -817,7 +874,7 @@ out:
 int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
-    char* dir=NULL;
+    char* dir = NULL;
     int i;
     pargs_options_t pargs = (pargs_options_t) popt;
 
@@ -825,19 +882,19 @@ int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     argc = argc;
     argv = argv;
 
-    for (i=0;parsestate->leftargs != NULL && parsestate->leftargs[i]!=NULL;i++) {
+    for (i = 0; parsestate->leftargs != NULL && parsestate->leftargs[i] != NULL; i++) {
         dir = parsestate->leftargs[i];
-        ret = mkdir_p(dir,pargs->m_mask);
+        ret = mkdir_p(dir, pargs->m_mask);
         if (ret < 0) {
             GETERRNO(ret);
-            fprintf(stderr,"can not mkdir [%s] error[%d]\n",dir,ret);
+            fprintf(stderr, "can not mkdir [%s] error[%d]\n", dir, ret);
             goto out;
         }
 
-        fprintf(stdout,"[%d][%s] [%s]\n",i, dir, ret > 0 ? "created" : "exists");
+        fprintf(stdout, "[%d][%s] [%s]\n", i, dir, ret > 0 ? "created" : "exists");
     }
 
-    ret  =0;
+    ret  = 0;
 out:
     SETERRNO(ret);
     return ret;
@@ -856,14 +913,14 @@ int cpfile_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     srcfile = parsestate->leftargs[0];
     dstfile = parsestate->leftargs[1];
-    ret = cp_file(srcfile,dstfile);
+    ret = cp_file(srcfile, dstfile);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr,"cp [%s] => [%s] error[%d]\n",srcfile,dstfile,ret);
+        fprintf(stderr, "cp [%s] => [%s] error[%d]\n", srcfile, dstfile, ret);
         goto out;
     }
 
-    fprintf(stdout,"cp [%s] => [%s] size[%d]\n", srcfile,dstfile,ret);
+    fprintf(stdout, "cp [%s] => [%s] size[%d]\n", srcfile, dstfile, ret);
     ret = 0;
 out:
     SETERRNO(ret);
@@ -873,22 +930,22 @@ out:
 int readoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
-    char* infile=NULL;
-    char* pbuf=NULL;
-    int bufsize=0, buflen=0;
+    char* infile = NULL;
+    char* pbuf = NULL;
+    int bufsize = 0, buflen = 0;
     pargs_options_t pargs = (pargs_options_t) popt;
-    int idx=0;
-    uint64_t offset=0;
+    int idx = 0;
+    uint64_t offset = 0;
     init_log_verbose(pargs);
     argc = argc;
     argv = argv;
 
-    GET_OPT_NUM64(offset,"offset");
+    GET_OPT_NUM64(offset, "offset");
     GET_OPT_INT(bufsize, "buffer size");
 
     if (pargs->m_input == NULL) {
         ret = -EINVAL;
-        fprintf(stderr,"need specified the input by --input|-i\n");
+        fprintf(stderr, "need specified the input by --input|-i\n");
         goto out;
     }
     infile = pargs->m_input;
@@ -896,19 +953,19 @@ int readoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     pbuf = (char*)malloc(bufsize);
     if (pbuf == NULL) {
         GETERRNO(ret);
-        fprintf(stderr,"alloc %d error[%d]\n", bufsize, ret);
+        fprintf(stderr, "alloc %d error[%d]\n", bufsize, ret);
         goto out;
     }
 
-    ret = read_offset_file(infile,offset,pbuf,bufsize);
+    ret = read_offset_file(infile, offset, pbuf, bufsize);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr, "read [%s] error[%d]\n",infile, ret );
+        fprintf(stderr, "read [%s] error[%d]\n", infile, ret );
         goto  out;
     }
     buflen = ret;
-    fprintf(stdout,"read [%s] ret[%d]\n", infile,buflen);
-    __debug_buf(stdout,pbuf,buflen);
+    fprintf(stdout, "read [%s] ret[%d]\n", infile, buflen);
+    __debug_buf(stdout, pbuf, buflen);
     ret = 0;
 out:
     if (pbuf) {
@@ -923,95 +980,95 @@ out:
 int writeoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
-    char* infile=NULL;
-    char* outfile=NULL;
-    char* pbuf=NULL;
-    int bufsize=0, buflen=0;
+    char* infile = NULL;
+    char* outfile = NULL;
+    char* pbuf = NULL;
+    int bufsize = 0, buflen = 0;
     pargs_options_t pargs = (pargs_options_t) popt;
-    int idx=0;
-    uint64_t offset=0;
+    int idx = 0;
+    uint64_t offset = 0;
     init_log_verbose(pargs);
     argc = argc;
     argv = argv;
 
-    GET_OPT_NUM64(offset,"offset");
+    GET_OPT_NUM64(offset, "offset");
 
     if (pargs->m_input == NULL) {
         ret = -EINVAL;
-        fprintf(stderr,"need specified the input by --input|-i\n");
+        fprintf(stderr, "need specified the input by --input|-i\n");
         goto out;
     }
     infile = pargs->m_input;
     if (pargs->m_output == NULL) {
         ret = -EINVAL;
-        fprintf(stderr,"need specified the output by --output|-o\n");
+        fprintf(stderr, "need specified the output by --output|-o\n");
         goto out;
     }
     outfile = pargs->m_output;
 
-    ret = read_file_whole(infile,&pbuf,&bufsize);
+    ret = read_file_whole(infile, &pbuf, &bufsize);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr, "read [%s] error[%d]\n",infile,ret );
+        fprintf(stderr, "read [%s] error[%d]\n", infile, ret );
         goto out;
     }
     buflen = ret;
 
-    ret = write_offset_file(outfile,offset,pbuf,buflen);
+    ret = write_offset_file(outfile, offset, pbuf, buflen);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr,"write [%s] error[%d]\n", outfile, ret);
+        fprintf(stderr, "write [%s] error[%d]\n", outfile, ret);
         goto out;
     }
 
-    fprintf(stdout,"read [%s] => [%s] offset[%ld:0x%lx] len[%d]\n", infile, outfile, offset,offset,buflen);
-    __debug_buf(stdout,pbuf,buflen);
+    fprintf(stdout, "read [%s] => [%s] offset[%ld:0x%lx] len[%d]\n", infile, outfile, offset, offset, buflen);
+    __debug_buf(stdout, pbuf, buflen);
     ret = 0;
 out:
-    read_file_whole(NULL,&pbuf,&bufsize);
+    read_file_whole(NULL, &pbuf, &bufsize);
     SETERRNO(ret);
     return ret;
 }
 
 int readlines_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    char** pplines=NULL;
-    int lsize=0,llen=0;
-    int i,j;
+    char** pplines = NULL;
+    int lsize = 0, llen = 0;
+    int i, j;
     pargs_options_t pargs = (pargs_options_t) popt;
-    char* infile=NULL;
+    char* infile = NULL;
     int ret;
     int maxlen = 0;
     int maxi;
 
     init_log_verbose(pargs);
 
-    for (i=0;parsestate->leftargs != NULL && parsestate->leftargs[i] != NULL ; i++) {
+    for (i = 0; parsestate->leftargs != NULL && parsestate->leftargs[i] != NULL ; i++) {
         infile = parsestate->leftargs[i];
-        ret = read_file_lines(infile,&pplines,&lsize);
+        ret = read_file_lines(infile, &pplines, &lsize);
         if (ret < 0) {
             GETERRNO(ret);
-            fprintf(stderr,"read [%s] error[%d]\n",infile, ret);
+            fprintf(stderr, "read [%s] error[%d]\n", infile, ret);
             goto out;
         }
         llen = ret;
 
         maxi = 1;
         maxlen = 1;
-        while(maxi < llen) {
+        while (maxi < llen) {
             maxi *= 10;
             maxlen ++;
         }
 
-        fprintf(stdout,"[%d] [%s] lines[%d]\n", i, infile, llen);
-        for (j=0;j<llen;j++) {
-            fprintf(stdout,"    [%*d][%s]\n",maxlen,j,pplines[j]);
+        fprintf(stdout, "[%d] [%s] lines[%d]\n", i, infile, llen);
+        for (j = 0; j < llen; j++) {
+            fprintf(stdout, "    [%*d][%s]\n", maxlen, j, pplines[j]);
         }
     }
 
     ret = 0;
 out:
-    read_file_lines(NULL,&pplines,&lsize);
+    read_file_lines(NULL, &pplines, &lsize);
     SETERRNO(ret);
     return ret;
 }
