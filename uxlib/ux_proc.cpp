@@ -1004,7 +1004,7 @@ int __get_progs(char* prog, va_list ap, char** ppprogs[], int *psize)
     }
 
     ppretprogs[0] = strdup(prog);
-    if (ppretprogs[cnt] == NULL) {
+    if (ppretprogs[0] == NULL) {
         GETERRNO(ret);
         ERROR_INFO("strdup [%s] error[%d]", prog, ret);
         goto fail;
@@ -1012,7 +1012,7 @@ int __get_progs(char* prog, va_list ap, char** ppprogs[], int *psize)
 
     if (ap != NULL) {
     	va_copy(ap,oldap);
-    	i = 0;
+    	i = 1;
         while (1) {
             curarg = va_arg(ap, char*);
             if (curarg == NULL) {
