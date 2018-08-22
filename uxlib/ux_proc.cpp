@@ -488,7 +488,8 @@ fail:
 }
 
 #define   MINI_BUFSIZE         1024
-#define   MAX_MILLS            15000
+/*we use a little time*/
+#define   MAX_MILLS            1000
 int get_min(int a, int b)
 {
     if (a > b) {

@@ -304,6 +304,8 @@ int run_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
     if (pargs->m_input != NULL) {
         fprintf(stdout, "input out\n");
         __debug_buf(stdout, pin, inlen);
+    } else {
+        fprintf(stdout,"input none\n");
     }
 
     if (pargs->m_output != NULL) {
