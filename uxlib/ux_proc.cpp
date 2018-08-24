@@ -489,7 +489,7 @@ fail:
 
 #define   MINI_BUFSIZE         1024
 /*we use a little time*/
-#define   MAX_MILLS            1000
+#define   MAX_MILLS            15000
 int get_min(int a, int b)
 {
     if (a > b) {
@@ -697,6 +697,12 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
                 goto fail;
             }
             maxmills = get_min(maxmills, timemills);
+        }
+
+        if ((evtfd < 0 && fdnum == 0) || 
+            (evtfd >= 0 && fdnum == 1)) {
+            /*we need just one test*/
+            maxmills = get_min(maxmills, 10);
         }
 
         memset(&tm, 0, sizeof(tm));
