@@ -2,6 +2,8 @@
 #define __UX_ERR_H_73A8C598A0218E3860A02C1628B7A768__
 
 #include <stdint.h>
+/*for define size_t type*/
+#include <glob.h>
 #include <errno.h>
 
 #ifdef __cplusplus
