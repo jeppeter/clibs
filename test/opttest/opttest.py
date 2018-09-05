@@ -68,7 +68,7 @@ class debug_opttest_case(unittest.TestCase):
                     os.remove(c)
                 elif os.path.isdir(c):
                     shutil.rmtree(c)
-                else:
+                elif os.path.exists(c):
                     logging.warn('[%s] not support type'%(c))
         self.__tempfiles = []
         return
@@ -109,6 +109,7 @@ class debug_opttest_case(unittest.TestCase):
             os.close(fd)
         with open(outf,'w') as fout:
             fout.write(jsonstr)
+        self.__tempfiles.append(outf)
         return outf
 
     def __running_ok(self,cmd=[]):
@@ -238,6 +239,9 @@ class debug_opttest_case(unittest.TestCase):
         if 'jsonlong' in extdict.keys():
             retcmds.append('--jsonlong')
             retcmds.append(extdict['jsonlong'])
+        if 'prog' in extdict.keys():
+            retcmds.append('--argv0')
+            retcmds.append(extdict['prog'])
         return retcmds
 
     def __extend_optcmds(self,cmdsdict):
@@ -485,7 +489,6 @@ class debug_opttest_case(unittest.TestCase):
         outf = None
         if extoptions is not None:
             outf = self.__write_jsonfile(extoptions)
-            self.__tempfiles.append(outf)
             logging.info('outf [%s]'%(outf))
         pythonfile = os.path.join(optdir,'debugout.py')
         if uname0 == 'linux' or uname0 == 'windows':
@@ -634,6 +637,7 @@ class debug_opttest_case(unittest.TestCase):
         os.close(fd)
         with open(tempf,'w') as f:
             f.write('%s'%(content))
+        self.__tempfiles.append(tempf)
         logging.info('tempf %s'%(tempf))
         return tempf
 
