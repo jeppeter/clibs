@@ -2205,6 +2205,186 @@ class debug_opttest_case(unittest.TestCase):
         self.assertTrue(matchexpr.match(sarr[0]))
         return
 
+    def test_A059(self):
+        commandline='''
+        {
+            "verbose|v" : "+",
+            "kernel|K" : "/boot/",
+            "initrd|I" : "/boot/",
+            "pair|P!optparse=Debug_set_2_args!" : [],
+            "encryptfile|e" : null,
+            "encryptkey|E" : null,
+            "setupsectsoffset" : 663,
+            "ipxe" : {
+                "$" : "+"
+            }
+        }
+        '''
+        optstr='''
+        {
+            "parseall" : true,
+            "longprefix" : "++",
+            "shortprefix" : "+"
+        }
+        '''
+        outs, tempf, tmpd = self.__extargs_opttest_out(commandline,['+K','kernel','++pair','initrd','cc','dd','+E','encryptkey','+e','encryptfile','ipxe'],extoptions=optstr)
+        logging.info('outs %s'%(outs))
+        return
+
+    def __assert_string_expr(self,sarr,strexpr):
+        #self.info('strexpr (%s)'%(strexpr))
+        expr = re.compile(strexpr)
+        ok = False
+        for s in sarr:
+            res = '[%s] match [%s]'%(s, strexpr)
+            if expr.match(s):
+                ok = True
+                res = res + ' ok'
+                logging.info('%s'%(res))
+                break
+            res = res + 'failed'
+            logging.info('%s'%(res))
+        return ok
+
+    def __get_cmd_ok(self,sarr,cmdname):
+        exprstr = '^\\s+\\[%s\\]\\s+.*'%(cmdname)
+        return self.__assert_string_expr(sarr,exprstr)
+
+    def __get_cmds_ok(self,parser,sarr,cmdname):
+        retval = True
+        subcmds = parser.get_subcommands(cmdname)
+        for c in subcmds:
+            ok = self.__get_cmd_ok(sarr,c)
+            self.assertTrue(ok)
+            if not ok:
+                retval = False
+        return retval
+
+    def test_A060(self):
+        commandline='''
+        {
+            "verbose|v" : "+",
+            "dep" : {
+                "$" : "*",
+                "ip" : {
+                    "$" : "*"
+                }
+            },
+            "rdep" : {
+                "$" : "*",
+                "ip" : {
+                    "$" : "*"
+                }
+            }
+        }
+        '''
+        outs , tmpf, tmpd = self.__extargs_opttest_out(commandline,['-h'])
+        parser = extargsparse.ExtArgsParse()
+        parser.load_command_line_string(commandline)
+        retval = self.__get_cmds_ok(parser, outs, "")
+        self.assertTrue(retval)
+
+        outs , tmpf, tmpd = self.__extargs_opttest_out(commandline,['dep','-h'])
+        parser = extargsparse.ExtArgsParse()
+        parser.load_command_line_string(commandline)
+        retval = self.__get_cmds_ok(parser, outs, "dep")
+        self.assertTrue(retval)
+
+        outs , tmpf, tmpd = self.__extargs_opttest_out(commandline,['rdep','-h'])
+        parser = extargsparse.ExtArgsParse()
+        parser.load_command_line_string(commandline)
+        retval = self.__get_cmds_ok(parser, outs, "rdep")
+        self.assertTrue(retval)
+        return
+
+
+    def test_A061(self):
+        commandline='''
+        {
+            "verbose|v" : "+",
+            "dep##[cc]... dep handler used##" : {
+                "$" : "*",
+                "ip" : {
+                    "$" : "*"
+                }
+            },
+            "rdep##[dd]... rdep handler used##" : {
+                "$" : "*",
+                "ip" : {
+                    "$" : "*"
+                }
+            }
+        }
+        '''
+        outs , tmpf, tmpd = self.__extargs_opttest_out(commandline,['dep','-h'])
+        expr = re.compile('\[cc\]... dep handler used')
+        ok = False
+        if len(outs) > 0:
+            m = expr.findall(outs[0])
+            if m is not None and len(m) > 0:
+                ok = True
+        self.assertTrue(ok)
+
+        outs , tmpf, tmpd = self.__extargs_opttest_out(commandline,['rdep','-h'])
+        expr = re.compile('\[dd\]... rdep handler used')
+        ok = False
+        if len(outs) > 0:
+            m = expr.findall(outs[0])
+            if m is not None and len(m) > 0:
+                ok = True
+        self.assertTrue(ok)
+        return
+
+    def test_A062(self):
+        commandline='''
+        {
+            "verbose|v" : "+",
+            "dep##[cc]... dep handler used##" : {
+                "$" : "*",
+                "ip" : {
+                    "$" : "*"
+                }
+            },
+            "rdep##[dd]... rdep handler used##" : {
+                "$" : "*",
+                "ip" : {
+                    "$" : "*"
+                }
+            }
+        }
+        '''
+        optstr='''
+        {
+            "prog" : "cmd1"
+        }
+        '''
+        outs , tmpf, tmpd = self.__extargs_opttest_out(commandline,['dep','-h'], extoptions=optstr)
+        expr = re.compile('\[cc\]... dep handler used')
+        expr2 = re.compile('cmd1')
+        ok = False
+        if len(outs) > 0:
+            m = expr.findall(outs[0])
+            if m is not None and len(m) > 0:
+                m = expr2.findall(outs[0])
+                if m is not None and len(m) > 0:
+                    ok = True
+        self.assertTrue(ok)
+
+        outs , tmpf, tmpd = self.__extargs_opttest_out(commandline,['rdep','-h'], extoptions=optstr)
+        expr = re.compile('\[dd\]... rdep handler used')
+        expr2 = re.compile('cmd1')
+        ok = False
+        if len(outs) > 0:
+            m = expr.findall(outs[0])
+            if m is not None and len(m) > 0:
+                m = expr2.findall(outs[0])
+                if m is not None and len(m) > 0:
+                    ok = True
+        self.assertTrue(ok)
+
+        return
+
+
 
 def __init_lib_paths(pathtoload):
     uname0 = platform.uname()[0]

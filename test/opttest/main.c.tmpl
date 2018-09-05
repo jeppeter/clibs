@@ -220,6 +220,96 @@ fail:
     return ret;
 }
 
+int Debug_set_2_args(int argc,char* argv[],int validx,struct __opt_help* popthelp,void** ppdestopt)
+{
+    char**** pppc = (char****) ppdestopt;
+    char** oldpc = NULL;
+    char** newpc = NULL;
+    char** pptr;
+    int ret;
+    int cnt = 0;
+    int i;
+    char* arg1=NULL,*arg2=NULL;
+    popthelp = popthelp;
+    if (pppc == NULL || *pppc == NULL) {
+        ret = -EXTARGS_INVAL_PARAM;
+        goto fail;
+    }
+
+    if ((validx + 1) >= argc) {
+        ret = -EXTARGS_INVAL_PARAM;
+        goto fail;
+    }
+
+    oldpc = **pppc;
+
+    if (oldpc) {
+        pptr = oldpc;
+        while (pptr[cnt] != NULL) {
+            cnt ++;
+        }
+    }
+
+    /*one for new item ,one for end null*/
+    newpc = (char**)malloc(sizeof(*newpc) *  (cnt + 3));
+    if (newpc == NULL) {
+        ret = -EXTARGS_NO_MEM;
+        goto fail;
+    }
+
+    memset(newpc, 0, sizeof(*newpc) * (cnt + 3));
+    for (i = 0; i < cnt; i++) {
+        newpc[i] = oldpc[i];
+    }
+
+    arg1 = safe_strdup(argv[validx]);
+    if (arg1 == NULL) {
+        ret = -EXTARGS_NO_MEM;
+        goto fail;
+    }
+    for (i = 0; arg1[i] != 0x0;i++) {
+        if (arg1[i] >= 'a' && arg1[i] <= 'z') {
+            arg1[i] = arg1[i] - 'a' + 'A';
+        }
+    }
+
+    arg2 = safe_strdup(argv[validx+1]);
+    if (arg2 == NULL) {
+        ret = -EXTARGS_NO_MEM;
+        goto fail;
+    }
+
+    for (i = 0; arg2[i] != 0x0;i++) {
+        if (arg2[i] >= 'a' && arg2[i] <= 'z') {
+            arg2[i] = arg2[i] - 'a' + 'A';
+        }
+    }
+
+    newpc[cnt] = arg1;    
+    newpc[cnt + 1] = arg2;
+    if (oldpc) {
+        free(oldpc);
+    }
+    (**pppc) = newpc;
+    return 2;
+fail:
+    if (arg1) {
+        free(arg1);
+    }
+    arg1 = NULL;
+    if (arg2) {
+        free(arg2);
+    }
+    arg2 = NULL;
+    if (newpc != NULL) {
+        free(newpc);
+    }
+    newpc = NULL;
+    return ret;
+}
+
+
+
 char* debug_opthelp_set(struct __opt_help* popthelp)
 {
     int nsize=0;

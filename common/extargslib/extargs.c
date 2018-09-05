@@ -1653,7 +1653,7 @@ int get_cmd_name(popt_cmd_t pcmd, char** ppcmd, int *pcmdsize)
     int ret = 0;
     if (pcmd) {
         if (pcmd->m_cmd) {
-            ret = snprintf_safe(ppcmd, pcmdsize, "%s", pcmd->m_cmd);
+            ret = snprintf_safe(ppcmd, pcmdsize, "[%s]", pcmd->m_cmd);
         } else {
             snprintf_safe(ppcmd, pcmdsize, NULL);
         }
@@ -1994,7 +1994,7 @@ char* __help_usagev(const char* arg0, const char* subcmd , popt_cmd_t pmaincmd, 
         }
     }
 
-    if (subcmd == NULL) {
+    if (phelpcmd == pmaincmd) {
         APPEND_STRING("%s [OPTIONS]", arg0);
         if (phelpcmd->m_subcmds != NULL) {
             APPEND_STRING(" [SUBCOMMANDS] ...\n");
@@ -2003,11 +2003,15 @@ char* __help_usagev(const char* arg0, const char* subcmd , popt_cmd_t pmaincmd, 
         }
     } else {
 
-        APPEND_STRING("%s [OPTIONS] %s", arg0, subcmd);
-        if (phelpcmd->m_subcmds != NULL) {
-            APPEND_STRING(" [SUBCOMMANDS] ...\n");
+        APPEND_STRING("%s  %s", arg0, subcmd);
+        if (phelpcmd->m_cmdhelp != NULL) {
+            APPEND_STRING(" %s\n", phelpcmd->m_cmdhelp);
         } else {
-            APPEND_STRING(" ...\n");
+            if (phelpcmd->m_subcmds != NULL) {
+                APPEND_STRING(" [SUBCOMMANDS] ...\n");
+            } else {
+                APPEND_STRING(" ...\n");
+            }            
         }
     }
 
