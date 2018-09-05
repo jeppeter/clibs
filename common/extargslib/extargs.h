@@ -44,7 +44,7 @@ typedef int (*opt_jsonfunc_t)(struct __opt_help* popthelp,void* pvalue,void** pp
 
 #define EXTARGSLIB_MAIN_VERSION  1
 #define EXTARGSLIB_MINOR_VERSION 0
-#define EXTARGSLIB_PATCH_VERSION 0
+#define EXTARGSLIB_PATCH_VERSION 2
 
 
 #define EXTARGS_NARGS_BITS_SHIFT 32

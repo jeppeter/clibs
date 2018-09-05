@@ -5,6 +5,7 @@
 * extargsparse python module used in coutput.py
 
 ### Release History
+* Sep 5th 2018 Release 1.0.2 to make usage format with helpinfo right
 * Jan 30th 2018 Release 0.2.0 to make the compiling with visual studio of /MT mode not /MD mode
 * Nov 7th 2017 Release 0.1.8 to make extargslib for ok in ubuntu 12.04
 * Apr 9th 2017 Release 0.1.6 to make test ok for extargsparse 1.0.2
