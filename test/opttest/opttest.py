@@ -2188,6 +2188,23 @@ class debug_opttest_case(unittest.TestCase):
         self.__extargs_opttest_out(commandline,['ca','-crl_CA_compromise','eeww'],extoptions=extoptions)
         return
 
+    def test_A058(self):
+        commandline='''
+        {
+            "verbose" : "+",
+            "dep" : {
+                "$" : "*"
+            },
+            "rdep" : {
+                "$" : "*"
+            }
+        }
+        '''
+        sarr , tempf, tmpd = self.__extargs_opttest_out(commandline,['-h'])
+        matchexpr = re.compile('.*\[OPTIONS\]\s+\[SUBCOMMANDS\]\s+.*')
+        self.assertTrue(matchexpr.match(sarr[0]))
+        return
+
 
 def __init_lib_paths(pathtoload):
     uname0 = platform.uname()[0]

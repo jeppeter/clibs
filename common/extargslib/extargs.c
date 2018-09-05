@@ -1997,7 +1997,7 @@ char* __help_usagev(const char* arg0, const char* subcmd , popt_cmd_t pmaincmd, 
     if (subcmd == NULL) {
         APPEND_STRING("%s [OPTIONS]", arg0);
         if (phelpcmd->m_subcmds != NULL) {
-            APPEND_STRING(" [COMMANDS] ...\n");
+            APPEND_STRING(" [SUBCOMMANDS] ...\n");
         } else {
             APPEND_STRING(" ...\n");
         }
@@ -2005,7 +2005,7 @@ char* __help_usagev(const char* arg0, const char* subcmd , popt_cmd_t pmaincmd, 
 
         APPEND_STRING("%s [OPTIONS] %s", arg0, subcmd);
         if (phelpcmd->m_subcmds != NULL) {
-            APPEND_STRING(" [COMMANDS] ...\n");
+            APPEND_STRING(" [SUBCOMMANDS] ...\n");
         } else {
             APPEND_STRING(" ...\n");
         }
