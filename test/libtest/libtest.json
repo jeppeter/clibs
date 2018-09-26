@@ -97,5 +97,8 @@
     },
     "winver<winver_handler>##       check windows version##" : {
         "$" : 0
+    },
+    "getacl<getacl_handler>##files...  to get the file acl##" : {
+        "$" : "+"
     }
 }

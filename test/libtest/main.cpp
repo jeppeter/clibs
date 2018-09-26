@@ -15,6 +15,7 @@
 #include <win_svc.h>
 #include <win_regop.h>
 #include <win_ver.h>
+#include <win_acl.h>
 
 typedef struct __args_options {
     int m_verbose;
@@ -62,6 +63,7 @@ int svcmode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int regbinget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -2625,6 +2627,45 @@ int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     fprintf(stdout,"win10 %s\n", is_win10() ? "true" : "false");
 
     return 0;
+}
+
+int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    int i;
+    void* pacl=NULL;
+    const char* fname;
+    pargs_options_t pargs= (pargs_options_t) popt;
+    char* user=NULL;
+    int usersize=0;
+    init_log_level(pargs);
+    argc = argc;
+    argv = argv;
+    if (parsestate->leftargs) {
+        for (i=0;parsestate->leftargs[i] != NULL;i++) {
+            fname = parsestate->leftargs[i];
+            ret = get_file_acl(fname,&pacl);
+            if (ret < 0) {
+                GETERRNO(ret);
+                fprintf(stderr, "get [%d][%s] acl error[%d]\n", i,fname, ret);
+                goto out;
+            }
+            ret = get_acl_user(pacl,0,&user,&usersize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                fprintf(stderr, "get [%d][%s] acl error[%d]\n",i, fname, ret);
+                goto out;
+            }
+
+            fprintf(stdout,"get [%d][%s] [%s]\n",i , fname, user);
+        }
+    }
+    ret = 0;
+out:
+    get_acl_user(NULL,0,&user,&usersize);
+    get_file_acl(NULL,&pacl);
+    SETERRNO(ret);
+    return ret;
 }
 
 int _tmain(int argc, TCHAR* argv[])
