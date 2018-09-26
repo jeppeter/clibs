@@ -275,70 +275,19 @@ fail:
     }
 */
 
-int __get_acl_user(PACL acl, int idx, char** ppuser, int *pusersize)
+void __debug_access(PEXPLICIT_ACCESS paccess, int accnum)
 {
-    int ret;
-    char* pretuser = NULL;
-    int usersize = 0;
-    int retlen = 0;
-    BOOL bret;
-    PEXPLICIT_ACCESS  paccess = NULL, pcuracc = NULL;
-    ULONG accnum = 0;
-    DWORD dret;
     int i;
-    PSID psid;
-    char* pname = NULL;
-    int namesize = 0;
-    char* pdomain = NULL;
-    int domainsize = 0;
-    TCHAR* ptuser = NULL;
-    DWORD tusersize = 0, tuserlen = 0;
-    TCHAR* ptdomain = NULL;
-    DWORD tdomainsize = 0, tdomainlen = 0;
+    PEXPLICIT_ACCESS pcuracc;
+    PSID psid = NULL;
+    int ret;
+    BOOL bret;
     SID_NAME_USE siduse;
-    idx = idx;
-    if (acl == NULL) {
-        if (ppuser && *ppuser) {
-            free(*ppuser);
-            *ppuser = NULL;
-        }
-        if (pusersize) {
-            *pusersize = 0;
-        }
-        return 0;
-    }
-    if (ppuser == NULL || pusersize == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;
-    }
-    pretuser = *ppuser;
-    usersize = *pusersize;
-
-
-
-    accnum = 0;
-    paccess = NULL;
-    dret = GetExplicitEntriesFromAcl(acl, &accnum, &paccess);
-    if (dret != ERROR_SUCCESS) {
-        ret = dret;
-        if (ret > 0) {
-            ret = -ret;
-        }
-        if (ret == 0) {
-            ret = -1;
-        }
-        ERROR_INFO("get acl explicit error[%d]", ret);
-        goto fail;
-    }
-
-    DEBUG_INFO("get accnum [%d]", accnum);
-    if ((int)accnum <= idx) {
-        retlen = 0;
-        goto succ;
-    }
-
-
+    TCHAR* ptuser = NULL, *ptdomain = NULL;
+    DWORD tusersize = 0, tuserlen = 0;
+    DWORD tdomainsize = 0, tdomainlen = 0;
+    char* pname = NULL, *pdomain = NULL;
+    int namesize = 0, domainsize = 0;
     for (i = 0; i < (int)accnum; i++) {
         pcuracc = &(paccess[i]);
         DEBUG_INFO("[%d] grfAccessPermissions [%ld]", i, pcuracc->grfAccessPermissions);
@@ -398,6 +347,98 @@ try_get_sid_old:
             }
         }
     }
+    if (ptuser) {
+        free(ptuser);
+    }
+    ptuser = NULL;
+    if (ptdomain) {
+        free(ptdomain);
+    }
+    ptdomain = NULL;
+
+    TcharToAnsi(NULL, &pdomain, &domainsize);
+    TcharToAnsi(NULL, &pname, &namesize);
+
+    return;
+fail:
+    if (ptuser) {
+        free(ptuser);
+    }
+    ptuser = NULL;
+    if (ptdomain) {
+        free(ptdomain);
+    }
+    ptdomain = NULL;
+
+    TcharToAnsi(NULL, &pdomain, &domainsize);
+    TcharToAnsi(NULL, &pname, &namesize);
+    return;
+}
+
+int __get_acl_user(PACL acl, int idx, char** ppuser, int *pusersize)
+{
+    int ret;
+    char* pretuser = NULL;
+    int usersize = 0;
+    int retlen = 0;
+    BOOL bret;
+    PEXPLICIT_ACCESS  paccess = NULL, pcuracc = NULL;
+    ULONG accnum = 0;
+    DWORD dret;
+    PSID psid;
+    char* pname = NULL;
+    int namesize = 0;
+    char* pdomain = NULL;
+    int domainsize = 0;
+    TCHAR* ptuser = NULL;
+    DWORD tusersize = 0, tuserlen = 0;
+    TCHAR* ptdomain = NULL;
+    DWORD tdomainsize = 0, tdomainlen = 0;
+    SID_NAME_USE siduse;
+    idx = idx;
+    if (acl == NULL) {
+        if (ppuser && *ppuser) {
+            free(*ppuser);
+            *ppuser = NULL;
+        }
+        if (pusersize) {
+            *pusersize = 0;
+        }
+        return 0;
+    }
+    if (ppuser == NULL || pusersize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    pretuser = *ppuser;
+    usersize = *pusersize;
+
+
+
+    accnum = 0;
+    paccess = NULL;
+    dret = GetExplicitEntriesFromAcl(acl, &accnum, &paccess);
+    if (dret != ERROR_SUCCESS) {
+        ret = dret;
+        if (ret > 0) {
+            ret = -ret;
+        }
+        if (ret == 0) {
+            ret = -1;
+        }
+        ERROR_INFO("get acl explicit error[%d]", ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("get accnum [%d]", accnum);
+    if ((int)accnum <= idx) {
+        retlen = 0;
+        goto succ;
+    }
+    __debug_access(paccess, accnum);
+
+
 
     pcuracc = &(paccess[idx]);
     if (pcuracc->Trustee.TrusteeForm != TRUSTEE_IS_SID  ||
@@ -434,6 +475,7 @@ try_get_sid:
     }
     tuserlen = tusersize;
     tdomainlen = tdomainsize;
+    psid = (PSID)pcuracc->Trustee.ptstrName;
     bret = LookupAccountSid(NULL, psid, ptuser, &tuserlen, ptdomain, &tdomainlen, &siduse);
     if (!bret) {
         GETERRNO(ret);
@@ -515,17 +557,43 @@ fail:
     return ret;
 }
 
+PACL __get_acl_from_descriptor(PSECURITY_DESCRIPTOR psdp)
+{
+    BOOL bacldefault, bacl;
+    BOOL bret;
+    PACL acl = NULL;
+    int ret;
+
+    bacl = FALSE;
+    bacldefault = FALSE;
+    bret = GetSecurityDescriptorSacl(psdp, &bacl, &acl, &bacldefault);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("get acl error[%d]", ret);
+        goto fail;
+    }
+
+    if (!bacl) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("not acl type");
+        goto fail;
+    }
+
+    return acl;
+fail:
+    SETERRNO(ret);
+    return NULL;
+}
+
 int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
 {
     int ret;
     pwin_acl_t pacl = NULL;
     int retlen = 0;
-    BOOL bacldefault,bacl;
-    BOOL bret;
-    PACL sacl=NULL;
+    PACL sacl = NULL;
     pacl = (pwin_acl_t) pacl1;
     if (pacl == NULL) {
-    	return __get_acl_user(NULL,idx,ppuser,pusersize);
+        return __get_acl_user(NULL, idx, ppuser, pusersize);
     }
 
     if (!IS_WIN_ACL_MAGIC(pacl) ) {
@@ -538,31 +606,22 @@ int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
         goto succ;
     }
 
-    bacldefault = FALSE;
-    bacl = FALSE;
-    bret = GetSecurityDescriptorSacl(pacl->m_saclsdp, &bacl, &sacl, &bacldefault);
-    if (!bret) {
+    sacl = __get_acl_from_descriptor(pacl->m_saclsdp);
+    if (sacl == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("get sacl error [%d]", ret);
         goto fail;
     }
 
-    if (!bacl)  {
-    	ret = -ERROR_INVALID_PARAMETER;
-    	ERROR_INFO("not valid sacl");
-    	goto fail;
-    }
-
-    ret = __get_acl_user(sacl,idx,ppuser,pusersize);
+    ret = __get_acl_user(sacl, idx, ppuser, pusersize);
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
-    retlen =ret;
+    retlen = ret;
 succ:
     return retlen;
 
- fail:
- 	SETERRNO(ret);
- 	return ret;
+fail:
+    SETERRNO(ret);
+    return ret;
 }
