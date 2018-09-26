@@ -77,7 +77,7 @@ fail:
 }
 
 
-int get_file_acl(const char* fname, void** ppacl1)
+int get_file_acls(const char* fname, void** ppacl1)
 {
     int ret;
     pwin_acl_t pacl = NULL;
@@ -226,7 +226,7 @@ fail:
     return ret;
 }
 
-int get_acl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
+int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
 {
     int ret;
     pwin_acl_t pacl = NULL;
@@ -262,6 +262,7 @@ int get_acl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
     }
 
 
+
     if (pacl->m_ownersdp != NULL) {
         chlen = 0;
         if (pch) {
@@ -293,20 +294,6 @@ int get_acl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
     }
 
 
-    if (pacl->m_saclsdp) {
-        chlen = 0;
-        if (pch) {
-            LocalFree(pch);
-        }
-        pch = NULL;
-        bret = ConvertSecurityDescriptorToStringSecurityDescriptor(pacl->m_saclsdp, SDDL_REVISION_1, SACL_SECURITY_INFORMATION, &pch, &chlen);
-        if (!bret) {
-            GETERRNO(ret);
-            ERROR_INFO("get error[%d]", ret);
-            goto fail;
-        }
-        DEBUG_INFO("sacl [%s]", pch);
-    }
 
     if (pacl->m_daclsdp) {
         chlen = 0;
@@ -321,6 +308,21 @@ int get_acl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
             goto fail;
         }
         DEBUG_INFO("dacl [%s]", pch);
+    }
+
+    if (pacl->m_saclsdp) {
+        chlen = 0;
+        if (pch) {
+            LocalFree(pch);
+        }
+        pch = NULL;
+        bret = ConvertSecurityDescriptorToStringSecurityDescriptor(pacl->m_saclsdp, SDDL_REVISION_1, SACL_SECURITY_INFORMATION, &pch, &chlen);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("get error[%d]", ret);
+            goto fail;
+        }
+        DEBUG_INFO("sacl [%s]", pch);
     }
 
     retlen = chlen;
