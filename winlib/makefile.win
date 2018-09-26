@@ -64,7 +64,7 @@ ARFLAGS = /NOLOGO /WX $(NOLOGO_ARFLAGS)
 LIB_SOURCE = win_output_debug.cpp win_uniansi.cpp win_args.cpp win_strop.cpp \
 	win_fileop.cpp win_proc.cpp win_envop.cpp win_window.cpp \
 	win_verify.cpp win_netinter.cpp win_time.cpp win_regex.cpp win_svc.cpp \
-    win_regop.cpp win_ver.cpp win_acl.cpp
+    win_regop.cpp win_ver.cpp win_acl.cpp win_priv.cpp
 LIB_OBJECTS = $(LIB_SOURCE:.cpp=.obj)
 OBJECTS = $(LIB_OBJECTS)
 
