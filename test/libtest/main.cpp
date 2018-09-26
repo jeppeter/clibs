@@ -2343,7 +2343,7 @@ int svchdl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     for (i = 1; i < cnt; i++) {
         name = parsestate->leftargs[i];
         if (strcmp(action, "start") == 0) {
-            ret = start_service(name,pargs->m_timeout);
+            ret = start_service(name, pargs->m_timeout);
         } else if (strcmp(action, "stop") == 0) {
             ret = stop_service(name, pargs->m_timeout);
         }
@@ -2443,10 +2443,10 @@ int svcmode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         ret = config_service_start_mode(name, modeset);
         if (ret < 0) {
             GETERRNO(ret);
-            fprintf(stderr,"[%s] config start mode [%s] error[%d]\n", name, mode, ret);
+            fprintf(stderr, "[%s] config start mode [%s] error[%d]\n", name, mode, ret);
             goto out;
         }
-        fprintf(stdout,"[%s] config start mode [%s] succ\n", name ,mode);
+        fprintf(stdout, "[%s] config start mode [%s] succ\n", name , mode);
     }
 
     ret = 0;
@@ -2458,13 +2458,13 @@ out:
 
 int regbinget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    void* pregop=NULL;
+    void* pregop = NULL;
     int ret;
-    int cnt=0;
-    char* path=NULL;
-    char* property=NULL;
-    void* pdata=NULL;
-    int datasize=0;
+    int cnt = 0;
+    char* path = NULL;
+    char* property = NULL;
+    void* pdata = NULL;
+    int datasize = 0;
     int nret;
     pargs_options_t pargs = (pargs_options_t) popt;
 
@@ -2473,13 +2473,13 @@ int regbinget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     init_log_level(pargs);
 
     if (parsestate->leftargs) {
-        while(parsestate->leftargs[cnt] != NULL) {
+        while (parsestate->leftargs[cnt] != NULL) {
             cnt ++;
         }
     }
 
     if (cnt < 2) {
-        fprintf(stderr,"at least path and property\n");
+        fprintf(stderr, "at least path and property\n");
         ret = -ERROR_INVALID_PARAMETER;
         goto out;
     }
@@ -2487,41 +2487,41 @@ int regbinget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     path = parsestate->leftargs[0];
     property = parsestate->leftargs[1];
 
-    pregop = open_hklm(path,ACCESS_KEY_READ);
+    pregop = open_hklm(path, ACCESS_KEY_READ);
     if (pregop == NULL) {
         GETERRNO(ret);
-        fprintf(stderr,"can not open [%s] error[%d]", path,ret);
+        fprintf(stderr, "can not open [%s] error[%d]", path, ret);
         goto out;
     }
 
-    ret = query_hklm_binary(pregop,property,&pdata,&datasize);
+    ret = query_hklm_binary(pregop, property, &pdata, &datasize);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr, "can not get [%s] property binary error[%d]\n",property,ret);
+        fprintf(stderr, "can not get [%s] property binary error[%d]\n", property, ret);
         goto out;
     }
 
     nret = ret;
-    fprintf(stdout,"get [%s].[%s] data [%d]\n", path,property,nret);
-    __debug_buf(stdout,(char*)pdata, nret);
+    fprintf(stdout, "get [%s].[%s] data [%d]\n", path, property, nret);
+    __debug_buf(stdout, (char*)pdata, nret);
     ret = 0;
 
 out:
-    query_hklm_binary(NULL,NULL,&pdata,&datasize);
+    query_hklm_binary(NULL, NULL, &pdata, &datasize);
     close_hklm(&pregop);
     SETERRNO(ret);
     return ret;
 }
 int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    void* pregop=NULL;
+    void* pregop = NULL;
     int ret;
-    int cnt=0;
-    char* path=NULL;
-    char* property=NULL;
-    unsigned char* pdata=NULL;
-    unsigned char* ptmpdata=NULL;
-    int datasize=0;
+    int cnt = 0;
+    char* path = NULL;
+    char* property = NULL;
+    unsigned char* pdata = NULL;
+    unsigned char* ptmpdata = NULL;
+    int datasize = 0;
     int datalen = 0;
     int curch;
     int offset;
@@ -2534,13 +2534,13 @@ int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
 
     if (parsestate->leftargs) {
-        while(parsestate->leftargs[cnt] != NULL) {
+        while (parsestate->leftargs[cnt] != NULL) {
             cnt ++;
         }
     }
 
     if (cnt < 4 || ((cnt - 2) % 2 != 0)) {
-        fprintf(stderr,"at least path and property\n");
+        fprintf(stderr, "at least path and property\n");
         ret = -ERROR_INVALID_PARAMETER;
         goto out;
     }
@@ -2548,25 +2548,25 @@ int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     path = parsestate->leftargs[0];
     property = parsestate->leftargs[1];
 
-    pregop = open_hklm(path,ACCESS_KEY_READ | ACCESS_KEY_WRITE);
+    pregop = open_hklm(path, ACCESS_KEY_READ | ACCESS_KEY_WRITE);
     if (pregop == NULL) {
         GETERRNO(ret);
-        fprintf(stderr,"can not open [%s] error[%d]", path,ret);
+        fprintf(stderr, "can not open [%s] error[%d]", path, ret);
         goto out;
     }
 
-    ret = query_hklm_binary(pregop,property,(void**)&pdata,&datasize);
+    ret = query_hklm_binary(pregop, property, (void**)&pdata, &datasize);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr, "can not get [%s] property binary error[%d]\n",property,ret);
+        fprintf(stderr, "can not get [%s] property binary error[%d]\n", property, ret);
         goto out;
     }
 
     datalen = ret;
-    fprintf(stdout,"[%s].[%s] datalen[%d]\n", path,property, datalen);
-    __debug_buf(stdout,(char*)pdata,datalen);
+    fprintf(stdout, "[%s].[%s] datalen[%d]\n", path, property, datalen);
+    __debug_buf(stdout, (char*)pdata, datalen);
     idx = 2;
-    while(idx < cnt) {
+    while (idx < cnt) {
         GET_OPT_INT(offset, "offset");
         GET_OPT_INT(curch, "ch");
 
@@ -2574,10 +2574,10 @@ int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
             datasize = (offset + 1);
             ptmpdata = (unsigned char*)malloc((size_t)datasize);
             if (ptmpdata == NULL) {
-                fprintf(stderr,"alloc %d error[%d]\n", datasize,ret);
+                fprintf(stderr, "alloc %d error[%d]\n", datasize, ret);
                 goto out;
             }
-            memset(ptmpdata,0,(size_t)datasize);
+            memset(ptmpdata, 0, (size_t)datasize);
             if (datalen > 0) {
                 memcpy(ptmpdata, pdata, (size_t)datalen);
             }
@@ -2592,23 +2592,23 @@ int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         pdata[offset] = (unsigned char)curch;
     }
 
-    fprintf(stdout, "[%s].[%s] set [%d]\n",path,property,datalen );
-    __debug_buf(stdout,(char*)pdata,datalen);
+    fprintf(stdout, "[%s].[%s] set [%d]\n", path, property, datalen );
+    __debug_buf(stdout, (char*)pdata, datalen);
 
-    ret = set_hklm_binary(pregop,property, pdata, datalen);
+    ret = set_hklm_binary(pregop, property, pdata, datalen);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr,"can not set [%s].[%s] error[%d]\n", path,property,ret);
+        fprintf(stderr, "can not set [%s].[%s] error[%d]\n", path, property, ret);
         goto out;
     }
-    fprintf(stdout,"set success\n");
+    fprintf(stdout, "set success\n");
     ret = 0;
 out:
     if (ptmpdata) {
         free(ptmpdata);
     }
     ptmpdata = NULL;
-    query_hklm_binary(NULL,NULL,(void**)&pdata,&datasize);
+    query_hklm_binary(NULL, NULL, (void**)&pdata, &datasize);
     close_hklm(&pregop);
     SETERRNO(ret);
     return ret;
@@ -2623,8 +2623,8 @@ int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     argv = argv;
     parsestate = parsestate;
 
-    fprintf(stdout,"win7 %s\n", is_win7() ? "true" : "false");
-    fprintf(stdout,"win10 %s\n", is_win10() ? "true" : "false");
+    fprintf(stdout, "win7 %s\n", is_win7() ? "true" : "false");
+    fprintf(stdout, "win10 %s\n", is_win10() ? "true" : "false");
 
     return 0;
 }
@@ -2632,38 +2632,44 @@ int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
-    int i;
-    void* pacl=NULL;
+    int i, j;
+    void* pacl = NULL;
     const char* fname;
-    pargs_options_t pargs= (pargs_options_t) popt;
-    char* user=NULL;
-    int usersize=0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* user = NULL;
+    int usersize = 0;
     init_log_level(pargs);
     argc = argc;
     argv = argv;
     if (parsestate->leftargs) {
-        for (i=0;parsestate->leftargs[i] != NULL;i++) {
+        for (i = 0; parsestate->leftargs[i] != NULL; i++) {
             fname = parsestate->leftargs[i];
-            ret = get_file_acls(fname,&pacl);
+            ret = get_file_acls(fname, &pacl);
             if (ret < 0) {
                 GETERRNO(ret);
-                fprintf(stderr, "get [%d][%s] acl error[%d]\n", i,fname, ret);
+                fprintf(stderr, "get [%d][%s] acl error[%d]\n", i, fname, ret);
                 goto out;
             }
-            ret = get_sacl_user(pacl,0,&user,&usersize);
-            if (ret < 0) {
-                GETERRNO(ret);
-                fprintf(stderr, "get [%d][%s] acl error[%d]\n",i, fname, ret);
-                goto out;
-            }
+            j = 0;
+            while (1) {
+                ret = get_sacl_user(pacl, j, &user, &usersize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    fprintf(stderr, "get [%d][%s] acl error[%d]\n", i, fname, ret);
+                    goto out;
+                } else if (ret == 0) {
+                    break;
+                }
 
-            fprintf(stdout,"get [%d][%s] [%s]\n",i , fname, user);
+                fprintf(stdout, "get [%d][%s]  [%d][%s]\n", i , fname, j, user);
+                j ++;
+            }
         }
     }
     ret = 0;
 out:
-    get_sacl_user(NULL,0,&user,&usersize);
-    get_file_acls(NULL,&pacl);
+    get_sacl_user(NULL, 0, &user, &usersize);
+    get_file_acls(NULL, &pacl);
     SETERRNO(ret);
     return ret;
 }

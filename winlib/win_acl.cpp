@@ -226,43 +226,7 @@ fail:
     return ret;
 }
 
-int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
-{
-    int ret;
-    pwin_acl_t pacl = NULL;
-    pacl = (pwin_acl_t) pacl1;
-    char* pretuser = NULL;
-    int usersize = 0;
-    int retlen = 0;
-    BOOL bret;
-    char* pch = NULL;
-    DWORD chlen = 0;
-    idx = idx;
-    if (pacl == NULL) {
-        if (ppuser && *ppuser) {
-            free(*ppuser);
-            *ppuser = NULL;
-        }
-        if (pusersize) {
-            *pusersize = 0;
-        }
-        return 0;
-    }
-    if (ppuser == NULL || pusersize == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;
-    }
-    pretuser = *ppuser;
-    usersize = *pusersize;
-
-    if (!IS_WIN_ACL_MAGIC(pacl) ) {
-        ret = -ERROR_INVALID_PARAMETER;
-        goto fail;
-    }
-
-
-
+/*
     if (pacl->m_ownersdp != NULL) {
         chlen = 0;
         if (pch) {
@@ -309,23 +273,184 @@ int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
         }
         DEBUG_INFO("dacl [%s]", pch);
     }
+*/
 
-    if (pacl->m_saclsdp) {
-        chlen = 0;
-        if (pch) {
-            LocalFree(pch);
+int __get_acl_user(PACL acl, int idx, char** ppuser, int *pusersize)
+{
+    int ret;
+    char* pretuser = NULL;
+    int usersize = 0;
+    int retlen = 0;
+    BOOL bret;
+    PEXPLICIT_ACCESS  paccess = NULL, pcuracc = NULL;
+    ULONG accnum = 0;
+    DWORD dret;
+    int i;
+    PSID psid;
+    char* pname = NULL;
+    int namesize = 0;
+    char* pdomain = NULL;
+    int domainsize = 0;
+    TCHAR* ptuser = NULL;
+    DWORD tusersize = 0, tuserlen = 0;
+    TCHAR* ptdomain = NULL;
+    DWORD tdomainsize = 0, tdomainlen = 0;
+    SID_NAME_USE siduse;
+    idx = idx;
+    if (acl == NULL) {
+        if (ppuser && *ppuser) {
+            free(*ppuser);
+            *ppuser = NULL;
         }
-        pch = NULL;
-        bret = ConvertSecurityDescriptorToStringSecurityDescriptor(pacl->m_saclsdp, SDDL_REVISION_1, SACL_SECURITY_INFORMATION, &pch, &chlen);
-        if (!bret) {
-            GETERRNO(ret);
-            ERROR_INFO("get error[%d]", ret);
-            goto fail;
+        if (pusersize) {
+            *pusersize = 0;
         }
-        DEBUG_INFO("sacl [%s]", pch);
+        return 0;
+    }
+    if (ppuser == NULL || pusersize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    pretuser = *ppuser;
+    usersize = *pusersize;
+
+
+
+    accnum = 0;
+    paccess = NULL;
+    dret = GetExplicitEntriesFromAcl(acl, &accnum, &paccess);
+    if (dret != ERROR_SUCCESS) {
+        ret = dret;
+        if (ret > 0) {
+            ret = -ret;
+        }
+        if (ret == 0) {
+            ret = -1;
+        }
+        ERROR_INFO("get acl explicit error[%d]", ret);
+        goto fail;
     }
 
-    retlen = chlen;
+    DEBUG_INFO("get accnum [%d]", accnum);
+    if ((int)accnum <= idx) {
+        retlen = 0;
+        goto succ;
+    }
+
+
+    for (i = 0; i < (int)accnum; i++) {
+        pcuracc = &(paccess[i]);
+        DEBUG_INFO("[%d] grfAccessPermissions [%ld]", i, pcuracc->grfAccessPermissions);
+        DEBUG_INFO("[%d] grfAccessMode [%ld]", i, pcuracc->grfAccessMode);
+        DEBUG_INFO("[%d] grfInheritance [%ld]", i, pcuracc->grfInheritance);
+        DEBUG_INFO("[%d] pMultipleTrustee [%p]", i, pcuracc->Trustee.pMultipleTrustee);
+        DEBUG_INFO("[%d] MultipleTrusteeOperation [%d]", i, pcuracc->Trustee.MultipleTrusteeOperation);
+        DEBUG_INFO("[%d] TrusteeForm [%d]", i, pcuracc->Trustee.TrusteeForm);
+        DEBUG_INFO("[%d] TrusteeType [%d]", i, pcuracc->Trustee.TrusteeType);
+        if (pcuracc->Trustee.TrusteeForm == TRUSTEE_IS_SID  &&
+                pcuracc->Trustee.TrusteeType == TRUSTEE_IS_UNKNOWN) {
+            psid = (PSID) pcuracc->Trustee.ptstrName;
+            tusersize = 3;
+            tdomainsize = 3;
+try_get_sid_old:
+            if (ptuser) {
+                free(ptuser);
+            }
+            ptuser = NULL;
+            if (ptdomain) {
+                free(ptdomain);
+            }
+            ptdomain = NULL;
+            ptuser = (TCHAR*) malloc(tusersize * sizeof(TCHAR));
+            if (ptuser == NULL) {
+                GETERRNO(ret);
+                ERROR_INFO("alloc %d error[%d]", tusersize * sizeof(TCHAR), ret);
+                goto fail;
+            }
+
+            ptdomain = (TCHAR*)malloc(tdomainsize * sizeof(TCHAR));
+            if (ptdomain == NULL) {
+                GETERRNO(ret);
+                ERROR_INFO("alloc %d error[%d]", tdomainsize * sizeof(TCHAR), ret);
+                goto fail;
+            }
+            tuserlen = tusersize;
+            tdomainlen = tdomainsize;
+            bret = LookupAccountSid(NULL, psid, ptuser, &tuserlen, ptdomain, &tdomainlen, &siduse);
+            if (!bret) {
+                GETERRNO(ret);
+                if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+                    tusersize = tuserlen << 1;
+                    tdomainsize = tdomainlen << 1;
+                    goto try_get_sid_old;
+                }
+                ERROR_INFO("get sid error [%d]", ret);
+                goto fail;
+            }
+            ret = TcharToAnsi(ptuser, &pname, &namesize);
+            if (ret > 0) {
+                ret = TcharToAnsi(ptdomain, &pdomain, &domainsize);
+                if (ret > 0) {
+                    DEBUG_INFO("[%d] ptstrName [%s].[%s]", i, pdomain, pname);
+                }
+
+            }
+        }
+    }
+
+    pcuracc = &(paccess[idx]);
+    if (pcuracc->Trustee.TrusteeForm != TRUSTEE_IS_SID  ||
+            pcuracc->Trustee.TrusteeType != TRUSTEE_IS_UNKNOWN) {
+        ret = -ERROR_NOT_SUPPORTED;
+        ERROR_INFO("form [%d] type [%d] not supported", pcuracc->Trustee.TrusteeForm,
+                   pcuracc->Trustee.TrusteeType);
+        goto fail;
+    }
+
+    tusersize = 3;
+    tdomainsize = 3;
+try_get_sid:
+    if (ptuser) {
+        free(ptuser);
+    }
+    ptuser = NULL;
+    if (ptdomain) {
+        free(ptdomain);
+    }
+    ptdomain = NULL;
+    ptuser = (TCHAR*) malloc(tusersize * sizeof(TCHAR));
+    if (ptuser == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", tusersize * sizeof(TCHAR), ret);
+        goto fail;
+    }
+
+    ptdomain = (TCHAR*)malloc(tdomainsize * sizeof(TCHAR));
+    if (ptdomain == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", tdomainsize * sizeof(TCHAR), ret);
+        goto fail;
+    }
+    tuserlen = tusersize;
+    tdomainlen = tdomainsize;
+    bret = LookupAccountSid(NULL, psid, ptuser, &tuserlen, ptdomain, &tdomainlen, &siduse);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            tusersize = tuserlen << 1;
+            tdomainsize = tdomainlen << 1;
+            goto try_get_sid;
+        }
+        ERROR_INFO("get sid error [%d]", ret);
+        goto fail;
+    }
+    ret = TcharToAnsi(ptuser, &pname, &namesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = ret;
 
     if (pretuser == NULL || usersize < (retlen + 1)) {
         if (usersize < (retlen + 1)) {
@@ -339,13 +464,24 @@ int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
         }
     }
     memset(pretuser, 0, usersize);
-    memcpy(pretuser, pch, retlen);
+    memcpy(pretuser, pname, retlen);
 succ:
-    if (pch) {
-        LocalFree(pch);
+    if (ptuser) {
+        free(ptuser);
     }
-    pch = NULL;
-    chlen = 0;
+    ptuser = NULL;
+    if (ptdomain) {
+        free(ptdomain);
+    }
+    ptdomain = NULL;
+
+    TcharToAnsi(NULL, &pdomain, &domainsize);
+    TcharToAnsi(NULL, &pname, &namesize);
+    if (paccess) {
+        LocalFree(paccess);
+    }
+    paccess = NULL;
+
 
     if (*ppuser && *ppuser != pretuser) {
         free(*ppuser);
@@ -354,11 +490,21 @@ succ:
     *pusersize = usersize;
     return retlen;
 fail:
-    if (pch) {
-        LocalFree(pch);
+    if (ptuser) {
+        free(ptuser);
     }
-    pch = NULL;
-    chlen = 0;
+    ptuser = NULL;
+    if (ptdomain) {
+        free(ptdomain);
+    }
+    ptdomain = NULL;
+
+    TcharToAnsi(NULL, &pdomain, &domainsize);
+    TcharToAnsi(NULL, &pname, &namesize);
+    if (paccess) {
+        LocalFree(paccess);
+    }
+    paccess = NULL;
 
     if (pretuser && pretuser != *ppuser) {
         free(pretuser);
@@ -367,4 +513,56 @@ fail:
     usersize = 0;
     SETERRNO(ret);
     return ret;
+}
+
+int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
+{
+    int ret;
+    pwin_acl_t pacl = NULL;
+    int retlen = 0;
+    BOOL bacldefault,bacl;
+    BOOL bret;
+    PACL sacl=NULL;
+    pacl = (pwin_acl_t) pacl1;
+    if (pacl == NULL) {
+    	return __get_acl_user(NULL,idx,ppuser,pusersize);
+    }
+
+    if (!IS_WIN_ACL_MAGIC(pacl) ) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    if (pacl->m_saclsdp == NULL) {
+        retlen = 0;
+        goto succ;
+    }
+
+    bacldefault = FALSE;
+    bacl = FALSE;
+    bret = GetSecurityDescriptorSacl(pacl->m_saclsdp, &bacl, &sacl, &bacldefault);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("get sacl error [%d]", ret);
+        goto fail;
+    }
+
+    if (!bacl)  {
+    	ret = -ERROR_INVALID_PARAMETER;
+    	ERROR_INFO("not valid sacl");
+    	goto fail;
+    }
+
+    ret = __get_acl_user(sacl,idx,ppuser,pusersize);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+    retlen =ret;
+succ:
+    return retlen;
+
+ fail:
+ 	SETERRNO(ret);
+ 	return ret;
 }
