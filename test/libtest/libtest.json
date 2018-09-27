@@ -100,5 +100,8 @@
     },
     "getacl<getacl_handler>##files...  to get the file acl##" : {
         "$" : "+"
+    },
+    "setowner<setowner_handler>##owner files... to set owner for file or directory##" : {
+        "$" : "+"
     }
 }

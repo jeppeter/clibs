@@ -1317,3 +1317,13 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int set_file_owner(void* pacl, const char* username)
+{
+	return 0;
+}
+
+int set_file_acls(const char* fname, void* pacl)
+{
+	return 0;
+}

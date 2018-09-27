@@ -64,6 +64,7 @@ int regbinget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int setowner_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -2759,6 +2760,55 @@ out:
     get_sacl_action(NULL,0,&action,&actionsize);
     get_sacl_user(NULL, 0, &user, &usersize);
     get_file_acls(NULL, &pacl);
+    SETERRNO(ret);
+    return ret;
+}
+
+int setowner_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* fname=NULL;
+    char* owner=NULL;
+    void* pacl=NULL;
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int i,ret;
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+
+    if (parsestate->leftargs == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr,"need owner files...\n");
+        goto out;
+    }
+    owner = parsestate->leftargs[0];
+    for (i=1;parsestate->leftargs[i] != NULL;i++) {
+        fname = parsestate->leftargs[i];
+        ret = get_file_acls(fname,&pacl);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "[%d][%s] get acl error[%d]\n", i, fname, ret);
+            goto out;
+        }
+        ret = set_file_owner(fname,owner);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "[%d][%s] set owner error[%d]\n", i, fname, ret);
+            goto out;
+        }
+
+        ret = set_file_acls(fname,pacl);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "[%d][%s] flush acls error[%d]\n", i, fname, ret);
+            goto out;
+        }
+        get_file_acls(NULL,&pacl);
+    }
+
+    ret = 0;
+out:
+    get_file_acls(NULL,&pacl);
     SETERRNO(ret);
     return ret;
 }
