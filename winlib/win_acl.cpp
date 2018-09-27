@@ -12,6 +12,9 @@
 
 #define   WIN_ACL_MAGIC            0x3021211
 
+#define   MIN_SID_SIZE             5
+
+
 #define   SET_WIN_ACL_MAGIC(pacl)  do{if ((pacl) != NULL) { (pacl)->m_magic = WIN_ACL_MAGIC;}} while(0)
 #define   IS_WIN_ACL_MAGIC(pacl)  ((pacl) == NULL || ((pacl)->m_magic == WIN_ACL_MAGIC))
 
@@ -314,7 +317,7 @@ int __get_sid_name(PSID psid, char** ppstr, int *pstrsize)
     DWORD tusersize = 0, tuserlen = 0;
     DWORD tdomainsize = 0, tdomainlen = 0;
     char* pname = NULL, *pdomain = NULL;
-    int namesize = 0,namelen=0, domainsize = 0,domainlen=0;
+    int namesize = 0, namelen = 0, domainsize = 0, domainlen = 0;
     int ret;
     BOOL bret;
     int retlen;
@@ -374,17 +377,17 @@ try_get_sid_old:
     }
     domainlen = ret;
 
-    if (domainlen > 0){
-    	DEBUG_INFO("domain [%s] name [%s]", pdomain, pname);
-    	ret = snprintf_safe(ppstr,pstrsize,"%s\\%s",pdomain,pname);
+    if (domainlen > 0) {
+        DEBUG_INFO("domain [%s] name [%s]", pdomain, pname);
+        ret = snprintf_safe(ppstr, pstrsize, "%s\\%s", pdomain, pname);
     } else {
-    	ret = snprintf_safe(ppstr,pstrsize,"%s",pname);
+        ret = snprintf_safe(ppstr, pstrsize, "%s", pname);
     }
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
-    retlen = ret;    
+    retlen = ret;
 
     if (ptuser) {
         free(ptuser);
@@ -417,7 +420,7 @@ void __debug_access_inner(PEXPLICIT_ACCESS pcuracc, const char* prefix)
 {
     PSID psid = NULL;
     int ret;
-    char* name=NULL;
+    char* name = NULL;
     int namesize = 0;
     DEBUG_INFO("%s grfAccessPermissions [0x%lx]", prefix, pcuracc->grfAccessPermissions);
     if ((pcuracc->grfAccessPermissions & STANDARD_RIGHTS_ALL) == STANDARD_RIGHTS_ALL) {
@@ -474,12 +477,12 @@ void __debug_access_inner(PEXPLICIT_ACCESS pcuracc, const char* prefix)
     if (pcuracc->Trustee.TrusteeForm == TRUSTEE_IS_SID  &&
             pcuracc->Trustee.TrusteeType == TRUSTEE_IS_UNKNOWN) {
         psid = (PSID) pcuracc->Trustee.ptstrName;
-    	ret = __get_sid_name(psid,&name,&namesize);
-    	if (ret > 0) {
-    		DEBUG_INFO("%s name [%s]", name);
-    	}
+        ret = __get_sid_name(psid, &name, &namesize);
+        if (ret > 0) {
+            DEBUG_INFO("%s name [%s]", name);
+        }
     }
-    __get_sid_name(NULL,&name,&namesize);
+    __get_sid_name(NULL, &name, &namesize);
     return;
 }
 
@@ -1238,7 +1241,7 @@ int get_file_owner(void* pacl1, char** ppusername, int *pusersize)
     PSID ownersid = NULL;
     pacl = (pwin_acl_t) pacl1;
     if (pacl == NULL) {
-        return __get_sid_name(NULL,ppusername,pusersize);
+        return __get_sid_name(NULL, ppusername, pusersize);
     }
 
     if (!IS_WIN_ACL_MAGIC(pacl) ) {
@@ -1255,12 +1258,12 @@ int get_file_owner(void* pacl1, char** ppusername, int *pusersize)
         goto succ;
     }
 
-    ret = __get_sid_name(ownersid,ppusername,pusersize);
+    ret = __get_sid_name(ownersid, ppusername, pusersize);
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
-    retlen =ret;
+    retlen = ret;
 succ:
     if (retlen == 0) {
         if (ppusername && *ppusername) {
@@ -1282,7 +1285,7 @@ int get_file_group(void* pacl1, char** ppgrpname, int *pgrpsize)
     PSID groupsid = NULL;
     pacl = (pwin_acl_t) pacl1;
     if (pacl == NULL) {
-        return __get_sid_name(NULL,ppgrpname,pgrpsize);
+        return __get_sid_name(NULL, ppgrpname, pgrpsize);
     }
 
     if (!IS_WIN_ACL_MAGIC(pacl) ) {
@@ -1299,12 +1302,12 @@ int get_file_group(void* pacl1, char** ppgrpname, int *pgrpsize)
         goto succ;
     }
 
-    ret = __get_sid_name(groupsid,ppgrpname,pgrpsize);
+    ret = __get_sid_name(groupsid, ppgrpname, pgrpsize);
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
-    retlen =ret;
+    retlen = ret;
 succ:
     if (retlen == 0) {
         if (ppgrpname && *ppgrpname) {
@@ -1318,16 +1321,143 @@ fail:
     return ret;
 }
 
+
+int __get_sid_from_name(const char* name, PSID* ppsid, int *psidsize)
+{
+    TCHAR* ptname = NULL;
+    int tnamesize = 0;
+    int ret;
+    int retlen = 0;
+    int sidsize = 0;
+    DWORD sidlen = 0;
+    PSID psid = NULL;
+    TCHAR* ptdomain = NULL;
+    int tdomainsize = 0;
+    DWORD tdomainlen = 0;
+    SID_NAME_USE buse;
+    BOOL bret;
+    if (name == NULL) {
+        if (ppsid && *ppsid) {
+            LocalFree(*ppsid);
+            *ppsid = NULL;
+        }
+        if (psidsize) {
+            *psidsize = 0;
+        }
+        return 0;
+    }
+    if (ppsid == NULL || psidsize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    psid = *ppsid;
+    sidsize = *psidsize;
+
+    ret = AnsiToTchar(name, &ptname, &tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (psid == NULL || sidsize < MIN_SID_SIZE) {
+        if (sidsize < MIN_SID_SIZE) {
+            sidsize = MIN_SID_SIZE;
+        }
+        psid = LocalAlloc(LMEM_FIXED, sidsize);
+        if (psid == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", sidsize, ret);
+            goto fail;
+        }
+    }
+
+try_again:
+    sidlen = sidsize;
+    tdomainlen = tdomainsize;
+    buse = SidTypeUnknown;
+    bret = LookupAccountName(NULL, ptname, psid, &sidlen, ptdomain, &tdomainlen, &buse);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            sidsize = sidlen << 1;
+            tdomainsize = tdomainlen << 1;
+            if (psid && psid != *ppsid) {
+                LocalFree(psid);
+            }
+            psid = NULL;
+            psid = LocalAlloc(LMEM_FIXED, sidsize);
+            if (psid == NULL) {
+                GETERRNO(ret);
+                ERROR_INFO("alloc %d error[%d]", sidsize, ret);
+                goto fail;
+            }
+            if (ptdomain) {
+                LocalFree(ptdomain);
+            }
+            ptdomain = NULL;
+            ptdomain = (TCHAR*)LocalAlloc(LMEM_FIXED, tdomainsize);
+            if (ptdomain == NULL) {
+                GETERRNO(ret);
+                ERROR_INFO("alloc %d error[%d]", tdomainsize, ret);
+                goto fail;
+            }
+            goto try_again;
+        }
+        ERROR_INFO("lookup account for [%s] error[%d]", name, ret);
+        goto fail;
+    }
+    retlen = sidlen;
+
+    if (ptdomain) {
+        LocalFree(ptdomain);
+    }
+    ptdomain = NULL;
+    tdomainsize = 0;
+    tdomainlen = 0;
+    if (*ppsid && *ppsid != psid) {
+        LocalFree(*ppsid);
+    }
+    *ppsid = psid;
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    return retlen;
+fail:
+    if (ptdomain) {
+        LocalFree(ptdomain);
+    }
+    ptdomain = NULL;
+    tdomainsize = 0;
+    tdomainlen = 0;
+    if (psid && psid != *ppsid) {
+        LocalFree(psid);
+    }
+    psid = NULL;
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    SETERRNO(ret);
+    return ret;
+}
+
 int set_file_owner(void* pacl1, const char* username)
 {
-	username = username;
-	pacl1 = pacl1;
-	return 0;
+    int ret = 0;
+    int sidsize = 0;
+    PSID psid = NULL;
+    ret = __get_sid_from_name(username, &psid, &sidsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    DEBUG_BUFFER_FMT(psid,ret,"sid for [%s]", username);
+    return 0;
+fail:
+    __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(ret);
+    return ret;
 }
 
 int set_file_acls(const char* fname, void* pacl1)
 {
-	fname = fname;
-	pacl1 = pacl1;
-	return 0;
+    fname = fname;
+    pacl1 = pacl1;
+    return 0;
 }
