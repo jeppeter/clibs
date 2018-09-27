@@ -1318,12 +1318,16 @@ fail:
     return ret;
 }
 
-int set_file_owner(void* pacl, const char* username)
+int set_file_owner(void* pacl1, const char* username)
 {
+	username = username;
+	pacl1 = pacl1;
 	return 0;
 }
 
-int set_file_acls(const char* fname, void* pacl)
+int set_file_acls(const char* fname, void* pacl1)
 {
+	fname = fname;
+	pacl1 = pacl1;
 	return 0;
 }
