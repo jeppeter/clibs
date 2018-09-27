@@ -36,7 +36,6 @@ int UnicodeToAnsi(wchar_t* pWideChar, char** ppChar, int*pCharSize)
         goto fail;
     }
     pRetChar[needlen] = '\0';
-    needlen += 1;
 
     if ((*ppChar) && (*ppChar) != pRetChar) {
         char* pTmpChar = *ppChar;
@@ -123,16 +122,15 @@ int _chartoansi(const char *ptchar, char** ppChar, int*pCharSize)
 	}
 
 	needlen = strlen(ptchar);
-	needlen += 1;
-	if (pRetChar == NULL || *pCharSize < (int)needlen){
-		pRetChar =(char*) malloc(needlen);
+	if (pRetChar == NULL || *pCharSize <= (int)needlen){
+		pRetChar =(char*) malloc(needlen + 1);
 		if (pRetChar == NULL){
 			GETERRNO(ret);
 			goto fail;
 		}
-		needsize = needlen;
+		needsize = needlen + 1;
 	}
-
+    memset(pRetChar,0, needsize);
 	memcpy(pRetChar,ptchar,needlen);
 	if (pRetChar != *ppChar && *ppChar != NULL){
 		free(*ppChar);

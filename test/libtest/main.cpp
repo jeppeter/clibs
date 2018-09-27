@@ -2644,6 +2644,8 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     int actionsize=0;
     char* right=NULL;
     int rightsize=0;
+    char* owner=NULL,*group=NULL;
+    int ownersize=0,grpsize=0;
     init_log_level(pargs);
     argc = argc;
     argv = argv;
@@ -2656,6 +2658,33 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                 fprintf(stderr, "get [%d][%s] acl error[%d]\n", i, fname, ret);
                 goto out;
             }
+
+            ret = get_file_owner(pacl,&owner,&ownersize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                fprintf(stderr, "get [%s] owner error[%d]\n", fname, ret);
+                goto out;
+            }
+
+            if (ret > 0) {
+                fprintf(stdout,"[%d][%s] owner [%s]\n", i, fname, owner);    
+            } else {
+                fprintf(stdout,"[%d][%s] no owner\n", i, fname);
+            }
+            
+            ret = get_file_group(pacl,&group,&grpsize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                fprintf(stderr, "get [%s] group error[%d]\n", fname, ret);
+                goto out;
+            }
+            if (ret > 0) {
+                fprintf(stdout, "[%d][%s] group [%s]\n", i, fname, group);    
+            } else {
+                fprintf(stdout,"[%d][%s] no group\n", i, fname);
+            }
+            
+
             j = 0;
             while (1) {
                 ret = get_sacl_user(pacl, j, &user, &usersize);
@@ -2724,6 +2753,8 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
     ret = 0;
 out:
+    get_file_group(NULL,&group,&grpsize);
+    get_file_owner(NULL,&owner,&ownersize);
     get_sacl_right(NULL,0,&right,&rightsize);
     get_sacl_action(NULL,0,&action,&actionsize);
     get_sacl_user(NULL, 0, &user, &usersize);

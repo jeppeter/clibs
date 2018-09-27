@@ -33,8 +33,8 @@ extern "C" {
 WINLIB_API int get_file_acls(const char* fname, void** ppacl);
 WINLIB_API int set_file_acls(const char* fname, void* pacl);
 
-WINLIB_API int get_file_owner(void* pacl, const char** ppusername,int *pusersize);
-WINLIB_API int get_file_group(void* pacl, const char** ppgroup,int *pgrpsize);
+WINLIB_API int get_file_owner(void* pacl, char** ppusername,int *pusersize);
+WINLIB_API int get_file_group(void* pacl, char** ppgroup,int *pgrpsize);
 WINLIB_API int set_file_owner(void* pacl, const char* username);
 WINLIB_API int set_file_group(void* pacl, const char* groupname);
 
