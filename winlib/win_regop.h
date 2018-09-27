@@ -5,16 +5,22 @@
 extern "C" {
 #endif /* __cplusplus*/
 
+#undef __WINLIB_INNER_INCLUDE__
+#define __WINLIB_INNER_INCLUDE__
+#include <win_inner.h>
+#undef __WINLIB_INNER_INCLUDE__
+
+
 #define ACCESS_KEY_READ       0x1
 #define ACCESS_KEY_WRITE      0x2
 #define ACCESS_KEY_ALL        0x4
 
 
-void* open_hklm(const char* psubkey,int accessmode);
-int query_hklm_string(void* pregop,const char* path,char** ppretval,int *pretsize);
-int query_hklm_binary(void* pregop,const char* path,void** ppdata,int *pdatasize);
-int set_hklm_binary(void* pregop, const char* path, void* pdata, int size);
-void close_hklm(void** ppregop);
+WINLIB_API void* open_hklm(const char* psubkey,int accessmode);
+WINLIB_API int query_hklm_string(void* pregop,const char* path,char** ppretval,int *pretsize);
+WINLIB_API int query_hklm_binary(void* pregop,const char* path,void** ppdata,int *pdatasize);
+WINLIB_API int set_hklm_binary(void* pregop, const char* path, void* pdata, int size);
+WINLIB_API void close_hklm(void** ppregop);
 
 #ifdef __cplusplus
 };

@@ -5,6 +5,11 @@
 extern "C" {
 #endif /* __cplusplus*/
 
+#undef __WINLIB_INNER_INCLUDE__
+#define __WINLIB_INNER_INCLUDE__
+#include <win_inner.h>
+#undef __WINLIB_INNER_INCLUDE__
+
 
 #define  SVC_START_ON_UNKNOWN         0
 #define  SVC_START_ON_BOOT            1
@@ -24,16 +29,16 @@ extern "C" {
 #define  SVC_STATE_CONTINUE_PENDING   7
 
 
-int is_service_exist(const char* name);
-int is_service_running(const char* name);
-int is_service_stopped(const char* name);
-int get_service_start_mode(const char* name);
-int service_running_mode(const char* name);
+WINLIB_API int is_service_exist(const char* name);
+WINLIB_API int is_service_running(const char* name);
+WINLIB_API int is_service_stopped(const char* name);
+WINLIB_API int get_service_start_mode(const char* name);
+WINLIB_API int service_running_mode(const char* name);
 
 
-int stop_service(const char* name,int mills);
-int start_service(const char* name, int mills);
-int config_service_start_mode(const char* name, int startmode);
+WINLIB_API int stop_service(const char* name,int mills);
+WINLIB_API int start_service(const char* name, int mills);
+WINLIB_API int config_service_start_mode(const char* name, int startmode);
 
 #ifdef __cplusplus
 };

@@ -2,7 +2,6 @@
 #include <win_err.h>
 #include <regex>
 
-#
 
 #define __REGEX_DEBUG__   1
 

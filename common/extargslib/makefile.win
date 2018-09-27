@@ -71,7 +71,7 @@ REL_LDFLAGS = $(LD_EXPORT_FLAGS)
 !ENDIF
 
 INC_CFLAGS = "/I$(TOPDIR)\common\jsonlib" "/I$(TOPDIR)\winlib" "/I$(TOPDIR)\common" "/I$(TOPDIR)\common\extargslib"
-COM_CFLAGS =  /Wall /wd"4710" /wd"4702" /wd"4711" /wd"4820" /wd"4127" /wd"4996" /wd"4255" /wd"4826" /wd"4305" /wd"4668"
+COM_CFLAGS =  /Wall /wd"4710" /wd"4702" /wd"4711" /wd"4820" /wd"4127" /wd"4996" /wd"4255" /wd"4826" /wd"4305" /wd"4668" /wd"5045"
 REL_CFLAGS = 
 
 !IFDEF MAKEVERBOSE

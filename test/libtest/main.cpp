@@ -2189,7 +2189,7 @@ out:
 
 int setcp_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    int cp;
+    int cp=437;
     int idx = 0;
     int ret;
     pargs_options_t pargs = (pargs_options_t) popt;
@@ -2346,6 +2346,8 @@ int svchdl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
             ret = start_service(name, pargs->m_timeout);
         } else if (strcmp(action, "stop") == 0) {
             ret = stop_service(name, pargs->m_timeout);
+        } else {
+            ret = -ERROR_INVALID_PARAMETER;
         }
 
         if (ret < 0) {
@@ -2523,8 +2525,8 @@ int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     unsigned char* ptmpdata = NULL;
     int datasize = 0;
     int datalen = 0;
-    int curch;
-    int offset;
+    int curch=0;
+    int offset=0;
     int idx;
     pargs_options_t pargs = (pargs_options_t) popt;
 
@@ -2655,13 +2657,27 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                 ret = get_sacl_user(pacl, j, &user, &usersize);
                 if (ret < 0) {
                     GETERRNO(ret);
-                    fprintf(stderr, "get [%d][%s] acl error[%d]\n", i, fname, ret);
+                    fprintf(stderr, "get [%d][%s] sacl error[%d]\n", i, fname, ret);
                     goto out;
                 } else if (ret == 0) {
                     break;
                 }
 
-                fprintf(stdout, "get [%d][%s]  [%d][%s]\n", i , fname, j, user);
+                fprintf(stdout, "get [%d][%s] [%d]sacl [%s]\n", i , fname, j, user);
+                j ++;
+            }
+            j = 0;
+            while (1) {
+                ret = get_dacl_user(pacl, j, &user, &usersize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    fprintf(stderr, "get [%d][%s] dacl error[%d]\n", i, fname, ret);
+                    goto out;
+                } else if (ret == 0) {
+                    break;
+                }
+
+                fprintf(stdout, "get [%d][%s] [%d]dacl [%s]\n", i , fname, j, user);
                 j ++;
             }
         }
