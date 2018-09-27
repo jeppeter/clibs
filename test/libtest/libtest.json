@@ -109,5 +109,8 @@
     },
     "getsid<getsid_handler>##username...  to get username to usersid##" : {
         "$" : "+"
+    },
+    "removesacl<removesacl_handler>##fname username action right to remove the sacl##" : {
+        "$" : 4
     }
 }

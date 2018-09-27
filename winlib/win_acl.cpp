@@ -1823,3 +1823,8 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int remove_sacl(void* pacl1,const char* username,const char* action,const char* right)
+{
+	return 0;
+}
