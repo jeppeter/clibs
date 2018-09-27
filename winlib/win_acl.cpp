@@ -1826,5 +1826,49 @@ fail:
 
 int remove_sacl(void* pacl1,const char* username,const char* action,const char* right)
 {
+	pwin_acl_t pacl= (pwin_acl_t) pacl1;
+	PACL sacl=NULL;
+	PEXPLICIT_ACCESS paccess=NULL;
+	int accsize=0,accnum=0;
+	PEXPLICIT_ACCESS pcuracc=NULL,pfoundacc=NULL;
+
+
+	if (pacl == NULL || username == NULL || action == NULL || right == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (pacl->m_saclsdp == NULL) {
+		ret = -ERROR_NOT_FOUND;
+		goto fail;
+	}
+
+	ret = __get_sacl_from_descriptor(pacl->m_saclsdp,&sacl);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = __get_explicit_access(sacl,&paccess,&accsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	accnum = ret;
+
+	for (i=0;i<accnum;i++) {
+		pcuracc = &(paccess[i]);
+		ret = __get_sid_name()
+	}
+
+
+	__get_explicit_access(NULL,&paccess,&accsize);
+	accnum = 0;
 	return 0;
+fail:
+	__get_explicit_access(NULL,&paccess,&accsize);
+	accnum = 0;
+	SETERRNO(ret);
+	return ret;
 }
