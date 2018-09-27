@@ -1728,3 +1728,98 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int set_file_group(void* pacl1, const char* groupname)
+{
+    int ret = 0;
+    int sidsize = 0;
+    PSID psid = NULL;
+    int dpsize=0;
+    int dplen = 0;
+    int enblrestore= 0;
+    int enbltakeown=0;
+    PSECURITY_DESCRIPTOR pdp=NULL;
+    pwin_acl_t pacl = (pwin_acl_t) pacl1;
+    ret = __get_sid_from_name(groupname, &psid, &sidsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    DEBUG_BUFFER_FMT(psid,ret,"sid for [%s]", groupname);
+    ret = __new_sid_descriptor(psid,SID_GROUP_MODE,&pdp,&dpsize);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+    dplen = ret;
+    DEBUG_BUFFER_FMT(pdp,dplen,"dp with sid");
+    psid = NULL;
+    sidsize = 0;
+
+    ret = enable_takeown_priv();
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+    enbltakeown = 1;
+
+    ret = enable_restore_priv();
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+    enblrestore = 1;
+
+    DEBUG_BUFFER_FMT(pacl->m_fname, pacl->m_namesize, "fname");
+    ret = __set_file_descriptor(pacl->m_fname,GROUP_SECURITY_INFORMATION,pdp);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+
+    if (pacl->m_groupsdp) {
+    	LocalFree(pacl->m_groupsdp);
+    	pacl->m_groupsdp = NULL;
+    }
+
+    pacl->m_groupsdp = pdp;
+    pdp = NULL;
+    pacl->m_grpsize = dpsize;
+    pacl->m_grplen = dplen;
+
+    if (enblrestore) {
+    	ret = disable_restore_priv();
+    	if (ret < 0) {
+    		GETERRNO(ret);
+    		goto fail;
+    	}
+    }
+    enblrestore = 0;
+
+    if (enbltakeown) {
+    	ret = disable_takeown_priv();
+    	if (ret < 0) {
+    		GETERRNO(ret);
+    		goto fail;
+    	}    	
+    }
+    enbltakeown = 0;
+
+    __new_sid_descriptor(NULL,SID_GROUP_MODE,&pdp,&dpsize);
+    __get_sid_from_name(NULL, &psid, &sidsize);
+    return 0;
+fail:
+	if (enblrestore) {
+		disable_restore_priv();
+	}
+	enblrestore = 0;
+
+	if (enbltakeown) {
+		disable_takeown_priv();
+	}
+	enbltakeown = 0;
+	__new_sid_descriptor(NULL,SID_GROUP_MODE,&pdp,&dpsize);
+    __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(ret);
+    return ret;
+}

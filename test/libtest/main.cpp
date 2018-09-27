@@ -66,6 +66,7 @@ int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setowner_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getsid_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int setgroup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -2840,6 +2841,56 @@ int getsid_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     ret = 0;
 out:
     get_name_sid(NULL,&psidstr,&strsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int setgroup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* fname=NULL;
+    char* group=NULL;
+    void* pacl=NULL;
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int i,ret;
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+
+    if (parsestate->leftargs == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr,"need group files...\n");
+        goto out;
+    }
+    group = parsestate->leftargs[0];
+    for (i=1;parsestate->leftargs[i] != NULL;i++) {
+        fname = parsestate->leftargs[i];
+        ret = get_file_acls(fname,&pacl);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "[%d][%s] get acl error[%d]\n", i, fname, ret);
+            goto out;
+        }
+        ret = set_file_group(pacl,group);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "[%d][%s] set group error[%d]\n", i, fname, ret);
+            goto out;
+        }
+
+        ret = set_file_acls(fname,pacl);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "[%d][%s] flush acls error[%d]\n", i, fname, ret);
+            goto out;
+        }
+        get_file_acls(NULL,&pacl);
+        fprintf(stdout,"[%d][%s] group [%s] succ\n",i, fname, group);
+    }
+
+    ret = 0;
+out:
+    get_file_acls(NULL,&pacl);
     SETERRNO(ret);
     return ret;
 }

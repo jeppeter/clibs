@@ -104,6 +104,9 @@
     "setowner<setowner_handler>##owner files... to set owner for file or directory##" : {
         "$" : "+"
     },
+    "setgroup<setgroup_handler>##group files... to set group for file ro directory##" : {
+        "$" : "+"
+    },
     "getsid<getsid_handler>##username...  to get username to usersid##" : {
         "$" : "+"
     }
