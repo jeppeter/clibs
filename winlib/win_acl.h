@@ -10,6 +10,23 @@ extern "C" {
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
+#define ACL_ACTION_NOT_USED         "notused"
+#define ACL_ACTION_GRANT            "grant"
+#define ACL_ACTION_SET              "set"
+#define ACL_ACTION_DENY             "deny"
+#define ACL_ACTION_REVOKE           "revoke"
+#define ACL_ACTION_AUDIT_SUCC       "auditsucc"
+#define ACL_ACTION_AUDIT_FAIL       "auditfail"
+
+
+#define ACL_RIGHT_DELETE            "delete"
+#define ACL_RIGHT_READ_CONTROL      "readcontrol"
+#define ACL_RIGHT_WRITE_DAC         "writedac"
+#define ACL_RIGHT_WRITE_OWNER       "writeowner"
+#define ACL_RIGHT_SYNCHRONIZE       "synchronize"
+
+#define ACL_RIGHT_ALL               "all"
+
 
 WINLIB_API int get_file_acls(const char* fname, void** ppacl);
 WINLIB_API int set_file_acls(const char* fname, void* pacl);

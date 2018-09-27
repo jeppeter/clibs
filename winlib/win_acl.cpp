@@ -18,9 +18,17 @@
 typedef struct __win_acl {
     uint32_t  m_magic;
     PSECURITY_DESCRIPTOR m_ownersdp;
+    DWORD m_ownersize;
+    DWORD m_ownerlen;
     PSECURITY_DESCRIPTOR m_groupsdp;
+    DWORD m_grpsize;
+    DWORD m_grplen;
     PSECURITY_DESCRIPTOR m_daclsdp;
+    DWORD m_daclsize;
+    DWORD m_dacllen;
     PSECURITY_DESCRIPTOR m_saclsdp;
+    DWORD m_saclsize;
+    DWORD m_sacllen;
 } win_acl_t, *pwin_acl_t;
 
 void __free_win_acl(pwin_acl_t* ppacl)
@@ -32,21 +40,30 @@ void __free_win_acl(pwin_acl_t* ppacl)
                 LocalFree(pacl->m_ownersdp);
                 pacl->m_ownersdp = NULL;
             }
+            pacl->m_ownersize = 0;
+            pacl->m_ownerlen = 0;
 
             if (pacl->m_groupsdp) {
                 LocalFree(pacl->m_groupsdp);
                 pacl->m_groupsdp = NULL;
             }
+            pacl->m_grpsize = 0;
+            pacl->m_grplen = 0;
 
             if (pacl->m_daclsdp) {
                 LocalFree(pacl->m_saclsdp);
                 pacl->m_saclsdp = NULL;
             }
+            pacl->m_saclsize = 0;
+            pacl->m_sacllen = 0;
 
             if (pacl->m_saclsdp) {
                 LocalFree(pacl->m_saclsdp);
                 pacl->m_saclsdp = NULL;
             }
+            pacl->m_daclsize = 0;
+            pacl->m_dacllen = 0;
+
             pacl->m_magic = 0;
         }
         free(pacl);
@@ -67,9 +84,20 @@ pwin_acl_t __alloc_win_acl()
     memset(pacl, 0, sizeof(*pacl));
     SET_WIN_ACL_MAGIC(pacl);
     pacl->m_ownersdp = NULL;
+    pacl->m_ownersize = 0;
+    pacl->m_ownerlen = 0;
+
     pacl->m_groupsdp = NULL;
+    pacl->m_grpsize = 0;
+    pacl->m_grplen  = 0;
+
     pacl->m_saclsdp = NULL;
+    pacl->m_saclsize = 0;
+    pacl->m_sacllen = 0;
+
     pacl->m_daclsdp = NULL;
+    pacl->m_daclsize = 0;
+    pacl->m_dacllen = 0;
     return pacl;
 fail:
     __free_win_acl(&pacl);
@@ -84,12 +112,8 @@ int get_file_acls(const char* fname, void** ppacl1)
     pwin_acl_t pacl = NULL;
     TCHAR* ptname = NULL;
     int tnamesize = 0;
-    DWORD dret;
     int enabled = 0;
-    PSID owner = NULL;
-    PSID group = NULL;
-    PACL sacl = NULL;
-    PACL dacl = NULL;
+    BOOL bret;
     if (fname == NULL) {
         if (ppacl1 && *ppacl1) {
             pacl = (pwin_acl_t) * ppacl1;
@@ -113,10 +137,6 @@ int get_file_acls(const char* fname, void** ppacl1)
         }
     }
 
-    if (pacl->m_ownersdp) {
-        LocalFree(pacl->m_ownersdp);
-        pacl->m_ownersdp = NULL;
-    }
 
     if (pacl->m_groupsdp) {
         LocalFree(pacl->m_groupsdp);
@@ -140,68 +160,117 @@ int get_file_acls(const char* fname, void** ppacl1)
     }
 
     ret = enable_security_priv();
-    if (ret < 0) {
+    if (ret >= 0) {
+        enabled = 1;
+        DEBUG_INFO("enabled security priviledge");
+    } else {
+    	DEBUG_INFO("not enable security priviledge");
+    }
+
+try_owner_sec:
+    if (pacl->m_ownersdp) {
+        LocalFree(pacl->m_ownersdp);
+        pacl->m_ownersdp = NULL;
+    }
+    if (pacl->m_ownersize < 10) {
+    	pacl->m_ownersize = 10;
+    }
+    pacl->m_ownersdp = LocalAlloc(LMEM_FIXED,pacl->m_ownersize);
+    if (pacl->m_ownersdp == NULL) {
         GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", pacl->m_ownersize, ret);
         goto fail;
     }
-    enabled = 1;
-
-    dret = GetNamedSecurityInfo(ptname, SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION ,
-                                &owner, NULL, NULL, NULL, &(pacl->m_ownersdp));
-    if (dret != ERROR_SUCCESS) {
-        ret = dret;
-        if (ret > 0) {
-            ret = -ret;
+    bret = GetFileSecurity(ptname, OWNER_SECURITY_INFORMATION, pacl->m_ownersdp, pacl->m_ownersize, &(pacl->m_ownerlen));
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+        	pacl->m_ownersize = pacl->m_ownerlen << 1;
+        	goto try_owner_sec;
         }
-        if (ret == 0) {
-            ret = -1;
-        }
-        ERROR_INFO("get [%s] owner error[%d]", fname, ret);
+        ERROR_INFO("get[%s] owner error[%d]", fname, ret);
         goto fail;
     }
+    DEBUG_INFO("get owner [%p] size[%d] len[%d]", pacl->m_ownersdp, pacl->m_ownersize, pacl->m_ownerlen);
 
-    dret = GetNamedSecurityInfo(ptname, SE_FILE_OBJECT, GROUP_SECURITY_INFORMATION ,
-                                NULL, &group, NULL, NULL, &(pacl->m_groupsdp));
-    if (dret != ERROR_SUCCESS) {
-        ret = dret;
-        if (ret > 0) {
-            ret = -ret;
-        }
-        if (ret == 0) {
-            ret = -1;
-        }
-        ERROR_INFO("get [%s] group error[%d]", fname, ret);
-        goto fail;
-    }
+try_grp_sec:
+	if (pacl->m_groupsdp) {
+		LocalFree(pacl->m_groupsdp);
+		pacl->m_groupsdp = NULL;
+	}
+	if (pacl->m_grpsize < 10) {
+		pacl->m_grpsize = 10;
+	}
+	pacl->m_groupsdp = LocalAlloc(LMEM_FIXED,pacl->m_grpsize);
+	if (pacl->m_groupsdp == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("alloc %d error[%d]", pacl->m_grpsize, ret);
+		goto fail;
+	}
+	bret = GetFileSecurity(ptname, GROUP_SECURITY_INFORMATION,pacl->m_groupsdp, pacl->m_grpsize, &(pacl->m_grplen));
+	if (!bret) {
+		GETERRNO(ret);
+		if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+			pacl->m_grpsize = pacl->m_grplen << 1;
+			goto try_grp_sec;
+		}
+		ERROR_INFO("get[%s] group error[%d]", fname, ret);
+		goto fail;
+	}
+	DEBUG_INFO("get group [%p] size[%d] len[%d]", pacl->m_groupsdp, pacl->m_grpsize, pacl->m_grplen);
+
+try_sacl_sec:
+	if (pacl->m_saclsdp) {
+		LocalFree(pacl->m_saclsdp);
+		pacl->m_saclsdp = NULL;
+	}
+	if (pacl->m_saclsize < 10) {
+		pacl->m_saclsize = 10;
+	}
+	pacl->m_saclsdp = LocalAlloc(LMEM_FIXED,pacl->m_saclsize);
+	if (pacl->m_saclsdp == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("alloc %d error[%d]", pacl->m_saclsize, ret);
+		goto fail;
+	}
+	bret = GetFileSecurity(ptname,SACL_SECURITY_INFORMATION,pacl->m_saclsdp, pacl->m_saclsize, &(pacl->m_sacllen));
+	if (!bret) {
+		GETERRNO(ret);
+		if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+			pacl->m_saclsize = pacl->m_sacllen << 1;
+			goto try_sacl_sec;
+		}
+		ERROR_INFO("get[%s] sacl error[%d]", fname, ret);
+		goto fail;
+	}
+	DEBUG_INFO("get sacl [%p] size[%d] len[%d]", pacl->m_saclsdp, pacl->m_saclsize, pacl->m_sacllen);
 
 
-    dret = GetNamedSecurityInfo(ptname, SE_FILE_OBJECT, SACL_SECURITY_INFORMATION ,
-                                NULL, NULL, NULL, &sacl, &(pacl->m_saclsdp));
-    if (dret != ERROR_SUCCESS) {
-        ret = dret;
-        if (ret > 0) {
-            ret = -ret;
-        }
-        if (ret == 0) {
-            ret = -1;
-        }
-        ERROR_INFO("get [%s] sacl error[%d]", fname, ret);
-        goto fail;
-    }
-
-    dret = GetNamedSecurityInfo(ptname, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION ,
-                                NULL, NULL, &dacl, NULL, &(pacl->m_daclsdp));
-    if (dret != ERROR_SUCCESS) {
-        ret = dret;
-        if (ret > 0) {
-            ret = -ret;
-        }
-        if (ret == 0) {
-            ret = -1;
-        }
-        ERROR_INFO("get [%s] dacl error[%d]", fname, ret);
-        goto fail;
-    }
+try_dacl_sec:
+	if (pacl->m_daclsdp) {
+		LocalFree(pacl->m_daclsdp);
+		pacl->m_daclsdp = NULL;
+	}
+	if (pacl->m_daclsize < 10) {
+		pacl->m_daclsize = 10;
+	}
+	pacl->m_daclsdp = LocalAlloc(LMEM_FIXED,pacl->m_daclsize);
+	if (pacl->m_daclsdp == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("alloc %d error[%d]", pacl->m_daclsize, ret);
+		goto fail;
+	}
+	bret = GetFileSecurity(ptname,DACL_SECURITY_INFORMATION,pacl->m_daclsdp, pacl->m_daclsize, &(pacl->m_dacllen));
+	if (!bret) {
+		GETERRNO(ret);
+		if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+			pacl->m_daclsize = pacl->m_dacllen << 1;
+			goto try_dacl_sec;
+		}
+		ERROR_INFO("get[%s] dacl error[%d]", fname, ret);
+		goto fail;
+	}
+	DEBUG_INFO("get dacl [%p] size[%d] len[%d]", pacl->m_daclsdp, pacl->m_daclsize, pacl->m_dacllen);
 
     if (enabled) {
         ret = disable_security_priv();
@@ -243,7 +312,52 @@ void __debug_access(PEXPLICIT_ACCESS paccess, int accnum)
     for (i = 0; i < (int)accnum; i++) {
         pcuracc = &(paccess[i]);
         DEBUG_INFO("[%d] grfAccessPermissions [0x%lx]", i, pcuracc->grfAccessPermissions);
-        DEBUG_INFO("[%d] grfAccessMode [0x%lx]", i, pcuracc->grfAccessMode);
+        if ((pcuracc->grfAccessPermissions & STANDARD_RIGHTS_ALL) == STANDARD_RIGHTS_ALL) {
+            DEBUG_INFO("[%d] grfAccessPermissions %s", i, ACL_RIGHT_ALL);
+        } else {
+            if (pcuracc->grfAccessPermissions & DELETE) {
+                DEBUG_INFO("[%d] grfAccessPermissions %s", i, ACL_RIGHT_DELETE);
+            }
+            if (pcuracc->grfAccessPermissions & READ_CONTROL) {
+                DEBUG_INFO("[%d] grfAccessPermissions %s", i, ACL_RIGHT_READ_CONTROL);
+            }
+            if (pcuracc->grfAccessPermissions & WRITE_DAC) {
+                DEBUG_INFO("[%d] grfAccessPermissions %s", i, ACL_RIGHT_WRITE_DAC);
+            }
+            if (pcuracc->grfAccessPermissions & WRITE_OWNER) {
+                DEBUG_INFO("[%d] grfAccessPermissions %s", i, ACL_RIGHT_WRITE_OWNER);
+            }
+            if (pcuracc->grfAccessPermissions & SYNCHRONIZE) {
+                DEBUG_INFO("[%d] grfAccessPermissions %s", i, ACL_RIGHT_SYNCHRONIZE);
+            }
+        }
+
+
+        switch (pcuracc->grfAccessMode) {
+        case NOT_USED_ACCESS:
+            DEBUG_INFO("[%d] grfAccessMode %s", i, ACL_ACTION_NOT_USED);
+            break;
+        case GRANT_ACCESS:
+            DEBUG_INFO("[%d] grfAccessMode %s", i, ACL_ACTION_GRANT);
+            break;
+        case SET_ACCESS:
+            DEBUG_INFO("[%d] grfAccessMode %s", i, ACL_ACTION_SET);
+            break;
+        case DENY_ACCESS:
+            DEBUG_INFO("[%d] grfAccessMode %s", i, ACL_ACTION_DENY);
+            break;
+        case REVOKE_ACCESS:
+            DEBUG_INFO("[%d] grfAccessMode %s", i, ACL_ACTION_REVOKE);
+            break;
+        case SET_AUDIT_SUCCESS:
+            DEBUG_INFO("[%d] grfAccessMode %s", i, ACL_ACTION_AUDIT_SUCC);
+            break;
+        case SET_AUDIT_FAILURE:
+            DEBUG_INFO("[%d] grfAccessMode %s", i, ACL_ACTION_AUDIT_FAIL);
+            break;
+        default:
+            DEBUG_INFO("[%d] grfAccessMode [0x%lx]", i, pcuracc->grfAccessMode);
+        }
         DEBUG_INFO("[%d] grfInheritance [0x%lx]", i, pcuracc->grfInheritance);
         DEBUG_INFO("[%d] pMultipleTrustee [%p]", i, pcuracc->Trustee.pMultipleTrustee);
         DEBUG_INFO("[%d] MultipleTrusteeOperation [0x%x]", i, pcuracc->Trustee.MultipleTrusteeOperation);
@@ -329,54 +443,54 @@ fail:
 
 int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
 {
-	int accnum=0;
-	int ret;
-	DWORD dret;
+    int accnum = 0;
+    int ret;
+    DWORD dret;
 
-	if (acl == NULL) {
-		if (ppaccess && *ppaccess) {
-			LocalFree(*ppaccess);
-			*ppaccess = NULL;
-		}
-		if (psize) {
-			*psize = 0;
-		}
-		return 0;
-	}
-	if (ppaccess == NULL || psize == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
-		SETERRNO(ret);
-		return ret;
-	}
+    if (acl == NULL) {
+        if (ppaccess && *ppaccess) {
+            LocalFree(*ppaccess);
+            *ppaccess = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+    if (ppaccess == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
 
-	if (*ppaccess != NULL || *psize != 0){
-		ret = -ERROR_INVALID_PARAMETER;
-		SETERRNO(ret);
-		return ret;		
-	}
+    if (*ppaccess != NULL || *psize != 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
 
-	dret = GetExplicitEntriesFromAcl(acl,(PULONG)psize,ppaccess);
-	if (dret != ERROR_SUCCESS) {
-		ret = dret;
-		if (ret > 0) {
-			ret = -ret;
-		}
-		if (ret == 0) {
-			ret = -1;
-		}
-		ERROR_INFO("get Entries error[%d]", ret);
-		goto fail;
-	}
-	accnum = *psize;
+    dret = GetExplicitEntriesFromAcl(acl, (PULONG)psize, ppaccess);
+    if (dret != ERROR_SUCCESS) {
+        ret = dret;
+        if (ret > 0) {
+            ret = -ret;
+        }
+        if (ret == 0) {
+            ret = -1;
+        }
+        ERROR_INFO("get Entries error[%d]", ret);
+        goto fail;
+    }
+    accnum = *psize;
     __debug_access(*ppaccess, accnum);
-	return accnum;
+    return accnum;
 
 fail:
-	SETERRNO(ret);
-	return ret;
+    SETERRNO(ret);
+    return ret;
 }
 
-typedef int (*filter_acl_func_t)(PEXPLICIT_ACCESS paccess, int accnum, int idx,char** ppstr, int *pstrsize);
+typedef int (*filter_acl_func_t)(PEXPLICIT_ACCESS paccess, int accnum, int idx, char** ppstr, int *pstrsize);
 
 int __get_acl_user_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char** ppstr, int *pstrsize)
 {
@@ -387,6 +501,8 @@ int __get_acl_user_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char** p
     PSID psid;
     char* pname = NULL;
     int namesize = 0;
+    char* pdomain = NULL;
+    int domainsize = 0;
     TCHAR* ptuser = NULL;
     DWORD tusersize = 0, tuserlen = 0;
     TCHAR* ptdomain = NULL;
@@ -394,7 +510,7 @@ int __get_acl_user_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char** p
     SID_NAME_USE siduse;
     idx = idx;
     if (paccess == NULL) {
-    	return snprintf_safe(ppstr,pstrsize,NULL);
+        return snprintf_safe(ppstr, pstrsize, NULL);
     }
     if (ppstr == NULL || pstrsize == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
@@ -406,7 +522,7 @@ int __get_acl_user_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char** p
     if ((int)accnum <= idx) {
         retlen = 0;
         if (ppstr && *ppstr) {
-        	*ppstr = '\0';
+            *ppstr = '\0';
         }
         goto succ;
     }
@@ -463,11 +579,23 @@ try_get_sid:
         GETERRNO(ret);
         goto fail;
     }
+    if (ptdomain != NULL && tdomainlen > 0) {
+        ret = TcharToAnsi(ptdomain, &pdomain, &domainsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
 
-    ret = snprintf_safe(ppstr,pstrsize, "%s",pname);
+    if (pdomain != NULL) {
+        ret = snprintf_safe(ppstr, pstrsize, "%s\\%s", pdomain, pname);
+    } else {
+        ret = snprintf_safe(ppstr, pstrsize, "%s", pname);
+    }
+
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
     retlen = ret;
 
@@ -482,6 +610,7 @@ succ:
     ptdomain = NULL;
 
     TcharToAnsi(NULL, &pname, &namesize);
+    TcharToAnsi(NULL, &pdomain, &domainsize);
     return retlen;
 fail:
     if (ptuser) {
@@ -493,65 +622,67 @@ fail:
     }
     ptdomain = NULL;
     TcharToAnsi(NULL, &pname, &namesize);
+    TcharToAnsi(NULL, &pdomain, &domainsize);
     SETERRNO(ret);
     return ret;
 }
 
 int __handle_acl_idx_callback(PACL acl, int idx, char** ppstr, int *pstrsize, filter_acl_func_t callback)
 {
-	PEXPLICIT_ACCESS paccess=NULL;
-	int accsize=0,accnum=0;
-	int retlen;
-	int ret;
-	if (acl == NULL) {
-		if (callback != NULL) {
-			return callback(NULL,0,idx,ppstr,pstrsize);
-		}
-		if (ppstr && *ppstr) {
-			free(*ppstr);
-			*ppstr = NULL;
-		}
-		if (pstrsize) {
-			*pstrsize = 0;
-		}
-		return 0;
-	}
+    PEXPLICIT_ACCESS paccess = NULL;
+    int accsize = 0, accnum = 0;
+    int retlen;
+    int ret;
+    if (acl == NULL) {
+        if (callback != NULL) {
+            return callback(NULL, 0, idx, ppstr, pstrsize);
+        }
+        if (ppstr && *ppstr) {
+            free(*ppstr);
+            *ppstr = NULL;
+        }
+        if (pstrsize) {
+            *pstrsize = 0;
+        }
+        return 0;
+    }
 
-	if (callback == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
-		goto fail;
-	}
+    if (callback == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
 
-	ret = __get_explicit_access(acl,&paccess,&accsize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	accnum = ret;
+    ret = __get_explicit_access(acl, &paccess, &accsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    accnum = ret;
 
-	ret = callback(paccess,accnum, idx,ppstr,pstrsize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	retlen = ret;
+    ret = callback(paccess, accnum, idx, ppstr, pstrsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = ret;
 
-	__get_explicit_access(NULL,&paccess,&accsize);
-	accnum = 0;
-	return retlen;
+    __get_explicit_access(NULL, &paccess, &accsize);
+    accnum = 0;
+    return retlen;
 fail:
-	__get_explicit_access(NULL,&paccess,&accsize);
-	accnum = 0;
-	SETERRNO(ret);
-	return ret;
+    __get_explicit_access(NULL, &paccess, &accsize);
+    accnum = 0;
+    SETERRNO(ret);
+    return ret;
 }
 
-PACL __get_sacl_from_descriptor(PSECURITY_DESCRIPTOR psdp)
+int __get_sacl_from_descriptor(PSECURITY_DESCRIPTOR psdp,PACL *ppacl)
 {
     BOOL bacldefault, bacl;
     BOOL bret;
     PACL acl = NULL;
     int ret;
+    int retval = 1;
 
     bacl = FALSE;
     bacldefault = FALSE;
@@ -563,23 +694,25 @@ PACL __get_sacl_from_descriptor(PSECURITY_DESCRIPTOR psdp)
     }
 
     if (!bacl) {
-        ret = -ERROR_INVALID_PARAMETER;
-        ERROR_INFO("not acl type");
-        goto fail;
+    	retval = 0;
+    }
+    if (ppacl && acl != NULL) {
+    	*ppacl = acl;
     }
 
-    return acl;
+    return retval;
 fail:
     SETERRNO(ret);
     return NULL;
 }
 
-PACL __get_dacl_from_descriptor(PSECURITY_DESCRIPTOR psdp)
+int __get_dacl_from_descriptor(PSECURITY_DESCRIPTOR psdp, PACL* ppacl)
 {
     BOOL bacldefault, bacl;
     BOOL bret;
     PACL acl = NULL;
     int ret;
+    int retval = 1;
 
     bacl = FALSE;
     bacldefault = FALSE;
@@ -591,12 +724,13 @@ PACL __get_dacl_from_descriptor(PSECURITY_DESCRIPTOR psdp)
     }
 
     if (!bacl) {
-        ret = -ERROR_INVALID_PARAMETER;
-        ERROR_INFO("not acl type");
-        goto fail;
+    	retval = 0;
+    }
+    if (ppacl && acl != NULL) {
+    	*ppacl = acl;
     }
 
-    return acl;
+    return retval;
 fail:
     SETERRNO(ret);
     return NULL;
@@ -611,7 +745,7 @@ int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
     PACL sacl = NULL;
     pacl = (pwin_acl_t) pacl1;
     if (pacl == NULL) {
-        return __handle_acl_idx_callback(NULL, idx, ppuser, pusersize,__get_acl_user_inner);
+        return __handle_acl_idx_callback(NULL, idx, ppuser, pusersize, __get_acl_user_inner);
     }
 
     if (!IS_WIN_ACL_MAGIC(pacl) ) {
@@ -622,18 +756,21 @@ int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
     if (pacl->m_saclsdp == NULL) {
         retlen = 0;
         if (ppuser && *ppuser) {
-        	*ppuser = '\0';
+            *ppuser = '\0';
         }
         goto succ;
     }
 
-    sacl = __get_sacl_from_descriptor(pacl->m_saclsdp);
-    if (sacl == NULL) {
-        GETERRNO(ret);
-        goto fail;
+    ret = __get_sacl_from_descriptor(pacl->m_saclsdp,&sacl);
+    if (ret == 0 || sacl == NULL) {
+        retlen = 0;
+        if (ppuser && *ppuser) {
+            *ppuser = '\0';
+        }
+        goto succ;
     }
 
-    ret = __handle_acl_idx_callback(sacl, idx, ppuser, pusersize,__get_acl_user_inner);
+    ret = __handle_acl_idx_callback(sacl, idx, ppuser, pusersize, __get_acl_user_inner);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -655,7 +792,7 @@ int get_dacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
     PACL dacl = NULL;
     pacl = (pwin_acl_t) pacl1;
     if (pacl == NULL) {
-        return __handle_acl_idx_callback(NULL, idx, ppuser, pusersize,__get_acl_user_inner);
+        return __handle_acl_idx_callback(NULL, idx, ppuser, pusersize, __get_acl_user_inner);
     }
 
     if (!IS_WIN_ACL_MAGIC(pacl) ) {
@@ -666,18 +803,21 @@ int get_dacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
     if (pacl->m_daclsdp == NULL) {
         retlen = 0;
         if (ppuser && *ppuser) {
-        	*ppuser = '\0';
+            *ppuser = '\0';
         }
         goto succ;
     }
 
-    dacl = __get_dacl_from_descriptor(pacl->m_daclsdp);
-    if (dacl == NULL) {
-        GETERRNO(ret);
-        goto fail;
+    ret = __get_dacl_from_descriptor(pacl->m_daclsdp,&dacl);
+    if (ret == 0 || dacl == NULL) {
+        retlen = 0;
+        if (ppuser && *ppuser) {
+            *ppuser = '\0';
+        }
+        goto succ;
     }
 
-    ret = __handle_acl_idx_callback(dacl, idx, ppuser, pusersize,__get_acl_user_inner);
+    ret = __handle_acl_idx_callback(dacl, idx, ppuser, pusersize, __get_acl_user_inner);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
