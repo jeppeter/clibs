@@ -2790,7 +2790,7 @@ int setowner_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             fprintf(stderr, "[%d][%s] get acl error[%d]\n", i, fname, ret);
             goto out;
         }
-        ret = set_file_owner(fname,owner);
+        ret = set_file_owner(pacl,owner);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "[%d][%s] set owner error[%d]\n", i, fname, ret);
@@ -2804,6 +2804,7 @@ int setowner_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             goto out;
         }
         get_file_acls(NULL,&pacl);
+        fprintf(stdout,"[%d][%s] owner [%s] succ\n",i, fname, owner);
     }
 
     ret = 0;

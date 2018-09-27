@@ -13,6 +13,7 @@
 #define   WIN_ACL_MAGIC            0x3021211
 
 #define   MIN_SID_SIZE             5
+#define   MIN_SECURITY_DESC_SIZE   sizeof(SECURITY_DESCRIPTOR)
 
 
 #define   SET_WIN_ACL_MAGIC(pacl)  do{if ((pacl) != NULL) { (pacl)->m_magic = WIN_ACL_MAGIC;}} while(0)
@@ -20,6 +21,8 @@
 
 typedef struct __win_acl {
     uint32_t  m_magic;
+    char* m_fname;
+    int m_namesize;
     PSECURITY_DESCRIPTOR m_ownersdp;
     DWORD m_ownersize;
     DWORD m_ownerlen;
@@ -67,6 +70,12 @@ void __free_win_acl(pwin_acl_t* ppacl)
             pacl->m_daclsize = 0;
             pacl->m_dacllen = 0;
 
+            if (pacl->m_fname) {
+            	free(pacl->m_fname);
+            }
+            pacl->m_fname = NULL;
+            pacl->m_namesize = 0;
+
             pacl->m_magic = 0;
         }
         free(pacl);
@@ -86,6 +95,9 @@ pwin_acl_t __alloc_win_acl()
     }
     memset(pacl, 0, sizeof(*pacl));
     SET_WIN_ACL_MAGIC(pacl);
+    pacl->m_fname = NULL;
+    pacl->m_namesize = 0;
+
     pacl->m_ownersdp = NULL;
     pacl->m_ownersize = 0;
     pacl->m_ownerlen = 0;
@@ -131,7 +143,7 @@ int get_file_acls(const char* fname, void** ppacl1)
         SETERRNO(ret);
         return ret;
     }
-    pacl = (pwin_acl_t) * ppacl1;
+    pacl = (pwin_acl_t) *ppacl1;
     if (pacl == NULL) {
         pacl = __alloc_win_acl();
         if (pacl == NULL) {
@@ -139,6 +151,20 @@ int get_file_acls(const char* fname, void** ppacl1)
             goto fail;
         }
     }
+
+    if (pacl->m_fname) {
+    	free(pacl->m_fname);
+    }
+    pacl->m_fname = NULL;
+    pacl->m_namesize = 0;
+
+    pacl->m_fname = strdup(fname);
+    if (pacl->m_fname == NULL) {
+    	GETERRNO(ret);
+    	ERROR_INFO("strdup [%s] error[%d]", fname, ret);
+    	goto fail;
+    }
+    pacl->m_namesize = (int)strlen(fname) + 1;
 
 
     if (pacl->m_groupsdp) {
@@ -295,6 +321,7 @@ try_dacl_sec:
         enabled = 0;
     }
 
+    DEBUG_BUFFER_FMT(pacl->m_fname, pacl->m_namesize, "fname");
     *ppacl1 = pacl;
     return 0;
 fail:
@@ -1437,19 +1464,161 @@ fail:
     return ret;
 }
 
+#define    SID_GROUP_MODE                    1
+#define    SID_OWNER_MODE                    2
+
+int __new_sid_descriptor(PSID psid, int mode ,PSECURITY_DESCRIPTOR *ppsdp, int *psize)
+{
+	DWORD dplen=0;
+	int ret;
+	int retlen;
+	BOOL bret;
+	PSECURITY_DESCRIPTOR pdp=NULL;
+	PTRUSTEE_A  ptrustee=NULL;
+	int trusteesize=0;
+
+	if (psid == NULL) {
+		if (ppsdp && *ppsdp) {
+			LocalFree(*ppsdp);
+			*ppsdp = NULL;
+		}
+		if (psize) {
+			*psize = 0;
+		}
+		return 0;
+	}
+	if (ppsdp == NULL || psize == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (*ppsdp != NULL || *psize != 0) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;		
+	}
+	ptrustee = (PTRUSTEE_A)LocalAlloc(LMEM_FIXED,sizeof(*ptrustee));
+	if (ptrustee == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("alloc %d error[%d]", sizeof(*ptrustee), ret);
+		goto fail;
+	}
+	BuildTrusteeWithSid(ptrustee,psid);
+
+
+	dplen = 0;
+	if (mode == SID_GROUP_MODE) {
+		bret = BuildSecurityDescriptor(NULL,ptrustee,0,NULL,0,NULL,NULL,&dplen,&pdp);
+	} else if (mode == SID_OWNER_MODE) {
+		bret = BuildSecurityDescriptor(ptrustee,NULL,0,NULL,0,NULL,NULL,&dplen,&pdp);
+	} else {
+		ret = -ERROR_INVALID_PARAMETER;
+		goto fail;
+	}
+
+	*ppsdp = pdp;
+	*psize = dplen;
+	retlen = dplen;
+
+	if (ptrustee) {
+		LocalFree(ptrustee);
+	}
+	ptrustee = NULL;
+	trusteesize = 0;
+
+
+	return retlen;
+fail:
+	if (pdp) {
+		LocalFree(pdp);
+	}
+	pdp = NULL;
+	if (ptrustee) {
+		LocalFree(ptrustee);
+	}
+	ptrustee = NULL;
+	trusteesize = 0;
+	SETERRNO(ret);
+	return ret;
+}
+
+int __set_file_descriptor(char* name, SECURITY_INFORMATION  info,PSECURITY_DESCRIPTOR pdp)
+{
+	BOOL bret;
+	int ret;
+	TCHAR* ptname=NULL;
+	int tnamesize=0;
+
+	ret = AnsiToTchar(name,&ptname,&tnamesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	bret = SetFileSecurity(ptname, info,pdp);
+	if (!bret) {
+		GETERRNO(ret);
+		ERROR_INFO("set [%s] [%d] error[%d]", name, info,ret);
+		goto fail;
+	}
+
+	AnsiToTchar(NULL,&ptname,&tnamesize);
+	return 0;
+fail:
+	AnsiToTchar(NULL,&ptname,&tnamesize);
+	SETERRNO(ret);
+	return ret;
+}
+
+
 int set_file_owner(void* pacl1, const char* username)
 {
     int ret = 0;
     int sidsize = 0;
     PSID psid = NULL;
+    int dpsize=0;
+    int dplen = 0;
+    PSECURITY_DESCRIPTOR pdp=NULL;
+    pwin_acl_t pacl = (pwin_acl_t) pacl1;
     ret = __get_sid_from_name(username, &psid, &sidsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
     DEBUG_BUFFER_FMT(psid,ret,"sid for [%s]", username);
+    ret = __new_sid_descriptor(psid,SID_OWNER_MODE,&pdp,&dpsize);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+    dplen = ret;
+    DEBUG_BUFFER_FMT(pdp,dplen,"dp with sid");
+    psid = NULL;
+    sidsize = 0;
+
+    DEBUG_BUFFER_FMT(pacl->m_fname, pacl->m_namesize, "fname");
+    ret = __set_file_descriptor(pacl->m_fname,OWNER_SECURITY_INFORMATION,pdp);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+
+    if (pacl->m_ownersdp) {
+    	LocalFree(pacl->m_ownersdp);
+    	pacl->m_ownersdp = NULL;
+    }
+
+    pacl->m_ownersdp = pdp;
+    pdp = NULL;
+    pacl->m_ownersize = dpsize;
+    pacl->m_ownerlen = dplen;
+
+    __new_sid_descriptor(NULL,SID_OWNER_MODE,&pdp,&dpsize);
+    __get_sid_from_name(NULL, &psid, &sidsize);
     return 0;
 fail:
+	__new_sid_descriptor(NULL,SID_OWNER_MODE,&pdp,&dpsize);
     __get_sid_from_name(NULL, &psid, &sidsize);
     SETERRNO(ret);
     return ret;
