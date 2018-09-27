@@ -76,3 +76,23 @@ int disable_security_priv(void)
 {
 	return __handle_priv("SeSecurityPrivilege",0);
 }
+
+int enable_takeown_priv(void)
+{
+	return __handle_priv("SeTakeOwnershipPrivilege",1);
+}
+
+int disable_takeown_priv(void)
+{
+	return __handle_priv("SeTakeOwnershipPrivilege",0);
+}
+
+int enable_restore_priv(void)
+{
+	return __handle_priv("SeRestorePrivilege",1);
+}
+
+int disable_restore_priv(void)
+{
+	return __handle_priv("SeRestorePrivilege",0);
+}

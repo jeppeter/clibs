@@ -36,6 +36,8 @@ WINLIB_API int set_file_acls(const char* fname, void* pacl);
 WINLIB_API int get_file_owner(void* pacl, char** ppusername,int *pusersize);
 WINLIB_API int get_file_group(void* pacl, char** ppgroup,int *pgrpsize);
 
+WINLIB_API int get_name_sid(const char* name, char** ppsid,int *psize);
+
 
 WINLIB_API int set_file_owner(void* pacl, const char* username);
 WINLIB_API int set_file_group(void* pacl, const char* groupname);

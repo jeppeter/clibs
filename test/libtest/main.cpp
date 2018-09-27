@@ -65,6 +65,7 @@ int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setowner_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getsid_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -2810,6 +2811,35 @@ int setowner_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     ret = 0;
 out:
     get_file_acls(NULL,&pacl);
+    SETERRNO(ret);
+    return ret;
+}
+
+int getsid_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int i,ret;
+    char* psidstr=NULL;
+    int strsize=0;
+    char* username=NULL;
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i] != NULL ;i ++) {
+        username = parsestate->leftargs[i];
+        ret = get_name_sid(username, &psidstr,&strsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "get [%d][%s] sid error[%d]\n", i, username, ret);
+            goto out;
+        }
+        fprintf(stdout, "[%d][%s] sid [%s]\n", i, username, psidstr);
+    }
+
+    ret = 0;
+out:
+    get_name_sid(NULL,&psidstr,&strsize);
     SETERRNO(ret);
     return ret;
 }

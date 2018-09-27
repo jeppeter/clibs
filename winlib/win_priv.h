@@ -5,8 +5,19 @@
 extern "C" {
 #endif /* __cplusplus*/
 
-int enable_security_priv(void);
-int disable_security_priv(void);
+#undef __WINLIB_INNER_INCLUDE__
+#define __WINLIB_INNER_INCLUDE__
+#include <win_inner.h>
+#undef __WINLIB_INNER_INCLUDE__
+
+
+WINLIB_API int enable_security_priv(void);
+WINLIB_API int disable_security_priv(void);
+WINLIB_API int enable_takeown_priv(void);
+WINLIB_API int disable_takeown_priv(void);
+WINLIB_API int enable_restore_priv(void);
+WINLIB_API int disable_restore_priv(void);
+
 
 #ifdef __cplusplus
 };

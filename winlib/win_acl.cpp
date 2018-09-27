@@ -1579,6 +1579,8 @@ int set_file_owner(void* pacl1, const char* username)
     PSID psid = NULL;
     int dpsize=0;
     int dplen = 0;
+    int enblrestore= 0;
+    int enbltakeown=0;
     PSECURITY_DESCRIPTOR pdp=NULL;
     pwin_acl_t pacl = (pwin_acl_t) pacl1;
     ret = __get_sid_from_name(username, &psid, &sidsize);
@@ -1597,6 +1599,20 @@ int set_file_owner(void* pacl1, const char* username)
     psid = NULL;
     sidsize = 0;
 
+    ret = enable_takeown_priv();
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+    enbltakeown = 1;
+
+    ret = enable_restore_priv();
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+    enblrestore = 1;
+
     DEBUG_BUFFER_FMT(pacl->m_fname, pacl->m_namesize, "fname");
     ret = __set_file_descriptor(pacl->m_fname,OWNER_SECURITY_INFORMATION,pdp);
     if (ret < 0) {
@@ -1614,10 +1630,37 @@ int set_file_owner(void* pacl1, const char* username)
     pacl->m_ownersize = dpsize;
     pacl->m_ownerlen = dplen;
 
+    if (enblrestore) {
+    	ret = disable_restore_priv();
+    	if (ret < 0) {
+    		GETERRNO(ret);
+    		goto fail;
+    	}
+    }
+    enblrestore = 0;
+
+    if (enbltakeown) {
+    	ret = disable_takeown_priv();
+    	if (ret < 0) {
+    		GETERRNO(ret);
+    		goto fail;
+    	}    	
+    }
+    enbltakeown = 0;
+
     __new_sid_descriptor(NULL,SID_OWNER_MODE,&pdp,&dpsize);
     __get_sid_from_name(NULL, &psid, &sidsize);
     return 0;
 fail:
+	if (enblrestore) {
+		disable_restore_priv();
+	}
+	enblrestore = 0;
+
+	if (enbltakeown) {
+		disable_takeown_priv();
+	}
+	enbltakeown = 0;
 	__new_sid_descriptor(NULL,SID_OWNER_MODE,&pdp,&dpsize);
     __get_sid_from_name(NULL, &psid, &sidsize);
     SETERRNO(ret);
@@ -1629,4 +1672,59 @@ int set_file_acls(const char* fname, void* pacl1)
     fname = fname;
     pacl1 = pacl1;
     return 0;
+}
+
+int get_name_sid(const char* name, char** ppsid,int *psize)
+{
+	PSID psid=NULL;
+	int sidsize=0;
+	TCHAR* ptsid=NULL;
+	int ret;
+	BOOL bret;
+	int retlen=0;
+
+	if (name == NULL) {
+		return TcharToAnsi(NULL,ppsid,psize);
+	}
+
+	ret = __get_sid_from_name(name,&psid,&sidsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	bret = ConvertSidToStringSid(psid,&ptsid);
+	if (!bret) {
+		GETERRNO(ret);
+		ERROR_INFO("convert sid string error[%d]", ret);
+		goto fail;
+	}
+
+	ret = TcharToAnsi(ptsid,ppsid,psize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	retlen = ret;
+
+	if (ptsid) {
+		LocalFree(ptsid);
+	}
+	ptsid = NULL;
+	__get_sid_from_name(NULL,&psid,&sidsize);
+
+	if (retlen == 0) {
+		if(ppsid && *ppsid) {
+			**ppsid = '\0';
+		}
+	}
+	return retlen;
+fail:
+	if (ptsid) {
+		LocalFree(ptsid);
+	}
+	ptsid = NULL;
+	__get_sid_from_name(NULL,&psid,&sidsize);
+	SETERRNO(ret);
+	return ret;
 }
