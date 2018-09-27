@@ -27,6 +27,8 @@ extern "C" {
 
 #define ACL_RIGHT_ALL               "all"
 
+#define ACL_COMMON_SEP              ";"
+
 
 WINLIB_API int get_file_acls(const char* fname, void** ppacl);
 WINLIB_API int set_file_acls(const char* fname, void* pacl);

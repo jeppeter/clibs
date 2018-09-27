@@ -2640,6 +2640,10 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     pargs_options_t pargs = (pargs_options_t) popt;
     char* user = NULL;
     int usersize = 0;
+    char* action=NULL;
+    int actionsize=0;
+    char* right=NULL;
+    int rightsize=0;
     init_log_level(pargs);
     argc = argc;
     argv = argv;
@@ -2657,13 +2661,31 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                 ret = get_sacl_user(pacl, j, &user, &usersize);
                 if (ret < 0) {
                     GETERRNO(ret);
-                    fprintf(stderr, "get [%d][%s] sacl error[%d]\n", i, fname, ret);
+                    fprintf(stderr, "get [%d][%s] sacl user error[%d]\n", i, fname, ret);
                     goto out;
                 } else if (ret == 0) {
                     break;
                 }
 
-                fprintf(stdout, "get [%d][%s] [%d]sacl [%s]\n", i , fname, j, user);
+                ret = get_sacl_action(pacl,j,&action,&actionsize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    fprintf(stderr, "get [%d][%s] sacl action error[%d]\n", i, fname, ret);
+                    goto out;
+                } else if (ret == 0) {
+                    break;
+                }
+
+                ret = get_sacl_right(pacl,j,&right,&rightsize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    fprintf(stderr, "get [%d][%s] sacl right error[%d]\n", i, fname, ret);
+                    goto out;
+                } else if (ret == 0) {
+                    break;
+                }
+
+                fprintf(stdout, "get [%d][%s] [%d]sacl [%s][%s][%s]\n", i , fname, j, user,action,right);
                 j ++;
             }
             j = 0;
@@ -2677,13 +2699,33 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                     break;
                 }
 
-                fprintf(stdout, "get [%d][%s] [%d]dacl [%s]\n", i , fname, j, user);
+                ret = get_dacl_action(pacl,j,&action,&actionsize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    fprintf(stderr, "get [%d][%s] dacl action error[%d]\n", i, fname, ret);
+                    goto out;
+                } else if (ret == 0) {
+                    break;
+                }
+
+                ret = get_dacl_right(pacl,j,&right,&rightsize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    fprintf(stderr, "get [%d][%s] dacl right error[%d]\n", i, fname, ret);
+                    goto out;
+                } else if (ret == 0) {
+                    break;
+                }
+
+                fprintf(stdout, "get [%d][%s] [%d]dacl [%s][%s][%s]\n", i , fname, j, user, action, right);
                 j ++;
             }
         }
     }
     ret = 0;
 out:
+    get_sacl_right(NULL,0,&right,&rightsize);
+    get_sacl_action(NULL,0,&action,&actionsize);
     get_sacl_user(NULL, 0, &user, &usersize);
     get_file_acls(NULL, &pacl);
     SETERRNO(ret);
