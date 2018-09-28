@@ -15,6 +15,10 @@
 #define   MIN_SID_SIZE             5
 #define   MIN_SECURITY_DESC_SIZE   sizeof(SECURITY_DESCRIPTOR)
 
+#define    SID_GROUP_MODE                    1
+#define    SID_OWNER_MODE                    2
+#define    SACL_MODE                         3
+#define    DACL_MODE                         4
 
 #define   SET_WIN_ACL_MAGIC(pacl)  do{if ((pacl) != NULL) { (pacl)->m_magic = WIN_ACL_MAGIC;}} while(0)
 #define   IS_WIN_ACL_MAGIC(pacl)  ((pacl) == NULL || ((pacl)->m_magic == WIN_ACL_MAGIC))
@@ -71,7 +75,7 @@ void __free_win_acl(pwin_acl_t* ppacl)
             pacl->m_dacllen = 0;
 
             if (pacl->m_fname) {
-            	free(pacl->m_fname);
+                free(pacl->m_fname);
             }
             pacl->m_fname = NULL;
             pacl->m_namesize = 0;
@@ -143,7 +147,7 @@ int get_file_acls(const char* fname, void** ppacl1)
         SETERRNO(ret);
         return ret;
     }
-    pacl = (pwin_acl_t) *ppacl1;
+    pacl = (pwin_acl_t) * ppacl1;
     if (pacl == NULL) {
         pacl = __alloc_win_acl();
         if (pacl == NULL) {
@@ -153,16 +157,16 @@ int get_file_acls(const char* fname, void** ppacl1)
     }
 
     if (pacl->m_fname) {
-    	free(pacl->m_fname);
+        free(pacl->m_fname);
     }
     pacl->m_fname = NULL;
     pacl->m_namesize = 0;
 
     pacl->m_fname = strdup(fname);
     if (pacl->m_fname == NULL) {
-    	GETERRNO(ret);
-    	ERROR_INFO("strdup [%s] error[%d]", fname, ret);
-    	goto fail;
+        GETERRNO(ret);
+        ERROR_INFO("strdup [%s] error[%d]", fname, ret);
+        goto fail;
     }
     pacl->m_namesize = (int)strlen(fname) + 1;
 
@@ -191,7 +195,7 @@ int get_file_acls(const char* fname, void** ppacl1)
     ret = enable_security_priv();
     if (ret >= 0) {
         enabled = 1;
-    } 
+    }
 
 try_owner_sec:
     if (pacl->m_ownersdp) {
@@ -1462,111 +1466,166 @@ fail:
     return ret;
 }
 
-#define    SID_GROUP_MODE                    1
-#define    SID_OWNER_MODE                    2
 
-int __new_sid_descriptor(PSID psid, int mode ,PSECURITY_DESCRIPTOR *ppsdp, int *psize)
+int __new_sid_descriptor(PSID psid, int mode , PSECURITY_DESCRIPTOR *ppsdp, int *psize)
 {
-	DWORD dplen=0;
-	int ret;
-	int retlen;
-	BOOL bret;
-	PSECURITY_DESCRIPTOR pdp=NULL;
-	PTRUSTEE_A  ptrustee=NULL;
-	int trusteesize=0;
+    DWORD dplen = 0;
+    int ret;
+    int retlen;
+    BOOL bret;
+    PSECURITY_DESCRIPTOR pdp = NULL;
+    PTRUSTEE_A  ptrustee = NULL;
+    int trusteesize = 0;
 
-	if (psid == NULL) {
-		if (ppsdp && *ppsdp) {
-			LocalFree(*ppsdp);
-			*ppsdp = NULL;
-		}
-		if (psize) {
-			*psize = 0;
-		}
-		return 0;
-	}
-	if (ppsdp == NULL || psize == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
-		SETERRNO(ret);
-		return ret;
-	}
+    if (psid == NULL) {
+        if (ppsdp && *ppsdp) {
+            LocalFree(*ppsdp);
+            *ppsdp = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+    if (ppsdp == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
 
-	if (*ppsdp != NULL || *psize != 0) {
-		ret = -ERROR_INVALID_PARAMETER;
-		SETERRNO(ret);
-		return ret;		
-	}
-	ptrustee = (PTRUSTEE_A)LocalAlloc(LMEM_FIXED,sizeof(*ptrustee));
-	if (ptrustee == NULL) {
-		GETERRNO(ret);
-		ERROR_INFO("alloc %d error[%d]", sizeof(*ptrustee), ret);
-		goto fail;
-	}
-	BuildTrusteeWithSid(ptrustee,psid);
-
-
-	dplen = 0;
-	if (mode == SID_GROUP_MODE) {
-		bret = BuildSecurityDescriptor(NULL,ptrustee,0,NULL,0,NULL,NULL,&dplen,&pdp);
-	} else if (mode == SID_OWNER_MODE) {
-		bret = BuildSecurityDescriptor(ptrustee,NULL,0,NULL,0,NULL,NULL,&dplen,&pdp);
-	} else {
-		ret = -ERROR_INVALID_PARAMETER;
-		goto fail;
-	}
-
-	*ppsdp = pdp;
-	*psize = dplen;
-	retlen = dplen;
-
-	if (ptrustee) {
-		LocalFree(ptrustee);
-	}
-	ptrustee = NULL;
-	trusteesize = 0;
+    if (*ppsdp != NULL || *psize != 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    ptrustee = (PTRUSTEE_A)LocalAlloc(LMEM_FIXED, sizeof(*ptrustee));
+    if (ptrustee == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*ptrustee), ret);
+        goto fail;
+    }
+    BuildTrusteeWithSid(ptrustee, psid);
 
 
-	return retlen;
+    dplen = 0;
+    if (mode == SID_GROUP_MODE) {
+        bret = BuildSecurityDescriptor(NULL, ptrustee, 0, NULL, 0, NULL, NULL, &dplen, &pdp);
+    } else if (mode == SID_OWNER_MODE) {
+        bret = BuildSecurityDescriptor(ptrustee, NULL, 0, NULL, 0, NULL, NULL, &dplen, &pdp);
+    } else {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    *ppsdp = pdp;
+    *psize = dplen;
+    retlen = dplen;
+
+    if (ptrustee) {
+        LocalFree(ptrustee);
+    }
+    ptrustee = NULL;
+    trusteesize = 0;
+
+
+    return retlen;
 fail:
-	if (pdp) {
-		LocalFree(pdp);
-	}
-	pdp = NULL;
-	if (ptrustee) {
-		LocalFree(ptrustee);
-	}
-	ptrustee = NULL;
-	trusteesize = 0;
-	SETERRNO(ret);
-	return ret;
+    if (pdp) {
+        LocalFree(pdp);
+    }
+    pdp = NULL;
+    if (ptrustee) {
+        LocalFree(ptrustee);
+    }
+    ptrustee = NULL;
+    trusteesize = 0;
+    SETERRNO(ret);
+    return ret;
 }
 
-int __set_file_descriptor(char* name, SECURITY_INFORMATION  info,PSECURITY_DESCRIPTOR pdp)
+int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESCRIPTOR pdp)
 {
-	BOOL bret;
-	int ret;
-	TCHAR* ptname=NULL;
-	int tnamesize=0;
+    BOOL bret;
+    int ret;
+    TCHAR* ptname = NULL;
+    int tnamesize = 0;
+    int enbltakeown=0;
+    int enblrestore=0;
+    const char* infostr=NULL;
 
-	ret = AnsiToTchar(name,&ptname,&tnamesize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
+    ret = AnsiToTchar(name, &ptname, &tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
-	bret = SetFileSecurity(ptname, info,pdp);
-	if (!bret) {
-		GETERRNO(ret);
-		ERROR_INFO("set [%s] [%d] error[%d]", name, info,ret);
-		goto fail;
-	}
+    ret = enable_takeown_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enbltakeown = 1;
 
-	AnsiToTchar(NULL,&ptname,&tnamesize);
-	return 0;
+    ret = enable_restore_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enblrestore = 1;
+
+    if (info == OWNER_SECURITY_INFORMATION) {
+    	infostr = "owner";
+    } else if (info == GROUP_SECURITY_INFORMATION) {
+    	infostr = "group";
+    } else if (info == SACL_SECURITY_INFORMATION) {
+    	infostr = "sacl";
+    } else if (info == DACL_SECURITY_INFORMATION) {
+    	infostr = "dacl";
+    } else {
+    	infostr = "unknown";
+    }
+
+
+    bret = SetFileSecurity(ptname, info, pdp);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("set [%s] [%s][%d] error[%d]", name, infostr, info, ret);
+        goto fail;
+    }
+
+    if (enblrestore) {
+        ret = disable_restore_priv();
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    enblrestore = 0;
+
+    if (enbltakeown) {
+        ret = disable_takeown_priv();
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    enbltakeown = 0;
+
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    return 0;
 fail:
-	AnsiToTchar(NULL,&ptname,&tnamesize);
-	SETERRNO(ret);
-	return ret;
+    if (enblrestore) {
+        disable_restore_priv();
+    }
+    enblrestore = 0;
+
+    if (enbltakeown) {
+        disable_takeown_priv();
+    }
+    enbltakeown = 0;
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    SETERRNO(ret);
+    return ret;
 }
 
 
@@ -1575,81 +1634,40 @@ int set_file_owner(const char* fname, const char* username)
     int ret = 0;
     int sidsize = 0;
     PSID psid = NULL;
-    int dpsize=0;
+    int dpsize = 0;
     int dplen = 0;
-    int enblrestore= 0;
-    int enbltakeown=0;
-    PSECURITY_DESCRIPTOR pdp=NULL;
+    PSECURITY_DESCRIPTOR pdp = NULL;
     ret = __get_sid_from_name(username, &psid, &sidsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-    DEBUG_BUFFER_FMT(psid,ret,"sid for [%s]", username);
-    ret = __new_sid_descriptor(psid,SID_OWNER_MODE,&pdp,&dpsize);
+    DEBUG_BUFFER_FMT(psid, ret, "sid for [%s]", username);
+    ret = __new_sid_descriptor(psid, SID_OWNER_MODE, &pdp, &dpsize);
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
     dplen = ret;
-    DEBUG_BUFFER_FMT(pdp,dplen,"dp with sid");
+    DEBUG_BUFFER_FMT(pdp, dplen, "dp with sid");
     /*psid is LocalFree in __new_sid_descriptor*/
     psid = NULL;
     sidsize = 0;
 
-    ret = enable_takeown_priv();
+
+    ret = __set_file_descriptor((char*)fname, OWNER_SECURITY_INFORMATION, pdp);
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
-    }
-    enbltakeown = 1;
-
-    ret = enable_restore_priv();
-    if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
-    }
-    enblrestore = 1;
-
-    ret = __set_file_descriptor((char*)fname,OWNER_SECURITY_INFORMATION,pdp);
-    if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
 
 
-    if (enblrestore) {
-    	ret = disable_restore_priv();
-    	if (ret < 0) {
-    		GETERRNO(ret);
-    		goto fail;
-    	}
-    }
-    enblrestore = 0;
 
-    if (enbltakeown) {
-    	ret = disable_takeown_priv();
-    	if (ret < 0) {
-    		GETERRNO(ret);
-    		goto fail;
-    	}    	
-    }
-    enbltakeown = 0;
-
-    __new_sid_descriptor(NULL,SID_OWNER_MODE,&pdp,&dpsize);
+    __new_sid_descriptor(NULL, SID_OWNER_MODE, &pdp, &dpsize);
     __get_sid_from_name(NULL, &psid, &sidsize);
     return 0;
 fail:
-	if (enblrestore) {
-		disable_restore_priv();
-	}
-	enblrestore = 0;
-
-	if (enbltakeown) {
-		disable_takeown_priv();
-	}
-	enbltakeown = 0;
-	__new_sid_descriptor(NULL,SID_OWNER_MODE,&pdp,&dpsize);
+    __new_sid_descriptor(NULL, SID_OWNER_MODE, &pdp, &dpsize);
     __get_sid_from_name(NULL, &psid, &sidsize);
     SETERRNO(ret);
     return ret;
@@ -1662,59 +1680,59 @@ int set_file_acls(const char* fname, void* pacl1)
     return 0;
 }
 
-int get_name_sid(const char* name, char** ppsid,int *psize)
+int get_name_sid(const char* name, char** ppsid, int *psize)
 {
-	PSID psid=NULL;
-	int sidsize=0;
-	TCHAR* ptsid=NULL;
-	int ret;
-	BOOL bret;
-	int retlen=0;
+    PSID psid = NULL;
+    int sidsize = 0;
+    TCHAR* ptsid = NULL;
+    int ret;
+    BOOL bret;
+    int retlen = 0;
 
-	if (name == NULL) {
-		return TcharToAnsi(NULL,ppsid,psize);
-	}
+    if (name == NULL) {
+        return TcharToAnsi(NULL, ppsid, psize);
+    }
 
-	ret = __get_sid_from_name(name,&psid,&sidsize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
+    ret = __get_sid_from_name(name, &psid, &sidsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
-	bret = ConvertSidToStringSid(psid,&ptsid);
-	if (!bret) {
-		GETERRNO(ret);
-		ERROR_INFO("convert sid string error[%d]", ret);
-		goto fail;
-	}
+    bret = ConvertSidToStringSid(psid, &ptsid);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("convert sid string error[%d]", ret);
+        goto fail;
+    }
 
-	ret = TcharToAnsi(ptsid,ppsid,psize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	retlen = ret;
+    ret = TcharToAnsi(ptsid, ppsid, psize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = ret;
 
-	if (ptsid) {
-		LocalFree(ptsid);
-	}
-	ptsid = NULL;
-	__get_sid_from_name(NULL,&psid,&sidsize);
+    if (ptsid) {
+        LocalFree(ptsid);
+    }
+    ptsid = NULL;
+    __get_sid_from_name(NULL, &psid, &sidsize);
 
-	if (retlen == 0) {
-		if(ppsid && *ppsid) {
-			**ppsid = '\0';
-		}
-	}
-	return retlen;
+    if (retlen == 0) {
+        if (ppsid && *ppsid) {
+            **ppsid = '\0';
+        }
+    }
+    return retlen;
 fail:
-	if (ptsid) {
-		LocalFree(ptsid);
-	}
-	ptsid = NULL;
-	__get_sid_from_name(NULL,&psid,&sidsize);
-	SETERRNO(ret);
-	return ret;
+    if (ptsid) {
+        LocalFree(ptsid);
+    }
+    ptsid = NULL;
+    __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(ret);
+    return ret;
 }
 
 int set_file_group(const char* fname, const char* groupname)
@@ -1722,79 +1740,38 @@ int set_file_group(const char* fname, const char* groupname)
     int ret = 0;
     int sidsize = 0;
     PSID psid = NULL;
-    int dpsize=0;
+    int dpsize = 0;
     int dplen = 0;
-    int enblrestore= 0;
-    int enbltakeown=0;
-    PSECURITY_DESCRIPTOR pdp=NULL;
+    PSECURITY_DESCRIPTOR pdp = NULL;
     ret = __get_sid_from_name(groupname, &psid, &sidsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-    DEBUG_BUFFER_FMT(psid,ret,"sid for [%s]", groupname);
-    ret = __new_sid_descriptor(psid,SID_GROUP_MODE,&pdp,&dpsize);
+    DEBUG_BUFFER_FMT(psid, ret, "sid for [%s]", groupname);
+    ret = __new_sid_descriptor(psid, SID_GROUP_MODE, &pdp, &dpsize);
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
     dplen = ret;
-    DEBUG_BUFFER_FMT(pdp,dplen,"dp with sid");
+    DEBUG_BUFFER_FMT(pdp, dplen, "dp with sid");
     /*to make this NULL because we will LocalFree psid when success*/
     psid = NULL;
     sidsize = 0;
 
-    ret = enable_takeown_priv();
+
+    ret = __set_file_descriptor((char*)fname, GROUP_SECURITY_INFORMATION, pdp);
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
-    }
-    enbltakeown = 1;
-
-    ret = enable_restore_priv();
-    if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
-    }
-    enblrestore = 1;
-
-    ret = __set_file_descriptor((char*)fname,GROUP_SECURITY_INFORMATION,pdp);
-    if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
 
-    if (enblrestore) {
-    	ret = disable_restore_priv();
-    	if (ret < 0) {
-    		GETERRNO(ret);
-    		goto fail;
-    	}
-    }
-    enblrestore = 0;
-
-    if (enbltakeown) {
-    	ret = disable_takeown_priv();
-    	if (ret < 0) {
-    		GETERRNO(ret);
-    		goto fail;
-    	}    	
-    }
-    enbltakeown = 0;
-    __new_sid_descriptor(NULL,SID_GROUP_MODE,&pdp,&dpsize);
+    __new_sid_descriptor(NULL, SID_GROUP_MODE, &pdp, &dpsize);
     __get_sid_from_name(NULL, &psid, &sidsize);
     return 0;
 fail:
-	if (enblrestore) {
-		disable_restore_priv();
-	}
-	enblrestore = 0;
-
-	if (enbltakeown) {
-		disable_takeown_priv();
-	}
-	enbltakeown = 0;
-	__new_sid_descriptor(NULL,SID_GROUP_MODE,&pdp,&dpsize);
+    __new_sid_descriptor(NULL, SID_GROUP_MODE, &pdp, &dpsize);
     __get_sid_from_name(NULL, &psid, &sidsize);
     SETERRNO(ret);
     return ret;
@@ -1802,456 +1779,668 @@ fail:
 
 int __get_action(const char* action, ACCESS_MODE* pmode)
 {
-	int ret = 0;
-	if (pmode == NULL || action == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
-		goto fail;
-	}
-	if (strcmp(action,ACL_ACTION_NOT_USED) == 0) {
-		*pmode = NOT_USED_ACCESS;
-	} else if (strcmp(action, ACL_ACTION_GRANT) == 0) {
-		*pmode = GRANT_ACCESS;
-	} else if (strcmp(action, ACL_ACTION_SET) == 0) {
-		*pmode = SET_ACCESS;
-	} else if (strcmp(action,ACL_ACTION_DENY) == 0) {
-		*pmode = DENY_ACCESS;
-	} else if (strcmp(action, ACL_ACTION_REVOKE) == 0) {
-		*pmode = REVOKE_ACCESS;
-	} else if (strcmp(action, ACL_ACTION_AUDIT_SUCC) == 0) {
-		*pmode = SET_AUDIT_SUCCESS;
-	} else if (strcmp(action, ACL_ACTION_AUDIT_FAIL) == 0) {
-		*pmode = SET_AUDIT_FAILURE;
-	} else {
-		ret = -ERROR_INVALID_PARAMETER;
-		ERROR_INFO("not valid action [%s]", action);
-		goto fail;
-	}
+    int ret = 0;
+    if (pmode == NULL || action == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+    if (strcmp(action, ACL_ACTION_NOT_USED) == 0) {
+        *pmode = NOT_USED_ACCESS;
+    } else if (strcmp(action, ACL_ACTION_GRANT) == 0) {
+        *pmode = GRANT_ACCESS;
+    } else if (strcmp(action, ACL_ACTION_SET) == 0) {
+        *pmode = SET_ACCESS;
+    } else if (strcmp(action, ACL_ACTION_DENY) == 0) {
+        *pmode = DENY_ACCESS;
+    } else if (strcmp(action, ACL_ACTION_REVOKE) == 0) {
+        *pmode = REVOKE_ACCESS;
+    } else if (strcmp(action, ACL_ACTION_AUDIT_SUCC) == 0) {
+        *pmode = SET_AUDIT_SUCCESS;
+    } else if (strcmp(action, ACL_ACTION_AUDIT_FAIL) == 0) {
+        *pmode = SET_AUDIT_FAILURE;
+    } else {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("not valid action [%s]", action);
+        goto fail;
+    }
 
-	return 0;
+    return 0;
 fail:
-	SETERRNO(ret);
-	return ret;
+    SETERRNO(ret);
+    return ret;
 }
 
 int __get_right(const char* right, ACCESS_MASK *pperm)
 {
-	int ret=0;
-	char* pptr = (char*)right;
-	ACCESS_MASK perm = 0;
+    int ret = 0;
+    char* pptr = (char*)right;
+    ACCESS_MASK perm = 0;
 
-	if (right == NULL || pperm == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
-		goto fail;
-	}
+    if (right == NULL || pperm == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
 
-	while(*pptr != '\0'){
-		if (strncmp(pptr,ACL_RIGHT_ALL,strlen(ACL_RIGHT_ALL))==0) {
-			perm |= STANDARD_RIGHTS_ALL;
-			pptr += strlen(ACL_RIGHT_ALL);
-		} else if (strncmp(pptr,ACL_RIGHT_DELETE, strlen(ACL_RIGHT_DELETE)) == 0) {
-			perm |= DELETE;
-			pptr += strlen(ACL_RIGHT_DELETE);
-		} else if (strncmp(pptr , ACL_RIGHT_READ_CONTROL, strlen(ACL_RIGHT_READ_CONTROL)) == 0) {
-			perm |= READ_CONTROL;
-			pptr += strlen(ACL_RIGHT_READ_CONTROL);
-		} else if (strncmp(pptr, ACL_RIGHT_WRITE_DAC, strlen(ACL_RIGHT_WRITE_DAC)) == 0) {
-			perm |= WRITE_DAC;
-			pptr += strlen(ACL_RIGHT_WRITE_DAC);
-		} else if (strncmp(pptr, ACL_RIGHT_WRITE_OWNER, strlen(ACL_RIGHT_WRITE_OWNER)) == 0) {
-			perm |= WRITE_OWNER;
-			pptr += strlen(ACL_RIGHT_WRITE_OWNER);
-		} else if (strncmp(pptr,ACL_RIGHT_SYNCHRONIZE, strlen(ACL_RIGHT_SYNCHRONIZE)) == 0) {
-			perm |= SYNCHRONIZE;
-			pptr += strlen(ACL_RIGHT_SYNCHRONIZE);
-		} else {
-			ret = -ERROR_INVALID_PARAMETER;
-			ERROR_INFO("not valid part [%s]", pptr);
-			goto fail;
-		}
+    while (*pptr != '\0') {
+        if (strncmp(pptr, ACL_RIGHT_ALL, strlen(ACL_RIGHT_ALL)) == 0) {
+            perm |= STANDARD_RIGHTS_ALL;
+            pptr += strlen(ACL_RIGHT_ALL);
+        } else if (strncmp(pptr, ACL_RIGHT_DELETE, strlen(ACL_RIGHT_DELETE)) == 0) {
+            perm |= DELETE;
+            pptr += strlen(ACL_RIGHT_DELETE);
+        } else if (strncmp(pptr , ACL_RIGHT_READ_CONTROL, strlen(ACL_RIGHT_READ_CONTROL)) == 0) {
+            perm |= READ_CONTROL;
+            pptr += strlen(ACL_RIGHT_READ_CONTROL);
+        } else if (strncmp(pptr, ACL_RIGHT_WRITE_DAC, strlen(ACL_RIGHT_WRITE_DAC)) == 0) {
+            perm |= WRITE_DAC;
+            pptr += strlen(ACL_RIGHT_WRITE_DAC);
+        } else if (strncmp(pptr, ACL_RIGHT_WRITE_OWNER, strlen(ACL_RIGHT_WRITE_OWNER)) == 0) {
+            perm |= WRITE_OWNER;
+            pptr += strlen(ACL_RIGHT_WRITE_OWNER);
+        } else if (strncmp(pptr, ACL_RIGHT_SYNCHRONIZE, strlen(ACL_RIGHT_SYNCHRONIZE)) == 0) {
+            perm |= SYNCHRONIZE;
+            pptr += strlen(ACL_RIGHT_SYNCHRONIZE);
+        } else {
+            ret = -ERROR_INVALID_PARAMETER;
+            ERROR_INFO("not valid part [%s]", pptr);
+            goto fail;
+        }
 
-		if (*pptr != ACL_COMMON_SEP && *pptr != '\0') {
-			ret = -ERROR_INVALID_PARAMETER;
-			ERROR_INFO("not valid part [%s]", pptr);
-			goto fail;
-		}
+        if (*pptr != ACL_COMMON_SEP && *pptr != '\0') {
+            ret = -ERROR_INVALID_PARAMETER;
+            ERROR_INFO("not valid part [%s]", pptr);
+            goto fail;
+        }
 
-		if (*pptr == ACL_COMMON_SEP) {
-			pptr ++ ;
-		}
-	}
+        if (*pptr == ACL_COMMON_SEP) {
+            pptr ++ ;
+        }
+    }
 
-	*pperm = perm;
-	return 0;
+    *pperm = perm;
+    return 0;
 fail:
-	SETERRNO(ret);
-	return ret;
+    SETERRNO(ret);
+    return ret;
 }
 
-typedef int (*sdp_new_callback_t)(PEXPLICIT_ACCESS paccess, int accnum,PSID psid, ACCESS_MODE mode,ACCESS_MASK perm, void* arg, PSECURITY_DESCRIPTOR* ppsdp, int* psize);
+typedef int (*sdp_new_callback_t)(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_MODE mode, ACCESS_MASK perm, void* arg, PSECURITY_DESCRIPTOR* ppsdp, int* psize);
 
-int __handle_sdp_acl(PACL acl, PSID psid,  ACCESS_MODE mode,ACCESS_MASK perm, void* arg,PSECURITY_DESCRIPTOR* ppsdp,int *psize, sdp_new_callback_t callback)
+int __handle_sdp_acl(PACL acl, PSID psid,  ACCESS_MODE mode, ACCESS_MASK perm, void* arg, PSECURITY_DESCRIPTOR* ppsdp, int *psize, sdp_new_callback_t callback)
 {
-	PEXPLICIT_ACCESS paccess=NULL;
-	int accsize=0,accnum=0;
-	int retlen = 0;
-	int ret;
+    PEXPLICIT_ACCESS paccess = NULL;
+    int accsize = 0, accnum = 0;
+    int retlen = 0;
+    int ret;
 
-	ret = __get_explicit_access(acl,&paccess,&accsize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	accnum = ret;
+    ret = __get_explicit_access(acl, &paccess, &accsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    accnum = ret;
 
-	ret = callback(paccess,accnum,psid,mode,perm, arg,ppsdp,psize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	retlen = ret;
-	__get_explicit_access(NULL,&paccess,&accsize);
-	return retlen;
+    ret = callback(paccess, accnum, psid, mode, perm, arg, ppsdp, psize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = ret;
+    __get_explicit_access(NULL, &paccess, &accsize);
+    return retlen;
 fail:
-	__get_explicit_access(NULL,&paccess,&accsize);
-	accnum = 0;
-	SETERRNO(ret);
-	return ret;
+    __get_explicit_access(NULL, &paccess, &accsize);
+    accnum = 0;
+    SETERRNO(ret);
+    return ret;
 }
 
 void __free_trustee(PTRUSTEE *pptrustee)
 {
-	PTRUSTEE ptrustee=NULL;
-	if (pptrustee && *pptrustee) {
-		ptrustee = *pptrustee;
-		__free_trustee(&(ptrustee->pMultipleTrustee));
-		ptrustee->MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
-		ptrustee->TrusteeForm = TRUSTEE_IS_SID;
-		ptrustee->TrusteeType = TRUSTEE_IS_UNKNOWN;
-		if (ptrustee->ptstrName) {
-			LocalFree(ptrustee->ptstrName);
-			ptrustee->ptstrName = NULL;
-		}
-		LocalFree(ptrustee);
-		*pptrustee= NULL;
-	}
-	return ;
+    PTRUSTEE ptrustee = NULL;
+    if (pptrustee && *pptrustee) {
+        ptrustee = *pptrustee;
+        __free_trustee(&(ptrustee->pMultipleTrustee));
+        ptrustee->MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
+        ptrustee->TrusteeForm = TRUSTEE_IS_SID;
+        ptrustee->TrusteeType = TRUSTEE_IS_UNKNOWN;
+        if (ptrustee->ptstrName) {
+            LocalFree(ptrustee->ptstrName);
+            ptrustee->ptstrName = NULL;
+        }
+        LocalFree(ptrustee);
+        *pptrustee = NULL;
+    }
+    return ;
 }
 
 void __release_trustee(PTRUSTEE ptrustee)
 {
-	if (ptrustee) {
-		__free_trustee(&(ptrustee->pMultipleTrustee));
-		ptrustee->MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
-		ptrustee->TrusteeForm = TRUSTEE_IS_SID;
-		ptrustee->TrusteeType = TRUSTEE_IS_UNKNOWN;
-		if (ptrustee->ptstrName) {
-			LocalFree(ptrustee->ptstrName);
-			ptrustee->ptstrName = NULL;
-		}
-	}
-	return;
+    if (ptrustee) {
+        __free_trustee(&(ptrustee->pMultipleTrustee));
+        ptrustee->MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
+        ptrustee->TrusteeForm = TRUSTEE_IS_SID;
+        ptrustee->TrusteeType = TRUSTEE_IS_UNKNOWN;
+        if (ptrustee->ptstrName) {
+            LocalFree(ptrustee->ptstrName);
+            ptrustee->ptstrName = NULL;
+        }
+    }
+    return;
+}
+
+int __init_trustee(PTRUSTEE ptrustee)
+{
+    memset(ptrustee, 0 , sizeof(*ptrustee));
+    ptrustee->pMultipleTrustee = NULL;
+    ptrustee->MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
+    ptrustee->TrusteeForm = TRUSTEE_IS_SID;
+    ptrustee->TrusteeType = TRUSTEE_IS_UNKNOWN;
+    ptrustee->ptstrName = NULL;
+    return 0;
 }
 
 PTRUSTEE __alloc_trustee(void)
 {
-	PTRUSTEE ptrustee=NULL;
-	int ret;
-	ptrustee = (PTRUSTEE)LocalAlloc(LMEM_FIXED, sizeof(*ptrustee));
-	if (ptrustee == NULL) {
-		GETERRNO(ret);
-		ERROR_INFO("alloc %d error[%d]",sizeof(*ptrustee), ret);
-		goto fail;
-	}
-	memset(ptrustee, 0 , sizeof(*ptrustee));
-	ptrustee->pMultipleTrustee = NULL;
-	ptrustee->MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
-	ptrustee->TrusteeForm = TRUSTEE_IS_SID;
-	ptrustee->TrusteeType = TRUSTEE_IS_UNKNOWN;
-	ptrustee->ptstrName = NULL;
-	return ptrustee;
+    PTRUSTEE ptrustee = NULL;
+    int ret;
+    ptrustee = (PTRUSTEE)LocalAlloc(LMEM_FIXED, sizeof(*ptrustee));
+    if (ptrustee == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*ptrustee), ret);
+        goto fail;
+    }
+
+    ret = __init_trustee(ptrustee);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    return ptrustee;
 fail:
-	__free_trustee(&ptrustee);
-	SETERRNO(ret);
-	return NULL;
+    __free_trustee(&ptrustee);
+    SETERRNO(ret);
+    return NULL;
 }
 
 int __copy_trustee(PTRUSTEE ptrustee, PTRUSTEE pnewtrustee)
 {
-	PTRUSTEE pmul=NULL;
-	PSID posid=NULL;
-	PSID pnsid=NULL;
-	DWORD nsidsize=0;
-	int ret;
-	BOOL bret;
-	if (pnewtrustee->pMultipleTrustee) {
-		LocalFree(pnewtrustee->pMultipleTrustee);
-		pnewtrustee->pMultipleTrustee = NULL;
-	}
-	if (pnewtrustee->ptstrName != NULL) {
-		LocalFree(pnewtrustee->ptstrName);
-		pnewtrustee->ptstrName = NULL;
-	}
+    PTRUSTEE pmul = NULL;
+    PSID posid = NULL;
+    PSID pnsid = NULL;
+    DWORD nsidsize = 0;
+    int ret;
+    BOOL bret;
+    if (pnewtrustee->pMultipleTrustee) {
+        LocalFree(pnewtrustee->pMultipleTrustee);
+        pnewtrustee->pMultipleTrustee = NULL;
+    }
+    if (pnewtrustee->ptstrName != NULL) {
+        LocalFree(pnewtrustee->ptstrName);
+        pnewtrustee->ptstrName = NULL;
+    }
 
-	if (ptrustee->pMultipleTrustee) {
-		pmul = __alloc_trustee();
-		if (pmul == NULL) {
-			GETERRNO(ret);
-			goto fail;
-		}
-		ret = __copy_trustee(ptrustee->pMultipleTrustee, pmul);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-		pnewtrustee->pMultipleTrustee = pmul;
-		pmul = NULL;
-	}
+    if (ptrustee->pMultipleTrustee) {
+        pmul = __alloc_trustee();
+        if (pmul == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        ret = __copy_trustee(ptrustee->pMultipleTrustee, pmul);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        pnewtrustee->pMultipleTrustee = pmul;
+        pmul = NULL;
+    }
 
-	pnewtrustee->TrusteeType = ptrustee->TrusteeType;
-	pnewtrustee->TrusteeForm = ptrustee->TrusteeForm;
-	pnewtrustee->MultipleTrusteeOperation = ptrustee->MultipleTrusteeOperation;
+    pnewtrustee->TrusteeType = ptrustee->TrusteeType;
+    pnewtrustee->TrusteeForm = ptrustee->TrusteeForm;
+    pnewtrustee->MultipleTrusteeOperation = ptrustee->MultipleTrusteeOperation;
 
-	if (ptrustee->TrusteeType == TRUSTEE_IS_SID &&
-		ptrustee->ptstrName != NULL) {
-		posid = (PSID) ptrustee->ptstrName;
-		nsidsize = MIN_SID_SIZE;
-	try_again:
-		if (pnsid) {
-			LocalFree(pnsid);
-			pnsid = NULL;
-		}
-		pnsid = LocalAlloc(LMEM_FIXED,nsidsize);
-		if (pnsid == NULL) {
-			GETERRNO(ret);
-			ERROR_INFO("alloc %d error[%d]", nsidsize, ret);
-			goto fail;
-		}
+    if (ptrustee->TrusteeType == TRUSTEE_IS_SID &&
+            ptrustee->ptstrName != NULL) {
+        posid = (PSID) ptrustee->ptstrName;
+        nsidsize = MIN_SID_SIZE;
+try_again:
+        if (pnsid) {
+            LocalFree(pnsid);
+            pnsid = NULL;
+        }
+        pnsid = LocalAlloc(LMEM_FIXED, nsidsize);
+        if (pnsid == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", nsidsize, ret);
+            goto fail;
+        }
 
-		bret = CopySid(nsidsize, pnsid, posid);
-		if (!bret) {
-			GETERRNO(ret);
-			if (ret == -ERROR_INSUFFICIENT_BUFFER) {
-				nsidsize <<= 1;
-				goto try_again;
-			}
-			ERROR_INFO("copy sid error[%d]", ret);
-			goto fail;
-		}
-		pnewtrustee->ptstrName = (decltype(pnewtrustee->ptstrName)(pnsid));
-		/*not free again*/
-		pnsid = NULL;
-	}
-	
+        bret = CopySid(nsidsize, pnsid, posid);
+        if (!bret) {
+            GETERRNO(ret);
+            if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+                nsidsize <<= 1;
+                goto try_again;
+            }
+            ERROR_INFO("copy sid error[%d]", ret);
+            goto fail;
+        }
+        pnewtrustee->ptstrName = (decltype(pnewtrustee->ptstrName)(pnsid));
+        /*not free again*/
+        pnsid = NULL;
+    }
 
-	return 0;
+
+    return 0;
 fail:
-	if (pnsid) {
-		LocalFree(pnsid);
-	}
-	pnsid = NULL;
-	__free_trustee(&pmul);
-	SETERRNO(ret);
-	return ret;
+    if (pnsid) {
+        LocalFree(pnsid);
+    }
+    pnsid = NULL;
+    __free_trustee(&pmul);
+    SETERRNO(ret);
+    return ret;
+}
+
+int __init_explicit_access(PEXPLICIT_ACCESS pacc)
+{
+    memset(pacc, 0 , sizeof(*pacc));
+    pacc->grfAccessPermissions = 0;
+    pacc->grfAccessMode = NOT_USED_ACCESS;
+    pacc->grfInheritance = NO_INHERITANCE;
+    return __init_trustee(&(pacc->Trustee));
 }
 
 void __release_explicit_access(PEXPLICIT_ACCESS pacc)
 {
-	if (pacc) {
-		__release_trustee(&(pacc->Trustee));		
-	}
-	return;
+    if (pacc) {
+        __release_trustee(&(pacc->Trustee));
+    }
+    return;
 }
 
 void __free_explicit_access(PEXPLICIT_ACCESS *ppacc)
 {
-	if (ppacc && *ppacc) {
-		PEXPLICIT_ACCESS pacc=*ppacc;
-		__release_explicit_access(pacc);
-		LocalFree(pacc);
-		*ppacc = NULL;
-	}
-	return;
+    if (ppacc && *ppacc) {
+        PEXPLICIT_ACCESS pacc = *ppacc;
+        __release_explicit_access(pacc);
+        LocalFree(pacc);
+        *ppacc = NULL;
+    }
+    return;
 }
 
 void __free_explicit_access_array(PEXPLICIT_ACCESS *ppacc, int *psize)
 {
-	if (ppacc && *ppacc && psize ){
-		int i;
-		PEXPLICIT_ACCESS pacc=NULL;
-		int size=*psize;
-		pacc = *ppacc;
-		for (i=0;i<size;i++) {
-			__release_explicit_access(&(pacc[i]));
-		}
-		LocalFree(pacc);
-	}
-	if (ppacc) {
-		*ppacc = NULL;
-	}
-	if (psize) {
-		*psize = 0;
-	}
-	return;
+    if (ppacc && *ppacc && psize ) {
+        int i;
+        PEXPLICIT_ACCESS pacc = NULL;
+        int size = *psize;
+        pacc = *ppacc;
+        for (i = 0; i < size; i++) {
+            __release_explicit_access(&(pacc[i]));
+        }
+        LocalFree(pacc);
+    }
+    if (ppacc) {
+        *ppacc = NULL;
+    }
+    if (psize) {
+        *psize = 0;
+    }
+    return;
 }
 
 int __copy_explicit_access(PEXPLICIT_ACCESS paccess, PEXPLICIT_ACCESS pnewacc)
 {
-	int ret;
-	pnewacc->grfAccessPermissions = paccess->grfAccessPermissions;
-	pnewacc->grfAccessMode = paccess->grfAccessMode;
-	pnewacc->grfInheritance = paccess->grfInheritance;
-	ret = __copy_trustee(&(paccess->Trustee), &(pnewacc->Trustee));
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	return 0;
+    int ret;
+    pnewacc->grfAccessPermissions = paccess->grfAccessPermissions;
+    pnewacc->grfAccessMode = paccess->grfAccessMode;
+    pnewacc->grfInheritance = paccess->grfInheritance;
+    ret = __copy_trustee(&(paccess->Trustee), &(pnewacc->Trustee));
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    return 0;
 fail:
-	SETERRNO(ret);
-	return ret;
+    SETERRNO(ret);
+    return ret;
 }
 
-PEXPLICIT_ACCESS __new_dummy_explicit_access(void)
+int __copy_explicit_access_array(PEXPLICIT_ACCESS poaccess, int onum , PEXPLICIT_ACCESS *ppnacc, int *pnnum)
 {
-	PEXPLICIT_ACCESS pacc=NULL;
-	int ret;
-	PSID psid=NULL;
-	int sidsize=0;
-
-	pacc= LocalAlloc(LMEM_FIXED,sizeof(*pacc));
-	if (pacc == NULL) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	memset(pacc, 0 , sizeof(*pacc));
-
-	/*nothing to grant*/
-	pacc->grfAccessPermissions = 0;
-	pacc->grfAccessMode = GRANT_ACCESS;
-	pacc->grfInheritance = NO_INHERITANCE;
-
-	/*now initialize the trustee*/
-	pacc->Trustee.pMultipleTrustee = NULL;
-	pacc->Trustee.MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
-	pacc->Trustee.TrusteeForm = TRUSTEE_IS_SID;
-	pacc->Trustee.TrusteeType = TRUSTEE_IS_UNKNOWN;
-
-	ret = __get_sid_from_name("everyone", &psid,&sidsize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	pacc->Trustee.ptstrName = (decltype(pacc->Trustee.ptstrName)(psid));
-	/*not free any*/
-	psid = NULL;
-
-	__get_sid_from_name(NULL,&psid,&sidsize);
-	return pacc;
-fail:
-	__get_sid_from_name(NULL,&psid,&sidsize);
-	__free_explicit_access(&pacc);
-	SETERRNO(ret);
-	return NULL;
-}
-
-
-
-int __remove_acl_inner(PEXPLICIT_ACCESS paccess,int accnum,PSID psid,ACCESS_MODE mode,ACCESS_MASK perm, void* arg, PSECURITY_DESCRIPTOR *ppsdp,int *psize)
-{
-	DWORD ctrl = (DWORD)((addr_t)arg);
-	int i;
-	PEXPLICIT_ACCESS pcuracc=NULL,pfoundacc=NULL;
-	PSID osid=NULL;
-	int ret=0;
-	int retlen=0;
 	PEXPLICIT_ACCESS pnewacc=NULL;
 	int newaccsize=0;
+	int newaccnum=0;
+	int ret;
+	int i;
+    if (poaccess == NULL) {
+    	__free_explicit_access_array(ppnacc, pnnum);
+        return 0;
+    }
+    if (ppnacc == NULL || pnnum == NULL ||
+            *ppnacc != NULL || *pnnum != 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    newaccsize = onum;
+    pnewacc = (PEXPLICIT_ACCESS)LocalAlloc(LMEM_FIXED,sizeof(*pnewacc)*newaccsize);
+    if (pnewacc == NULL) {
+    	GETERRNO(ret);
+    	ERROR_INFO("alloc %d error[%d]", sizeof(*pnewacc)*newaccsize, ret);
+    	goto fail;
+    }
 
-	for (i=0;i<accnum;i++) {
-		pcuracc = &(paccess[i]);
-		if (pcuracc->grfAccessMode == mode && 
-			pcuracc->Trustee.TrusteeType == TRUSTEE_IS_SID) {
-			osid = (PSID) pcuracc->Trustee.ptstrName;
-			if (osid != NULL && EqualSid(osid,psid)) {
-				pfoundacc = pcuracc;
-				break;
-			}
-		}
-	}
+    memset(pnewacc,0, sizeof(*pnewacc)*newaccsize);
+    for (i=0;i<newaccsize;i++) {
+    	ret = __init_explicit_access(&(pnewacc[i]));
+    	if (ret < 0) {
+    		GETERRNO(ret);
+    		goto fail;
+    	}
+    }
 
-	if (pfoundacc == NULL) {
-		retlen = 0;
-		goto succ;
-	}
+    for (i=0;i<onum;i++) {
+    	if ((poaccess[i].grfAccessPermissions & STANDARD_RIGHTS_ALL) == 0) {
+    		continue;
+    	}
+    	ASSERT_IF(newaccnum < newaccsize);
+    	ret = __copy_explicit_access(&(poaccess[i]), &(pnewacc[newaccnum]));
+    	if (ret < 0) {
+    		GETERRNO(ret);
+    		goto fail;
+    	}
+    	newaccnum ++;
+    }
 
-	/*now we should handle*/
-	pfoundacc->grfAccessPermissions &= ~(perm);
+    *ppnacc = pnewacc;
+    *pnnum = newaccsize;
 
-	if ((pfoundacc->grfAccessPermissions & STANDARD_RIGHTS_ALL) == 0) {
-		/*now remove it */
-		newaccsize = (accnum -1);
-		if (newaccsize == 0) {
-			/*no thing to handle ,just put everyone no grants into dummy*/
-
-		}
-
-	} else {
-
-	}
-
-
-
-succ:
-	return retlen;
-/*fail:
+    return newaccnum;
+fail:
+	__free_explicit_access_array(&pnewacc,&newaccsize);
 	SETERRNO(ret);
 	return ret;
-*/
 }
 
-int remove_sacl(void* pacl1,const char* username,const char* action,const char* right)
+
+int __remove_acl_inner(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_MODE mode, ACCESS_MASK perm, void* arg, PSECURITY_DESCRIPTOR *ppsdp, int *psize)
 {
+    DWORD ctrl = (DWORD)((addr_t)arg);
+    int i;
+    PEXPLICIT_ACCESS pcuracc = NULL, pfoundacc = NULL;
+    PSID osid = NULL;
+    int ret = 0;
+    int retlen = 0;
+    PEXPLICIT_ACCESS pnewacc = NULL;
+    int newaccsize = 0, newaccnum=0;
+    DWORD dplen = 0;
+    PSECURITY_DESCRIPTOR pdp = NULL;
+    DWORD dret;
 
-	pwin_acl_t pacl= (pwin_acl_t) pacl1;
-	PACL sacl=NULL;
-	PEXPLICIT_ACCESS paccess=NULL;
-	int accsize=0,accnum=0;
-	PEXPLICIT_ACCESS pcuracc=NULL,pfoundacc=NULL;
-	int ret;
+    if (paccess == NULL && accnum != 0) {
+    	ret = -ERROR_INVALID_PARAMETER;
+    	SETERRNO(ret);
+    	return ret;    	
+    }
+
+    if (ppsdp == NULL || psize == NULL ||
+    	*ppsdp != NULL || *psize != 0) {
+    	ret = -ERROR_INVALID_PARAMETER;
+    	SETERRNO(ret);
+    	return ret;
+    }
+
+    if (accnum == 0) {
+    	goto direct_build;
+    }
+
+    for (i = 0; i < accnum; i++) {
+        pcuracc = &(paccess[i]);
+        if (pcuracc->grfAccessMode == mode &&
+                pcuracc->Trustee.TrusteeType == TRUSTEE_IS_SID) {
+            osid = (PSID) pcuracc->Trustee.ptstrName;
+            if (osid != NULL && EqualSid(osid, psid)) {
+                pfoundacc = pcuracc;
+                break;
+            }
+        }
+    }
+
+    if (pfoundacc != NULL) {
+	    /*now we should handle*/
+	    pfoundacc->grfAccessPermissions &= ~(perm);
+    }
 
 
-	if (pacl == NULL || username == NULL || action == NULL || right == NULL) {
+    ret = __copy_explicit_access_array(paccess,accnum, &pnewacc,&newaccsize);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+    newaccnum = ret;
+
+direct_build:
+	if (ctrl == SACL_MODE) {
+		dret = BuildSecurityDescriptor(NULL,NULL,0,NULL,newaccnum, pnewacc,NULL,&dplen,&pdp);
+	} else if (ctrl == DACL_MODE) {
+		dret = BuildSecurityDescriptor(NULL,NULL,newaccnum,pnewacc,0,NULL,NULL,&dplen,&pdp);
+	} else {
 		ret = -ERROR_INVALID_PARAMETER;
-		SETERRNO(ret);
-		return ret;
-	}
-
-	if (pacl->m_saclsdp == NULL) {
-		ret = -ERROR_NOT_FOUND;
+		ERROR_INFO("ctrl [%d:0x%x] not valid", ctrl,ctrl);
 		goto fail;
 	}
 
-	ret = __get_sacl_from_descriptor(pacl->m_saclsdp,&sacl);
-	if (ret < 0) {
-		GETERRNO(ret);
+	if (dret != ERROR_SUCCESS) {
+		ret = dret;
+		if (ret > 0) {
+			ret = -ret;
+		}
+		if (ret == 0) {
+			ret = -1;
+		}
+		ERROR_INFO("build [%d] access for [%s] error[%d]", newaccnum, ctrl == SACL_MODE ? "SACL" : "DACL", ret);
 		goto fail;
 	}
 
-	ret = __get_explicit_access(sacl,&paccess,&accsize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	accnum = ret;
+	DEBUG_BUFFER_FMT(pdp,dplen,"[%s] SECURITY_DESCRIPTOR", ctrl == SACL_MODE ? "SACL" : "DACL");
 
-
-
-	__get_explicit_access(NULL,&paccess,&accsize);
-	accnum = 0;
-	return 0;
+	*ppsdp = pdp;
+	*psize = dplen;
+	retlen = dplen;
+	__copy_explicit_access_array(NULL,0,&pnewacc,&newaccnum);
+    return retlen;
 fail:
-	__get_explicit_access(NULL,&paccess,&accsize);
-	accnum = 0;
-	SETERRNO(ret);
-	return ret;
+    if (pdp) {
+        LocalFree(pdp);
+    }
+    pdp = NULL;
+    dplen = 0;
+	__copy_explicit_access_array(NULL,0,&pnewacc,&newaccnum);
+    SETERRNO(ret);
+    return ret;
+}
+
+int remove_sacl(void* pacl1, const char* username, const char* action, const char* right)
+{
+    pwin_acl_t pacl = (pwin_acl_t) pacl1;
+    PACL sacl = NULL;
+    int ret;
+    PSID psid=NULL;
+    int sidsize=0;
+    ACCESS_MODE mode=NOT_USED_ACCESS;
+    ACCESS_MASK perm=0;
+    PSECURITY_DESCRIPTOR pdp=NULL;
+    int dpsize=0,dplen=0;
+
+
+    if (pacl == NULL || username == NULL || action == NULL || right == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (pacl->m_saclsdp == NULL) {
+        ret = -ERROR_NOT_FOUND;
+        goto fail;
+    }
+
+    ret = __get_sid_from_name(username,&psid,&sidsize);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+
+    ret = __get_action(action,&mode);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+
+    ret = __get_right(right,&perm);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+
+    ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __handle_sdp_acl(sacl,psid,mode,perm,(void*)SACL_MODE,&pdp,&dpsize,__remove_acl_inner);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+    dplen = ret;
+
+    ret = __set_file_descriptor(pacl->m_fname,SACL_SECURITY_INFORMATION,pdp);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+
+    if (pacl->m_saclsdp) {
+    	LocalFree(pacl->m_saclsdp);
+    	pacl->m_saclsdp = NULL;
+    }
+    pacl->m_saclsdp = pdp;
+    pdp = NULL;
+    pacl->m_saclsize = dpsize;
+    pacl->m_sacllen = dplen;
+
+
+	if (pdp) {
+		LocalFree(pdp);
+	}
+	pdp = NULL;
+	dpsize = 0;
+	dplen = 0;
+	__get_sid_from_name(NULL,&psid,&sidsize);
+   return 0;
+fail:
+	if (pdp) {
+		LocalFree(pdp);
+	}
+	pdp = NULL;
+	dpsize = 0;
+	dplen = 0;
+	__get_sid_from_name(NULL,&psid,&sidsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int remove_dacl(void* pacl1, const char* username, const char* action, const char* right)
+{
+    pwin_acl_t pacl = (pwin_acl_t) pacl1;
+    PACL dacl = NULL;
+    int ret;
+    PSID psid=NULL;
+    int sidsize=0;
+    ACCESS_MODE mode=NOT_USED_ACCESS;
+    ACCESS_MASK perm=0;
+    PSECURITY_DESCRIPTOR pdp=NULL;
+    int dpsize=0,dplen=0;
+
+
+    if (pacl == NULL || username == NULL || action == NULL || right == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (pacl->m_daclsdp == NULL) {
+        ret = -ERROR_NOT_FOUND;
+        goto fail;
+    }
+
+    ret = __get_sid_from_name(username,&psid,&sidsize);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+
+    ret = __get_action(action,&mode);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+
+    ret = __get_right(right,&perm);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+
+    ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __handle_sdp_acl(dacl,psid,mode,perm,(void*)DACL_MODE,&pdp,&dpsize,__remove_acl_inner);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+    dplen = ret;
+
+    ret = __set_file_descriptor(pacl->m_fname,DACL_SECURITY_INFORMATION,pdp);
+    if (ret < 0) {
+    	GETERRNO(ret);
+    	goto fail;
+    }
+
+    if (pacl->m_daclsdp) {
+    	LocalFree(pacl->m_daclsdp);
+    	pacl->m_daclsdp = NULL;
+    }
+    pacl->m_daclsdp = pdp;
+    pdp = NULL;
+    pacl->m_daclsize = dpsize;
+    pacl->m_dacllen = dplen;
+
+
+	if (pdp) {
+		LocalFree(pdp);
+	}
+	pdp = NULL;
+	dpsize = 0;
+	dplen = 0;
+	__get_sid_from_name(NULL,&psid,&sidsize);
+   return 0;
+fail:
+	if (pdp) {
+		LocalFree(pdp);
+	}
+	pdp = NULL;
+	dpsize = 0;
+	dplen = 0;
+	__get_sid_from_name(NULL,&psid,&sidsize);
+    SETERRNO(ret);
+    return ret;
 }

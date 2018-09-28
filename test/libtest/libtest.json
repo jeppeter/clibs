@@ -112,5 +112,8 @@
     },
     "removesacl<removesacl_handler>##fname username action right to remove the sacl##" : {
         "$" : 4
+    },
+    "removedacl<removedacl_handler>##fname username action right to remove the dacl##" : {
+        "$" : 4
     }
 }

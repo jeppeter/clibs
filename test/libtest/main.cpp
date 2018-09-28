@@ -69,6 +69,7 @@ int setowner_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int getsid_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setgroup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int removesacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int removedacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -2907,6 +2908,60 @@ out:
     SETERRNO(ret);
     return ret;    
 }
+
+int removedacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* fname=NULL;
+    char* action=NULL;
+    char* username=NULL;
+    char* right=NULL;
+    void* pacl=NULL;
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int ret;
+    int enblsecurity=0;
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+
+    fname = parsestate->leftargs[0];
+    username = parsestate->leftargs[1];
+    action = parsestate->leftargs[2];
+    right = parsestate->leftargs[3];
+    ret = get_file_acls(fname, &pacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get [%s] acl error[%d]\n", fname, ret);
+        goto out;
+    }
+
+    ret = enable_security_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not enable security error[%d]\n", ret);
+        goto out;
+    }
+    enblsecurity = 1;
+
+    ret = remove_dacl(pacl,username, action, right);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "[%s] remove dacl [%s][%s][%s] error[%d]\n", fname, username, action, right,ret);
+        goto out;
+    }
+
+    fprintf(stdout,"[%s] remove dacl [%s][%s][%s] succ\n",fname, username,action,right);
+    ret = 0;
+out:
+    if (enblsecurity) {
+        disable_security_priv();
+    }
+    enblsecurity = 0;
+    get_file_acls(NULL,&pacl);
+    SETERRNO(ret);
+    return ret;    
+}
+
 
 int _tmain(int argc, TCHAR* argv[])
 {
