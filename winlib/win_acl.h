@@ -27,7 +27,7 @@ extern "C" {
 
 #define ACL_RIGHT_ALL               "all"
 
-#define ACL_COMMON_SEP              ";"
+#define ACL_COMMON_SEP              ';'
 
 
 WINLIB_API int get_file_acls(const char* fname, void** ppacl);
@@ -39,8 +39,8 @@ WINLIB_API int get_file_group(void* pacl, char** ppgroup,int *pgrpsize);
 WINLIB_API int get_name_sid(const char* name, char** ppsid,int *psize);
 
 
-WINLIB_API int set_file_owner(void* pacl, const char* username);
-WINLIB_API int set_file_group(void* pacl, const char* groupname);
+WINLIB_API int set_file_owner(const char* fname, const char* username);
+WINLIB_API int set_file_group(const char* fname, const char* groupname);
 
 WINLIB_API int remove_sacl(void* pacl,const char* username,const char* action,const char* right);
 WINLIB_API int add_sacl(void* pacl,const char* username,const char* action,const char* right);

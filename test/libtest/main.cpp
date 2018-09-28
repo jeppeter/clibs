@@ -2771,7 +2771,6 @@ int setowner_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 {
     char* fname=NULL;
     char* owner=NULL;
-    void* pacl=NULL;
     pargs_options_t pargs = (pargs_options_t)popt;
     int i,ret;
     argc = argc;
@@ -2787,32 +2786,18 @@ int setowner_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     owner = parsestate->leftargs[0];
     for (i=1;parsestate->leftargs[i] != NULL;i++) {
         fname = parsestate->leftargs[i];
-        ret = get_file_acls(fname,&pacl);
-        if (ret < 0) {
-            GETERRNO(ret);
-            fprintf(stderr, "[%d][%s] get acl error[%d]\n", i, fname, ret);
-            goto out;
-        }
-        ret = set_file_owner(pacl,owner);
+        ret = set_file_owner(fname,owner);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "[%d][%s] set owner error[%d]\n", i, fname, ret);
             goto out;
         }
 
-        ret = set_file_acls(fname,pacl);
-        if (ret < 0) {
-            GETERRNO(ret);
-            fprintf(stderr, "[%d][%s] flush acls error[%d]\n", i, fname, ret);
-            goto out;
-        }
-        get_file_acls(NULL,&pacl);
         fprintf(stdout,"[%d][%s] owner [%s] succ\n",i, fname, owner);
     }
 
     ret = 0;
 out:
-    get_file_acls(NULL,&pacl);
     SETERRNO(ret);
     return ret;
 }
@@ -2850,7 +2835,6 @@ int setgroup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 {
     char* fname=NULL;
     char* group=NULL;
-    void* pacl=NULL;
     pargs_options_t pargs = (pargs_options_t)popt;
     int i,ret;
     argc = argc;
@@ -2866,32 +2850,17 @@ int setgroup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     group = parsestate->leftargs[0];
     for (i=1;parsestate->leftargs[i] != NULL;i++) {
         fname = parsestate->leftargs[i];
-        ret = get_file_acls(fname,&pacl);
-        if (ret < 0) {
-            GETERRNO(ret);
-            fprintf(stderr, "[%d][%s] get acl error[%d]\n", i, fname, ret);
-            goto out;
-        }
-        ret = set_file_group(pacl,group);
+        ret = set_file_group(fname,group);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "[%d][%s] set group error[%d]\n", i, fname, ret);
             goto out;
         }
-
-        ret = set_file_acls(fname,pacl);
-        if (ret < 0) {
-            GETERRNO(ret);
-            fprintf(stderr, "[%d][%s] flush acls error[%d]\n", i, fname, ret);
-            goto out;
-        }
-        get_file_acls(NULL,&pacl);
         fprintf(stdout,"[%d][%s] group [%s] succ\n",i, fname, group);
     }
 
     ret = 0;
 out:
-    get_file_acls(NULL,&pacl);
     SETERRNO(ret);
     return ret;
 }
