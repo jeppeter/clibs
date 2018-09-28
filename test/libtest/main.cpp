@@ -16,6 +16,7 @@
 #include <win_regop.h>
 #include <win_ver.h>
 #include <win_acl.h>
+#include <win_priv.h>
 
 typedef struct __args_options {
     int m_verbose;
@@ -2653,6 +2654,8 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     init_log_level(pargs);
     argc = argc;
     argv = argv;
+
+
     if (parsestate->leftargs) {
         for (i = 0; parsestate->leftargs[i] != NULL; i++) {
             fname = parsestate->leftargs[i];

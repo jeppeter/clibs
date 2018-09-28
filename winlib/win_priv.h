@@ -17,6 +17,13 @@ WINLIB_API int enable_takeown_priv(void);
 WINLIB_API int disable_takeown_priv(void);
 WINLIB_API int enable_restore_priv(void);
 WINLIB_API int disable_restore_priv(void);
+WINLIB_API int enable_backup_priv(void);
+WINLIB_API int disable_backup_priv(void);
+WINLIB_API int enable_impersonate_priv(void);
+WINLIB_API int disable_impersonate_priv(void);
+WINLIB_API int enable_audit_priv(void);
+WINLIB_API int disable_audit_priv(void);
+
 
 
 #ifdef __cplusplus

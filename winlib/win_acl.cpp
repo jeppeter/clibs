@@ -191,10 +191,7 @@ int get_file_acls(const char* fname, void** ppacl1)
     ret = enable_security_priv();
     if (ret >= 0) {
         enabled = 1;
-        DEBUG_INFO("enabled security priviledge");
-    } else {
-        DEBUG_INFO("not enable security priviledge");
-    }
+    } 
 
 try_owner_sec:
     if (pacl->m_ownersdp) {
@@ -507,7 +504,7 @@ void __debug_access_inner(PEXPLICIT_ACCESS pcuracc, const char* prefix)
         psid = (PSID) pcuracc->Trustee.ptstrName;
         ret = __get_sid_name(psid, &name, &namesize);
         if (ret > 0) {
-            DEBUG_INFO("%s name [%s]", name);
+            DEBUG_INFO("%s name [%s]", prefix, name);
         }
     }
     __get_sid_name(NULL, &name, &namesize);
@@ -937,7 +934,7 @@ fail:
    			goto fail;                                                                            \
    		}                                                                                         \
    		retlen = ret;                                                                             \
-   		DEBUG_INFO("[%d]%s",idx,*pptr);                                                           \
+   		DEBUG_INFO("[%d] %s",idx,*pptr);                                                          \
    }while(0)
 
 int __get_acl_action_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char** ppaction, int *pactionsize)

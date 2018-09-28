@@ -49,6 +49,7 @@ int __handle_priv(const char* privstr, int enabled)
     	ERROR_INFO("adjust %s [%s] error[%d]", privstr, enabled ? "enable" : "disable", ret);
     	goto fail;
     }
+    DEBUG_INFO("%s [%s] succ",  enabled ? "enable" : "disable",privstr);
 
     if (htoken != NULL) {
     	CloseHandle(htoken);
@@ -95,4 +96,32 @@ int enable_restore_priv(void)
 int disable_restore_priv(void)
 {
 	return __handle_priv("SeRestorePrivilege",0);
+}
+
+int enable_backup_priv(void)
+{
+	return __handle_priv("SeBackupPrivilege",1);
+}
+int disable_backup_priv(void)
+{
+	return __handle_priv("SeBackupPrivilege",0);
+}
+
+int enable_impersonate_priv(void)
+{
+	return __handle_priv("SeImpersonatePrivilege",1);
+}
+
+int disable_impersonate_priv(void)
+{
+	return __handle_priv("SeImpersonatePrivilege",0);
+}
+
+int enable_audit_priv(void)
+{
+	return __handle_priv("SeAuditPrivilege",1);
+}
+int disable_audit_priv(void)
+{
+	return __handle_priv("SeAuditPrivilege",0);
 }
