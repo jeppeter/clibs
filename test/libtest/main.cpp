@@ -2650,6 +2650,8 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     int actionsize=0;
     char* right=NULL;
     int rightsize=0;
+    char* inherit=NULL;
+    int inheritsize=0;
     char* owner=NULL,*group=NULL;
     int ownersize=0,grpsize=0;
     init_log_level(pargs);
@@ -2722,7 +2724,16 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                     break;
                 }
 
-                fprintf(stdout, "get [%d][%s] [%d]sacl [%s][%s][%s]\n", i , fname, j, user,action,right);
+                ret = get_sacl_inheritance(pacl,j,&inherit,&inheritsize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    fprintf(stderr, "get [%d][%s] sacl inherit error[%d]\n", i, fname, ret);
+                    goto out;
+                } else if (ret == 0) {
+                    break;
+                }
+
+                fprintf(stdout, "get [%d][%s] [%d]sacl [%s][%s][%s][%s]\n", i , fname, j, user,action,right, inherit);
                 j ++;
             }
             j = 0;
@@ -2754,7 +2765,16 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                     break;
                 }
 
-                fprintf(stdout, "get [%d][%s] [%d]dacl [%s][%s][%s]\n", i , fname, j, user, action, right);
+                ret = get_dacl_inheritance(pacl,j,&inherit,&inheritsize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    fprintf(stderr, "get [%d][%s] dacl inherit error[%d]\n", i, fname, ret);
+                    goto out;
+                } else if (ret == 0) {
+                    break;
+                }
+
+                fprintf(stdout, "get [%d][%s] [%d]dacl [%s][%s][%s][%s]\n", i , fname, j, user, action, right, inherit);
                 j ++;
             }
         }
@@ -2763,6 +2783,7 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 out:
     get_file_group(NULL,&group,&grpsize);
     get_file_owner(NULL,&owner,&ownersize);
+    get_sacl_inheritance(NULL,0,&inherit,&inheritsize);
     get_sacl_right(NULL,0,&right,&rightsize);
     get_sacl_action(NULL,0,&action,&actionsize);
     get_sacl_user(NULL, 0, &user, &usersize);

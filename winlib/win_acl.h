@@ -10,22 +10,28 @@ extern "C" {
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
-#define ACL_ACTION_NOT_USED         "notused"
-#define ACL_ACTION_GRANT            "grant"
-#define ACL_ACTION_SET              "set"
-#define ACL_ACTION_DENY             "deny"
-#define ACL_ACTION_REVOKE           "revoke"
-#define ACL_ACTION_AUDIT_SUCC       "auditsucc"
-#define ACL_ACTION_AUDIT_FAIL       "auditfail"
+#define ACL_ACTION_NOT_USED                                           "notused"
+#define ACL_ACTION_GRANT                                              "grant"
+#define ACL_ACTION_SET                                                "set"
+#define ACL_ACTION_DENY                                               "deny"
+#define ACL_ACTION_REVOKE                                             "revoke"
+#define ACL_ACTION_AUDIT_SUCC                                         "auditsucc"
+#define ACL_ACTION_AUDIT_FAIL                                         "auditfail"
 
 
-#define ACL_RIGHT_DELETE            "delete"
-#define ACL_RIGHT_READ_CONTROL      "readcontrol"
-#define ACL_RIGHT_WRITE_DAC         "writedac"
-#define ACL_RIGHT_WRITE_OWNER       "writeowner"
-#define ACL_RIGHT_SYNCHRONIZE       "synchronize"
+#define ACL_RIGHT_DELETE                                              "delete"
+#define ACL_RIGHT_READ_CONTROL                                        "readcontrol"
+#define ACL_RIGHT_WRITE_DAC                                           "writedac"
+#define ACL_RIGHT_WRITE_OWNER                                         "writeowner"
+#define ACL_RIGHT_SYNCHRONIZE                                         "synchronize"
+#define ACL_RIGHT_ALL                                                 "all"
 
-#define ACL_RIGHT_ALL               "all"
+#define ACL_INHERITANCE_CONTAINER_INHERIT_ACE                        "containerinheritace"
+#define ACL_INHERITANCE_INHERIT_NO_PROPAGATE                         "inheritnopropagate"
+#define ACL_INHERITANCE_INHERIT_ONLY                                 "inheritonly"
+#define ACL_INHERITANCE_NO_INHERITANCE                               "noinheritance"
+#define ACL_INHERITANCE_OBJECT_INHERIT_ACE                           "objectinheritace"      
+#define ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT           "subcontainersandobjectsinherit"
 
 #define ACL_COMMON_SEP              ';'
 
@@ -47,12 +53,14 @@ WINLIB_API int add_sacl(void* pacl,const char* username,const char* action,const
 WINLIB_API int get_sacl_user(void* pacl,int idx,char** ppuser,int *pusersize);
 WINLIB_API int get_sacl_action(void* pacl, int idx,char** ppaction,int* pactionsize);
 WINLIB_API int get_sacl_right(void* pacl,int idx,char** ppright,int *prightsize);
+WINLIB_API int get_sacl_inheritance(void* pacl,int idx, char** ppinheritance,int *pinheritancesize);
 
 WINLIB_API int remove_dacl(void* pacl,const char* username,const char* action,const char* right);
 WINLIB_API int add_dacl(void* pacl,const char* username,const char* action,const char* right);
 WINLIB_API int get_dacl_user(void* pacl,int idx,char** ppuser,int *pusersize);
 WINLIB_API int get_dacl_action(void* pacl, int idx,char** ppaction,int* pactionsize);
 WINLIB_API int get_dacl_right(void* pacl,int idx,char** ppright,int *prightsize);
+WINLIB_API int get_dacl_inheritance(void* pacl,int idx, char** ppinheritance,int *pheritancesize);
 
 
 #ifdef __cplusplus

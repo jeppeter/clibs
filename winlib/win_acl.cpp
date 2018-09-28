@@ -568,7 +568,29 @@ void __debug_access_inner(PEXPLICIT_ACCESS pcuracc, const char* prefix)
     default:
         DEBUG_INFO("%s grfAccessMode [0x%lx]", prefix, pcuracc->grfAccessMode);
     }
-    DEBUG_INFO("%s grfInheritance [0x%lx]", prefix, pcuracc->grfInheritance);
+
+    DEBUG_INFO("%s grfInheritance [0x%x]", prefix, pcuracc->grfInheritance);
+    if ((pcuracc->grfInheritance & CONTAINER_INHERIT_ACE) == CONTAINER_INHERIT_ACE) {
+    	DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_CONTAINER_INHERIT_ACE);
+    }
+
+    if ((pcuracc->grfInheritance & INHERIT_NO_PROPAGATE) == INHERIT_NO_PROPAGATE) {
+    	DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_INHERIT_NO_PROPAGATE);
+    }
+
+    if ((pcuracc->grfInheritance & INHERIT_ONLY) == INHERIT_ONLY) {
+    	DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_INHERIT_ONLY);
+    }
+    if ((pcuracc->grfInheritance & NO_INHERITANCE) == NO_INHERITANCE) {
+    	DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_NO_INHERITANCE);
+    }
+    if ((pcuracc->grfInheritance & OBJECT_INHERIT_ACE) == OBJECT_INHERIT_ACE) {
+    	DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_OBJECT_INHERIT_ACE);
+    }
+    if ((pcuracc->grfInheritance & SUB_CONTAINERS_AND_OBJECTS_INHERIT) == SUB_CONTAINERS_AND_OBJECTS_INHERIT) {
+    	DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT);
+    }
+
     DEBUG_INFO("%s pMultipleTrustee [%p]", prefix, pcuracc->Trustee.pMultipleTrustee);
     DEBUG_INFO("%s MultipleTrusteeOperation [0x%x]", prefix, pcuracc->Trustee.MultipleTrusteeOperation);
     DEBUG_INFO("%s TrusteeForm [0x%x]", prefix, pcuracc->Trustee.TrusteeForm);
@@ -1291,6 +1313,150 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int __get_acl_inheritance_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char** ppinheritance, int *pinheritancesize)
+{
+    int ret = 0;
+    int retlen = 0;
+    PEXPLICIT_ACCESS pcuracc;
+    if (paccess == NULL) {
+        return snprintf_safe(ppinheritance, pinheritancesize, NULL);
+    }
+
+    if (accnum <= idx) {
+        retlen = 0;
+        goto succ;
+    }
+    pcuracc = &(paccess[idx]);
+    if ((pcuracc->grfInheritance & CONTAINER_INHERIT_ACE) == CONTAINER_INHERIT_ACE) {
+    	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_CONTAINER_INHERIT_ACE);
+    }
+
+    if ((pcuracc->grfInheritance & INHERIT_NO_PROPAGATE) == INHERIT_NO_PROPAGATE) {
+    	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_INHERIT_NO_PROPAGATE);
+    }
+
+    if ((pcuracc->grfInheritance & INHERIT_ONLY) == INHERIT_ONLY) {
+    	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_INHERIT_ONLY);
+    }
+
+    if ((pcuracc->grfInheritance & NO_INHERITANCE) == NO_INHERITANCE) {
+    	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_NO_INHERITANCE);
+    }
+
+    if ((pcuracc->grfInheritance & OBJECT_INHERIT_ACE) == OBJECT_INHERIT_ACE) {
+    	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_OBJECT_INHERIT_ACE);
+    }
+
+    if ((pcuracc->grfInheritance & SUB_CONTAINERS_AND_OBJECTS_INHERIT) == SUB_CONTAINERS_AND_OBJECTS_INHERIT) {
+    	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT);
+    }
+
+succ:
+    if (retlen == 0) {
+        if (ppinheritance && *ppinheritance) {
+            **ppinheritance = '\0';
+        }
+    }
+    return retlen;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int get_sacl_inheritance(void* pacl1,int idx, char** ppinheritance,int *pinheritancesize)
+{
+    int ret;
+    pwin_acl_t pacl = NULL;
+    int retlen = 0;
+    PACL sacl = NULL;
+    pacl = (pwin_acl_t) pacl1;
+    if (pacl == NULL) {
+        return __handle_acl_idx_callback(NULL, idx, ppinheritance, pinheritancesize, __get_acl_inheritance_inner);
+    }
+
+    if (!IS_WIN_ACL_MAGIC(pacl) ) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    if (pacl->m_saclsdp == NULL) {
+        retlen = 0;
+        goto succ;
+    }
+
+    ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
+    if (ret == 0 || sacl == NULL) {
+        retlen = 0;
+        goto succ;
+    }
+
+    ret = __handle_acl_idx_callback(sacl, idx, ppinheritance, pinheritancesize, __get_acl_inheritance_inner);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = ret;
+succ:
+    if (retlen == 0) {
+        if (ppinheritance && *ppinheritance) {
+            **ppinheritance = '\0';
+        }
+    }
+    return retlen;
+
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+int get_dacl_inheritance(void* pacl1,int idx, char** ppinheritance,int *pinheritancesize)
+{
+    int ret;
+    pwin_acl_t pacl = NULL;
+    int retlen = 0;
+    PACL dacl = NULL;
+    pacl = (pwin_acl_t) pacl1;
+    if (pacl == NULL) {
+        return __handle_acl_idx_callback(NULL, idx, ppinheritance, pinheritancesize, __get_acl_inheritance_inner);
+    }
+
+    if (!IS_WIN_ACL_MAGIC(pacl) ) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    if (pacl->m_daclsdp == NULL) {
+        retlen = 0;
+        goto succ;
+    }
+
+    ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
+    if (ret == 0 || dacl == NULL) {
+        retlen = 0;
+        goto succ;
+    }
+
+    ret = __handle_acl_idx_callback(dacl, idx, ppinheritance, pinheritancesize, __get_acl_inheritance_inner);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = ret;
+succ:
+    if (retlen == 0) {
+        if (ppinheritance && *ppinheritance) {
+            **ppinheritance = '\0';
+        }
+    }
+    return retlen;
+
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
 
 int __get_owner_sid(pwin_acl_t pacl, PSID* ppsid)
 {
