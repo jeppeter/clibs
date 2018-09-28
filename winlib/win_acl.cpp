@@ -21,6 +21,8 @@
 #define    SACL_MODE                         3
 #define    DACL_MODE                         4
 
+#define   NO_ITEMS_MORE                     ERROR_NO_MORE_ITEMS
+
 #define   SET_WIN_ACL_MAGIC(pacl)  do{if ((pacl) != NULL) { (pacl)->m_magic = WIN_ACL_MAGIC;}} while(0)
 #define   IS_WIN_ACL_MAGIC(pacl)  ((pacl) == NULL || ((pacl)->m_magic == WIN_ACL_MAGIC))
 
@@ -595,8 +597,10 @@ void __debug_access_inner(PEXPLICIT_ACCESS pcuracc, const char* prefix)
     DEBUG_INFO("%s MultipleTrusteeOperation [0x%x]", prefix, pcuracc->Trustee.MultipleTrusteeOperation);
     DEBUG_INFO("%s TrusteeForm [0x%x]", prefix, pcuracc->Trustee.TrusteeForm);
     DEBUG_INFO("%s TrusteeType [0x%x]", prefix, pcuracc->Trustee.TrusteeType);
+
     if (pcuracc->Trustee.TrusteeForm == TRUSTEE_IS_SID  &&
-            pcuracc->Trustee.TrusteeType == TRUSTEE_IS_UNKNOWN) {
+            pcuracc->Trustee.TrusteeType == TRUSTEE_IS_UNKNOWN && 
+            pcuracc->Trustee.ptstrName != NULL) {
         psid = (PSID) pcuracc->Trustee.ptstrName;
         ret = __get_sid_name(psid, &name, &namesize);
         if (ret > 0) {
@@ -702,8 +706,8 @@ int __get_acl_user_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char** p
 
 
     if ((int)accnum <= idx) {
-        retlen = 0;
-        goto succ;
+    	ret = -NO_ITEMS_MORE;
+    	goto fail;
     }
 
     pcuracc = &(paccess[idx]);
@@ -778,7 +782,6 @@ try_get_sid:
     }
     retlen = ret;
 
-succ:
     if (ptuser) {
         free(ptuser);
     }
@@ -938,14 +941,14 @@ int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
     }
 
     if (pacl->m_saclsdp == NULL) {
-        retlen = 0;
-        goto succ;
+    	ret = -NO_ITEMS_MORE;
+    	goto fail;
     }
 
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
     if (ret == 0 || sacl == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __handle_acl_idx_callback(sacl, idx, ppuser, pusersize, __get_acl_user_inner);
@@ -954,7 +957,6 @@ int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
         goto fail;
     }
     retlen = ret;
-succ:
     if (retlen == 0) {
         if (ppuser && *ppuser) {
             **ppuser = '\0';
@@ -984,14 +986,14 @@ int get_dacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
     }
 
     if (pacl->m_daclsdp == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
     if (ret == 0 || dacl == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __handle_acl_idx_callback(dacl, idx, ppuser, pusersize, __get_acl_user_inner);
@@ -1000,7 +1002,6 @@ int get_dacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
         goto fail;
     }
     retlen = ret;
-succ:
     if (retlen == 0) {
         if (ppuser && *ppuser) {
             **ppuser = '\0';
@@ -1043,8 +1044,8 @@ int __get_acl_action_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char**
     }
 
     if (accnum <= idx) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
     pcuracc = &(paccess[idx]);
     switch (pcuracc->grfAccessMode) {
@@ -1073,7 +1074,6 @@ int __get_acl_action_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char**
         __INNER_SNPRINTF_SAFE(ppaction, pactionsize, "%s", ACL_ACTION_NOT_USED);
         break;
     }
-succ:
     if (retlen == 0) {
         if (ppaction && *ppaction) {
             **ppaction = '\0';
@@ -1102,14 +1102,14 @@ int get_sacl_action(void* pacl1, int idx, char** ppaction, int* pactionsize)
     }
 
     if (pacl->m_saclsdp == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
     if (ret == 0 || sacl == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __handle_acl_idx_callback(sacl, idx, ppaction, pactionsize, __get_acl_action_inner);
@@ -1118,7 +1118,6 @@ int get_sacl_action(void* pacl1, int idx, char** ppaction, int* pactionsize)
         goto fail;
     }
     retlen = ret;
-succ:
     if (retlen == 0) {
         if (ppaction && *ppaction) {
             **ppaction = '\0';
@@ -1148,14 +1147,14 @@ int get_dacl_action(void* pacl1, int idx, char** ppaction, int* pactionsize)
     }
 
     if (pacl->m_daclsdp == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
     if (ret == 0 || dacl == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __handle_acl_idx_callback(dacl, idx, ppaction, pactionsize, __get_acl_action_inner);
@@ -1164,7 +1163,6 @@ int get_dacl_action(void* pacl1, int idx, char** ppaction, int* pactionsize)
         goto fail;
     }
     retlen = ret;
-succ:
     if (retlen == 0) {
         if (ppaction && *ppaction) {
             **ppaction = '\0';
@@ -1187,8 +1185,8 @@ int __get_acl_rights_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char**
     }
 
     if (accnum <= idx) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
     pcuracc = &(paccess[idx]);
     if ((pcuracc->grfAccessPermissions & STANDARD_RIGHTS_ALL) == STANDARD_RIGHTS_ALL) {
@@ -1210,7 +1208,6 @@ int __get_acl_rights_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char**
             __INNER_SNPRINTF_SAFE(ppright, prightsize, "%s", ACL_RIGHT_SYNCHRONIZE);
         }
     }
-succ:
     if (retlen == 0) {
         if (ppright && *ppright) {
             **ppright = '\0';
@@ -1239,14 +1236,14 @@ int get_sacl_right(void* pacl1, int idx, char** ppright, int* prightsize)
     }
 
     if (pacl->m_saclsdp == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
     if (ret == 0 || sacl == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __handle_acl_idx_callback(sacl, idx, ppright, prightsize, __get_acl_rights_inner);
@@ -1255,7 +1252,6 @@ int get_sacl_right(void* pacl1, int idx, char** ppright, int* prightsize)
         goto fail;
     }
     retlen = ret;
-succ:
     if (retlen == 0) {
         if (ppright && *ppright) {
             **ppright = '\0';
@@ -1285,14 +1281,14 @@ int get_dacl_right(void* pacl1, int idx, char** ppright, int* prightsize)
     }
 
     if (pacl->m_daclsdp == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
     if (ret == 0 || dacl == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __handle_acl_idx_callback(dacl, idx, ppright, prightsize, __get_acl_rights_inner);
@@ -1301,7 +1297,6 @@ int get_dacl_right(void* pacl1, int idx, char** ppright, int* prightsize)
         goto fail;
     }
     retlen = ret;
-succ:
     if (retlen == 0) {
         if (ppright && *ppright) {
             **ppright = '\0';
@@ -1324,8 +1319,8 @@ int __get_acl_inheritance_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, c
     }
 
     if (accnum <= idx) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
     pcuracc = &(paccess[idx]);
     if ((pcuracc->grfInheritance & CONTAINER_INHERIT_ACE) == CONTAINER_INHERIT_ACE) {
@@ -1352,7 +1347,6 @@ int __get_acl_inheritance_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, c
     	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT);
     }
 
-succ:
     if (retlen == 0) {
         if (ppinheritance && *ppinheritance) {
             **ppinheritance = '\0';
@@ -1382,14 +1376,14 @@ int get_sacl_inheritance(void* pacl1,int idx, char** ppinheritance,int *pinherit
     }
 
     if (pacl->m_saclsdp == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
     if (ret == 0 || sacl == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __handle_acl_idx_callback(sacl, idx, ppinheritance, pinheritancesize, __get_acl_inheritance_inner);
@@ -1398,7 +1392,6 @@ int get_sacl_inheritance(void* pacl1,int idx, char** ppinheritance,int *pinherit
         goto fail;
     }
     retlen = ret;
-succ:
     if (retlen == 0) {
         if (ppinheritance && *ppinheritance) {
             **ppinheritance = '\0';
@@ -1428,14 +1421,14 @@ int get_dacl_inheritance(void* pacl1,int idx, char** ppinheritance,int *pinherit
     }
 
     if (pacl->m_daclsdp == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
     if (ret == 0 || dacl == NULL) {
-        retlen = 0;
-        goto succ;
+        ret = - NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __handle_acl_idx_callback(dacl, idx, ppinheritance, pinheritancesize, __get_acl_inheritance_inner);
@@ -1444,7 +1437,6 @@ int get_dacl_inheritance(void* pacl1,int idx, char** ppinheritance,int *pinherit
         goto fail;
     }
     retlen = ret;
-succ:
     if (retlen == 0) {
         if (ppinheritance && *ppinheritance) {
             **ppinheritance = '\0';

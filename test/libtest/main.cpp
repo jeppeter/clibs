@@ -2636,6 +2636,19 @@ int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     return 0;
 }
+int get_max_str(int a,const char* str)
+{
+    int b = 0;
+    if (str != NULL) {
+        b = (int)strlen(str);
+    }
+    if (a > b) {
+        return a;
+    }
+    return b;
+}
+
+
 
 int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -2654,12 +2667,181 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     int inheritsize=0;
     char* owner=NULL,*group=NULL;
     int ownersize=0,grpsize=0;
+    int maxownersize=0;
+    int maxgroupsize=0;
+    int maxusersize=0;
+    int maxactionsize=0;
+    int maxrightsize=0;
+    int maxinheritsize=0;
+    int maxfilesize=0;
+    int curlen=0;
     init_log_level(pargs);
     argc = argc;
     argv = argv;
 
 
     if (parsestate->leftargs) {
+        ret = snprintf_safe(&user,&usersize," ");
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        ret = snprintf_safe(&action,&actionsize," ");
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        ret = snprintf_safe(&right,&rightsize," ");
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        ret = snprintf_safe(&inherit,&inheritsize," ");
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        ret = snprintf_safe(&owner,&ownersize," ");
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        ret = snprintf_safe(&group,&grpsize," ");
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+
+        for (i=0;parsestate->leftargs[i]!= NULL ;i++) {
+            fname = parsestate->leftargs[i];
+            maxfilesize = get_max_str(maxfilesize, fname);
+            ret = get_file_acls(fname, &pacl);
+            if (ret < 0) {
+                GETERRNO(ret);
+                fprintf(stderr, "get [%d][%s] acl error[%d]\n", i, fname, ret);
+                goto out;
+            }
+
+            ret = get_file_owner(pacl,&owner,&ownersize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                fprintf(stderr, "get [%s] owner error[%d]\n", fname, ret);
+                goto out;
+            }
+            maxownersize = get_max_str(maxownersize, owner);
+            
+            ret = get_file_group(pacl,&group,&grpsize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                fprintf(stderr, "get [%s] group error[%d]\n", fname, ret);
+                goto out;
+            }
+            maxgroupsize = get_max_str(maxgroupsize, group);
+            
+
+            j = 0;
+            while (1) {
+                ret = get_sacl_user(pacl, j, &user, &usersize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        break;
+                    }
+                    fprintf(stderr, "get [%d][%s] sacl user error[%d]\n", i, fname, ret);
+                    goto out;
+                } 
+                maxusersize = get_max_str(maxusersize, user);
+
+                ret = get_sacl_action(pacl,j,&action,&actionsize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        fprintf(stderr, "funny to get sacl action with no items\n");
+                        break;
+                    }
+                    fprintf(stderr, "get [%d][%s] sacl action error[%d]\n", i, fname, ret);
+                    goto out;
+                } 
+                maxactionsize = get_max_str(maxactionsize, action);
+
+                ret = get_sacl_right(pacl,j,&right,&rightsize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        fprintf(stderr, "funny to get sacl right with no items\n");
+                        break;   
+                    }
+                    fprintf(stderr, "get [%d][%s] sacl right error[%d]\n", i, fname, ret);
+                    goto out;
+                } 
+                maxrightsize = get_max_str(maxrightsize, right);
+
+                ret = get_sacl_inheritance(pacl,j,&inherit,&inheritsize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        fprintf(stderr, "funny to get sacl inherit with no items\n");
+                        break;   
+                    }
+                    fprintf(stderr, "get [%d][%s] sacl inherit error[%d]\n", i, fname, ret);
+                    goto out;
+                }
+                maxinheritsize = get_max_str(maxinheritsize, inherit);
+
+                j ++;
+            }
+            j = 0;
+            while (1) {
+                ret = get_dacl_user(pacl, j, &user, &usersize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        break;   
+                    }
+                    fprintf(stderr, "get [%d][%s] dacl error[%d]\n", i, fname, ret);
+                    goto out;
+                } 
+                maxusersize = get_max_str(maxusersize, user);
+
+                ret = get_dacl_action(pacl,j,&action,&actionsize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        fprintf(stderr, "funny to get dacl action with no items\n");
+                        break;   
+                    }
+                    fprintf(stderr, "get [%d][%s] dacl action error[%d]\n", i, fname, ret);
+                    goto out;
+                }
+                maxactionsize = get_max_str(maxactionsize, action);
+
+                ret = get_dacl_right(pacl,j,&right,&rightsize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        fprintf(stderr, "funny to get dacl right with no items\n");
+                        break;   
+                    }
+                    fprintf(stderr, "get [%d][%s] dacl right error[%d]\n", i, fname, ret);
+                    goto out;
+                }
+                maxrightsize = get_max_str(maxrightsize, right);
+
+                ret = get_dacl_inheritance(pacl,j,&inherit,&inheritsize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        fprintf(stderr, "funny to get dacl inherit with no items\n");
+                        break;   
+                    }
+                    fprintf(stderr, "get [%d][%s] dacl inherit error[%d]\n", i, fname, ret);
+                    goto out;
+                }
+                maxinheritsize = get_max_str(maxinheritsize, inherit);
+                j ++;
+            }
+        }
+
         for (i = 0; parsestate->leftargs[i] != NULL; i++) {
             fname = parsestate->leftargs[i];
             ret = get_file_acls(fname, &pacl);
@@ -2676,22 +2858,12 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                 goto out;
             }
 
-            if (ret > 0) {
-                fprintf(stdout,"[%d][%s] owner [%s]\n", i, fname, owner);    
-            } else {
-                fprintf(stdout,"[%d][%s] no owner\n", i, fname);
-            }
             
             ret = get_file_group(pacl,&group,&grpsize);
             if (ret < 0) {
                 GETERRNO(ret);
                 fprintf(stderr, "get [%s] group error[%d]\n", fname, ret);
                 goto out;
-            }
-            if (ret > 0) {
-                fprintf(stdout, "[%d][%s] group [%s]\n", i, fname, group);    
-            } else {
-                fprintf(stdout,"[%d][%s] no group\n", i, fname);
             }
             
 
@@ -2700,40 +2872,51 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                 ret = get_sacl_user(pacl, j, &user, &usersize);
                 if (ret < 0) {
                     GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        break;
+                    }
                     fprintf(stderr, "get [%d][%s] sacl user error[%d]\n", i, fname, ret);
                     goto out;
-                } else if (ret == 0) {
-                    break;
-                }
-
+                } 
                 ret = get_sacl_action(pacl,j,&action,&actionsize);
                 if (ret < 0) {
                     GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        fprintf(stderr, "funny to get sacl action with no items\n");
+                        break;
+                    }
                     fprintf(stderr, "get [%d][%s] sacl action error[%d]\n", i, fname, ret);
                     goto out;
-                } else if (ret == 0) {
-                    break;
-                }
+                } 
 
                 ret = get_sacl_right(pacl,j,&right,&rightsize);
                 if (ret < 0) {
                     GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        fprintf(stderr, "funny to get sacl right with no items\n");
+                        break;   
+                    }
                     fprintf(stderr, "get [%d][%s] sacl right error[%d]\n", i, fname, ret);
                     goto out;
-                } else if (ret == 0) {
-                    break;
-                }
+                } 
 
                 ret = get_sacl_inheritance(pacl,j,&inherit,&inheritsize);
                 if (ret < 0) {
                     GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        fprintf(stderr, "funny to get sacl inherit with no items\n");
+                        break;   
+                    }
                     fprintf(stderr, "get [%d][%s] sacl inherit error[%d]\n", i, fname, ret);
                     goto out;
-                } else if (ret == 0) {
-                    break;
                 }
 
-                fprintf(stdout, "get [%d][%s] [%d]sacl [%s][%s][%s][%s]\n", i , fname, j, user,action,right, inherit);
+                fprintf(stdout, "[%03d][%03d]%-5s %-*s %-*s %-*s %-*s %-*s %-*s %-*s\n", i,j,"sacl", 
+                    maxfilesize+1,fname, maxownersize + 1 , owner,
+                    maxgroupsize + 1, group, maxusersize + 1, user,
+                    maxactionsize + 1 ,action, maxrightsize + 1 , right,
+                    maxinheritsize + 1, inherit);
+
                 j ++;
             }
             j = 0;
@@ -2741,40 +2924,51 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                 ret = get_dacl_user(pacl, j, &user, &usersize);
                 if (ret < 0) {
                     GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        break;   
+                    }
                     fprintf(stderr, "get [%d][%s] dacl error[%d]\n", i, fname, ret);
                     goto out;
-                } else if (ret == 0) {
-                    break;
-                }
+                } 
 
                 ret = get_dacl_action(pacl,j,&action,&actionsize);
                 if (ret < 0) {
                     GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        fprintf(stderr, "funny to get dacl action with no items\n");
+                        break;   
+                    }
                     fprintf(stderr, "get [%d][%s] dacl action error[%d]\n", i, fname, ret);
                     goto out;
-                } else if (ret == 0) {
-                    break;
                 }
 
                 ret = get_dacl_right(pacl,j,&right,&rightsize);
                 if (ret < 0) {
                     GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        fprintf(stderr, "funny to get dacl right with no items\n");
+                        break;   
+                    }
                     fprintf(stderr, "get [%d][%s] dacl right error[%d]\n", i, fname, ret);
                     goto out;
-                } else if (ret == 0) {
-                    break;
                 }
 
                 ret = get_dacl_inheritance(pacl,j,&inherit,&inheritsize);
                 if (ret < 0) {
                     GETERRNO(ret);
+                    if (ret == -ERROR_NO_MORE_ITEMS) {
+                        fprintf(stderr, "funny to get dacl inherit with no items\n");
+                        break;   
+                    }
                     fprintf(stderr, "get [%d][%s] dacl inherit error[%d]\n", i, fname, ret);
                     goto out;
-                } else if (ret == 0) {
-                    break;
                 }
 
-                fprintf(stdout, "get [%d][%s] [%d]dacl [%s][%s][%s][%s]\n", i , fname, j, user, action, right, inherit);
+                fprintf(stdout, "[%03d][%03d]%-5s %-*s %-*s %-*s %-*s %-*s %-*s %-*s\n", i,j,"dacl", 
+                    maxfilesize+1,fname, maxownersize + 1 , owner,
+                    maxgroupsize + 1, group, maxusersize + 1, user,
+                    maxactionsize + 1 ,action, maxrightsize + 1 , right,
+                    maxinheritsize + 1, inherit);
                 j ++;
             }
         }
