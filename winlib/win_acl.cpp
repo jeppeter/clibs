@@ -2054,6 +2054,46 @@ fail:
 	return ret;
 }
 
+void __release_explicit_access(PEXPLICIT_ACCESS pacc)
+{
+	if (pacc) {
+		__release_trustee(&(pacc->Trustee));		
+	}
+	return;
+}
+
+void __free_explicit_access(PEXPLICIT_ACCESS *ppacc)
+{
+	if (ppacc && *ppacc) {
+		PEXPLICIT_ACCESS pacc=*ppacc;
+		__release_explicit_access(pacc);
+		LocalFree(pacc);
+		*ppacc = NULL;
+	}
+	return;
+}
+
+void __free_explicit_access_array(PEXPLICIT_ACCESS *ppacc, int *psize)
+{
+	if (ppacc && *ppacc && psize ){
+		int i;
+		PEXPLICIT_ACCESS pacc=NULL;
+		int size=*psize;
+		pacc = *ppacc;
+		for (i=0;i<size;i++) {
+			__release_explicit_access(&(pacc[i]));
+		}
+		LocalFree(pacc);
+	}
+	if (ppacc) {
+		*ppacc = NULL;
+	}
+	if (psize) {
+		*psize = 0;
+	}
+	return;
+}
+
 int __copy_explicit_access(PEXPLICIT_ACCESS paccess, PEXPLICIT_ACCESS pnewacc)
 {
 	int ret;
@@ -2070,6 +2110,51 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+PEXPLICIT_ACCESS __new_dummy_explicit_access(void)
+{
+	PEXPLICIT_ACCESS pacc=NULL;
+	int ret;
+	PSID psid=NULL;
+	int sidsize=0;
+
+	pacc= LocalAlloc(LMEM_FIXED,sizeof(*pacc));
+	if (pacc == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(pacc, 0 , sizeof(*pacc));
+
+	/*nothing to grant*/
+	pacc->grfAccessPermissions = 0;
+	pacc->grfAccessMode = GRANT_ACCESS;
+	pacc->grfInheritance = NO_INHERITANCE;
+
+	/*now initialize the trustee*/
+	pacc->Trustee.pMultipleTrustee = NULL;
+	pacc->Trustee.MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
+	pacc->Trustee.TrusteeForm = TRUSTEE_IS_SID;
+	pacc->Trustee.TrusteeType = TRUSTEE_IS_UNKNOWN;
+
+	ret = __get_sid_from_name("everyone", &psid,&sidsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	pacc->Trustee.ptstrName = (decltype(pacc->Trustee.ptstrName)(psid));
+	/*not free any*/
+	psid = NULL;
+
+	__get_sid_from_name(NULL,&psid,&sidsize);
+	return pacc;
+fail:
+	__get_sid_from_name(NULL,&psid,&sidsize);
+	__free_explicit_access(&pacc);
+	SETERRNO(ret);
+	return NULL;
+}
+
+
 
 int __remove_acl_inner(PEXPLICIT_ACCESS paccess,int accnum,PSID psid,ACCESS_MODE mode,ACCESS_MASK perm, void* arg, PSECURITY_DESCRIPTOR *ppsdp,int *psize)
 {
@@ -2106,7 +2191,8 @@ int __remove_acl_inner(PEXPLICIT_ACCESS paccess,int accnum,PSID psid,ACCESS_MODE
 		/*now remove it */
 		newaccsize = (accnum -1);
 		if (newaccsize == 0) {
-			retlen = 0;
+			/*no thing to handle ,just put everyone no grants into dummy*/
+
 		}
 
 	} else {
