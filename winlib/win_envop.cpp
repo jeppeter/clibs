@@ -287,3 +287,70 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int get_current_user(int freed,char** ppuser,int *psize)
+{
+    TCHAR* ptuser=NULL;
+    int tusersize=0;
+    DWORD tuserlen=0;
+    int ret;
+    int retlen = 0;
+    BOOL bret;
+
+    if (freed) {
+        return TcharToAnsi(NULL,ppuser,psize);
+    }
+    if (ppuser == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    tusersize = 32;
+try_again:
+    if (ptuser) {
+        free(ptuser);
+    }
+    ptuser = NULL;
+    ptuser = (TCHAR*)malloc(sizeof(*ptuser) * tusersize);
+    if (ptuser == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*ptuser) * tusersize, ret);
+        goto fail;
+    }
+    memset(ptuser , 0 ,sizeof(*ptuser) * tusersize);
+
+    tuserlen = tusersize;
+    bret = GetUserName(ptuser,&tuserlen);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            tusersize = tuserlen << 1;
+            goto try_again;
+        }
+        ERROR_INFO("get user name error[%d]" , ret);
+        goto fail;
+    }
+    ret = TcharToAnsi(ptuser,ppuser,psize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = ret;
+
+    if (ptuser) {
+        free(ptuser);
+    }
+    ptuser = NULL;
+    tusersize = 0;
+    return retlen;
+fail:
+    if (ptuser) {
+        free(ptuser);
+    }
+    ptuser = NULL;
+    tusersize = 0;
+    SETERRNO(ret);
+    return ret;
+
+}
