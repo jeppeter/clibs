@@ -104,6 +104,9 @@ libtest.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMI
 libtest.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMICDIR)\extargslib.dll
 	$(QUIETCMD) echo "call dynamic $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
+	$(QUIETCMD) copy /Y $(DYNAMICDIR)\extargslib.dll $(CURDIR)\extargslib.dll
+	$(QUIETCMD) copy /Y $(DYNAMICDIR)\winlib.dll $(CURDIR)\winlib.dll
+	$(QUIETCMD) copy /Y $(DYNAMICDIR)\json.dll $(CURDIR)\json.dll
 	$(QUIETCMD)echo "use dynamic lib"
 !ENDIF
 
@@ -163,6 +166,7 @@ clean_extargslib: clean_json
 clean:clean_extargslib
 	$(QUIETCMD) $(RM) *.exe *.obj 2>NUL
 	$(QUIETCMD) $(RM) *.pdb *.ilk 2>NUL
+	$(QUIETCMD) $(RM) *.dll 2>NUL
 	$(QUIETCMD) $(RM) args_options.cpp 2>NUL
 	$(QUIETCMD) $(RM) *.dll 2>NUL
 	$(QUIETCMD) $(RM) pipewin.exe loglib.go loglib_windows.go 2>NUL
