@@ -1698,7 +1698,6 @@ int __new_sid_descriptor(PSID psid, int mode , PSECURITY_DESCRIPTOR *ppsdp, int 
     DWORD dret;
     PSECURITY_DESCRIPTOR pdp = NULL;
     PTRUSTEE_A  ptrustee = NULL;
-    int trusteesize = 0;
 
     if (psid == NULL) {
         if (ppsdp && *ppsdp) {
@@ -2302,9 +2301,61 @@ fail:
     return ret;
 }
 
-typedef int (*sdp_new_callback_t)(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_MODE mode, ACCESS_MASK perm, void* arg, PSECURITY_DESCRIPTOR* ppsdp, int* psize);
+int __get_inherit(const char* str, DWORD *pinherit)
+{
+	char* ptr=(char*) str;
+	DWORD mode=0;
+	int ret;
+	if (str == NULL || pinherit == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		goto fail;
+	}
 
-int __handle_sdp_acl(PACL acl, PSID psid,  ACCESS_MODE mode, ACCESS_MASK perm, void* arg, PSECURITY_DESCRIPTOR* ppsdp, int *psize, sdp_new_callback_t callback)
+	while(*ptr != '\0') {
+		if (strncmp(ptr, ACL_INHERITANCE_CONTAINER_INHERIT_ACE,(int)strlen(ACL_INHERITANCE_CONTAINER_INHERIT_ACE)) == 0) {
+			mode |= CONTAINER_INHERIT_ACE;
+			ptr += (int) strlen(ACL_INHERITANCE_CONTAINER_INHERIT_ACE);
+		} else if (strncmp(ptr,ACL_INHERITANCE_INHERIT_NO_PROPAGATE, (int)strlen(ACL_INHERITANCE_INHERIT_NO_PROPAGATE)) == 0) {
+			mode |= INHERIT_NO_PROPAGATE;
+			ptr += (int) strlen(ACL_INHERITANCE_INHERIT_NO_PROPAGATE);
+		}  else if (strncmp(ptr,ACL_INHERITANCE_INHERIT_ONLY, (int)strlen(ACL_INHERITANCE_INHERIT_ONLY)) == 0) {
+			mode |= INHERIT_ONLY;
+			ptr += (int) strlen(ACL_INHERITANCE_INHERIT_ONLY);
+		} else if (strncmp(ptr,ACL_INHERITANCE_NO_INHERITANCE, (int)strlen(ACL_INHERITANCE_NO_INHERITANCE)) == 0) {
+			mode |= NO_INHERITANCE;
+			ptr += (int) strlen(ACL_INHERITANCE_NO_INHERITANCE);
+		} else if (strncmp(ptr,ACL_INHERITANCE_OBJECT_INHERIT_ACE, (int)strlen(ACL_INHERITANCE_OBJECT_INHERIT_ACE)) == 0) {
+			mode |= OBJECT_INHERIT_ACE;
+			ptr += (int) strlen(ACL_INHERITANCE_OBJECT_INHERIT_ACE);
+		} else if (strncmp(ptr,ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT, (int)strlen(ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT)) == 0) {
+			mode |= SUB_CONTAINERS_AND_OBJECTS_INHERIT;
+			ptr += (int) strlen(ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT);
+		} else {
+			ret = -ERROR_INVALID_PARAMETER;
+			ERROR_INFO("invalid part inherit [%s]", ptr);
+			goto fail;
+		}
+
+		if (*ptr != '\0' && *ptr != ACL_COMMON_SEP) {
+			ret = -ERROR_INVALID_PARAMETER;
+			ERROR_INFO("invalid part inherit [%s]", ptr);
+			goto fail;
+		}
+		if (*ptr == ACL_COMMON_SEP) {
+			ptr ++;
+		}
+	}
+
+	*pinherit = mode;
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+typedef int (*sdp_new_callback_t)(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_MODE mode, ACCESS_MASK perm,DWORD* pinherit, void* arg, PSECURITY_DESCRIPTOR* ppsdp, int* psize);
+
+int __handle_sdp_acl(PACL acl, PSID psid,  ACCESS_MODE mode, ACCESS_MASK perm, DWORD* pinherit,void* arg, PSECURITY_DESCRIPTOR* ppsdp, int *psize, sdp_new_callback_t callback)
 {
     PEXPLICIT_ACCESS paccess = NULL;
     int accsize = 0, accnum = 0;
@@ -2318,7 +2369,7 @@ int __handle_sdp_acl(PACL acl, PSID psid,  ACCESS_MODE mode, ACCESS_MASK perm, v
     }
     accnum = ret;
 
-    ret = callback(paccess, accnum, psid, mode, perm, arg, ppsdp, psize);
+    ret = callback(paccess, accnum, psid, mode, perm, pinherit, arg, ppsdp, psize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -2479,45 +2530,49 @@ fail:
     return ret;
 }
 
-int __copy_explicit_access_array(PEXPLICIT_ACCESS poaccess, int onum , PEXPLICIT_ACCESS *ppnacc, int *pnnum)
+PEXPLICIT_ACCESS __alloc_explicit_access_array(int size)
 {
-    PEXPLICIT_ACCESS pnewacc = NULL;
-    int newaccsize = 0;
+	PEXPLICIT_ACCESS pnewacc=NULL;
+	int sz=size;
+	int ret;
+	int i;
+
+	pnewacc = (PEXPLICIT_ACCESS)LocalAlloc(LMEM_FIXED,sizeof(*pnewacc)*sz);
+	if (pnewacc == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("alloc %d error[%d]", sizeof(*pnewacc)*sz, ret);
+		goto fail;
+	}
+	memset(pnewacc, 0, sizeof(*pnewacc) * sz);
+	for (i=0;i<sz;i++) {
+		ret = __init_explicit_access(&(pnewacc[i]));
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	return pnewacc;
+fail:
+	__free_explicit_access_array(&pnewacc,&sz);
+	SETERRNO(ret);
+	return NULL;
+}
+
+int __copy_explicit_access_array(PEXPLICIT_ACCESS poaccess, int onum , PEXPLICIT_ACCESS pnewacc, int newaccsize)
+{
     int newaccnum = 0;
     int ret;
     int i;
-    if (poaccess == NULL) {
-        __free_explicit_access_array(ppnacc, pnnum);
-        return 0;
-    }
-    if (ppnacc == NULL || pnnum == NULL ||
-            *ppnacc != NULL || *pnnum != 0) {
-        ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;
-    }
-    newaccsize = onum;
-    pnewacc = (PEXPLICIT_ACCESS)LocalAlloc(LMEM_FIXED, sizeof(*pnewacc) * newaccsize);
-    if (pnewacc == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc %d error[%d]", sizeof(*pnewacc)*newaccsize, ret);
-        goto fail;
-    }
-
-    memset(pnewacc, 0, sizeof(*pnewacc)*newaccsize);
-    for (i = 0; i < newaccsize; i++) {
-        ret = __init_explicit_access(&(pnewacc[i]));
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto fail;
-        }
-    }
 
     for (i = 0; i < onum; i++) {
         if ((poaccess[i].grfAccessPermissions & STANDARD_RIGHTS_ALL) == 0) {
             continue;
         }
-        ASSERT_IF(newaccnum < newaccsize);
+        if (newaccnum >= newaccsize) {
+        	ret = -ERROR_BUFFER_OVERFLOW;
+        	goto fail;
+        }
         ret = __copy_explicit_access(&(poaccess[i]), &(pnewacc[newaccnum]));
         if (ret < 0) {
             GETERRNO(ret);
@@ -2526,18 +2581,15 @@ int __copy_explicit_access_array(PEXPLICIT_ACCESS poaccess, int onum , PEXPLICIT
         newaccnum ++;
     }
 
-    *ppnacc = pnewacc;
-    *pnnum = newaccsize;
 
     return newaccnum;
 fail:
-    __free_explicit_access_array(&pnewacc, &newaccsize);
     SETERRNO(ret);
     return ret;
 }
 
 
-int __remove_acl_inner(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_MODE mode, ACCESS_MASK perm, void* arg, PSECURITY_DESCRIPTOR *ppsdp, int *psize)
+int __remove_acl_inner(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_MODE mode, ACCESS_MASK perm, DWORD *pinherit,void* arg, PSECURITY_DESCRIPTOR *ppsdp, int *psize)
 {
     DWORD ctrl = (DWORD)((addr_t)arg);
     int i;
@@ -2583,10 +2635,20 @@ int __remove_acl_inner(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_M
     if (pfoundacc != NULL) {
         /*now we should handle*/
         pfoundacc->grfAccessPermissions &= ~(perm);
+        if (pinherit != NULL) {
+        	pfoundacc->grfInheritance = (*pinherit);
+        }
+    }
+
+    newaccsize = accnum;
+    pnewacc = __alloc_explicit_access_array(newaccsize);
+    if (pnewacc == NULL) {
+    	GETERRNO(ret);
+    	goto fail;
     }
 
 
-    ret = __copy_explicit_access_array(paccess, accnum, &pnewacc, &newaccsize);
+    ret = __copy_explicit_access_array(paccess, accnum, pnewacc, newaccsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -2621,7 +2683,7 @@ direct_build:
     *ppsdp = pdp;
     *psize = dplen;
     retlen = dplen;
-    __copy_explicit_access_array(NULL, 0, &pnewacc, &newaccnum);
+    __free_explicit_access_array(&pnewacc,&newaccsize);
     return retlen;
 fail:
     if (pdp) {
@@ -2629,12 +2691,12 @@ fail:
     }
     pdp = NULL;
     dplen = 0;
-    __copy_explicit_access_array(NULL, 0, &pnewacc, &newaccnum);
+    __free_explicit_access_array(&pnewacc,&newaccsize);
     SETERRNO(ret);
     return ret;
 }
 
-int remove_sacl(void* pacl1, const char* username, const char* action, const char* right)
+int remove_sacl(void* pacl1,const char* username,const char* action,const char* right,const char* pinherit)
 {
     pwin_acl_t pacl = (pwin_acl_t) pacl1;
     PACL sacl = NULL;
@@ -2643,6 +2705,7 @@ int remove_sacl(void* pacl1, const char* username, const char* action, const cha
     int sidsize = 0;
     ACCESS_MODE mode = NOT_USED_ACCESS;
     ACCESS_MASK perm = 0;
+    DWORD inheritmode=0;
     PSECURITY_DESCRIPTOR pdp = NULL;
     int dpsize = 0, dplen = 0;
 
@@ -2676,13 +2739,21 @@ int remove_sacl(void* pacl1, const char* username, const char* action, const cha
         goto fail;
     }
 
+    if (pinherit != NULL) {
+    	ret = __get_inherit(pinherit,&inheritmode);
+    	if (ret < 0) {
+    		GETERRNO(ret);
+    		goto fail;
+    	}
+    }
+
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    ret = __handle_sdp_acl(sacl, psid, mode, perm, (void*)SACL_MODE, &pdp, &dpsize, __remove_acl_inner);
+    ret = __handle_sdp_acl(sacl, psid, mode, perm, (inheritmode != 0 ? (&inheritmode) : NULL),(void*)SACL_MODE, &pdp, &dpsize, __remove_acl_inner);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -2725,7 +2796,7 @@ fail:
     return ret;
 }
 
-int remove_dacl(void* pacl1, const char* username, const char* action, const char* right)
+int remove_dacl(void* pacl1,const char* username,const char* action,const char* right,const char* pinherit)
 {
     pwin_acl_t pacl = (pwin_acl_t) pacl1;
     PACL dacl = NULL;
@@ -2734,6 +2805,7 @@ int remove_dacl(void* pacl1, const char* username, const char* action, const cha
     int sidsize = 0;
     ACCESS_MODE mode = NOT_USED_ACCESS;
     ACCESS_MASK perm = 0;
+    DWORD inheritmode=0;
     PSECURITY_DESCRIPTOR pdp = NULL;
     int dpsize = 0, dplen = 0;
 
@@ -2767,13 +2839,21 @@ int remove_dacl(void* pacl1, const char* username, const char* action, const cha
         goto fail;
     }
 
+    if (pinherit != NULL) {
+    	ret= __get_inherit(pinherit,&inheritmode);
+    	if (ret < 0) {
+    		GETERRNO(ret);
+    		goto fail;
+    	}
+    }
+
     ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    ret = __handle_sdp_acl(dacl, psid, mode, perm, (void*)DACL_MODE, &pdp, &dpsize, __remove_acl_inner);
+    ret = __handle_sdp_acl(dacl, psid, mode, perm, (inheritmode != 0 ? (&inheritmode) : NULL), (void*)DACL_MODE, &pdp, &dpsize, __remove_acl_inner);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;

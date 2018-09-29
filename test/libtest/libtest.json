@@ -110,10 +110,10 @@
     "getsid<getsid_handler>##username...  to get username to usersid##" : {
         "$" : "+"
     },
-    "removesacl<removesacl_handler>##fname username action right to remove the sacl##" : {
+    "removesacl<removesacl_handler>##fname username action right [inherit] to remove the sacl##" : {
         "$" : "+"
     },
-    "removedacl<removedacl_handler>##fname username action right to remove the dacl##" : {
+    "removedacl<removedacl_handler>##fname username action right [inherit] to remove the dacl##" : {
         "$" : "+"
     }
 }
