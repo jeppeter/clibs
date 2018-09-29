@@ -77,6 +77,58 @@ void __free_trustee(PTRUSTEE *pptrustee)
     return ;
 }
 
+#define DEBUG_SECURITY_DESCRIPTOR(pdp,info)  __debug_security_descriptor(__FILE__,__LINE__,pdp,info)
+
+void __debug_security_descriptor(const char* file, int lineno,PSECURITY_DESCRIPTOR pdp,SECURITY_INFORMATION info)
+{
+    BOOL bret;
+    TCHAR* ptstr=NULL;
+    ULONG tstrsize=0;
+    int ret;
+    char* pstr=NULL;
+    int strsize=0;
+    DWORD dlen = 0;
+    const char* infostr="unknown";
+
+    dlen = GetSecurityDescriptorLength(pdp);
+
+    bret = ConvertSecurityDescriptorToStringSecurityDescriptor(pdp,SDDL_REVISION_1,info,
+        &ptstr,&tstrsize);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("[%s:%d] get info type error[%d]", file, lineno, ret);
+        DEBUG_BUFFER_FMT(pdp,dlen, "info type [%d]", info);
+        goto out;
+    }
+
+    if (info== OWNER_SECURITY_INFORMATION) {
+        infostr = "owner";
+    } else if (info == GROUP_SECURITY_INFORMATION) {
+        infostr = "group";
+    } else if (info == SACL_SECURITY_INFORMATION) {
+        infostr = "sacl";
+    } else if (info == DACL_SECURITY_INFORMATION) {
+        infostr = "dacl";
+    }
+
+    ret = TcharToAnsi(ptstr,&pstr,&strsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    DEBUG_INFO("[%s:%d] [%s][%d]str [%s]", file,lineno,infostr,info,pstr);
+    DEBUG_BUFFER_FMT(pdp,dlen,NULL);
+out:
+    TcharToAnsi(NULL,&pstr,&strsize);
+    if (ptstr) {
+        LocalFree(ptstr);
+    }
+    ptstr = NULL;
+    tstrsize = 0;
+    return;
+}
+
 int __init_trustee(PTRUSTEE ptrustee)
 {
     memset(ptrustee, 0 , sizeof(*ptrustee));
@@ -3307,7 +3359,7 @@ try_owner_sec:
         ERROR_INFO("get[%s] owner error[%d]", fname, ret);
         goto fail;
     }
-    DEBUG_BUFFER_FMT(pacl->m_ownersdp, pacl->m_ownerlen, "owner sdp");
+    DEBUG_SECURITY_DESCRIPTOR(pacl->m_ownersdp, OWNER_SECURITY_INFORMATION);
 
 try_grp_sec:
     if (pacl->m_groupsdp) {
@@ -3333,7 +3385,7 @@ try_grp_sec:
         ERROR_INFO("get[%s] group error[%d]", fname, ret);
         goto fail;
     }
-    DEBUG_BUFFER_FMT(pacl->m_groupsdp, pacl->m_grplen, "group sdp");
+    DEBUG_SECURITY_DESCRIPTOR(pacl->m_groupsdp,GROUP_SECURITY_INFORMATION);
 
 try_sacl_sec:
     if (pacl->m_saclsdp) {
@@ -3369,7 +3421,7 @@ try_sacl_sec:
         pacl->m_saclsize = 0;
     }
     if (pacl->m_saclsdp != NULL) {
-        DEBUG_BUFFER_FMT(pacl->m_saclsdp, pacl->m_sacllen, "sacl sdp");
+        DEBUG_SECURITY_DESCRIPTOR(pacl->m_saclsdp,SACL_SECURITY_INFORMATION);
     }
 
 
@@ -3403,7 +3455,7 @@ try_dacl_sec:
         ERROR_INFO("get[%s] dacl error[%d]", fname, ret);
         goto fail;
     }
-    DEBUG_BUFFER_FMT(pacl->m_daclsdp, pacl->m_dacllen, "dacl sdp");
+    DEBUG_SECURITY_DESCRIPTOR(pacl->m_daclsdp,DACL_SECURITY_INFORMATION);
 
     if (chguser) {
     	ret = __restore_old_owner((char*)fname,pownerdp);
