@@ -44,24 +44,7 @@ typedef struct __win_acl {
     DWORD m_sacllen;
 } win_acl_t, *pwin_acl_t;
 
-void __free_trustee(PTRUSTEE *pptrustee)
-{
-    PTRUSTEE ptrustee = NULL;
-    if (pptrustee && *pptrustee) {
-        ptrustee = *pptrustee;
-        __free_trustee(&(ptrustee->pMultipleTrustee));
-        ptrustee->MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
-        ptrustee->TrusteeForm = TRUSTEE_IS_SID;
-        ptrustee->TrusteeType = TRUSTEE_IS_UNKNOWN;
-        if (ptrustee->ptstrName) {
-            LocalFree(ptrustee->ptstrName);
-            ptrustee->ptstrName = NULL;
-        }
-        LocalFree(ptrustee);
-        *pptrustee = NULL;
-    }
-    return ;
-}
+void __free_trustee(PTRUSTEE* pptrustee);
 
 void __release_trustee(PTRUSTEE ptrustee)
 {
@@ -76,6 +59,18 @@ void __release_trustee(PTRUSTEE ptrustee)
         }
     }
     return;
+}
+
+void __free_trustee(PTRUSTEE *pptrustee)
+{
+    PTRUSTEE ptrustee = NULL;
+    if (pptrustee && *pptrustee) {
+        ptrustee = *pptrustee;
+        __release_trustee(ptrustee);
+        LocalFree(ptrustee);
+        *pptrustee = NULL;
+    }
+    return ;
 }
 
 int __init_trustee(PTRUSTEE ptrustee)
@@ -1726,14 +1721,13 @@ int __new_sid_descriptor(PSID psid, int mode , PSECURITY_DESCRIPTOR *ppsdp, int 
         SETERRNO(ret);
         return ret;
     }
-    ptrustee = (PTRUSTEE_A)LocalAlloc(LMEM_FIXED, sizeof(*ptrustee));
+    ptrustee = __alloc_trustee();
     if (ptrustee == NULL) {
         GETERRNO(ret);
         ERROR_INFO("alloc %d error[%d]", sizeof(*ptrustee), ret);
         goto fail;
     }
     BuildTrusteeWithSid(ptrustee, psid);
-
 
     dplen = 0;
     if (mode == SID_GROUP_MODE) {
@@ -1743,8 +1737,11 @@ int __new_sid_descriptor(PSID psid, int mode , PSECURITY_DESCRIPTOR *ppsdp, int 
     } else {
         ret = -ERROR_INVALID_PARAMETER;
         ERROR_INFO("mode [%d:0x%x] not valid", mode, mode);
+        ptrustee->ptstrName = NULL;
         goto fail;
     }
+    /*not double free*/
+    ptrustee->ptstrName = NULL;
     if (dret != ERROR_SUCCESS) {
         ret = dret;
         if (ret > 0) {
@@ -1761,24 +1758,14 @@ int __new_sid_descriptor(PSID psid, int mode , PSECURITY_DESCRIPTOR *ppsdp, int 
     *psize = dplen;
     retlen = dplen;
 
-    if (ptrustee) {
-        LocalFree(ptrustee);
-    }
-    ptrustee = NULL;
-    trusteesize = 0;
-
-
+    __free_trustee(&ptrustee);
     return retlen;
 fail:
     if (pdp) {
         LocalFree(pdp);
     }
     pdp = NULL;
-    if (ptrustee) {
-        LocalFree(ptrustee);
-    }
-    ptrustee = NULL;
-    trusteesize = 0;
+    __free_trustee(&ptrustee);
     SETERRNO(ret);
     return ret;
 }
@@ -1879,7 +1866,7 @@ get_owner_again:
             goto fail;
         }
         /*not double free */
-        pnewtrustee = NULL;
+        pnewtrustee->ptstrName = NULL;
 
         /*now first to set for the security*/
         bret = SetFileSecurity(ptname, OWNER_SECURITY_INFORMATION, pnewownerdp);
