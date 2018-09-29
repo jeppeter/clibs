@@ -23,6 +23,10 @@
 
 #define   NO_ITEMS_MORE                     ERROR_NO_MORE_ITEMS
 
+
+#define   NAME_SECURIT_HANDLE                0
+
+
 #define   SET_WIN_ACL_MAGIC(pacl)  do{if ((pacl) != NULL) { (pacl)->m_magic = WIN_ACL_MAGIC;}} while(0)
 #define   IS_WIN_ACL_MAGIC(pacl)  ((pacl) == NULL || ((pacl)->m_magic == WIN_ACL_MAGIC))
 
@@ -729,6 +733,10 @@ int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
     }
 
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
     if (ret == 0 || sacl == NULL) {
         ret = -NO_ITEMS_MORE;
         goto fail;
@@ -774,6 +782,10 @@ int get_dacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
     }
 
     ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
     if (ret == 0 || dacl == NULL) {
         ret = -NO_ITEMS_MORE;
         goto fail;
@@ -890,6 +902,10 @@ int get_sacl_action(void* pacl1, int idx, char** ppaction, int* pactionsize)
     }
 
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
     if (ret == 0 || sacl == NULL) {
         ret = -NO_ITEMS_MORE;
         goto fail;
@@ -935,6 +951,10 @@ int get_dacl_action(void* pacl1, int idx, char** ppaction, int* pactionsize)
     }
 
     ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
     if (ret == 0 || dacl == NULL) {
         ret = -NO_ITEMS_MORE;
         goto fail;
@@ -1025,6 +1045,10 @@ int get_sacl_right(void* pacl1, int idx, char** ppright, int* prightsize)
 
     DEBUG_INFO("[%d]",idx);
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
     if (ret == 0 || sacl == NULL) {
         ret = -NO_ITEMS_MORE;
         goto fail;
@@ -1072,6 +1096,10 @@ int get_dacl_right(void* pacl1, int idx, char** ppright, int* prightsize)
     }
 
     ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
     if (ret == 0 || dacl == NULL) {
         ret = -NO_ITEMS_MORE;
         goto fail;
@@ -1170,6 +1198,10 @@ int get_sacl_inheritance(void* pacl1, int idx, char** ppinheritance, int *pinher
     }
 
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
     if (ret == 0 || sacl == NULL) {
         ret = -NO_ITEMS_MORE;
         goto fail;
@@ -1215,6 +1247,10 @@ int get_dacl_inheritance(void* pacl1, int idx, char** ppinheritance, int *pinher
     }
 
     ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
     if (ret == 0 || dacl == NULL) {
         ret = - NO_ITEMS_MORE;
         goto fail;
@@ -1661,7 +1697,8 @@ get_owner_again:
         /*not double free */
         pnewtrustee->ptstrName = NULL;
 
-        /*now first to set for the security*/
+        /*now first to set for the security*/        
+#if  NAME_SECURIT_HANDLE        
         dret = SetNamedSecurityInfo(ptname, SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION,pcursid,NULL,NULL,NULL);
         if (dret != ERROR_SUCCESS) {
         	ret = dret;
@@ -1674,6 +1711,14 @@ get_owner_again:
         	ERROR_INFO("renew new owner [%s] error[%d]", curuser, ret);
         	goto fail;
         }
+#else
+        bret = SetFileSecurity(ptname, OWNER_SECURITY_INFORMATION,pownerdp);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("renew new owner [%s] error[%d]", curuser, ret);
+            goto fail;
+        }
+#endif
 
         if (ppodp) {
             /*we replace to upper caller*/
@@ -2638,6 +2683,10 @@ int remove_sacl(void* pacl1, const char* username, const char* action, const cha
         GETERRNO(ret);
         goto fail;
     }
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
     ret = __handle_sdp_acl(sacl, psid, mode, perm, (inheritmode != 0 ? (&inheritmode) : NULL), (void*)SACL_MODE, &pdp, &dpsize, __remove_acl_inner);
     if (ret < 0) {
@@ -2734,6 +2783,10 @@ int remove_dacl(void* pacl1, const char* username, const char* action, const cha
     }
 
     ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -2995,6 +3048,10 @@ int add_sacl(void* pacl1, const char* username, const char* action, const char* 
         GETERRNO(ret);
         goto fail;
     }
+    if (ret == 0 || sacl == NULL) {
+        ret = -NO_ITEMS_MORE;
+        goto fail;
+    }
 
     ret = __handle_sdp_acl(sacl, psid, mode, perm, (inheritmode != 0 ? (&inheritmode) : NULL), (void*)SACL_MODE, &pdp, &dpsize, __add_acl_inner);
     if (ret < 0) {
@@ -3095,6 +3152,11 @@ int add_dacl(void* pacl1, const char* username, const char* action, const char* 
         GETERRNO(ret);
         goto fail;
     }
+    if (ret == 0 || dacl == NULL) {
+        ret = -NO_ITEMS_MORE;
+        goto fail;
+    }
+
 
     ret = __handle_sdp_acl(dacl, psid, mode, perm, (inheritmode != 0 ? (&inheritmode) : NULL), (void*)DACL_MODE, &pdp, &dpsize, __add_acl_inner);
     if (ret < 0) {
@@ -3186,6 +3248,10 @@ int get_file_acls(const char* fname, void** ppacl1)
     }
     pacl->m_namesize = (int)strlen(fname) + 1;
 
+    if (pacl->m_ownersdp) {
+        LocalFree(pacl->m_ownersdp);
+        pacl->m_ownersdp = NULL;
+    }
 
     if (pacl->m_groupsdp) {
         LocalFree(pacl->m_groupsdp);
@@ -3201,6 +3267,7 @@ int get_file_acls(const char* fname, void** ppacl1)
         LocalFree(pacl->m_saclsdp);
         pacl->m_saclsdp = NULL;
     }
+
 
     ret = AnsiToTchar(fname, &ptname, &tnamesize);
     if (ret < 0) {
