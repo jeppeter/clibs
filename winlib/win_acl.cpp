@@ -13,7 +13,7 @@
 
 #define   WIN_ACL_MAGIC            0x3021211
 
-#define   MIN_SID_SIZE             5
+#define   MIN_SID_SIZE             32
 #define   MIN_SECURITY_DESC_SIZE   sizeof(SECURITY_DESCRIPTOR)
 
 #define    SID_GROUP_MODE                    1
@@ -192,219 +192,6 @@ fail:
 }
 
 
-int get_file_acls(const char* fname, void** ppacl1)
-{
-    int ret;
-    pwin_acl_t pacl = NULL;
-    TCHAR* ptname = NULL;
-    int tnamesize = 0;
-    int enabled = 0;
-    BOOL bret;
-    if (fname == NULL) {
-        if (ppacl1 && *ppacl1) {
-            pacl = (pwin_acl_t) * ppacl1;
-            __free_win_acl(&pacl);
-            *ppacl1 = NULL;
-        }
-        return 0;
-    }
-
-    if (ppacl1 == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;
-    }
-    pacl = (pwin_acl_t) * ppacl1;
-    if (pacl == NULL) {
-        pacl = __alloc_win_acl();
-        if (pacl == NULL) {
-            GETERRNO(ret);
-            goto fail;
-        }
-    }
-
-    if (pacl->m_fname) {
-        free(pacl->m_fname);
-    }
-    pacl->m_fname = NULL;
-    pacl->m_namesize = 0;
-
-    pacl->m_fname = strdup(fname);
-    if (pacl->m_fname == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("strdup [%s] error[%d]", fname, ret);
-        goto fail;
-    }
-    pacl->m_namesize = (int)strlen(fname) + 1;
-
-
-    if (pacl->m_groupsdp) {
-        LocalFree(pacl->m_groupsdp);
-        pacl->m_groupsdp = NULL;
-    }
-
-    if (pacl->m_daclsdp) {
-        LocalFree(pacl->m_saclsdp);
-        pacl->m_saclsdp = NULL;
-    }
-
-    if (pacl->m_saclsdp) {
-        LocalFree(pacl->m_saclsdp);
-        pacl->m_saclsdp = NULL;
-    }
-
-    ret = AnsiToTchar(fname, &ptname, &tnamesize);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = enable_security_priv();
-    if (ret >= 0) {
-        enabled = 1;
-    }
-
-try_owner_sec:
-    if (pacl->m_ownersdp) {
-        LocalFree(pacl->m_ownersdp);
-        pacl->m_ownersdp = NULL;
-    }
-    if (pacl->m_ownersize < 10) {
-        pacl->m_ownersize = 10;
-    }
-    pacl->m_ownersdp = LocalAlloc(LMEM_FIXED, pacl->m_ownersize);
-    if (pacl->m_ownersdp == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc %d error[%d]", pacl->m_ownersize, ret);
-        goto fail;
-    }
-    pacl->m_ownerlen = pacl->m_ownersize;
-    bret = GetFileSecurity(ptname, OWNER_SECURITY_INFORMATION, pacl->m_ownersdp, pacl->m_ownersize, &(pacl->m_ownerlen));
-    if (!bret) {
-        GETERRNO(ret);
-        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
-            pacl->m_ownersize = pacl->m_ownerlen << 1;
-            goto try_owner_sec;
-        }
-        ERROR_INFO("get[%s] owner error[%d]", fname, ret);
-        goto fail;
-    }
-    DEBUG_BUFFER_FMT(pacl->m_ownersdp, pacl->m_ownerlen, "owner sdp");
-
-try_grp_sec:
-    if (pacl->m_groupsdp) {
-        LocalFree(pacl->m_groupsdp);
-        pacl->m_groupsdp = NULL;
-    }
-    if (pacl->m_grpsize < 10) {
-        pacl->m_grpsize = 10;
-    }
-    pacl->m_groupsdp = LocalAlloc(LMEM_FIXED, pacl->m_grpsize);
-    if (pacl->m_groupsdp == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc %d error[%d]", pacl->m_grpsize, ret);
-        goto fail;
-    }
-    bret = GetFileSecurity(ptname, GROUP_SECURITY_INFORMATION, pacl->m_groupsdp, pacl->m_grpsize, &(pacl->m_grplen));
-    if (!bret) {
-        GETERRNO(ret);
-        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
-            pacl->m_grpsize = pacl->m_grplen << 1;
-            goto try_grp_sec;
-        }
-        ERROR_INFO("get[%s] group error[%d]", fname, ret);
-        goto fail;
-    }
-    DEBUG_BUFFER_FMT(pacl->m_groupsdp, pacl->m_grplen, "group sdp");
-
-try_sacl_sec:
-    if (pacl->m_saclsdp) {
-        LocalFree(pacl->m_saclsdp);
-        pacl->m_saclsdp = NULL;
-    }
-    if (pacl->m_saclsize < 10) {
-        pacl->m_saclsize = 10;
-    }
-    pacl->m_saclsdp = LocalAlloc(LMEM_FIXED, pacl->m_saclsize);
-    if (pacl->m_saclsdp == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc %d error[%d]", pacl->m_saclsize, ret);
-        goto fail;
-    }
-    bret = GetFileSecurity(ptname, SACL_SECURITY_INFORMATION, pacl->m_saclsdp, pacl->m_saclsize, &(pacl->m_sacllen));
-    if (!bret) {
-        GETERRNO(ret);
-        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
-            pacl->m_saclsize = pacl->m_sacllen << 1;
-            goto try_sacl_sec;
-        }
-        if (ret != -ERROR_PRIVILEGE_NOT_HELD) {
-            ERROR_INFO("get[%s] sacl error[%d]", fname, ret);
-            goto fail;
-        }
-        if (pacl->m_saclsdp) {
-            LocalFree(pacl->m_saclsdp);
-            pacl->m_saclsdp = NULL;
-        }
-        pacl->m_sacllen = 0;
-        pacl->m_saclsize = 0;
-    }
-    if (pacl->m_saclsdp != NULL) {
-        DEBUG_BUFFER_FMT(pacl->m_saclsdp, pacl->m_sacllen, "sacl sdp");
-    }
-
-
-
-try_dacl_sec:
-    if (pacl->m_daclsdp) {
-        LocalFree(pacl->m_daclsdp);
-        pacl->m_daclsdp = NULL;
-    }
-    if (pacl->m_daclsize < 10) {
-        pacl->m_daclsize = 10;
-    }
-    pacl->m_daclsdp = LocalAlloc(LMEM_FIXED, pacl->m_daclsize);
-    if (pacl->m_daclsdp == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc %d error[%d]", pacl->m_daclsize, ret);
-        goto fail;
-    }
-    bret = GetFileSecurity(ptname, DACL_SECURITY_INFORMATION, pacl->m_daclsdp, pacl->m_daclsize, &(pacl->m_dacllen));
-    if (!bret) {
-        GETERRNO(ret);
-        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
-            pacl->m_daclsize = pacl->m_dacllen << 1;
-            goto try_dacl_sec;
-        }
-        ERROR_INFO("get[%s] dacl error[%d]", fname, ret);
-        goto fail;
-    }
-    DEBUG_BUFFER_FMT(pacl->m_daclsdp, pacl->m_dacllen, "dacl sdp");
-
-    if (enabled) {
-        ret = disable_security_priv();
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto fail;
-        }
-        enabled = 0;
-    }
-
-    DEBUG_BUFFER_FMT(pacl->m_fname, pacl->m_namesize, "fname");
-    *ppacl1 = pacl;
-    return 0;
-fail:
-    if (enabled) {
-        disable_security_priv();
-    }
-    enabled = 0;
-    AnsiToTchar(NULL, &ptname, &tnamesize);
-    if (pacl != NULL && pacl != *ppacl1) {
-        __free_win_acl(&pacl);
-    }
-    SETERRNO(ret);
-    return ret;
-}
 
 int __get_sid_name(PSID psid, char** ppstr, int *pstrsize)
 {
@@ -567,25 +354,28 @@ void __debug_access_inner(PEXPLICIT_ACCESS pcuracc, const char* prefix)
     }
 
     DEBUG_INFO("%s grfInheritance [0x%x]", prefix, pcuracc->grfInheritance);
-    if ((pcuracc->grfInheritance & CONTAINER_INHERIT_ACE) == CONTAINER_INHERIT_ACE) {
-    	DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_CONTAINER_INHERIT_ACE);
-    }
+    if (pcuracc->grfInheritance == 0) {
+        if ((pcuracc->grfInheritance & NO_INHERITANCE) == NO_INHERITANCE) {
+            DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_NO_INHERITANCE);
+        }
+    } else {
+        if ((pcuracc->grfInheritance & CONTAINER_INHERIT_ACE) == CONTAINER_INHERIT_ACE) {
+            DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_CONTAINER_INHERIT_ACE);
+        }
 
-    if ((pcuracc->grfInheritance & INHERIT_NO_PROPAGATE) == INHERIT_NO_PROPAGATE) {
-    	DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_INHERIT_NO_PROPAGATE);
-    }
+        if ((pcuracc->grfInheritance & INHERIT_NO_PROPAGATE) == INHERIT_NO_PROPAGATE) {
+            DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_INHERIT_NO_PROPAGATE);
+        }
 
-    if ((pcuracc->grfInheritance & INHERIT_ONLY) == INHERIT_ONLY) {
-    	DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_INHERIT_ONLY);
-    }
-    if ((pcuracc->grfInheritance & NO_INHERITANCE) == NO_INHERITANCE) {
-    	DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_NO_INHERITANCE);
-    }
-    if ((pcuracc->grfInheritance & OBJECT_INHERIT_ACE) == OBJECT_INHERIT_ACE) {
-    	DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_OBJECT_INHERIT_ACE);
-    }
-    if ((pcuracc->grfInheritance & SUB_CONTAINERS_AND_OBJECTS_INHERIT) == SUB_CONTAINERS_AND_OBJECTS_INHERIT) {
-    	DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT);
+        if ((pcuracc->grfInheritance & INHERIT_ONLY) == INHERIT_ONLY) {
+            DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_INHERIT_ONLY);
+        }
+        if ((pcuracc->grfInheritance & OBJECT_INHERIT_ACE) == OBJECT_INHERIT_ACE) {
+            DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_OBJECT_INHERIT_ACE);
+        }
+        if ((pcuracc->grfInheritance & SUB_CONTAINERS_AND_OBJECTS_INHERIT) == SUB_CONTAINERS_AND_OBJECTS_INHERIT) {
+            DEBUG_INFO("%s grfInheritance %s", prefix, ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT);
+        }
     }
 
     DEBUG_INFO("%s pMultipleTrustee [%p]", prefix, pcuracc->Trustee.pMultipleTrustee);
@@ -594,7 +384,7 @@ void __debug_access_inner(PEXPLICIT_ACCESS pcuracc, const char* prefix)
     DEBUG_INFO("%s TrusteeType [0x%x]", prefix, pcuracc->Trustee.TrusteeType);
 
     if (pcuracc->Trustee.TrusteeForm == TRUSTEE_IS_SID  &&
-            pcuracc->Trustee.TrusteeType == TRUSTEE_IS_UNKNOWN && 
+            pcuracc->Trustee.TrusteeType == TRUSTEE_IS_UNKNOWN &&
             pcuracc->Trustee.ptstrName != NULL) {
         psid = (PSID) pcuracc->Trustee.ptstrName;
         ret = __get_sid_name(psid, &name, &namesize);
@@ -662,6 +452,7 @@ int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
         ERROR_INFO("get Entries error[%d]", ret);
         goto fail;
     }
+    DEBUG_INFO("get [%p] ppaccess [%p] size [%d]", acl, *ppaccess, *psize);
     accnum = *psize;
     __debug_access(*ppaccess, accnum);
     return accnum;
@@ -701,8 +492,8 @@ int __get_acl_user_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char** p
 
 
     if ((int)accnum <= idx) {
-    	ret = -NO_ITEMS_MORE;
-    	goto fail;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     pcuracc = &(paccess[idx]);
@@ -819,14 +610,7 @@ int __handle_acl_idx_callback(PACL acl, int idx, char** ppstr, int *pstrsize, fi
         if (callback != NULL) {
             return callback(NULL, 0, idx, ppstr, pstrsize);
         }
-        if (ppstr && *ppstr) {
-            free(*ppstr);
-            *ppstr = NULL;
-        }
-        if (pstrsize) {
-            *pstrsize = 0;
-        }
-        return 0;
+        return snprintf_safe(ppstr, pstrsize, NULL);
     }
 
     if (callback == NULL) {
@@ -838,6 +622,10 @@ int __handle_acl_idx_callback(PACL acl, int idx, char** ppstr, int *pstrsize, fi
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
+    } else if (ret == 0) {
+    	/*nothing to get ,so we should free*/
+    	ret = -NO_ITEMS_MORE;
+    	goto fail;
     }
     accnum = ret;
 
@@ -936,8 +724,8 @@ int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
     }
 
     if (pacl->m_saclsdp == NULL) {
-    	ret = -NO_ITEMS_MORE;
-    	goto fail;
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
 
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
@@ -1235,17 +1023,20 @@ int get_sacl_right(void* pacl1, int idx, char** ppright, int* prightsize)
         goto fail;
     }
 
+    DEBUG_INFO("[%d]",idx);
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
     if (ret == 0 || sacl == NULL) {
         ret = -NO_ITEMS_MORE;
         goto fail;
     }
 
+    DEBUG_INFO("[%d]", idx);
     ret = __handle_acl_idx_callback(sacl, idx, ppright, prightsize, __get_acl_rights_inner);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
+    DEBUG_INFO("[%d]sacl[%p] ret [%d]", idx, sacl,ret);
     retlen = ret;
     if (retlen == 0) {
         if (ppright && *ppright) {
@@ -1318,28 +1109,31 @@ int __get_acl_inheritance_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, c
         goto fail;
     }
     pcuracc = &(paccess[idx]);
-    if ((pcuracc->grfInheritance & CONTAINER_INHERIT_ACE) == CONTAINER_INHERIT_ACE) {
-    	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_CONTAINER_INHERIT_ACE);
-    }
+    if (pcuracc->grfInheritance == 0) {
+        if ((pcuracc->grfInheritance & NO_INHERITANCE) == NO_INHERITANCE) {
+            __INNER_SNPRINTF_SAFE(ppinheritance, pinheritancesize, "%s", ACL_INHERITANCE_NO_INHERITANCE);
+        }
+    } else {
+        if ((pcuracc->grfInheritance & CONTAINER_INHERIT_ACE) == CONTAINER_INHERIT_ACE) {
+            __INNER_SNPRINTF_SAFE(ppinheritance, pinheritancesize, "%s", ACL_INHERITANCE_CONTAINER_INHERIT_ACE);
+        }
 
-    if ((pcuracc->grfInheritance & INHERIT_NO_PROPAGATE) == INHERIT_NO_PROPAGATE) {
-    	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_INHERIT_NO_PROPAGATE);
-    }
+        if ((pcuracc->grfInheritance & INHERIT_NO_PROPAGATE) == INHERIT_NO_PROPAGATE) {
+            __INNER_SNPRINTF_SAFE(ppinheritance, pinheritancesize, "%s", ACL_INHERITANCE_INHERIT_NO_PROPAGATE);
+        }
 
-    if ((pcuracc->grfInheritance & INHERIT_ONLY) == INHERIT_ONLY) {
-    	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_INHERIT_ONLY);
-    }
+        if ((pcuracc->grfInheritance & INHERIT_ONLY) == INHERIT_ONLY) {
+            __INNER_SNPRINTF_SAFE(ppinheritance, pinheritancesize, "%s", ACL_INHERITANCE_INHERIT_ONLY);
+        }
 
-    if ((pcuracc->grfInheritance & NO_INHERITANCE) == NO_INHERITANCE) {
-    	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_NO_INHERITANCE);
-    }
 
-    if ((pcuracc->grfInheritance & OBJECT_INHERIT_ACE) == OBJECT_INHERIT_ACE) {
-    	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_OBJECT_INHERIT_ACE);
-    }
+        if ((pcuracc->grfInheritance & OBJECT_INHERIT_ACE) == OBJECT_INHERIT_ACE) {
+            __INNER_SNPRINTF_SAFE(ppinheritance, pinheritancesize, "%s", ACL_INHERITANCE_OBJECT_INHERIT_ACE);
+        }
 
-    if ((pcuracc->grfInheritance & SUB_CONTAINERS_AND_OBJECTS_INHERIT) == SUB_CONTAINERS_AND_OBJECTS_INHERIT) {
-    	__INNER_SNPRINTF_SAFE(ppinheritance,pinheritancesize,"%s",ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT);
+        if ((pcuracc->grfInheritance & SUB_CONTAINERS_AND_OBJECTS_INHERIT) == SUB_CONTAINERS_AND_OBJECTS_INHERIT) {
+            __INNER_SNPRINTF_SAFE(ppinheritance, pinheritancesize, "%s", ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT);
+        }
     }
 
     if (retlen == 0) {
@@ -1354,7 +1148,7 @@ fail:
 }
 
 
-int get_sacl_inheritance(void* pacl1,int idx, char** ppinheritance,int *pinheritancesize)
+int get_sacl_inheritance(void* pacl1, int idx, char** ppinheritance, int *pinheritancesize)
 {
     int ret;
     pwin_acl_t pacl = NULL;
@@ -1399,7 +1193,7 @@ fail:
     return ret;
 }
 
-int get_dacl_inheritance(void* pacl1,int idx, char** ppinheritance,int *pinheritancesize)
+int get_dacl_inheritance(void* pacl1, int idx, char** ppinheritance, int *pinheritancesize)
 {
     int ret;
     pwin_acl_t pacl = NULL;
@@ -1771,8 +1565,8 @@ fail:
 
 int __set_current_user_owner(char* name, PSECURITY_DESCRIPTOR *ppodp)
 {
-	BOOL bret;
-	DWORD dret;
+    BOOL bret;
+    DWORD dret;
     int ret;
     int retval = 0;
     char* curuser = NULL;
@@ -1792,10 +1586,10 @@ int __set_current_user_owner(char* name, PSECURITY_DESCRIPTOR *ppodp)
         SETERRNO(ret);
         return ret;
     }
-    ret = AnsiToTchar(name, &ptname,&tnamesize);
+    ret = AnsiToTchar(name, &ptname, &tnamesize);
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
 
     ret = get_current_user(0, &curuser, &usersize);
@@ -1868,23 +1662,29 @@ get_owner_again:
         pnewtrustee->ptstrName = NULL;
 
         /*now first to set for the security*/
-        bret = SetFileSecurity(ptname, OWNER_SECURITY_INFORMATION, pnewownerdp);
-        if (!bret) {
-            GETERRNO(ret);
-            ERROR_INFO("renew new owner [%s] error[%d]", curuser, ret);
-            goto fail;
+        dret = SetNamedSecurityInfo(ptname, SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION,pcursid,NULL,NULL,NULL);
+        if (dret != ERROR_SUCCESS) {
+        	ret = dret;
+        	if (ret > 0) {
+        		ret = -ret;
+        	}
+        	if (ret == 0) {
+        		ret = -1;
+        	}
+        	ERROR_INFO("renew new owner [%s] error[%d]", curuser, ret);
+        	goto fail;
         }
 
         if (ppodp) {
-        	/*we replace to upper caller*/
-        	*ppodp = pownerdp;
-        	pownerdp = NULL;
+            /*we replace to upper caller*/
+            *ppodp = pownerdp;
+            pownerdp = NULL;
         }
         retval = 1;
     }
 
-    if (pnewownerdp){
-    	LocalFree(pnewownerdp);
+    if (pnewownerdp) {
+        LocalFree(pnewownerdp);
     }
     pnewownerdp = NULL;
     __free_trustee(&pnewtrustee);
@@ -1894,11 +1694,11 @@ get_owner_again:
     }
     __get_sid_from_name(NULL, &pcursid, &sidsize);
     get_current_user(1, &curuser, &usersize);
-    AnsiToTchar(NULL,&ptname,&tnamesize);
+    AnsiToTchar(NULL, &ptname, &tnamesize);
     return retval;
 fail:
-    if (pnewownerdp){
-    	LocalFree(pnewownerdp);
+    if (pnewownerdp) {
+        LocalFree(pnewownerdp);
     }
     pnewownerdp = NULL;
     __free_trustee(&pnewtrustee);
@@ -1906,39 +1706,55 @@ fail:
         LocalFree(pownerdp);
         pownerdp = NULL;
     }
-	__get_sid_from_name(NULL, &pcursid, &sidsize);
-	get_current_user(1, &curuser, &usersize);
-	AnsiToTchar(NULL,&ptname,&tnamesize);
+    __get_sid_from_name(NULL, &pcursid, &sidsize);
+    get_current_user(1, &curuser, &usersize);
+    AnsiToTchar(NULL, &ptname, &tnamesize);
     SETERRNO(ret);
     return ret;
 }
 
 int __restore_old_owner(char* name, PSECURITY_DESCRIPTOR pdp)
 {
-	int ret;
-	TCHAR* ptname=NULL;
-	int tnamesize=0;
-	BOOL bret;
+    int ret;
+    TCHAR* ptname = NULL;
+    int tnamesize = 0;
+    BOOL bret,bowndefault;
+    PSID pownersid=NULL;
+    DWORD dret;
 
-	ret = AnsiToTchar(name,&ptname,&tnamesize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
+    ret = AnsiToTchar(name, &ptname, &tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
-	bret = SetFileSecurity(ptname,OWNER_SECURITY_INFORMATION,pdp);
-	if (!bret) {
-		GETERRNO(ret);
-		ERROR_INFO("restore [%s] owner error[%d]", name ,ret);
-		goto fail;
-	}
+    bowndefault = FALSE;
+    bret = GetSecurityDescriptorOwner(pdp,&pownersid,&bowndefault);
+    if (!bret) {
+    	GETERRNO(ret);
+    	ERROR_INFO("get ownersid error[%d]", ret);
+    	goto fail;
+    }
 
-	AnsiToTchar(NULL,&ptname,&tnamesize);
-	return 0;
+    dret = SetNamedSecurityInfo(ptname, SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION,pownersid, NULL,NULL,NULL);
+    if (dret != ERROR_SUCCESS) {
+    	ret= dret;
+    	if (ret > 0) {
+    		ret = -ret;
+    	}
+    	if (ret == 0) {
+    		ret = -1;
+    	}
+    	ERROR_INFO("set named security [%s] error[%d]", name, ret);
+    	goto fail;
+    }
+
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    return 0;
 fail:
-	AnsiToTchar(NULL,&ptname,&tnamesize);
-	SETERRNO(ret);
-	return ret;
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    SETERRNO(ret);
+    return ret;
 }
 
 int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESCRIPTOR pdp)
@@ -1949,9 +1765,17 @@ int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESC
     int tnamesize = 0;
     int enbltakeown = 0;
     int enblrestore = 0;
+    int enblsecurity = 0;
     const char* infostr = NULL;
     int chguser = 0;
-    PSECURITY_DESCRIPTOR pownerdp=NULL;
+    PSECURITY_DESCRIPTOR pownerdp = NULL;
+    PSID pownersid=NULL,pgrpsid=NULL;
+    PACL psacl=NULL,pdacl=NULL;
+    BOOL bowndefault;
+    BOOL bgrpdefault;
+    BOOL bsaclpresent,bsacldefault;
+    BOOL bdaclpresent,bdacldefault;
+    DWORD dret;
 
     ret = AnsiToTchar(name, &ptname, &tnamesize);
     if (ret < 0) {
@@ -1962,15 +1786,56 @@ int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESC
 
     if (info == OWNER_SECURITY_INFORMATION) {
         infostr = "owner";
+        bowndefault = FALSE;
+        bret = GetSecurityDescriptorOwner(pdp,&pownersid,&bowndefault);
+        if (!bret) {
+        	GETERRNO(ret);
+        	ERROR_INFO("get owner error[%d]", ret);
+        	goto fail;
+        }
     } else if (info == GROUP_SECURITY_INFORMATION) {
         infostr = "group";
+        bgrpdefault = FALSE;
+        bret = GetSecurityDescriptorGroup(pdp,&pgrpsid,&bgrpdefault);
+        if (!bret) {
+        	GETERRNO(ret);
+        	ERROR_INFO("get group error[%d]", ret);
+        	goto fail;
+        }
     } else if (info == SACL_SECURITY_INFORMATION) {
         infostr = "sacl";
+        bsaclpresent = FALSE;
+        bsacldefault = FALSE;
+        bret = GetSecurityDescriptorSacl(pdp,&bsaclpresent,&psacl,&bsacldefault);
+        if (!bret) {
+        	GETERRNO(ret);
+        	ERROR_INFO("get sacl error[%d]", ret);
+        	goto fail;
+        }
     } else if (info == DACL_SECURITY_INFORMATION) {
         infostr = "dacl";
+        bdacldefault = FALSE;
+        bdaclpresent = FALSE;
+        bret = GetSecurityDescriptorDacl(pdp,&bdaclpresent,&pdacl,&bdacldefault);
+        if (!bret){
+        	GETERRNO(ret);
+        	ERROR_INFO("get dacl error[%d]", ret);
+        	goto fail;
+        }
     } else {
         infostr = "unknown";
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
     }
+
+    if (info == SACL_SECURITY_INFORMATION) {
+	    ret = enable_security_priv();
+	    if (ret < 0) {
+	    	GETERRNO(ret);
+	    	goto fail;
+	    }
+	    enblsecurity = 1;
+	}
 
     ret = enable_takeown_priv();
     if (ret < 0) {
@@ -1991,28 +1856,36 @@ int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESC
         /*because the DACL will need the current owner ,so we should change the user to current*/
         ret = __set_current_user_owner(name, &pownerdp);
         if (ret < 0) {
-        	GETERRNO(ret);
-        	goto fail;
+            GETERRNO(ret);
+            goto fail;
         }
         chguser = ret;
     }
 
 
 
-    bret = SetFileSecurity(ptname, info, pdp);
-    if (!bret) {
-        GETERRNO(ret);
-        ERROR_INFO("set [%s] [%s][%d] error[%d]", name, infostr, info, ret);
-        goto fail;
+    dret = SetNamedSecurityInfo(ptname, SE_FILE_OBJECT,info,pownersid,pgrpsid,pdacl,psacl);
+    if (dret != ERROR_SUCCESS) {
+    	ret = dret;
+    	if (ret > 0) {
+    		ret = -ret;
+    	}
+    	if (ret == 0) {
+    		ret = -1;
+    	}
+    	ERROR_INFO("set [%s] [%s][%d] error[%d]", name, infostr, info, ret);
+    	goto fail;
     }
 
+
+
     if (chguser) {
-    	ret = __restore_old_owner(name, pownerdp);
-    	if (ret < 0) {
-    		GETERRNO(ret);
-    		goto fail;
-    	}
-    	chguser = 0;
+        ret = __restore_old_owner(name, pownerdp);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        chguser = 0;
     }
 
     if (enblrestore) {
@@ -2033,6 +1906,15 @@ int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESC
     }
     enbltakeown = 0;
 
+    if (enblsecurity) {
+    	ret = disable_security_priv();
+    	if (ret < 0) {
+    		GETERRNO(ret);
+    		goto fail;
+    	}
+    }
+    enblsecurity = 0;
+
     if (pownerdp) {
         LocalFree(pownerdp);
     }
@@ -2041,8 +1923,8 @@ int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESC
     return 0;
 fail:
     if (chguser) {
-    	__restore_old_owner(name,pownerdp);
-    	chguser = 0;
+        __restore_old_owner(name, pownerdp);
+        chguser = 0;
     }
 
     if (enblrestore) {
@@ -2055,6 +1937,10 @@ fail:
     }
     enbltakeown = 0;
 
+    if (enblsecurity) {
+    	disable_security_priv();
+    }
+    enblsecurity = 0;
 
     if (pownerdp) {
         LocalFree(pownerdp);
@@ -2303,59 +2189,59 @@ fail:
 
 int __get_inherit(const char* str, DWORD *pinherit)
 {
-	char* ptr=(char*) str;
-	DWORD mode=0;
-	int ret;
-	if (str == NULL || pinherit == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
-		goto fail;
-	}
+    char* ptr = (char*) str;
+    DWORD mode = 0;
+    int ret;
+    if (str == NULL || pinherit == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
 
-	while(*ptr != '\0') {
-		if (strncmp(ptr, ACL_INHERITANCE_CONTAINER_INHERIT_ACE,(int)strlen(ACL_INHERITANCE_CONTAINER_INHERIT_ACE)) == 0) {
-			mode |= CONTAINER_INHERIT_ACE;
-			ptr += (int) strlen(ACL_INHERITANCE_CONTAINER_INHERIT_ACE);
-		} else if (strncmp(ptr,ACL_INHERITANCE_INHERIT_NO_PROPAGATE, (int)strlen(ACL_INHERITANCE_INHERIT_NO_PROPAGATE)) == 0) {
-			mode |= INHERIT_NO_PROPAGATE;
-			ptr += (int) strlen(ACL_INHERITANCE_INHERIT_NO_PROPAGATE);
-		}  else if (strncmp(ptr,ACL_INHERITANCE_INHERIT_ONLY, (int)strlen(ACL_INHERITANCE_INHERIT_ONLY)) == 0) {
-			mode |= INHERIT_ONLY;
-			ptr += (int) strlen(ACL_INHERITANCE_INHERIT_ONLY);
-		} else if (strncmp(ptr,ACL_INHERITANCE_NO_INHERITANCE, (int)strlen(ACL_INHERITANCE_NO_INHERITANCE)) == 0) {
-			mode |= NO_INHERITANCE;
-			ptr += (int) strlen(ACL_INHERITANCE_NO_INHERITANCE);
-		} else if (strncmp(ptr,ACL_INHERITANCE_OBJECT_INHERIT_ACE, (int)strlen(ACL_INHERITANCE_OBJECT_INHERIT_ACE)) == 0) {
-			mode |= OBJECT_INHERIT_ACE;
-			ptr += (int) strlen(ACL_INHERITANCE_OBJECT_INHERIT_ACE);
-		} else if (strncmp(ptr,ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT, (int)strlen(ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT)) == 0) {
-			mode |= SUB_CONTAINERS_AND_OBJECTS_INHERIT;
-			ptr += (int) strlen(ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT);
-		} else {
-			ret = -ERROR_INVALID_PARAMETER;
-			ERROR_INFO("invalid part inherit [%s]", ptr);
-			goto fail;
-		}
+    while (*ptr != '\0') {
+        if (strncmp(ptr, ACL_INHERITANCE_CONTAINER_INHERIT_ACE, (int)strlen(ACL_INHERITANCE_CONTAINER_INHERIT_ACE)) == 0) {
+            mode |= CONTAINER_INHERIT_ACE;
+            ptr += (int) strlen(ACL_INHERITANCE_CONTAINER_INHERIT_ACE);
+        } else if (strncmp(ptr, ACL_INHERITANCE_INHERIT_NO_PROPAGATE, (int)strlen(ACL_INHERITANCE_INHERIT_NO_PROPAGATE)) == 0) {
+            mode |= INHERIT_NO_PROPAGATE;
+            ptr += (int) strlen(ACL_INHERITANCE_INHERIT_NO_PROPAGATE);
+        }  else if (strncmp(ptr, ACL_INHERITANCE_INHERIT_ONLY, (int)strlen(ACL_INHERITANCE_INHERIT_ONLY)) == 0) {
+            mode |= INHERIT_ONLY;
+            ptr += (int) strlen(ACL_INHERITANCE_INHERIT_ONLY);
+        } else if (strncmp(ptr, ACL_INHERITANCE_NO_INHERITANCE, (int)strlen(ACL_INHERITANCE_NO_INHERITANCE)) == 0) {
+            mode |= NO_INHERITANCE;
+            ptr += (int) strlen(ACL_INHERITANCE_NO_INHERITANCE);
+        } else if (strncmp(ptr, ACL_INHERITANCE_OBJECT_INHERIT_ACE, (int)strlen(ACL_INHERITANCE_OBJECT_INHERIT_ACE)) == 0) {
+            mode |= OBJECT_INHERIT_ACE;
+            ptr += (int) strlen(ACL_INHERITANCE_OBJECT_INHERIT_ACE);
+        } else if (strncmp(ptr, ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT, (int)strlen(ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT)) == 0) {
+            mode |= SUB_CONTAINERS_AND_OBJECTS_INHERIT;
+            ptr += (int) strlen(ACL_INHERITANCE_SUB_CONTAINERS_AND_OBJECTS_INHERIT);
+        } else {
+            ret = -ERROR_INVALID_PARAMETER;
+            ERROR_INFO("invalid part inherit [%s]", ptr);
+            goto fail;
+        }
 
-		if (*ptr != '\0' && *ptr != ACL_COMMON_SEP) {
-			ret = -ERROR_INVALID_PARAMETER;
-			ERROR_INFO("invalid part inherit [%s]", ptr);
-			goto fail;
-		}
-		if (*ptr == ACL_COMMON_SEP) {
-			ptr ++;
-		}
-	}
+        if (*ptr != '\0' && *ptr != ACL_COMMON_SEP) {
+            ret = -ERROR_INVALID_PARAMETER;
+            ERROR_INFO("invalid part inherit [%s]", ptr);
+            goto fail;
+        }
+        if (*ptr == ACL_COMMON_SEP) {
+            ptr ++;
+        }
+    }
 
-	*pinherit = mode;
-	return 0;
+    *pinherit = mode;
+    return 0;
 fail:
-	SETERRNO(ret);
-	return ret;
+    SETERRNO(ret);
+    return ret;
 }
 
-typedef int (*sdp_new_callback_t)(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_MODE mode, ACCESS_MASK perm,DWORD* pinherit, void* arg, PSECURITY_DESCRIPTOR* ppsdp, int* psize);
+typedef int (*sdp_new_callback_t)(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_MODE mode, ACCESS_MASK perm, DWORD* pinherit, void* arg, PSECURITY_DESCRIPTOR* ppsdp, int* psize);
 
-int __handle_sdp_acl(PACL acl, PSID psid,  ACCESS_MODE mode, ACCESS_MASK perm, DWORD* pinherit,void* arg, PSECURITY_DESCRIPTOR* ppsdp, int *psize, sdp_new_callback_t callback)
+int __handle_sdp_acl(PACL acl, PSID psid,  ACCESS_MODE mode, ACCESS_MASK perm, DWORD* pinherit, void* arg, PSECURITY_DESCRIPTOR* ppsdp, int *psize, sdp_new_callback_t callback)
 {
     PEXPLICIT_ACCESS paccess = NULL;
     int accsize = 0, accnum = 0;
@@ -2532,31 +2418,31 @@ fail:
 
 PEXPLICIT_ACCESS __alloc_explicit_access_array(int size)
 {
-	PEXPLICIT_ACCESS pnewacc=NULL;
-	int sz=size;
-	int ret;
-	int i;
+    PEXPLICIT_ACCESS pnewacc = NULL;
+    int sz = size;
+    int ret;
+    int i;
 
-	pnewacc = (PEXPLICIT_ACCESS)LocalAlloc(LMEM_FIXED,sizeof(*pnewacc)*sz);
-	if (pnewacc == NULL) {
-		GETERRNO(ret);
-		ERROR_INFO("alloc %d error[%d]", sizeof(*pnewacc)*sz, ret);
-		goto fail;
-	}
-	memset(pnewacc, 0, sizeof(*pnewacc) * sz);
-	for (i=0;i<sz;i++) {
-		ret = __init_explicit_access(&(pnewacc[i]));
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-	}
+    pnewacc = (PEXPLICIT_ACCESS)LocalAlloc(LMEM_FIXED, sizeof(*pnewacc) * sz);
+    if (pnewacc == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*pnewacc)*sz, ret);
+        goto fail;
+    }
+    memset(pnewacc, 0, sizeof(*pnewacc) * sz);
+    for (i = 0; i < sz; i++) {
+        ret = __init_explicit_access(&(pnewacc[i]));
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
 
-	return pnewacc;
+    return pnewacc;
 fail:
-	__free_explicit_access_array(&pnewacc,&sz);
-	SETERRNO(ret);
-	return NULL;
+    __free_explicit_access_array(&pnewacc, &sz);
+    SETERRNO(ret);
+    return NULL;
 }
 
 int __copy_explicit_access_array(PEXPLICIT_ACCESS poaccess, int onum , PEXPLICIT_ACCESS pnewacc, int newaccsize)
@@ -2570,8 +2456,8 @@ int __copy_explicit_access_array(PEXPLICIT_ACCESS poaccess, int onum , PEXPLICIT
             continue;
         }
         if (newaccnum >= newaccsize) {
-        	ret = -ERROR_BUFFER_OVERFLOW;
-        	goto fail;
+            ret = -ERROR_BUFFER_OVERFLOW;
+            goto fail;
         }
         ret = __copy_explicit_access(&(poaccess[i]), &(pnewacc[newaccnum]));
         if (ret < 0) {
@@ -2589,7 +2475,7 @@ fail:
 }
 
 
-int __remove_acl_inner(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_MODE mode, ACCESS_MASK perm, DWORD *pinherit,void* arg, PSECURITY_DESCRIPTOR *ppsdp, int *psize)
+int __remove_acl_inner(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_MODE mode, ACCESS_MASK perm, DWORD *pinherit, void* arg, PSECURITY_DESCRIPTOR *ppsdp, int *psize)
 {
     DWORD ctrl = (DWORD)((addr_t)arg);
     int i;
@@ -2636,15 +2522,15 @@ int __remove_acl_inner(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_M
         /*now we should handle*/
         pfoundacc->grfAccessPermissions &= ~(perm);
         if (pinherit != NULL) {
-        	pfoundacc->grfInheritance = (*pinherit);
+            pfoundacc->grfInheritance = (*pinherit);
         }
     }
 
     newaccsize = accnum;
     pnewacc = __alloc_explicit_access_array(newaccsize);
     if (pnewacc == NULL) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
 
 
@@ -2683,7 +2569,7 @@ direct_build:
     *ppsdp = pdp;
     *psize = dplen;
     retlen = dplen;
-    __free_explicit_access_array(&pnewacc,&newaccsize);
+    __free_explicit_access_array(&pnewacc, &newaccsize);
     return retlen;
 fail:
     if (pdp) {
@@ -2691,12 +2577,12 @@ fail:
     }
     pdp = NULL;
     dplen = 0;
-    __free_explicit_access_array(&pnewacc,&newaccsize);
+    __free_explicit_access_array(&pnewacc, &newaccsize);
     SETERRNO(ret);
     return ret;
 }
 
-int remove_sacl(void* pacl1,const char* username,const char* action,const char* right,const char* pinherit)
+int remove_sacl(void* pacl1, const char* username, const char* action, const char* right, const char* pinherit)
 {
     pwin_acl_t pacl = (pwin_acl_t) pacl1;
     PACL sacl = NULL;
@@ -2705,7 +2591,7 @@ int remove_sacl(void* pacl1,const char* username,const char* action,const char* 
     int sidsize = 0;
     ACCESS_MODE mode = NOT_USED_ACCESS;
     ACCESS_MASK perm = 0;
-    DWORD inheritmode=0;
+    DWORD inheritmode = 0;
     PSECURITY_DESCRIPTOR pdp = NULL;
     int dpsize = 0, dplen = 0;
 
@@ -2740,11 +2626,11 @@ int remove_sacl(void* pacl1,const char* username,const char* action,const char* 
     }
 
     if (pinherit != NULL) {
-    	ret = __get_inherit(pinherit,&inheritmode);
-    	if (ret < 0) {
-    		GETERRNO(ret);
-    		goto fail;
-    	}
+        ret = __get_inherit(pinherit, &inheritmode);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
     }
 
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
@@ -2753,7 +2639,7 @@ int remove_sacl(void* pacl1,const char* username,const char* action,const char* 
         goto fail;
     }
 
-    ret = __handle_sdp_acl(sacl, psid, mode, perm, (inheritmode != 0 ? (&inheritmode) : NULL),(void*)SACL_MODE, &pdp, &dpsize, __remove_acl_inner);
+    ret = __handle_sdp_acl(sacl, psid, mode, perm, (inheritmode != 0 ? (&inheritmode) : NULL), (void*)SACL_MODE, &pdp, &dpsize, __remove_acl_inner);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -2796,7 +2682,7 @@ fail:
     return ret;
 }
 
-int remove_dacl(void* pacl1,const char* username,const char* action,const char* right,const char* pinherit)
+int remove_dacl(void* pacl1, const char* username, const char* action, const char* right, const char* pinherit)
 {
     pwin_acl_t pacl = (pwin_acl_t) pacl1;
     PACL dacl = NULL;
@@ -2805,7 +2691,7 @@ int remove_dacl(void* pacl1,const char* username,const char* action,const char* 
     int sidsize = 0;
     ACCESS_MODE mode = NOT_USED_ACCESS;
     ACCESS_MASK perm = 0;
-    DWORD inheritmode=0;
+    DWORD inheritmode = 0;
     PSECURITY_DESCRIPTOR pdp = NULL;
     int dpsize = 0, dplen = 0;
 
@@ -2840,11 +2726,11 @@ int remove_dacl(void* pacl1,const char* username,const char* action,const char* 
     }
 
     if (pinherit != NULL) {
-    	ret= __get_inherit(pinherit,&inheritmode);
-    	if (ret < 0) {
-    		GETERRNO(ret);
-    		goto fail;
-    	}
+        ret = __get_inherit(pinherit, &inheritmode);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
     }
 
     ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
@@ -2892,6 +2778,610 @@ fail:
     dpsize = 0;
     dplen = 0;
     __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int __add_acl_inner(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_MODE mode, ACCESS_MASK perm, DWORD *pinherit, void* arg, PSECURITY_DESCRIPTOR *ppsdp, int *psize)
+{
+    DWORD ctrl = (DWORD)((addr_t)arg);
+    int i;
+    PEXPLICIT_ACCESS pcuracc = NULL, pfoundacc = NULL;
+    PSID osid = NULL;
+    int ret = 0;
+    int retlen = 0;
+    PEXPLICIT_ACCESS pnewacc = NULL;
+    int newaccsize = 0, newaccnum = 0;
+    DWORD dplen = 0;
+    PSECURITY_DESCRIPTOR pdp = NULL;
+    DWORD dret;
+    PEXPLICIT_ACCESS paddacc = NULL;
+    int addone = 0;
+    DWORD sidsize = 0;
+    BOOL bret;
+
+
+    if (paccess == NULL && accnum != 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (ppsdp == NULL || psize == NULL ||
+            *ppsdp != NULL || *psize != 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+
+    for (i = 0; i < accnum; i++) {
+        pcuracc = &(paccess[i]);
+        if (pcuracc->grfAccessMode == mode &&
+                pcuracc->Trustee.TrusteeType == TRUSTEE_IS_SID) {
+            osid = (PSID) pcuracc->Trustee.ptstrName;
+            if (osid != NULL && EqualSid(osid, psid)) {
+                pfoundacc = pcuracc;
+                break;
+            }
+        }
+    }
+
+    if (pfoundacc != NULL) {
+        /*now we should handle*/
+        pfoundacc->grfAccessPermissions |= perm;
+        if (pinherit != NULL) {
+            pfoundacc->grfInheritance = (*pinherit);
+        }
+    } else {
+        /*now we should make new */
+        addone = 1;
+        paddacc = __alloc_explicit_access_array(addone);
+        if (paddacc == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        paddacc->grfAccessPermissions = perm;
+        paddacc->grfAccessMode = mode;
+        if (pinherit != NULL) {
+            paddacc->grfInheritance = *pinherit;
+        } else {
+            paddacc->grfInheritance = NO_INHERITANCE;
+        }
+
+        sidsize = MIN_SID_SIZE;
+copy_sid_again:
+        if (paddacc->Trustee.ptstrName != NULL) {
+            LocalFree(paddacc->Trustee.ptstrName);
+        }
+        paddacc->Trustee.ptstrName = NULL;
+        paddacc->Trustee.ptstrName = ((decltype(paddacc->Trustee.ptstrName))LocalAlloc(LMEM_FIXED, sidsize));
+        if (paddacc->Trustee.ptstrName == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", sidsize, ret);
+            goto fail;
+        }
+        bret = CopySid(sidsize, (PSID)paddacc->Trustee.ptstrName, psid);
+        if (!bret) {
+            GETERRNO(ret);
+            if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+                sidsize <<= 1;
+                goto copy_sid_again;
+            }
+            ERROR_INFO("copy sid error[%d]", ret);
+            goto fail;
+        }
+    }
+
+    newaccsize = accnum + addone;
+    pnewacc = __alloc_explicit_access_array(newaccsize);
+    if (pnewacc == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    ret = __copy_explicit_access_array(paccess, accnum, pnewacc, newaccsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    newaccnum = ret;
+    if (addone > 0) {
+        ASSERT_IF(newaccnum < newaccsize);
+        ret = __copy_explicit_access_array(paddacc, addone, &(pnewacc[newaccnum]), (newaccsize - newaccnum));
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        newaccnum += ret;
+    }
+
+    if (ctrl == SACL_MODE) {
+        dret = BuildSecurityDescriptor(NULL, NULL, 0, NULL, newaccnum, pnewacc, NULL, &dplen, &pdp);
+    } else if (ctrl == DACL_MODE) {
+        dret = BuildSecurityDescriptor(NULL, NULL, newaccnum, pnewacc, 0, NULL, NULL, &dplen, &pdp);
+    } else {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("ctrl [%d:0x%x] not valid", ctrl, ctrl);
+        goto fail;
+    }
+
+    if (dret != ERROR_SUCCESS) {
+        ret = dret;
+        if (ret > 0) {
+            ret = -ret;
+        }
+        if (ret == 0) {
+            ret = -1;
+        }
+        ERROR_INFO("build [%d] access for [%s] error[%d]", newaccnum, ctrl == SACL_MODE ? "SACL" : "DACL", ret);
+        goto fail;
+    }
+
+    DEBUG_BUFFER_FMT(pdp, dplen, "[%s] SECURITY_DESCRIPTOR", ctrl == SACL_MODE ? "SACL" : "DACL");
+
+    *ppsdp = pdp;
+    *psize = dplen;
+    retlen = dplen;
+    __free_explicit_access_array(&paddacc, &addone);
+    __free_explicit_access_array(&pnewacc, &newaccsize);
+    return retlen;
+fail:
+    if (pdp) {
+        LocalFree(pdp);
+    }
+    pdp = NULL;
+    dplen = 0;
+    __free_explicit_access_array(&paddacc, &addone);
+    __free_explicit_access_array(&pnewacc, &newaccsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int add_sacl(void* pacl1, const char* username, const char* action, const char* right, const char* pinherit)
+{
+    pwin_acl_t pacl = (pwin_acl_t) pacl1;
+    PACL sacl = NULL;
+    int ret;
+    PSID psid = NULL;
+    int sidsize = 0;
+    ACCESS_MODE mode = NOT_USED_ACCESS;
+    ACCESS_MASK perm = 0;
+    DWORD inheritmode = 0;
+    PSECURITY_DESCRIPTOR pdp = NULL;
+    int dpsize = 0, dplen = 0;
+
+
+    if (pacl == NULL || username == NULL || action == NULL || right == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (pacl->m_saclsdp == NULL) {
+        ret = -ERROR_NOT_FOUND;
+        goto fail;
+    }
+
+    ret = __get_sid_from_name(username, &psid, &sidsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __get_action(action, &mode);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __get_right(right, &perm);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (pinherit != NULL) {
+        ret = __get_inherit(pinherit, &inheritmode);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __handle_sdp_acl(sacl, psid, mode, perm, (inheritmode != 0 ? (&inheritmode) : NULL), (void*)SACL_MODE, &pdp, &dpsize, __add_acl_inner);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    dplen = ret;
+
+    ret = __set_file_descriptor(pacl->m_fname, SACL_SECURITY_INFORMATION, pdp);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (pacl->m_saclsdp) {
+        LocalFree(pacl->m_saclsdp);
+        pacl->m_saclsdp = NULL;
+    }
+    pacl->m_saclsdp = pdp;
+    pdp = NULL;
+    pacl->m_saclsize = dpsize;
+    pacl->m_sacllen = dplen;
+
+
+    if (pdp) {
+        LocalFree(pdp);
+    }
+    pdp = NULL;
+    dpsize = 0;
+    dplen = 0;
+    __get_sid_from_name(NULL, &psid, &sidsize);
+    return 0;
+fail:
+    if (pdp) {
+        LocalFree(pdp);
+    }
+    pdp = NULL;
+    dpsize = 0;
+    dplen = 0;
+    __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int add_dacl(void* pacl1, const char* username, const char* action, const char* right, const char* pinherit)
+{
+    pwin_acl_t pacl = (pwin_acl_t) pacl1;
+    PACL dacl = NULL;
+    int ret;
+    PSID psid = NULL;
+    int sidsize = 0;
+    ACCESS_MODE mode = NOT_USED_ACCESS;
+    ACCESS_MASK perm = 0;
+    DWORD inheritmode = 0;
+    PSECURITY_DESCRIPTOR pdp = NULL;
+    int dpsize = 0, dplen = 0;
+
+
+    if (pacl == NULL || username == NULL || action == NULL || right == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (pacl->m_daclsdp == NULL) {
+        ret = -ERROR_NOT_FOUND;
+        goto fail;
+    }
+
+    ret = __get_sid_from_name(username, &psid, &sidsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __get_action(action, &mode);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __get_right(right, &perm);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (pinherit != NULL) {
+        ret = __get_inherit(pinherit, &inheritmode);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __handle_sdp_acl(dacl, psid, mode, perm, (inheritmode != 0 ? (&inheritmode) : NULL), (void*)DACL_MODE, &pdp, &dpsize, __add_acl_inner);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    dplen = ret;
+
+    ret = __set_file_descriptor(pacl->m_fname, DACL_SECURITY_INFORMATION, pdp);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (pacl->m_daclsdp) {
+        LocalFree(pacl->m_daclsdp);
+        pacl->m_daclsdp = NULL;
+    }
+    pacl->m_daclsdp = pdp;
+    pdp = NULL;
+    pacl->m_daclsize = dpsize;
+    pacl->m_dacllen = dplen;
+
+
+    if (pdp) {
+        LocalFree(pdp);
+    }
+    pdp = NULL;
+    dpsize = 0;
+    dplen = 0;
+    __get_sid_from_name(NULL, &psid, &sidsize);
+    return 0;
+fail:
+    if (pdp) {
+        LocalFree(pdp);
+    }
+    pdp = NULL;
+    dpsize = 0;
+    dplen = 0;
+    __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int get_file_acls(const char* fname, void** ppacl1)
+{
+    int ret;
+    pwin_acl_t pacl = NULL;
+    TCHAR* ptname = NULL;
+    int tnamesize = 0;
+    int enabled = 0;
+    BOOL bret;
+    int chguser = 0;
+    PSECURITY_DESCRIPTOR pownerdp = NULL;
+    if (fname == NULL) {
+        if (ppacl1 && *ppacl1) {
+            pacl = (pwin_acl_t) * ppacl1;
+            __free_win_acl(&pacl);
+            *ppacl1 = NULL;
+        }
+        return 0;
+    }
+
+    if (ppacl1 == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    pacl = (pwin_acl_t) * ppacl1;
+    if (pacl == NULL) {
+        pacl = __alloc_win_acl();
+        if (pacl == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    if (pacl->m_fname) {
+        free(pacl->m_fname);
+    }
+    pacl->m_fname = NULL;
+    pacl->m_namesize = 0;
+
+    pacl->m_fname = strdup(fname);
+    if (pacl->m_fname == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("strdup [%s] error[%d]", fname, ret);
+        goto fail;
+    }
+    pacl->m_namesize = (int)strlen(fname) + 1;
+
+
+    if (pacl->m_groupsdp) {
+        LocalFree(pacl->m_groupsdp);
+        pacl->m_groupsdp = NULL;
+    }
+
+    if (pacl->m_daclsdp) {
+        LocalFree(pacl->m_saclsdp);
+        pacl->m_saclsdp = NULL;
+    }
+
+    if (pacl->m_saclsdp) {
+        LocalFree(pacl->m_saclsdp);
+        pacl->m_saclsdp = NULL;
+    }
+
+    ret = AnsiToTchar(fname, &ptname, &tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = enable_security_priv();
+    if (ret >= 0) {
+        enabled = 1;
+    } else {
+    	DEBUG_INFO("can not get security priv");
+    }
+
+try_owner_sec:
+    if (pacl->m_ownersdp) {
+        LocalFree(pacl->m_ownersdp);
+        pacl->m_ownersdp = NULL;
+    }
+    if (pacl->m_ownersize < 10) {
+        pacl->m_ownersize = 10;
+    }
+    pacl->m_ownersdp = LocalAlloc(LMEM_FIXED, pacl->m_ownersize);
+    if (pacl->m_ownersdp == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", pacl->m_ownersize, ret);
+        goto fail;
+    }
+    pacl->m_ownerlen = pacl->m_ownersize;
+    bret = GetFileSecurity(ptname, OWNER_SECURITY_INFORMATION, pacl->m_ownersdp, pacl->m_ownersize, &(pacl->m_ownerlen));
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            pacl->m_ownersize = pacl->m_ownerlen << 1;
+            goto try_owner_sec;
+        }
+        ERROR_INFO("get[%s] owner error[%d]", fname, ret);
+        goto fail;
+    }
+    DEBUG_BUFFER_FMT(pacl->m_ownersdp, pacl->m_ownerlen, "owner sdp");
+
+try_grp_sec:
+    if (pacl->m_groupsdp) {
+        LocalFree(pacl->m_groupsdp);
+        pacl->m_groupsdp = NULL;
+    }
+    if (pacl->m_grpsize < 10) {
+        pacl->m_grpsize = 10;
+    }
+    pacl->m_groupsdp = LocalAlloc(LMEM_FIXED, pacl->m_grpsize);
+    if (pacl->m_groupsdp == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", pacl->m_grpsize, ret);
+        goto fail;
+    }
+    bret = GetFileSecurity(ptname, GROUP_SECURITY_INFORMATION, pacl->m_groupsdp, pacl->m_grpsize, &(pacl->m_grplen));
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            pacl->m_grpsize = pacl->m_grplen << 1;
+            goto try_grp_sec;
+        }
+        ERROR_INFO("get[%s] group error[%d]", fname, ret);
+        goto fail;
+    }
+    DEBUG_BUFFER_FMT(pacl->m_groupsdp, pacl->m_grplen, "group sdp");
+
+try_sacl_sec:
+    if (pacl->m_saclsdp) {
+        LocalFree(pacl->m_saclsdp);
+        pacl->m_saclsdp = NULL;
+    }
+    if (pacl->m_saclsize < 10) {
+        pacl->m_saclsize = 10;
+    }
+    pacl->m_saclsdp = LocalAlloc(LMEM_FIXED, pacl->m_saclsize);
+    if (pacl->m_saclsdp == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", pacl->m_saclsize, ret);
+        goto fail;
+    }
+    bret = GetFileSecurity(ptname, SACL_SECURITY_INFORMATION, pacl->m_saclsdp, pacl->m_saclsize, &(pacl->m_sacllen));
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            pacl->m_saclsize = pacl->m_sacllen << 1;
+            goto try_sacl_sec;
+        }
+        if (ret != -ERROR_PRIVILEGE_NOT_HELD) {
+            ERROR_INFO("get[%s] sacl error[%d]", fname, ret);
+            goto fail;
+        }
+        DEBUG_INFO("get sacl with error [%d]", ret);
+        if (pacl->m_saclsdp) {
+            LocalFree(pacl->m_saclsdp);
+            pacl->m_saclsdp = NULL;
+        }
+        pacl->m_sacllen = 0;
+        pacl->m_saclsize = 0;
+    }
+    if (pacl->m_saclsdp != NULL) {
+        DEBUG_BUFFER_FMT(pacl->m_saclsdp, pacl->m_sacllen, "sacl sdp");
+    }
+
+
+    /*because the change user will get the dacl ok*/
+    ret = __set_current_user_owner((char*)fname, &pownerdp);
+    if (ret >= 0) {
+    	chguser = ret;
+    }
+
+try_dacl_sec:
+    if (pacl->m_daclsdp) {
+        LocalFree(pacl->m_daclsdp);
+        pacl->m_daclsdp = NULL;
+    }
+    if (pacl->m_daclsize < 10) {
+        pacl->m_daclsize = 10;
+    }
+    pacl->m_daclsdp = LocalAlloc(LMEM_FIXED, pacl->m_daclsize);
+    if (pacl->m_daclsdp == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", pacl->m_daclsize, ret);
+        goto fail;
+    }
+    bret = GetFileSecurity(ptname, DACL_SECURITY_INFORMATION, pacl->m_daclsdp, pacl->m_daclsize, &(pacl->m_dacllen));
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            pacl->m_daclsize = pacl->m_dacllen << 1;
+            goto try_dacl_sec;
+        }
+        ERROR_INFO("get[%s] dacl error[%d]", fname, ret);
+        goto fail;
+    }
+    DEBUG_BUFFER_FMT(pacl->m_daclsdp, pacl->m_dacllen, "dacl sdp");
+
+    if (chguser) {
+    	ret = __restore_old_owner((char*)fname,pownerdp);
+    	if (ret < 0) {
+    		GETERRNO(ret);
+    		goto fail;
+    	}
+    	chguser = 0;
+    }
+
+    if (pownerdp) {
+    	LocalFree(pownerdp);
+    	pownerdp = NULL;
+    }
+
+    if (enabled) {
+        ret = disable_security_priv();
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        enabled = 0;
+    }
+
+    DEBUG_BUFFER_FMT(pacl->m_fname, pacl->m_namesize, "fname");
+    *ppacl1 = pacl;
+    return 0;
+fail:
+	if (chguser) {
+		__restore_old_owner((char*)fname,pownerdp);
+		chguser = 0;
+	}
+	if (pownerdp) {
+		LocalFree(pownerdp);
+		pownerdp = NULL;
+	}
+
+    if (enabled) {
+        disable_security_priv();
+    }
+    enabled = 0;
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    if (pacl != NULL && pacl != *ppacl1) {
+        __free_win_acl(&pacl);
+    }
     SETERRNO(ret);
     return ret;
 }

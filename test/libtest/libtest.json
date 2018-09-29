@@ -115,5 +115,11 @@
     },
     "removedacl<removedacl_handler>##fname username action right [inherit] to remove the dacl##" : {
         "$" : "+"
+    },
+    "addsacl<addsacl_handler>##fname username action right [inherit] to add the sacl##"  : {
+        "$" : "+"
+    },
+    "adddacl<adddacl_handler>##fname username action right [inherit] to add the dacl##"  : {
+        "$" : "+"
     }
 }

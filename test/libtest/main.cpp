@@ -70,6 +70,8 @@ int getsid_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int setgroup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int removesacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int removedacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int addsacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int adddacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -2674,7 +2676,6 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     int maxrightsize = 0;
     int maxinheritsize = 0;
     int maxfilesize = 0;
-    int curlen = 0;
     init_log_level(pargs);
     argc = argc;
     argv = argv;
@@ -3161,7 +3162,6 @@ int removedacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     void* pacl = NULL;
     pargs_options_t pargs = (pargs_options_t)popt;
     int ret;
-    int enblsecurity = 0;
     argc = argc;
     argv = argv;
 
@@ -3202,13 +3202,6 @@ int removedacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void
         goto out;
     }
 
-    ret = enable_security_priv();
-    if (ret < 0) {
-        GETERRNO(ret);
-        fprintf(stderr, "can not enable security error[%d]\n", ret);
-        goto out;
-    }
-    enblsecurity = 1;
 
     ret = remove_dacl(pacl, username, action, right,inherit);
     if (ret < 0) {
@@ -3220,10 +3213,140 @@ int removedacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     fprintf(stdout, "[%s] remove dacl [%s][%s][%s][%s] succ\n", fname, username, action, right, inherit != NULL ? inherit : "notmodify");
     ret = 0;
 out:
-    if (enblsecurity) {
-        disable_security_priv();
+    get_file_acls(NULL, &pacl);
+    SETERRNO(ret);
+    return ret;
+}
+
+int addsacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* fname = NULL;
+    char* action = NULL;
+    char* username = NULL;
+    char* right = NULL;
+    char* inherit = NULL;
+    const char* usage = "fname username action right [inherit] to add the sacl";
+    void* pacl = NULL;
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int ret;
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+
+    if (parsestate->leftargs == NULL ||
+            parsestate->leftargs[0] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "%s\n", usage);
+        goto out;
     }
-    enblsecurity = 0;
+    fname = parsestate->leftargs[0];
+    if (parsestate->leftargs[1] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "%s\n", usage);
+        goto out;
+    }
+    username = parsestate->leftargs[1];
+    if (parsestate->leftargs[2] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "%s\n", usage);
+        goto out;
+    }
+    action = parsestate->leftargs[2];
+    if (parsestate->leftargs[3] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "%s\n", usage);
+        goto out;
+    }
+    right = parsestate->leftargs[3];
+    if (parsestate->leftargs[4] != NULL) {
+        inherit = parsestate->leftargs[4];
+    }
+    ret = get_file_acls(fname, &pacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get [%s] acl error[%d]\n", fname, ret);
+        goto out;
+    }
+
+
+    ret = add_sacl(pacl, username, action, right,inherit);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "[%s] add sacl [%s][%s][%s][%s] error[%d]\n", fname, username, action, right, inherit != NULL ? inherit : "notmodify", ret);
+        goto out;
+    }
+
+    fprintf(stdout, "[%s] add sacl [%s][%s][%s][%s] succ\n", fname, username, action, right, inherit != NULL ? inherit : "notmodify");
+    ret = 0;
+out:
+    get_file_acls(NULL, &pacl);
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int adddacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* fname = NULL;
+    char* action = NULL;
+    char* username = NULL;
+    char* right = NULL;
+    char* inherit = NULL;
+    const char* usage = "fname username action right [inherit] to add the dacl";
+    void* pacl = NULL;
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int ret;
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+
+    if (parsestate->leftargs == NULL ||
+            parsestate->leftargs[0] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "%s\n", usage);
+        goto out;
+    }
+    fname = parsestate->leftargs[0];
+    if (parsestate->leftargs[1] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "%s\n", usage);
+        goto out;
+    }
+    username = parsestate->leftargs[1];
+    if (parsestate->leftargs[2] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "%s\n", usage);
+        goto out;
+    }
+    action = parsestate->leftargs[2];
+    if (parsestate->leftargs[3] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "%s\n", usage);
+        goto out;
+    }
+    right = parsestate->leftargs[3];
+    if (parsestate->leftargs[4] != NULL) {
+        inherit = parsestate->leftargs[4];
+    }
+    ret = get_file_acls(fname, &pacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get [%s] acl error[%d]\n", fname, ret);
+        goto out;
+    }
+
+    ret = add_dacl(pacl, username, action, right,inherit);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "[%s] add dacl [%s][%s][%s][%s] error[%d]\n", fname, username, action, right, inherit != NULL ? inherit : "notmodify", ret);
+        goto out;
+    }
+
+    fprintf(stdout, "[%s] add dacl [%s][%s][%s][%s] succ\n", fname, username, action, right, inherit != NULL ? inherit : "notmodify");
+    ret = 0;
+out:
     get_file_acls(NULL, &pacl);
     SETERRNO(ret);
     return ret;
