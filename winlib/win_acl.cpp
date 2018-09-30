@@ -13,6 +13,21 @@
 
 #define   WIN_ACL_MAGIC            0x3021211
 
+#define   WRITE_PROP               0x100
+#define   WRITE_EXT_PROP           0x10
+#define   READ_PROP                0x80
+#define   FILE_EXECUTE_ACCESS      0x20
+#define   READ_EXT_PROP            0x8
+#define   CREATE_WRITE_DATA        0x2
+#define   CREATE_APPEND_DATA       0x4
+#define   REMOVE_SUBDIR            0x40
+#define   READ_DATA                0x1
+
+#define   EXTEND_RIGHTS            (WRITE_PROP | WRITE_EXT_PROP | READ_PROP | READ_EXT_PROP | \
+                                    CREATE_WRITE_DATA | CREATE_APPEND_DATA | REMOVE_SUBDIR | READ_DATA | FILE_EXECUTE_ACCESS)
+
+#define   FILE_ALL_ATTR            (STANDARD_RIGHTS_ALL | EXTEND_RIGHTS)
+
 #define   MIN_SID_SIZE             32
 #define   MIN_SECURITY_DESC_SIZE   sizeof(SECURITY_DESCRIPTOR)
 
@@ -79,29 +94,29 @@ void __free_trustee(PTRUSTEE *pptrustee)
 
 #define DEBUG_SECURITY_DESCRIPTOR(pdp,info)  __debug_security_descriptor(__FILE__,__LINE__,pdp,info)
 
-void __debug_security_descriptor(const char* file, int lineno,PSECURITY_DESCRIPTOR pdp,SECURITY_INFORMATION info)
+void __debug_security_descriptor(const char* file, int lineno, PSECURITY_DESCRIPTOR pdp, SECURITY_INFORMATION info)
 {
     BOOL bret;
-    TCHAR* ptstr=NULL;
-    ULONG tstrsize=0;
+    TCHAR* ptstr = NULL;
+    ULONG tstrsize = 0;
     int ret;
-    char* pstr=NULL;
-    int strsize=0;
+    char* pstr = NULL;
+    int strsize = 0;
     DWORD dlen = 0;
-    const char* infostr="unknown";
+    const char* infostr = "unknown";
 
     dlen = GetSecurityDescriptorLength(pdp);
 
-    bret = ConvertSecurityDescriptorToStringSecurityDescriptor(pdp,SDDL_REVISION_1,info,
-        &ptstr,&tstrsize);
+    bret = ConvertSecurityDescriptorToStringSecurityDescriptor(pdp, SDDL_REVISION_1, info,
+            &ptstr, &tstrsize);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("[%s:%d] get info type error[%d]", file, lineno, ret);
-        DEBUG_BUFFER_FMT(pdp,dlen, "info type [%d]", info);
+        DEBUG_BUFFER_FMT(pdp, dlen, "info type [%d]", info);
         goto out;
     }
 
-    if (info== OWNER_SECURITY_INFORMATION) {
+    if (info == OWNER_SECURITY_INFORMATION) {
         infostr = "owner";
     } else if (info == GROUP_SECURITY_INFORMATION) {
         infostr = "group";
@@ -111,16 +126,16 @@ void __debug_security_descriptor(const char* file, int lineno,PSECURITY_DESCRIPT
         infostr = "dacl";
     }
 
-    ret = TcharToAnsi(ptstr,&pstr,&strsize);
+    ret = TcharToAnsi(ptstr, &pstr, &strsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
     }
 
-    DEBUG_INFO("[%s:%d] [%s][%d]str [%s]", file,lineno,infostr,info,pstr);
-    DEBUG_BUFFER_FMT(pdp,dlen,NULL);
+    DEBUG_INFO("[%s:%d] [%s][%d]str [%s]", file, lineno, infostr, info, pstr);
+    DEBUG_BUFFER_FMT(pdp, dlen, NULL);
 out:
-    TcharToAnsi(NULL,&pstr,&strsize);
+    TcharToAnsi(NULL, &pstr, &strsize);
     if (ptstr) {
         LocalFree(ptstr);
     }
@@ -344,7 +359,7 @@ int __copy_explicit_access_array(PEXPLICIT_ACCESS poaccess, int onum , PEXPLICIT
     int i;
 
     for (i = 0; i < onum; i++) {
-        if ((poaccess[i].grfAccessPermissions & STANDARD_RIGHTS_ALL) == 0) {
+        if ((poaccess[i].grfAccessPermissions & (FILE_ALL_ATTR)) == 0) {
             continue;
         }
         if (newaccnum >= newaccsize) {
@@ -467,7 +482,7 @@ fail:
 
 int __trans_aceflags_to_inherit(BYTE flags, DWORD * pinherit)
 {
-    DWORD inherit=0;
+    DWORD inherit = 0;
 
     if (flags == FAILED_ACCESS_ACE_FLAG) {
         inherit |= INHERIT_NO_PROPAGATE;
@@ -651,7 +666,7 @@ void __debug_access_inner(PEXPLICIT_ACCESS pcuracc, const char* prefix)
     char* name = NULL;
     int namesize = 0;
     DEBUG_INFO("%s grfAccessPermissions [0x%lx]", prefix, pcuracc->grfAccessPermissions);
-    if ((pcuracc->grfAccessPermissions & STANDARD_RIGHTS_ALL) == STANDARD_RIGHTS_ALL) {
+    if ((pcuracc->grfAccessPermissions & FILE_ALL_ATTR) == FILE_ALL_ATTR) {
         DEBUG_INFO("%s grfAccessPermissions %s", prefix, ACL_RIGHT_ALL);
     } else {
         if (pcuracc->grfAccessPermissions & DELETE) {
@@ -668,6 +683,33 @@ void __debug_access_inner(PEXPLICIT_ACCESS pcuracc, const char* prefix)
         }
         if (pcuracc->grfAccessPermissions & SYNCHRONIZE) {
             DEBUG_INFO("%s grfAccessPermissions %s", prefix, ACL_RIGHT_SYNCHRONIZE);
+        }
+        if (pcuracc->grfAccessPermissions & WRITE_PROP) {
+            DEBUG_INFO("%s grfAccessPermissions %s", prefix, ACL_RIGHT_WRITE_PROP);
+        }
+        if (pcuracc->grfAccessPermissions & WRITE_EXT_PROP) {
+            DEBUG_INFO("%s grfAccessPermissions %s", prefix, ACL_RIGHT_WRITE_EXT_PROP);
+        }
+        if (pcuracc->grfAccessPermissions & READ_PROP) {
+            DEBUG_INFO("%s grfAccessPermissions %s", prefix, ACL_RIGHT_READ_PROP);
+        }
+        if (pcuracc->grfAccessPermissions & READ_EXT_PROP) {
+            DEBUG_INFO("%s grfAccessPermissions %s", prefix, ACL_RIGHT_READ_EXT_PROP);
+        }
+        if (pcuracc->grfAccessPermissions & CREATE_WRITE_DATA) {
+            DEBUG_INFO("%s grfAccessPermissions %s", prefix, ACL_RIGHT_CREATE_WRITE_DATA);
+        }
+        if (pcuracc->grfAccessPermissions & CREATE_APPEND_DATA) {
+            DEBUG_INFO("%s grfAccessPermissions %s", prefix, ACL_RIGHT_CREATE_APPEND_DATA);
+        }
+        if (pcuracc->grfAccessPermissions & REMOVE_SUBDIR) {
+            DEBUG_INFO("%s grfAccessPermissions %s", prefix, ACL_RIGHT_REMOVE_SUBDIR);
+        }
+        if (pcuracc->grfAccessPermissions & READ_DATA) {
+            DEBUG_INFO("%s grfAccessPermissions %s", prefix, ACL_RIGHT_READ_DATA);
+        }
+        if (pcuracc->grfAccessPermissions & FILE_EXECUTE_ACCESS) {
+            DEBUG_INFO("%s grfAccessPermissions %s", prefix, ACL_RIGHT_FILE_EXECUTE);
         }
     }
 
@@ -769,13 +811,13 @@ int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
     BOOL bret;
     PEXPLICIT_ACCESS pcuracc = NULL;
     PACCESS_ALLOWED_ACE pallowace = NULL;
-    PACCESS_ALLOWED_CALLBACK_ACE pallowcallbackace=NULL;
-    PACCESS_ALLOWED_CALLBACK_OBJECT_ACE pallowcallbackobjace=NULL;
-    PACCESS_ALLOWED_OBJECT_ACE pallowobjace=NULL;
-    ACCESS_DENIED_ACE* pdenyace=NULL;
-    PACCESS_DENIED_CALLBACK_ACE pdenycallbackace=NULL;
-    PACCESS_DENIED_CALLBACK_OBJECT_ACE pdenycallbackobjace=NULL;
-    PACCESS_DENIED_OBJECT_ACE pdenyobjace=NULL;
+    PACCESS_ALLOWED_CALLBACK_ACE pallowcallbackace = NULL;
+    PACCESS_ALLOWED_CALLBACK_OBJECT_ACE pallowcallbackobjace = NULL;
+    PACCESS_ALLOWED_OBJECT_ACE pallowobjace = NULL;
+    ACCESS_DENIED_ACE* pdenyace = NULL;
+    PACCESS_DENIED_CALLBACK_ACE pdenycallbackace = NULL;
+    PACCESS_DENIED_CALLBACK_OBJECT_ACE pdenycallbackobjace = NULL;
+    PACCESS_DENIED_OBJECT_ACE pdenyobjace = NULL;
 
     if (acl == NULL) {
         if (ppaccess && *ppaccess) {
@@ -838,7 +880,7 @@ int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
             pallowace = (PACCESS_ALLOWED_ACE) pheader;
             pcuracc->grfAccessMode = GRANT_ACCESS;
             pcuracc->grfAccessPermissions = pallowace->Mask;
-            ret = __trans_aceflags_to_inherit(pallowace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit(pallowace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -855,12 +897,12 @@ int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
             pallowcallbackace = (PACCESS_ALLOWED_CALLBACK_ACE) pheader;
             pcuracc->grfAccessMode = GRANT_ACCESS;
             pcuracc->grfAccessPermissions = pallowcallbackace->Mask;
-            ret = __trans_aceflags_to_inherit(pallowcallbackace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit(pallowcallbackace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid((PSID) &(pallowcallbackace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid((PSID) & (pallowcallbackace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -872,12 +914,12 @@ int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
             pallowcallbackobjace = (PACCESS_ALLOWED_CALLBACK_OBJECT_ACE) pheader;
             pcuracc->grfAccessMode = GRANT_ACCESS;
             pcuracc->grfAccessPermissions = pallowcallbackobjace->Mask;
-            ret = __trans_aceflags_to_inherit(pallowcallbackobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit(pallowcallbackobjace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid((PSID) &(pallowcallbackobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid((PSID) & (pallowcallbackobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -892,12 +934,12 @@ int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
             pallowobjace = (PACCESS_ALLOWED_OBJECT_ACE) pheader;
             pcuracc->grfAccessMode = GRANT_ACCESS;
             pcuracc->grfAccessPermissions = pallowobjace->Mask;
-            ret = __trans_aceflags_to_inherit(pallowobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit(pallowobjace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid((PSID) &(pallowobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid((PSID) & (pallowobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -909,12 +951,12 @@ int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
             pdenyace = (ACCESS_DENIED_ACE*) pheader;
             pcuracc->grfAccessMode = DENY_ACCESS;
             pcuracc->grfAccessPermissions = pdenyace->Mask;
-            ret = __trans_aceflags_to_inherit(pdenyace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit(pdenyace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid((PSID) &(pdenyace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid((PSID) & (pdenyace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -926,12 +968,12 @@ int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
             pdenycallbackace = (PACCESS_DENIED_CALLBACK_ACE) pheader;
             pcuracc->grfAccessMode = DENY_ACCESS;
             pcuracc->grfAccessPermissions = pdenycallbackace->Mask;
-            ret = __trans_aceflags_to_inherit(pdenycallbackace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit(pdenycallbackace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid((PSID) &(pdenycallbackace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid((PSID) & (pdenycallbackace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -943,12 +985,12 @@ int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
             pdenycallbackobjace = (PACCESS_DENIED_CALLBACK_OBJECT_ACE) pheader;
             pcuracc->grfAccessMode = DENY_ACCESS;
             pcuracc->grfAccessPermissions = pdenycallbackobjace->Mask;
-            ret = __trans_aceflags_to_inherit(pdenycallbackobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit(pdenycallbackobjace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid((PSID) &(pdenycallbackobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid((PSID) & (pdenycallbackobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -960,12 +1002,12 @@ int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
             pdenyobjace = (PACCESS_DENIED_OBJECT_ACE) pheader;
             pcuracc->grfAccessMode = DENY_ACCESS;
             pcuracc->grfAccessPermissions = pdenyobjace->Mask;
-            ret = __trans_aceflags_to_inherit(pdenyobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit(pdenyobjace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid((PSID) &(pdenyobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid((PSID) & (pdenyobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -1190,9 +1232,9 @@ int __handle_acl_idx_callback(PACL acl, int idx, char** ppstr, int *pstrsize, fi
         GETERRNO(ret);
         goto fail;
     } else if (ret == 0) {
-    	/*nothing to get ,so we should free*/
-    	ret = -NO_ITEMS_MORE;
-    	goto fail;
+        /*nothing to get ,so we should free*/
+        ret = -NO_ITEMS_MORE;
+        goto fail;
     }
     accnum = ret;
 
@@ -1316,6 +1358,7 @@ int get_sacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
             **ppuser = '\0';
         }
     }
+    SETERRNO(0);
     return retlen;
 
 fail:
@@ -1365,6 +1408,7 @@ int get_dacl_user(void* pacl1, int idx, char** ppuser, int *pusersize)
             **ppuser = '\0';
         }
     }
+    SETERRNO(0);
     return retlen;
 
 fail:
@@ -1374,22 +1418,22 @@ fail:
 
 #define  __INNER_SNPRINTF_SAFE(pptr,psize,...)                                                    \
    do {                                                                                           \
-   		if (retlen >0) {                                                                          \
-   			ret = append_snprintf_safe(pptr,psize,"%c",ACL_COMMON_SEP);                           \
-   			if (ret < 0) {                                                                        \
-   				GETERRNO(ret);                                                                    \
-   				goto fail;                                                                        \
-   			}                                                                                     \
-   			ret = append_snprintf_safe(pptr,psize, __VA_ARGS__);                                  \
-   		} else {                                                                                  \
-   			ret = snprintf_safe(pptr,psize,__VA_ARGS__);                                          \
-   		}                                                                                         \
-   		if (ret < 0) {                                                                            \
-   			GETERRNO(ret);                                                                        \
-   			goto fail;                                                                            \
-   		}                                                                                         \
-   		retlen = ret;                                                                             \
-   		DEBUG_INFO("[%d] %s",idx,*pptr);                                                          \
+        if (retlen >0) {                                                                          \
+            ret = append_snprintf_safe(pptr,psize,"%c",ACL_COMMON_SEP);                           \
+            if (ret < 0) {                                                                        \
+                GETERRNO(ret);                                                                    \
+                goto fail;                                                                        \
+            }                                                                                     \
+            ret = append_snprintf_safe(pptr,psize, __VA_ARGS__);                                  \
+        } else {                                                                                  \
+            ret = snprintf_safe(pptr,psize,__VA_ARGS__);                                          \
+        }                                                                                         \
+        if (ret < 0) {                                                                            \
+            GETERRNO(ret);                                                                        \
+            goto fail;                                                                            \
+        }                                                                                         \
+        retlen = ret;                                                                             \
+        DEBUG_INFO("[%d] %s",idx,*pptr);                                                          \
    }while(0)
 
 int __get_acl_action_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char** ppaction, int *pactionsize)
@@ -1485,6 +1529,7 @@ int get_sacl_action(void* pacl1, int idx, char** ppaction, int* pactionsize)
             **ppaction = '\0';
         }
     }
+    SETERRNO(0);
     return retlen;
 
 fail:
@@ -1534,6 +1579,7 @@ int get_dacl_action(void* pacl1, int idx, char** ppaction, int* pactionsize)
             **ppaction = '\0';
         }
     }
+    SETERRNO(0);
     return retlen;
 
 fail:
@@ -1555,7 +1601,7 @@ int __get_acl_rights_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char**
         goto fail;
     }
     pcuracc = &(paccess[idx]);
-    if ((pcuracc->grfAccessPermissions & STANDARD_RIGHTS_ALL) == STANDARD_RIGHTS_ALL) {
+    if ((pcuracc->grfAccessPermissions & FILE_ALL_ATTR) == FILE_ALL_ATTR) {
         __INNER_SNPRINTF_SAFE(ppright, prightsize, "%s", ACL_RIGHT_ALL);
     } else {
         if (pcuracc->grfAccessPermissions & READ_CONTROL) {
@@ -1606,7 +1652,7 @@ int get_sacl_right(void* pacl1, int idx, char** ppright, int* prightsize)
         goto fail;
     }
 
-    DEBUG_INFO("[%d]",idx);
+    DEBUG_INFO("[%d]", idx);
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
     if (ret < 0) {
         GETERRNO(ret);
@@ -1623,13 +1669,14 @@ int get_sacl_right(void* pacl1, int idx, char** ppright, int* prightsize)
         GETERRNO(ret);
         goto fail;
     }
-    DEBUG_INFO("[%d]sacl[%p] ret [%d]", idx, sacl,ret);
+    DEBUG_INFO("[%d]sacl[%p] ret [%d]", idx, sacl, ret);
     retlen = ret;
     if (retlen == 0) {
         if (ppright && *ppright) {
             **ppright = '\0';
         }
     }
+    SETERRNO(0);
     return retlen;
 
 fail:
@@ -1679,6 +1726,7 @@ int get_dacl_right(void* pacl1, int idx, char** ppright, int* prightsize)
             **ppright = '\0';
         }
     }
+    SETERRNO(0);
     return retlen;
 
 fail:
@@ -1781,6 +1829,7 @@ int get_sacl_inheritance(void* pacl1, int idx, char** ppinheritance, int *pinher
             **ppinheritance = '\0';
         }
     }
+    SETERRNO(0);
     return retlen;
 
 fail:
@@ -1830,6 +1879,7 @@ int get_dacl_inheritance(void* pacl1, int idx, char** ppinheritance, int *pinher
             **ppinheritance = '\0';
         }
     }
+    SETERRNO(0);
     return retlen;
 
 fail:
@@ -1915,6 +1965,7 @@ succ:
             **ppusername = '\0';
         }
     }
+    SETERRNO(0);
     return retlen;
 
 fail:
@@ -1959,6 +2010,7 @@ succ:
             **ppgrpname = '\0';
         }
     }
+    SETERRNO(0);
     return retlen;
 
 fail:
@@ -2260,22 +2312,22 @@ get_owner_again:
         /*not double free */
         pnewtrustee->ptstrName = NULL;
 
-        /*now first to set for the security*/        
-#if  NAME_SECURIT_HANDLE        
-        dret = SetNamedSecurityInfo(ptname, SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION,pcursid,NULL,NULL,NULL);
+        /*now first to set for the security*/
+#if  NAME_SECURIT_HANDLE
+        dret = SetNamedSecurityInfo(ptname, SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION, pcursid, NULL, NULL, NULL);
         if (dret != ERROR_SUCCESS) {
-        	ret = dret;
-        	if (ret > 0) {
-        		ret = -ret;
-        	}
-        	if (ret == 0) {
-        		ret = -1;
-        	}
-        	ERROR_INFO("renew new owner [%s] error[%d]", curuser, ret);
-        	goto fail;
+            ret = dret;
+            if (ret > 0) {
+                ret = -ret;
+            }
+            if (ret == 0) {
+                ret = -1;
+            }
+            ERROR_INFO("renew new owner [%s] error[%d]", curuser, ret);
+            goto fail;
         }
 #else
-        bret = SetFileSecurity(ptname, OWNER_SECURITY_INFORMATION,pownerdp);
+        bret = SetFileSecurity(ptname, OWNER_SECURITY_INFORMATION, pownerdp);
         if (!bret) {
             GETERRNO(ret);
             ERROR_INFO("renew new owner [%s] error[%d]", curuser, ret);
@@ -2326,8 +2378,8 @@ int __restore_old_owner(char* name, PSECURITY_DESCRIPTOR pdp)
     int ret;
     TCHAR* ptname = NULL;
     int tnamesize = 0;
-    BOOL bret,bowndefault;
-    PSID pownersid=NULL;
+    BOOL bret, bowndefault;
+    PSID pownersid = NULL;
     DWORD dret;
 
     ret = AnsiToTchar(name, &ptname, &tnamesize);
@@ -2337,24 +2389,24 @@ int __restore_old_owner(char* name, PSECURITY_DESCRIPTOR pdp)
     }
 
     bowndefault = FALSE;
-    bret = GetSecurityDescriptorOwner(pdp,&pownersid,&bowndefault);
+    bret = GetSecurityDescriptorOwner(pdp, &pownersid, &bowndefault);
     if (!bret) {
-    	GETERRNO(ret);
-    	ERROR_INFO("get ownersid error[%d]", ret);
-    	goto fail;
+        GETERRNO(ret);
+        ERROR_INFO("get ownersid error[%d]", ret);
+        goto fail;
     }
 
-    dret = SetNamedSecurityInfo(ptname, SE_FILE_OBJECT,OWNER_SECURITY_INFORMATION,pownersid, NULL,NULL,NULL);
+    dret = SetNamedSecurityInfo(ptname, SE_FILE_OBJECT, OWNER_SECURITY_INFORMATION, pownersid, NULL, NULL, NULL);
     if (dret != ERROR_SUCCESS) {
-    	ret= dret;
-    	if (ret > 0) {
-    		ret = -ret;
-    	}
-    	if (ret == 0) {
-    		ret = -1;
-    	}
-    	ERROR_INFO("set named security [%s] error[%d]", name, ret);
-    	goto fail;
+        ret = dret;
+        if (ret > 0) {
+            ret = -ret;
+        }
+        if (ret == 0) {
+            ret = -1;
+        }
+        ERROR_INFO("set named security [%s] error[%d]", name, ret);
+        goto fail;
     }
 
     AnsiToTchar(NULL, &ptname, &tnamesize);
@@ -2377,12 +2429,12 @@ int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESC
     const char* infostr = NULL;
     int chguser = 0;
     PSECURITY_DESCRIPTOR pownerdp = NULL;
-    PSID pownersid=NULL,pgrpsid=NULL;
-    PACL psacl=NULL,pdacl=NULL;
+    PSID pownersid = NULL, pgrpsid = NULL;
+    PACL psacl = NULL, pdacl = NULL;
     BOOL bowndefault;
     BOOL bgrpdefault;
-    BOOL bsaclpresent,bsacldefault;
-    BOOL bdaclpresent,bdacldefault;
+    BOOL bsaclpresent, bsacldefault;
+    BOOL bdaclpresent, bdacldefault;
     DWORD dret;
 
     ret = AnsiToTchar(name, &ptname, &tnamesize);
@@ -2395,40 +2447,40 @@ int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESC
     if (info == OWNER_SECURITY_INFORMATION) {
         infostr = "owner";
         bowndefault = FALSE;
-        bret = GetSecurityDescriptorOwner(pdp,&pownersid,&bowndefault);
+        bret = GetSecurityDescriptorOwner(pdp, &pownersid, &bowndefault);
         if (!bret) {
-        	GETERRNO(ret);
-        	ERROR_INFO("get owner error[%d]", ret);
-        	goto fail;
+            GETERRNO(ret);
+            ERROR_INFO("get owner error[%d]", ret);
+            goto fail;
         }
     } else if (info == GROUP_SECURITY_INFORMATION) {
         infostr = "group";
         bgrpdefault = FALSE;
-        bret = GetSecurityDescriptorGroup(pdp,&pgrpsid,&bgrpdefault);
+        bret = GetSecurityDescriptorGroup(pdp, &pgrpsid, &bgrpdefault);
         if (!bret) {
-        	GETERRNO(ret);
-        	ERROR_INFO("get group error[%d]", ret);
-        	goto fail;
+            GETERRNO(ret);
+            ERROR_INFO("get group error[%d]", ret);
+            goto fail;
         }
     } else if (info == SACL_SECURITY_INFORMATION) {
         infostr = "sacl";
         bsaclpresent = FALSE;
         bsacldefault = FALSE;
-        bret = GetSecurityDescriptorSacl(pdp,&bsaclpresent,&psacl,&bsacldefault);
+        bret = GetSecurityDescriptorSacl(pdp, &bsaclpresent, &psacl, &bsacldefault);
         if (!bret) {
-        	GETERRNO(ret);
-        	ERROR_INFO("get sacl error[%d]", ret);
-        	goto fail;
+            GETERRNO(ret);
+            ERROR_INFO("get sacl error[%d]", ret);
+            goto fail;
         }
     } else if (info == DACL_SECURITY_INFORMATION) {
         infostr = "dacl";
         bdacldefault = FALSE;
         bdaclpresent = FALSE;
-        bret = GetSecurityDescriptorDacl(pdp,&bdaclpresent,&pdacl,&bdacldefault);
-        if (!bret){
-        	GETERRNO(ret);
-        	ERROR_INFO("get dacl error[%d]", ret);
-        	goto fail;
+        bret = GetSecurityDescriptorDacl(pdp, &bdaclpresent, &pdacl, &bdacldefault);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("get dacl error[%d]", ret);
+            goto fail;
         }
     } else {
         infostr = "unknown";
@@ -2437,13 +2489,13 @@ int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESC
     }
 
     if (info == SACL_SECURITY_INFORMATION) {
-	    ret = enable_security_priv();
-	    if (ret < 0) {
-	    	GETERRNO(ret);
-	    	goto fail;
-	    }
-	    enblsecurity = 1;
-	}
+        ret = enable_security_priv();
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        enblsecurity = 1;
+    }
 
     ret = enable_takeown_priv();
     if (ret < 0) {
@@ -2472,17 +2524,17 @@ int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESC
 
 
 
-    dret = SetNamedSecurityInfo(ptname, SE_FILE_OBJECT,info,pownersid,pgrpsid,pdacl,psacl);
+    dret = SetNamedSecurityInfo(ptname, SE_FILE_OBJECT, info, pownersid, pgrpsid, pdacl, psacl);
     if (dret != ERROR_SUCCESS) {
-    	ret = dret;
-    	if (ret > 0) {
-    		ret = -ret;
-    	}
-    	if (ret == 0) {
-    		ret = -1;
-    	}
-    	ERROR_INFO("set [%s] [%s][%d] error[%d]", name, infostr, info, ret);
-    	goto fail;
+        ret = dret;
+        if (ret > 0) {
+            ret = -ret;
+        }
+        if (ret == 0) {
+            ret = -1;
+        }
+        ERROR_INFO("set [%s] [%s][%d] error[%d]", name, infostr, info, ret);
+        goto fail;
     }
 
 
@@ -2515,11 +2567,11 @@ int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESC
     enbltakeown = 0;
 
     if (enblsecurity) {
-    	ret = disable_security_priv();
-    	if (ret < 0) {
-    		GETERRNO(ret);
-    		goto fail;
-    	}
+        ret = disable_security_priv();
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
     }
     enblsecurity = 0;
 
@@ -2546,7 +2598,7 @@ fail:
     enbltakeown = 0;
 
     if (enblsecurity) {
-    	disable_security_priv();
+        disable_security_priv();
     }
     enblsecurity = 0;
 
@@ -2592,10 +2644,9 @@ int set_file_owner(const char* fname, const char* username)
         goto fail;
     }
 
-
-
     __new_sid_descriptor(NULL, SID_OWNER_MODE, &pdp, &dpsize);
     __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(0);
     return 0;
 fail:
     __new_sid_descriptor(NULL, SID_OWNER_MODE, &pdp, &dpsize);
@@ -2608,6 +2659,7 @@ int set_file_acls(const char* fname, void* pacl1)
 {
     fname = fname;
     pacl1 = pacl1;
+    SETERRNO(0);
     return 0;
 }
 
@@ -2655,6 +2707,7 @@ int get_name_sid(const char* name, char** ppsid, int *psize)
             **ppsid = '\0';
         }
     }
+    SETERRNO(0);
     return retlen;
 fail:
     if (ptsid) {
@@ -2700,6 +2753,7 @@ int set_file_group(const char* fname, const char* groupname)
 
     __new_sid_descriptor(NULL, SID_GROUP_MODE, &pdp, &dpsize);
     __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(0);
     return 0;
 fail:
     __new_sid_descriptor(NULL, SID_GROUP_MODE, &pdp, &dpsize);
@@ -2754,7 +2808,7 @@ int __get_right(const char* right, ACCESS_MASK *pperm)
 
     while (*pptr != '\0') {
         if (strncmp(pptr, ACL_RIGHT_ALL, strlen(ACL_RIGHT_ALL)) == 0) {
-            perm |= STANDARD_RIGHTS_ALL;
+            perm |= FILE_ALL_ATTR;
             pptr += strlen(ACL_RIGHT_ALL);
         } else if (strncmp(pptr, ACL_RIGHT_DELETE, strlen(ACL_RIGHT_DELETE)) == 0) {
             perm |= DELETE;
@@ -2771,6 +2825,33 @@ int __get_right(const char* right, ACCESS_MASK *pperm)
         } else if (strncmp(pptr, ACL_RIGHT_SYNCHRONIZE, strlen(ACL_RIGHT_SYNCHRONIZE)) == 0) {
             perm |= SYNCHRONIZE;
             pptr += strlen(ACL_RIGHT_SYNCHRONIZE);
+        } else if (strncmp(pptr, ACL_RIGHT_WRITE_PROP, strlen(ACL_RIGHT_WRITE_PROP)) == 0) {
+            perm |= WRITE_PROP;
+            pptr += strlen(ACL_RIGHT_WRITE_PROP);
+        } else if (strncmp(pptr, ACL_RIGHT_WRITE_EXT_PROP, strlen(ACL_RIGHT_WRITE_EXT_PROP)) == 0) {
+            perm |= WRITE_EXT_PROP;
+            pptr += strlen(ACL_RIGHT_WRITE_EXT_PROP);
+        } else if (strncmp(pptr, ACL_RIGHT_READ_PROP, strlen(ACL_RIGHT_READ_PROP)) == 0) {
+            perm |= READ_PROP;
+            pptr += strlen(ACL_RIGHT_READ_PROP);
+        } else if (strncmp(pptr, ACL_RIGHT_READ_EXT_PROP, strlen(ACL_RIGHT_READ_EXT_PROP)) == 0) {
+            perm |= READ_EXT_PROP;
+            pptr += strlen(ACL_RIGHT_READ_EXT_PROP);
+        } else if (strncmp(pptr, ACL_RIGHT_CREATE_WRITE_DATA, strlen(ACL_RIGHT_CREATE_WRITE_DATA)) == 0) {
+            perm |= CREATE_WRITE_DATA;
+            pptr += strlen(ACL_RIGHT_CREATE_WRITE_DATA);
+        } else if (strncmp(pptr, ACL_RIGHT_CREATE_APPEND_DATA, strlen(ACL_RIGHT_CREATE_APPEND_DATA)) == 0) {
+            perm |= CREATE_APPEND_DATA;
+            pptr += strlen(ACL_RIGHT_CREATE_APPEND_DATA);
+        } else if (strncmp(pptr, ACL_RIGHT_REMOVE_SUBDIR, strlen(ACL_RIGHT_REMOVE_SUBDIR)) == 0) {
+            perm |= REMOVE_SUBDIR;
+            pptr += strlen(ACL_RIGHT_REMOVE_SUBDIR);
+        } else if (strncmp(pptr, ACL_RIGHT_READ_DATA, strlen(ACL_RIGHT_READ_DATA)) == 0) {
+            perm |= READ_DATA;
+            pptr += strlen(ACL_RIGHT_READ_DATA);
+        } else if (strncmp(pptr, ACL_RIGHT_FILE_EXECUTE, strlen(ACL_RIGHT_FILE_EXECUTE)) == 0) {
+            perm |= FILE_EXECUTE_ACCESS;
+            pptr += strlen(ACL_RIGHT_FILE_EXECUTE);
         } else {
             ret = -ERROR_INVALID_PARAMETER;
             ERROR_INFO("not valid part [%s]", pptr);
@@ -3079,6 +3160,7 @@ int remove_sacl(void* pacl1, const char* username, const char* action, const cha
     dpsize = 0;
     dplen = 0;
     __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(0);
     return 0;
 fail:
     if (pdp) {
@@ -3183,6 +3265,7 @@ int remove_dacl(void* pacl1, const char* username, const char* action, const cha
     dpsize = 0;
     dplen = 0;
     __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(0);
     return 0;
 fail:
     if (pdp) {
@@ -3444,6 +3527,7 @@ int add_sacl(void* pacl1, const char* username, const char* action, const char* 
     dpsize = 0;
     dplen = 0;
     __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(0);
     return 0;
 fail:
     if (pdp) {
@@ -3549,6 +3633,7 @@ int add_dacl(void* pacl1, const char* username, const char* action, const char* 
     dpsize = 0;
     dplen = 0;
     __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(0);
     return 0;
 fail:
     if (pdp) {
@@ -3640,7 +3725,7 @@ int get_file_acls(const char* fname, void** ppacl1)
     if (ret >= 0) {
         enabled = 1;
     } else {
-    	DEBUG_INFO("can not get security priv");
+        DEBUG_INFO("can not get security priv");
     }
 
 try_owner_sec:
@@ -3694,7 +3779,7 @@ try_grp_sec:
         ERROR_INFO("get[%s] group error[%d]", fname, ret);
         goto fail;
     }
-    DEBUG_SECURITY_DESCRIPTOR(pacl->m_groupsdp,GROUP_SECURITY_INFORMATION);
+    DEBUG_SECURITY_DESCRIPTOR(pacl->m_groupsdp, GROUP_SECURITY_INFORMATION);
 
 try_sacl_sec:
     if (pacl->m_saclsdp) {
@@ -3730,14 +3815,14 @@ try_sacl_sec:
         pacl->m_saclsize = 0;
     }
     if (pacl->m_saclsdp != NULL) {
-        DEBUG_SECURITY_DESCRIPTOR(pacl->m_saclsdp,SACL_SECURITY_INFORMATION);
+        DEBUG_SECURITY_DESCRIPTOR(pacl->m_saclsdp, SACL_SECURITY_INFORMATION);
     }
 
 
     /*because the change user will get the dacl ok*/
     ret = __set_current_user_owner((char*)fname, &pownerdp);
     if (ret >= 0) {
-    	chguser = ret;
+        chguser = ret;
     }
 
 try_dacl_sec:
@@ -3764,20 +3849,20 @@ try_dacl_sec:
         ERROR_INFO("get[%s] dacl error[%d]", fname, ret);
         goto fail;
     }
-    DEBUG_SECURITY_DESCRIPTOR(pacl->m_daclsdp,DACL_SECURITY_INFORMATION);
+    DEBUG_SECURITY_DESCRIPTOR(pacl->m_daclsdp, DACL_SECURITY_INFORMATION);
 
     if (chguser) {
-    	ret = __restore_old_owner((char*)fname,pownerdp);
-    	if (ret < 0) {
-    		GETERRNO(ret);
-    		goto fail;
-    	}
-    	chguser = 0;
+        ret = __restore_old_owner((char*)fname, pownerdp);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        chguser = 0;
     }
 
     if (pownerdp) {
-    	LocalFree(pownerdp);
-    	pownerdp = NULL;
+        LocalFree(pownerdp);
+        pownerdp = NULL;
     }
 
     if (enabled) {
@@ -3791,16 +3876,17 @@ try_dacl_sec:
 
     DEBUG_BUFFER_FMT(pacl->m_fname, pacl->m_namesize, "fname");
     *ppacl1 = pacl;
+    SETERRNO(0);
     return 0;
 fail:
-	if (chguser) {
-		__restore_old_owner((char*)fname,pownerdp);
-		chguser = 0;
-	}
-	if (pownerdp) {
-		LocalFree(pownerdp);
-		pownerdp = NULL;
-	}
+    if (chguser) {
+        __restore_old_owner((char*)fname, pownerdp);
+        chguser = 0;
+    }
+    if (pownerdp) {
+        LocalFree(pownerdp);
+        pownerdp = NULL;
+    }
 
     if (enabled) {
         disable_security_priv();
