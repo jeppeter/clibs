@@ -121,5 +121,11 @@
     },
     "adddacl<adddacl_handler>##fname username action right [inherit] to add the dacl##"  : {
         "$" : "+"
+    },
+    "dumpsacl<dumpsacl_handler>##saclstr... to dump sacl##" : {
+        "$" : "+"
+    },
+    "dumpdacl<dumpdacl_handler>##saclstr... to dump dacl##" : {
+        "$" : "+"
     }
 }
