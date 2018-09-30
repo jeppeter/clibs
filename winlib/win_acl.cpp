@@ -163,6 +163,209 @@ fail:
     return NULL;
 }
 
+int __copy_trustee(PTRUSTEE ptrustee, PTRUSTEE pnewtrustee)
+{
+    PTRUSTEE pmul = NULL;
+    PSID posid = NULL;
+    PSID pnsid = NULL;
+    DWORD nsidsize = 0;
+    int ret;
+    BOOL bret;
+    if (pnewtrustee->pMultipleTrustee) {
+        LocalFree(pnewtrustee->pMultipleTrustee);
+        pnewtrustee->pMultipleTrustee = NULL;
+    }
+    if (pnewtrustee->ptstrName != NULL) {
+        LocalFree(pnewtrustee->ptstrName);
+        pnewtrustee->ptstrName = NULL;
+    }
+
+    if (ptrustee->pMultipleTrustee) {
+        pmul = __alloc_trustee();
+        if (pmul == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        ret = __copy_trustee(ptrustee->pMultipleTrustee, pmul);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        pnewtrustee->pMultipleTrustee = pmul;
+        pmul = NULL;
+    }
+
+    pnewtrustee->TrusteeType = ptrustee->TrusteeType;
+    pnewtrustee->TrusteeForm = ptrustee->TrusteeForm;
+    pnewtrustee->MultipleTrusteeOperation = ptrustee->MultipleTrusteeOperation;
+
+    if (ptrustee->TrusteeType == TRUSTEE_IS_SID &&
+            ptrustee->ptstrName != NULL) {
+        posid = (PSID) ptrustee->ptstrName;
+        nsidsize = MIN_SID_SIZE;
+try_again:
+        if (pnsid) {
+            LocalFree(pnsid);
+            pnsid = NULL;
+        }
+        pnsid = LocalAlloc(LMEM_FIXED, nsidsize);
+        if (pnsid == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", nsidsize, ret);
+            goto fail;
+        }
+
+        bret = CopySid(nsidsize, pnsid, posid);
+        if (!bret) {
+            GETERRNO(ret);
+            if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+                nsidsize <<= 1;
+                goto try_again;
+            }
+            ERROR_INFO("copy sid error[%d]", ret);
+            goto fail;
+        }
+        pnewtrustee->ptstrName = (decltype(pnewtrustee->ptstrName)(pnsid));
+        /*not free again*/
+        pnsid = NULL;
+    }
+
+
+    return 0;
+fail:
+    if (pnsid) {
+        LocalFree(pnsid);
+    }
+    pnsid = NULL;
+    __free_trustee(&pmul);
+    SETERRNO(ret);
+    return ret;
+}
+
+int __init_explicit_access(PEXPLICIT_ACCESS pacc)
+{
+    memset(pacc, 0 , sizeof(*pacc));
+    pacc->grfAccessPermissions = 0;
+    pacc->grfAccessMode = NOT_USED_ACCESS;
+    pacc->grfInheritance = NO_INHERITANCE;
+    return __init_trustee(&(pacc->Trustee));
+}
+
+void __release_explicit_access(PEXPLICIT_ACCESS pacc)
+{
+    if (pacc) {
+        __release_trustee(&(pacc->Trustee));
+    }
+    return;
+}
+
+void __free_explicit_access(PEXPLICIT_ACCESS *ppacc)
+{
+    if (ppacc && *ppacc) {
+        PEXPLICIT_ACCESS pacc = *ppacc;
+        __release_explicit_access(pacc);
+        LocalFree(pacc);
+        *ppacc = NULL;
+    }
+    return;
+}
+
+void __free_explicit_access_array(PEXPLICIT_ACCESS *ppacc, int *psize)
+{
+    if (ppacc && *ppacc && psize ) {
+        int i;
+        PEXPLICIT_ACCESS pacc = NULL;
+        int size = *psize;
+        pacc = *ppacc;
+        for (i = 0; i < size; i++) {
+            __release_explicit_access(&(pacc[i]));
+        }
+        LocalFree(pacc);
+    }
+    if (ppacc) {
+        *ppacc = NULL;
+    }
+    if (psize) {
+        *psize = 0;
+    }
+    return;
+}
+
+int __copy_explicit_access(PEXPLICIT_ACCESS paccess, PEXPLICIT_ACCESS pnewacc)
+{
+    int ret;
+    pnewacc->grfAccessPermissions = paccess->grfAccessPermissions;
+    pnewacc->grfAccessMode = paccess->grfAccessMode;
+    pnewacc->grfInheritance = paccess->grfInheritance;
+    ret = __copy_trustee(&(paccess->Trustee), &(pnewacc->Trustee));
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+PEXPLICIT_ACCESS __alloc_explicit_access_array(int size)
+{
+    PEXPLICIT_ACCESS pnewacc = NULL;
+    int sz = size;
+    int ret;
+    int i;
+
+    pnewacc = (PEXPLICIT_ACCESS)LocalAlloc(LMEM_FIXED, sizeof(*pnewacc) * sz);
+    if (pnewacc == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*pnewacc)*sz, ret);
+        goto fail;
+    }
+    memset(pnewacc, 0, sizeof(*pnewacc) * sz);
+    for (i = 0; i < sz; i++) {
+        ret = __init_explicit_access(&(pnewacc[i]));
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    return pnewacc;
+fail:
+    __free_explicit_access_array(&pnewacc, &sz);
+    SETERRNO(ret);
+    return NULL;
+}
+
+int __copy_explicit_access_array(PEXPLICIT_ACCESS poaccess, int onum , PEXPLICIT_ACCESS pnewacc, int newaccsize)
+{
+    int newaccnum = 0;
+    int ret;
+    int i;
+
+    for (i = 0; i < onum; i++) {
+        if ((poaccess[i].grfAccessPermissions & STANDARD_RIGHTS_ALL) == 0) {
+            continue;
+        }
+        if (newaccnum >= newaccsize) {
+            ret = -ERROR_BUFFER_OVERFLOW;
+            goto fail;
+        }
+        ret = __copy_explicit_access(&(poaccess[i]), &(pnewacc[newaccnum]));
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        newaccnum ++;
+    }
+
+
+    return newaccnum;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
 
 void __free_win_acl(pwin_acl_t* ppacl)
 {
@@ -208,6 +411,92 @@ void __free_win_acl(pwin_acl_t* ppacl)
         free(pacl);
         *ppacl = NULL;
     }
+}
+
+int __copy_sid(PSID osid, PSID* ppnsid)
+{
+    int sidsize = 0;
+    int ret;
+    BOOL bret;
+
+    if (osid == NULL) {
+        if (ppnsid && *ppnsid) {
+            LocalFree(*ppnsid);
+            *ppnsid = NULL;
+        }
+        return 0;
+    }
+
+    if (ppnsid  == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    sidsize = MIN_SID_SIZE;
+copy_sid_again:
+    if (*ppnsid != NULL) {
+        LocalFree(*ppnsid);
+    }
+    *ppnsid = NULL;
+    *ppnsid = (PSID)LocalAlloc(LMEM_FIXED, (SIZE_T)sidsize);
+    if ((*ppnsid) == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sidsize, ret);
+        goto fail;
+    }
+    bret = CopySid((DWORD)sidsize, (*ppnsid), osid);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            sidsize <<= 1;
+            goto copy_sid_again;
+        }
+        ERROR_INFO("copy sid error[%d]", ret);
+        goto fail;
+    }
+    return sidsize;
+fail:
+    if (*ppnsid) {
+        LocalFree(*ppnsid);
+        *ppnsid = NULL;
+    }
+    SETERRNO(ret);
+    return ret;
+}
+
+int __trans_aceflags_to_inherit(BYTE flags, DWORD * pinherit)
+{
+    DWORD inherit=0;
+
+    if (flags == FAILED_ACCESS_ACE_FLAG) {
+        inherit |= INHERIT_NO_PROPAGATE;
+    }
+
+    if (flags == CONTAINER_INHERIT_ACE) {
+        inherit |= CONTAINER_INHERIT_ACE;
+    }
+    if (flags == FAILED_ACCESS_ACE_FLAG) {
+        inherit |= NO_INHERITANCE;
+    }
+    if (flags == INHERIT_ONLY_ACE) {
+        inherit |= INHERIT_ONLY_ACE;
+    }
+
+    if (flags == INHERITED_ACE) {
+        inherit |= INHERIT_ONLY;
+    }
+    if (flags == NO_PROPAGATE_INHERIT_ACE) {
+        inherit |= NO_PROPAGATE_INHERIT_ACE;
+    }
+    if (flags == OBJECT_INHERIT_ACE) {
+        inherit |= OBJECT_INHERIT_ACE;
+    }
+    if (flags == SUCCESSFUL_ACCESS_ACE_FLAG) {
+        inherit |= SUB_CONTAINERS_AND_OBJECTS_INHERIT;
+    }
+    *pinherit = inherit;
+    return 0;
 }
 
 pwin_acl_t __alloc_win_acl()
@@ -472,7 +761,21 @@ int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
 {
     int accnum = 0;
     int ret;
-    DWORD dret;
+    PEXPLICIT_ACCESS pretaccess = NULL;
+    int retsize = 0;
+    void* curp;
+    ACE_HEADER* pheader = NULL;
+    int i;
+    BOOL bret;
+    PEXPLICIT_ACCESS pcuracc = NULL;
+    PACCESS_ALLOWED_ACE pallowace = NULL;
+    PACCESS_ALLOWED_CALLBACK_ACE pallowcallbackace=NULL;
+    PACCESS_ALLOWED_CALLBACK_OBJECT_ACE pallowcallbackobjace=NULL;
+    PACCESS_ALLOWED_OBJECT_ACE pallowobjace=NULL;
+    ACCESS_DENIED_ACE* pdenyace=NULL;
+    PACCESS_DENIED_CALLBACK_ACE pdenycallbackace=NULL;
+    PACCESS_DENIED_CALLBACK_OBJECT_ACE pdenycallbackobjace=NULL;
+    PACCESS_DENIED_OBJECT_ACE pdenyobjace=NULL;
 
     if (acl == NULL) {
         if (ppaccess && *ppaccess) {
@@ -490,30 +793,238 @@ int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
         return ret;
     }
 
+    pretaccess = *ppaccess;
+    retsize = *psize;
+
     if (*ppaccess != NULL || *psize != 0) {
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
         return ret;
     }
 
-    dret = GetExplicitEntriesFromAcl(acl, (PULONG)psize, ppaccess);
-    if (dret != ERROR_SUCCESS) {
-        ret = dret;
-        if (ret > 0) {
-            ret = -ret;
+    if (retsize < acl->AceCount || pretaccess == NULL) {
+        retsize = acl->AceCount;
+        pretaccess = __alloc_explicit_access_array(retsize);
+        if (pretaccess == NULL) {
+            GETERRNO(ret);
+            goto fail;
         }
-        if (ret == 0) {
-            ret = -1;
+    } else {
+        for (i = 0; i < retsize; i++) {
+            __release_explicit_access(&(pretaccess[i]));
+            ret = __init_explicit_access(&(pretaccess[i]));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
         }
-        ERROR_INFO("get Entries error[%d]", ret);
-        goto fail;
     }
+
+    /*now we should give the output*/
+    accnum = 0;
+    for (i = 0; i < acl->AceCount; i++) {
+        /*now to give the count*/
+        bret = GetAce(acl, (DWORD)i, &curp);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("get [%d] error[%d]", i, ret);
+            goto fail;
+        }
+        pheader = (ACE_HEADER*) curp;
+        pcuracc = &(pretaccess[accnum]);
+        switch (pheader->AceType) {
+        case ACCESS_ALLOWED_ACE_TYPE:
+            DEBUG_INFO("[%d] type [ACCESS_ALLOWED_ACE_TYPE][%d]", i, pheader->AceType);
+            pallowace = (PACCESS_ALLOWED_ACE) pheader;
+            pcuracc->grfAccessMode = GRANT_ACCESS;
+            pcuracc->grfAccessPermissions = pallowace->Mask;
+            ret = __trans_aceflags_to_inherit(pallowace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid((PSID) & (pallowace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
+            break;
+        case ACCESS_ALLOWED_CALLBACK_ACE_TYPE:
+            DEBUG_INFO("[%d] type [ACCESS_ALLOWED_CALLBACK_ACE_TYPE][%d]", i, pheader->AceType);
+            pallowcallbackace = (PACCESS_ALLOWED_CALLBACK_ACE) pheader;
+            pcuracc->grfAccessMode = GRANT_ACCESS;
+            pcuracc->grfAccessPermissions = pallowcallbackace->Mask;
+            ret = __trans_aceflags_to_inherit(pallowcallbackace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid((PSID) &(pallowcallbackace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
+            break;
+        case ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE:
+            DEBUG_INFO("[%d] type [ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE][%d]", i, pheader->AceType);
+            pallowcallbackobjace = (PACCESS_ALLOWED_CALLBACK_OBJECT_ACE) pheader;
+            pcuracc->grfAccessMode = GRANT_ACCESS;
+            pcuracc->grfAccessPermissions = pallowcallbackobjace->Mask;
+            ret = __trans_aceflags_to_inherit(pallowcallbackobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid((PSID) &(pallowcallbackobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
+            break;
+        case ACCESS_ALLOWED_COMPOUND_ACE_TYPE:
+            DEBUG_INFO("[%d] type [ACCESS_ALLOWED_COMPOUND_ACE_TYPE][%d]", i, pheader->AceType);
+            break;
+        case ACCESS_ALLOWED_OBJECT_ACE_TYPE:
+            DEBUG_INFO("[%d] type [ACCESS_ALLOWED_OBJECT_ACE_TYPE][%d]", i, pheader->AceType);
+            pallowobjace = (PACCESS_ALLOWED_OBJECT_ACE) pheader;
+            pcuracc->grfAccessMode = GRANT_ACCESS;
+            pcuracc->grfAccessPermissions = pallowobjace->Mask;
+            ret = __trans_aceflags_to_inherit(pallowobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid((PSID) &(pallowobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
+            break;
+        case ACCESS_DENIED_ACE_TYPE:
+            DEBUG_INFO("[%d] type [ACCESS_DENIED_ACE_TYPE][%d]", i, pheader->AceType);
+            pdenyace = (ACCESS_DENIED_ACE*) pheader;
+            pcuracc->grfAccessMode = DENY_ACCESS;
+            pcuracc->grfAccessPermissions = pdenyace->Mask;
+            ret = __trans_aceflags_to_inherit(pdenyace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid((PSID) &(pdenyace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
+            break;
+        case ACCESS_DENIED_CALLBACK_ACE_TYPE:
+            DEBUG_INFO("[%d] type [ACCESS_DENIED_CALLBACK_ACE_TYPE][%d]", i, pheader->AceType);
+            pdenycallbackace = (PACCESS_DENIED_CALLBACK_ACE) pheader;
+            pcuracc->grfAccessMode = DENY_ACCESS;
+            pcuracc->grfAccessPermissions = pdenycallbackace->Mask;
+            ret = __trans_aceflags_to_inherit(pdenycallbackace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid((PSID) &(pdenycallbackace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
+            break;
+        case ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE:
+            DEBUG_INFO("[%d] type [ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE][%d]", i, pheader->AceType);
+            pdenycallbackobjace = (PACCESS_DENIED_CALLBACK_OBJECT_ACE) pheader;
+            pcuracc->grfAccessMode = DENY_ACCESS;
+            pcuracc->grfAccessPermissions = pdenycallbackobjace->Mask;
+            ret = __trans_aceflags_to_inherit(pdenycallbackobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid((PSID) &(pdenycallbackobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
+            break;
+        case ACCESS_DENIED_OBJECT_ACE_TYPE:
+            DEBUG_INFO("[%d] type [ACCESS_DENIED_OBJECT_ACE_TYPE][%d]", i, pheader->AceType);
+            pdenyobjace = (PACCESS_DENIED_OBJECT_ACE) pheader;
+            pcuracc->grfAccessMode = DENY_ACCESS;
+            pcuracc->grfAccessPermissions = pdenyobjace->Mask;
+            ret = __trans_aceflags_to_inherit(pdenyobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid((PSID) &(pdenyobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
+            break;
+        case ACCESS_MAX_MS_ACE_TYPE:
+            DEBUG_INFO("[%d] type [ACCESS_MAX_MS_ACE_TYPE][%d]", i, pheader->AceType);
+            break;
+        case ACCESS_MAX_MS_V2_ACE_TYPE:
+            DEBUG_INFO("[%d] type [ACCESS_MAX_MS_V2_ACE_TYPE][%d]", i, pheader->AceType);
+            break;
+        case SYSTEM_ALARM_CALLBACK_ACE_TYPE:
+            DEBUG_INFO("[%d] type [SYSTEM_ALARM_CALLBACK_ACE_TYPE][%d]", i, pheader->AceType);
+            break;
+        case SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE:
+            DEBUG_INFO("[%d] type [SYSTEM_ALARM_CALLBACK_OBJECT_ACE_TYPE][%d]", i, pheader->AceType);
+            break;
+        case SYSTEM_AUDIT_ACE_TYPE:
+            DEBUG_INFO("[%d] type [SYSTEM_AUDIT_ACE_TYPE][%d]", i, pheader->AceType);
+            break;
+        case SYSTEM_AUDIT_CALLBACK_ACE_TYPE:
+            DEBUG_INFO("[%d] type [SYSTEM_AUDIT_CALLBACK_ACE_TYPE][%d]", i, pheader->AceType);
+            break;
+        case SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE:
+            DEBUG_INFO("[%d] type [SYSTEM_AUDIT_CALLBACK_OBJECT_ACE_TYPE][%d]", i, pheader->AceType);
+            break;
+        case SYSTEM_AUDIT_OBJECT_ACE_TYPE:
+            DEBUG_INFO("[%d] type [SYSTEM_AUDIT_OBJECT_ACE_TYPE][%d]", i, pheader->AceType);
+            break;
+        case SYSTEM_MANDATORY_LABEL_ACE_TYPE:
+            DEBUG_INFO("[%d] type [SYSTEM_MANDATORY_LABEL_ACE_TYPE][%d]", i, pheader->AceType);
+            break;
+        default:
+            ERROR_INFO("[%d] type [%d]", pheader->AceType);
+            break;
+        }
+
+    }
+
+    if (*ppaccess && *ppaccess != pretaccess) {
+        __free_explicit_access_array(ppaccess, psize);
+    }
+    *ppaccess = pretaccess;
+    *psize = retsize;
     DEBUG_INFO("get [%p] ppaccess [%p] size [%d]", acl, *ppaccess, *psize);
-    accnum = *psize;
     __debug_access(*ppaccess, accnum);
     return accnum;
 
 fail:
+    if (pretaccess && pretaccess != *ppaccess) {
+        __free_explicit_access_array(&pretaccess, &retsize);
+    } else if (pretaccess != NULL) {
+        for (i = 0; i < retsize; i++) {
+            __release_explicit_access(&(pretaccess[i]));
+        }
+    }
+    pretaccess = NULL;
+    retsize = 0;
     SETERRNO(ret);
     return ret;
 }
@@ -2368,208 +2879,6 @@ fail:
 }
 
 
-int __copy_trustee(PTRUSTEE ptrustee, PTRUSTEE pnewtrustee)
-{
-    PTRUSTEE pmul = NULL;
-    PSID posid = NULL;
-    PSID pnsid = NULL;
-    DWORD nsidsize = 0;
-    int ret;
-    BOOL bret;
-    if (pnewtrustee->pMultipleTrustee) {
-        LocalFree(pnewtrustee->pMultipleTrustee);
-        pnewtrustee->pMultipleTrustee = NULL;
-    }
-    if (pnewtrustee->ptstrName != NULL) {
-        LocalFree(pnewtrustee->ptstrName);
-        pnewtrustee->ptstrName = NULL;
-    }
-
-    if (ptrustee->pMultipleTrustee) {
-        pmul = __alloc_trustee();
-        if (pmul == NULL) {
-            GETERRNO(ret);
-            goto fail;
-        }
-        ret = __copy_trustee(ptrustee->pMultipleTrustee, pmul);
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto fail;
-        }
-        pnewtrustee->pMultipleTrustee = pmul;
-        pmul = NULL;
-    }
-
-    pnewtrustee->TrusteeType = ptrustee->TrusteeType;
-    pnewtrustee->TrusteeForm = ptrustee->TrusteeForm;
-    pnewtrustee->MultipleTrusteeOperation = ptrustee->MultipleTrusteeOperation;
-
-    if (ptrustee->TrusteeType == TRUSTEE_IS_SID &&
-            ptrustee->ptstrName != NULL) {
-        posid = (PSID) ptrustee->ptstrName;
-        nsidsize = MIN_SID_SIZE;
-try_again:
-        if (pnsid) {
-            LocalFree(pnsid);
-            pnsid = NULL;
-        }
-        pnsid = LocalAlloc(LMEM_FIXED, nsidsize);
-        if (pnsid == NULL) {
-            GETERRNO(ret);
-            ERROR_INFO("alloc %d error[%d]", nsidsize, ret);
-            goto fail;
-        }
-
-        bret = CopySid(nsidsize, pnsid, posid);
-        if (!bret) {
-            GETERRNO(ret);
-            if (ret == -ERROR_INSUFFICIENT_BUFFER) {
-                nsidsize <<= 1;
-                goto try_again;
-            }
-            ERROR_INFO("copy sid error[%d]", ret);
-            goto fail;
-        }
-        pnewtrustee->ptstrName = (decltype(pnewtrustee->ptstrName)(pnsid));
-        /*not free again*/
-        pnsid = NULL;
-    }
-
-
-    return 0;
-fail:
-    if (pnsid) {
-        LocalFree(pnsid);
-    }
-    pnsid = NULL;
-    __free_trustee(&pmul);
-    SETERRNO(ret);
-    return ret;
-}
-
-int __init_explicit_access(PEXPLICIT_ACCESS pacc)
-{
-    memset(pacc, 0 , sizeof(*pacc));
-    pacc->grfAccessPermissions = 0;
-    pacc->grfAccessMode = NOT_USED_ACCESS;
-    pacc->grfInheritance = NO_INHERITANCE;
-    return __init_trustee(&(pacc->Trustee));
-}
-
-void __release_explicit_access(PEXPLICIT_ACCESS pacc)
-{
-    if (pacc) {
-        __release_trustee(&(pacc->Trustee));
-    }
-    return;
-}
-
-void __free_explicit_access(PEXPLICIT_ACCESS *ppacc)
-{
-    if (ppacc && *ppacc) {
-        PEXPLICIT_ACCESS pacc = *ppacc;
-        __release_explicit_access(pacc);
-        LocalFree(pacc);
-        *ppacc = NULL;
-    }
-    return;
-}
-
-void __free_explicit_access_array(PEXPLICIT_ACCESS *ppacc, int *psize)
-{
-    if (ppacc && *ppacc && psize ) {
-        int i;
-        PEXPLICIT_ACCESS pacc = NULL;
-        int size = *psize;
-        pacc = *ppacc;
-        for (i = 0; i < size; i++) {
-            __release_explicit_access(&(pacc[i]));
-        }
-        LocalFree(pacc);
-    }
-    if (ppacc) {
-        *ppacc = NULL;
-    }
-    if (psize) {
-        *psize = 0;
-    }
-    return;
-}
-
-int __copy_explicit_access(PEXPLICIT_ACCESS paccess, PEXPLICIT_ACCESS pnewacc)
-{
-    int ret;
-    pnewacc->grfAccessPermissions = paccess->grfAccessPermissions;
-    pnewacc->grfAccessMode = paccess->grfAccessMode;
-    pnewacc->grfInheritance = paccess->grfInheritance;
-    ret = __copy_trustee(&(paccess->Trustee), &(pnewacc->Trustee));
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-    return 0;
-fail:
-    SETERRNO(ret);
-    return ret;
-}
-
-PEXPLICIT_ACCESS __alloc_explicit_access_array(int size)
-{
-    PEXPLICIT_ACCESS pnewacc = NULL;
-    int sz = size;
-    int ret;
-    int i;
-
-    pnewacc = (PEXPLICIT_ACCESS)LocalAlloc(LMEM_FIXED, sizeof(*pnewacc) * sz);
-    if (pnewacc == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc %d error[%d]", sizeof(*pnewacc)*sz, ret);
-        goto fail;
-    }
-    memset(pnewacc, 0, sizeof(*pnewacc) * sz);
-    for (i = 0; i < sz; i++) {
-        ret = __init_explicit_access(&(pnewacc[i]));
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto fail;
-        }
-    }
-
-    return pnewacc;
-fail:
-    __free_explicit_access_array(&pnewacc, &sz);
-    SETERRNO(ret);
-    return NULL;
-}
-
-int __copy_explicit_access_array(PEXPLICIT_ACCESS poaccess, int onum , PEXPLICIT_ACCESS pnewacc, int newaccsize)
-{
-    int newaccnum = 0;
-    int ret;
-    int i;
-
-    for (i = 0; i < onum; i++) {
-        if ((poaccess[i].grfAccessPermissions & STANDARD_RIGHTS_ALL) == 0) {
-            continue;
-        }
-        if (newaccnum >= newaccsize) {
-            ret = -ERROR_BUFFER_OVERFLOW;
-            goto fail;
-        }
-        ret = __copy_explicit_access(&(poaccess[i]), &(pnewacc[newaccnum]));
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto fail;
-        }
-        newaccnum ++;
-    }
-
-
-    return newaccnum;
-fail:
-    SETERRNO(ret);
-    return ret;
-}
 
 
 int __remove_acl_inner(PEXPLICIT_ACCESS paccess, int accnum, PSID psid, ACCESS_MODE mode, ACCESS_MASK perm, DWORD *pinherit, void* arg, PSECURITY_DESCRIPTOR *ppsdp, int *psize)

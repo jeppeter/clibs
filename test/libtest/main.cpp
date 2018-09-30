@@ -3359,7 +3359,7 @@ out:
     return ret;
 }
 
-int __get_security_descriptor_from_string(char* sddl, PSECURITY_DESCRIPTOR* ppdp)
+int __get_security_descriptor_from_string_2(char* sddl, PSECURITY_DESCRIPTOR* ppdp)
 {
     int ret;
     BOOL bret;
@@ -3537,7 +3537,7 @@ fail:
 }
 
 
-static void __debug_access_inner(PEXPLICIT_ACCESS pcuracc, const char* prefix)
+static void __debug_access_inner_2(PEXPLICIT_ACCESS pcuracc, const char* prefix)
 {
     PSID psid = NULL;
     int ret;
@@ -3634,7 +3634,7 @@ static void __debug_access_inner(PEXPLICIT_ACCESS pcuracc, const char* prefix)
     return;
 }
 
-static void __debug_access(PEXPLICIT_ACCESS paccess, int accnum)
+static void __debug_access_2(PEXPLICIT_ACCESS paccess, int accnum)
 {
     char* prefix = NULL;
     int prefixsize = 0;
@@ -3643,19 +3643,19 @@ static void __debug_access(PEXPLICIT_ACCESS paccess, int accnum)
     for (i = 0; i < accnum; i++) {
         ret = snprintf_safe(&prefix, &prefixsize, "[%d]", i);
         if (ret > 0) {
-            __debug_access_inner(&(paccess[i]), prefix);
+            __debug_access_inner_2(&(paccess[i]), prefix);
         }
     }
     snprintf_safe(&prefix, &prefixsize, NULL);
     return;
 }
 
-void __free_trustee(PTRUSTEE* pptrustee);
+static void __free_trustee_2(PTRUSTEE* pptrustee);
 
-void __release_trustee(PTRUSTEE ptrustee)
+static void __release_trustee_2(PTRUSTEE ptrustee)
 {
     if (ptrustee) {
-        __free_trustee(&(ptrustee->pMultipleTrustee));
+        __free_trustee_2(&(ptrustee->pMultipleTrustee));
         ptrustee->MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
         ptrustee->TrusteeForm = TRUSTEE_IS_SID;
         ptrustee->TrusteeType = TRUSTEE_IS_UNKNOWN;
@@ -3667,12 +3667,12 @@ void __release_trustee(PTRUSTEE ptrustee)
     return;
 }
 
-void __free_trustee(PTRUSTEE *pptrustee)
+static void __free_trustee_2(PTRUSTEE *pptrustee)
 {
     PTRUSTEE ptrustee = NULL;
     if (pptrustee && *pptrustee) {
         ptrustee = *pptrustee;
-        __release_trustee(ptrustee);
+        __release_trustee_2(ptrustee);
         LocalFree(ptrustee);
         *pptrustee = NULL;
     }
@@ -3680,7 +3680,7 @@ void __free_trustee(PTRUSTEE *pptrustee)
 }
 
 
-int __init_trustee(PTRUSTEE ptrustee)
+static int __init_trustee_2(PTRUSTEE ptrustee)
 {
     memset(ptrustee, 0 , sizeof(*ptrustee));
     ptrustee->pMultipleTrustee = NULL;
@@ -3692,26 +3692,26 @@ int __init_trustee(PTRUSTEE ptrustee)
 }
 
 
-int __init_explicit_access(PEXPLICIT_ACCESS pacc)
+static int __init_explicit_access_2(PEXPLICIT_ACCESS pacc)
 {
     memset(pacc, 0 , sizeof(*pacc));
     pacc->grfAccessPermissions = 0;
     pacc->grfAccessMode = NOT_USED_ACCESS;
     pacc->grfInheritance = NO_INHERITANCE;
-    return __init_trustee(&(pacc->Trustee));
+    return __init_trustee_2(&(pacc->Trustee));
 }
 
-void __release_explicit_access(PEXPLICIT_ACCESS pacc)
+static void __release_explicit_access_2(PEXPLICIT_ACCESS pacc)
 {
     if (pacc) {
-        __release_trustee(&(pacc->Trustee));
+        __release_trustee_2(&(pacc->Trustee));
     }
     return;
 }
 
 
 
-void __free_explicit_access_array(PEXPLICIT_ACCESS *ppacc, int *psize)
+static void __free_explicit_access_array_2(PEXPLICIT_ACCESS *ppacc, int *psize)
 {
     if (ppacc && *ppacc && psize ) {
         int i;
@@ -3719,7 +3719,7 @@ void __free_explicit_access_array(PEXPLICIT_ACCESS *ppacc, int *psize)
         int size = *psize;
         pacc = *ppacc;
         for (i = 0; i < size; i++) {
-            __release_explicit_access(&(pacc[i]));
+            __release_explicit_access_2(&(pacc[i]));
         }
         LocalFree(pacc);
     }
@@ -3732,7 +3732,7 @@ void __free_explicit_access_array(PEXPLICIT_ACCESS *ppacc, int *psize)
     return;
 }
 
-PEXPLICIT_ACCESS __alloc_explicit_access_array(int size)
+static PEXPLICIT_ACCESS __alloc_explicit_access_array_2(int size)
 {
     PEXPLICIT_ACCESS pnewacc = NULL;
     int sz = size;
@@ -3747,7 +3747,7 @@ PEXPLICIT_ACCESS __alloc_explicit_access_array(int size)
     }
     memset(pnewacc, 0, sizeof(*pnewacc) * sz);
     for (i = 0; i < sz; i++) {
-        ret = __init_explicit_access(&(pnewacc[i]));
+        ret = __init_explicit_access_2(&(pnewacc[i]));
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
@@ -3756,12 +3756,12 @@ PEXPLICIT_ACCESS __alloc_explicit_access_array(int size)
 
     return pnewacc;
 fail:
-    __free_explicit_access_array(&pnewacc, &sz);
+    __free_explicit_access_array_2(&pnewacc, &sz);
     SETERRNO(ret);
     return NULL;
 }
 
-static int __copy_sid(PSID osid, PSID* ppnsid)
+static int __copy_sid_2(PSID osid, PSID* ppnsid)
 {
     int sidsize = 0;
     int ret;
@@ -3813,7 +3813,7 @@ fail:
     return ret;
 }
 
-static int __trans_aceflags_to_inherit(BYTE flags, DWORD * pinherit)
+static int __trans_aceflags_to_inherit_2(BYTE flags, DWORD * pinherit)
 {
     DWORD inherit=0;
 
@@ -3847,7 +3847,7 @@ static int __trans_aceflags_to_inherit(BYTE flags, DWORD * pinherit)
     return 0;
 }
 
-static int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
+static int __get_explicit_access_2(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psize)
 {
     int accnum = 0;
     int ret;
@@ -3859,6 +3859,13 @@ static int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psiz
     BOOL bret;
     PEXPLICIT_ACCESS pcuracc = NULL;
     PACCESS_ALLOWED_ACE pallowace = NULL;
+    PACCESS_ALLOWED_CALLBACK_ACE pallowcallbackace=NULL;
+    PACCESS_ALLOWED_CALLBACK_OBJECT_ACE pallowcallbackobjace=NULL;
+    PACCESS_ALLOWED_OBJECT_ACE pallowobjace=NULL;
+    ACCESS_DENIED_ACE* pdenyace=NULL;
+    PACCESS_DENIED_CALLBACK_ACE pdenycallbackace=NULL;
+    PACCESS_DENIED_CALLBACK_OBJECT_ACE pdenycallbackobjace=NULL;
+    PACCESS_DENIED_OBJECT_ACE pdenyobjace=NULL;
 
     if (acl == NULL) {
         if (ppaccess && *ppaccess) {
@@ -3887,15 +3894,15 @@ static int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psiz
 
     if (retsize < acl->AceCount || pretaccess == NULL) {
         retsize = acl->AceCount;
-        pretaccess = __alloc_explicit_access_array(retsize);
+        pretaccess = __alloc_explicit_access_array_2(retsize);
         if (pretaccess == NULL) {
             GETERRNO(ret);
             goto fail;
         }
     } else {
         for (i = 0; i < retsize; i++) {
-            __release_explicit_access(&(pretaccess[i]));
-            ret = __init_explicit_access(&(pretaccess[i]));
+            __release_explicit_access_2(&(pretaccess[i]));
+            ret = __init_explicit_access_2(&(pretaccess[i]));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -3917,17 +3924,16 @@ static int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psiz
         pcuracc = &(pretaccess[accnum]);
         switch (pheader->AceType) {
         case ACCESS_ALLOWED_ACE_TYPE:
-            pallowace = (PACCESS_ALLOWED_ACE) pheader;
             DEBUG_INFO("[%d] type [ACCESS_ALLOWED_ACE_TYPE][%d]", i, pheader->AceType);
+            pallowace = (PACCESS_ALLOWED_ACE) pheader;
             pcuracc->grfAccessMode = GRANT_ACCESS;
             pcuracc->grfAccessPermissions = pallowace->Mask;
-            DEBUG_INFO("AceFlags 0x%x", pallowace->Header.AceFlags);
-            ret = __trans_aceflags_to_inherit(pallowace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit_2(pallowace->Header.AceFlags,&(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid((PSID) & (pallowace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid_2((PSID) & (pallowace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -3936,27 +3942,125 @@ static int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psiz
             break;
         case ACCESS_ALLOWED_CALLBACK_ACE_TYPE:
             DEBUG_INFO("[%d] type [ACCESS_ALLOWED_CALLBACK_ACE_TYPE][%d]", i, pheader->AceType);
+            pallowcallbackace = (PACCESS_ALLOWED_CALLBACK_ACE) pheader;
+            pcuracc->grfAccessMode = GRANT_ACCESS;
+            pcuracc->grfAccessPermissions = pallowcallbackace->Mask;
+            ret = __trans_aceflags_to_inherit_2(pallowcallbackace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid_2((PSID) &(pallowcallbackace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
             break;
         case ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE:
             DEBUG_INFO("[%d] type [ACCESS_ALLOWED_CALLBACK_OBJECT_ACE_TYPE][%d]", i, pheader->AceType);
+            pallowcallbackobjace = (PACCESS_ALLOWED_CALLBACK_OBJECT_ACE) pheader;
+            pcuracc->grfAccessMode = GRANT_ACCESS;
+            pcuracc->grfAccessPermissions = pallowcallbackobjace->Mask;
+            ret = __trans_aceflags_to_inherit_2(pallowcallbackobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid_2((PSID) &(pallowcallbackobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
             break;
         case ACCESS_ALLOWED_COMPOUND_ACE_TYPE:
             DEBUG_INFO("[%d] type [ACCESS_ALLOWED_COMPOUND_ACE_TYPE][%d]", i, pheader->AceType);
             break;
         case ACCESS_ALLOWED_OBJECT_ACE_TYPE:
             DEBUG_INFO("[%d] type [ACCESS_ALLOWED_OBJECT_ACE_TYPE][%d]", i, pheader->AceType);
+            pallowobjace = (PACCESS_ALLOWED_OBJECT_ACE) pheader;
+            pcuracc->grfAccessMode = GRANT_ACCESS;
+            pcuracc->grfAccessPermissions = pallowobjace->Mask;
+            ret = __trans_aceflags_to_inherit_2(pallowobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid_2((PSID) &(pallowobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
             break;
         case ACCESS_DENIED_ACE_TYPE:
             DEBUG_INFO("[%d] type [ACCESS_DENIED_ACE_TYPE][%d]", i, pheader->AceType);
+            pdenyace = (ACCESS_DENIED_ACE*) pheader;
+            pcuracc->grfAccessMode = DENY_ACCESS;
+            pcuracc->grfAccessPermissions = pdenyace->Mask;
+            ret = __trans_aceflags_to_inherit_2(pdenyace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid_2((PSID) &(pdenyace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
             break;
         case ACCESS_DENIED_CALLBACK_ACE_TYPE:
             DEBUG_INFO("[%d] type [ACCESS_DENIED_CALLBACK_ACE_TYPE][%d]", i, pheader->AceType);
+            pdenycallbackace = (PACCESS_DENIED_CALLBACK_ACE) pheader;
+            pcuracc->grfAccessMode = DENY_ACCESS;
+            pcuracc->grfAccessPermissions = pdenycallbackace->Mask;
+            ret = __trans_aceflags_to_inherit_2(pdenycallbackace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid_2((PSID) &(pdenycallbackace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
             break;
         case ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE:
             DEBUG_INFO("[%d] type [ACCESS_DENIED_CALLBACK_OBJECT_ACE_TYPE][%d]", i, pheader->AceType);
+            pdenycallbackobjace = (PACCESS_DENIED_CALLBACK_OBJECT_ACE) pheader;
+            pcuracc->grfAccessMode = DENY_ACCESS;
+            pcuracc->grfAccessPermissions = pdenycallbackobjace->Mask;
+            ret = __trans_aceflags_to_inherit_2(pdenycallbackobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid_2((PSID) &(pdenycallbackobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
             break;
         case ACCESS_DENIED_OBJECT_ACE_TYPE:
             DEBUG_INFO("[%d] type [ACCESS_DENIED_OBJECT_ACE_TYPE][%d]", i, pheader->AceType);
+            pdenyobjace = (PACCESS_DENIED_OBJECT_ACE) pheader;
+            pcuracc->grfAccessMode = DENY_ACCESS;
+            pcuracc->grfAccessPermissions = pdenyobjace->Mask;
+            ret = __trans_aceflags_to_inherit_2(pdenyobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __copy_sid_2((PSID) &(pdenyobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            accnum ++;
             break;
         case ACCESS_MAX_MS_ACE_TYPE:
             DEBUG_INFO("[%d] type [ACCESS_MAX_MS_ACE_TYPE][%d]", i, pheader->AceType);
@@ -3986,27 +4090,27 @@ static int __get_explicit_access(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *psiz
             DEBUG_INFO("[%d] type [SYSTEM_MANDATORY_LABEL_ACE_TYPE][%d]", i, pheader->AceType);
             break;
         default:
-            DEBUG_INFO("[%d] type [%d]", pheader->AceType);
+            ERROR_INFO("[%d] type [%d]", pheader->AceType);
             break;
         }
 
     }
 
     if (*ppaccess && *ppaccess != pretaccess) {
-        __free_explicit_access_array(ppaccess, psize);
+        __free_explicit_access_array_2(ppaccess, psize);
     }
     *ppaccess = pretaccess;
     *psize = retsize;
     DEBUG_INFO("get [%p] ppaccess [%p] size [%d]", acl, *ppaccess, *psize);
-    __debug_access(*ppaccess, accnum);
+    __debug_access_2(*ppaccess, accnum);
     return accnum;
 
 fail:
     if (pretaccess && pretaccess != *ppaccess) {
-        __free_explicit_access_array(&pretaccess, &retsize);
+        __free_explicit_access_array_2(&pretaccess, &retsize);
     } else if (pretaccess != NULL) {
         for (i = 0; i < retsize; i++) {
-            __release_explicit_access(&(pretaccess[i]));
+            __release_explicit_access_2(&(pretaccess[i]));
         }
     }
     pretaccess = NULL;
@@ -4033,20 +4137,20 @@ int dumpsacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     if (parsestate->leftargs != NULL) {
         for (i = 0; parsestate->leftargs[i]; i++) {
             sddl = parsestate->leftargs[i];
-            ret = __get_security_descriptor_from_string(sddl, &pdp);
+            ret = __get_security_descriptor_from_string_2(sddl, &pdp);
             if (ret < 0) {
                 GETERRNO(ret);
                 fprintf(stderr, "can not change [%d][%s] error[%d]\n", i, sddl, ret);
                 goto out;
             }
             DEBUG_BUFFER_FMT(pdp, ret, "[%d][sacl][%s]", i , sddl);
-            __get_security_descriptor_from_string(NULL, &pdp);
+            __get_security_descriptor_from_string_2(NULL, &pdp);
         }
     }
 
     ret = 0;
 out:
-    __get_security_descriptor_from_string(NULL, &pdp);
+    __get_security_descriptor_from_string_2(NULL, &pdp);
     SETERRNO(ret);
     return ret;
 }
@@ -4074,7 +4178,7 @@ int dumpdacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     if (parsestate->leftargs != NULL) {
         for (i = 0; parsestate->leftargs[i]; i++) {
             sddl = parsestate->leftargs[i];
-            ret = __get_security_descriptor_from_string(sddl, &pdp);
+            ret = __get_security_descriptor_from_string_2(sddl, &pdp);
             if (ret < 0) {
                 GETERRNO(ret);
                 fprintf(stderr, "can not change [%d][%s] error[%d]\n", i, sddl, ret);
@@ -4093,7 +4197,7 @@ int dumpdacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             }
 
 
-            ret = __get_explicit_access(pacl, &paccess, &accsize);
+            ret = __get_explicit_access_2(pacl, &paccess, &accsize);
             if (ret < 0) {
                 GETERRNO(ret);
                 fprintf(stderr, "[%d][%s]can not get explicit access error[%d]\n", i, sddl, ret);
@@ -4103,15 +4207,16 @@ int dumpdacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
             DEBUG_BUFFER_FMT(pdp, dpsize, "[%d][dacl][%s] for [%d] explicit access", i , sddl, accnum);
 next_one:
-            __get_explicit_access(NULL, &paccess, &accsize);
+            __get_explicit_access_2(NULL, &paccess, &accsize);
             accnum = 0;
-            __get_security_descriptor_from_string(NULL, &pdp);
+            __get_security_descriptor_from_string_2(NULL, &pdp);
         }
     }
 
     ret = 0;
 out:
-    __get_security_descriptor_from_string(NULL, &pdp);
+    __get_explicit_access_2(NULL, &paccess, &accsize);
+    __get_security_descriptor_from_string_2(NULL, &pdp);
     SETERRNO(ret);
     return ret;
 }
