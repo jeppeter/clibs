@@ -79,6 +79,8 @@ int addsacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int adddacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int dumpsacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int dumpdacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int utf8toansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -3815,7 +3817,7 @@ fail:
 
 static int __trans_aceflags_to_inherit_2(BYTE flags, DWORD * pinherit)
 {
-    DWORD inherit=0;
+    DWORD inherit = 0;
 
     if (flags == FAILED_ACCESS_ACE_FLAG) {
         inherit |= INHERIT_NO_PROPAGATE;
@@ -3859,13 +3861,13 @@ static int __get_explicit_access_2(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *ps
     BOOL bret;
     PEXPLICIT_ACCESS pcuracc = NULL;
     PACCESS_ALLOWED_ACE pallowace = NULL;
-    PACCESS_ALLOWED_CALLBACK_ACE pallowcallbackace=NULL;
-    PACCESS_ALLOWED_CALLBACK_OBJECT_ACE pallowcallbackobjace=NULL;
-    PACCESS_ALLOWED_OBJECT_ACE pallowobjace=NULL;
-    ACCESS_DENIED_ACE* pdenyace=NULL;
-    PACCESS_DENIED_CALLBACK_ACE pdenycallbackace=NULL;
-    PACCESS_DENIED_CALLBACK_OBJECT_ACE pdenycallbackobjace=NULL;
-    PACCESS_DENIED_OBJECT_ACE pdenyobjace=NULL;
+    PACCESS_ALLOWED_CALLBACK_ACE pallowcallbackace = NULL;
+    PACCESS_ALLOWED_CALLBACK_OBJECT_ACE pallowcallbackobjace = NULL;
+    PACCESS_ALLOWED_OBJECT_ACE pallowobjace = NULL;
+    ACCESS_DENIED_ACE* pdenyace = NULL;
+    PACCESS_DENIED_CALLBACK_ACE pdenycallbackace = NULL;
+    PACCESS_DENIED_CALLBACK_OBJECT_ACE pdenycallbackobjace = NULL;
+    PACCESS_DENIED_OBJECT_ACE pdenyobjace = NULL;
 
     if (acl == NULL) {
         if (ppaccess && *ppaccess) {
@@ -3928,7 +3930,7 @@ static int __get_explicit_access_2(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *ps
             pallowace = (PACCESS_ALLOWED_ACE) pheader;
             pcuracc->grfAccessMode = GRANT_ACCESS;
             pcuracc->grfAccessPermissions = pallowace->Mask;
-            ret = __trans_aceflags_to_inherit_2(pallowace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit_2(pallowace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -3945,12 +3947,12 @@ static int __get_explicit_access_2(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *ps
             pallowcallbackace = (PACCESS_ALLOWED_CALLBACK_ACE) pheader;
             pcuracc->grfAccessMode = GRANT_ACCESS;
             pcuracc->grfAccessPermissions = pallowcallbackace->Mask;
-            ret = __trans_aceflags_to_inherit_2(pallowcallbackace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit_2(pallowcallbackace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid_2((PSID) &(pallowcallbackace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid_2((PSID) & (pallowcallbackace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -3962,12 +3964,12 @@ static int __get_explicit_access_2(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *ps
             pallowcallbackobjace = (PACCESS_ALLOWED_CALLBACK_OBJECT_ACE) pheader;
             pcuracc->grfAccessMode = GRANT_ACCESS;
             pcuracc->grfAccessPermissions = pallowcallbackobjace->Mask;
-            ret = __trans_aceflags_to_inherit_2(pallowcallbackobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit_2(pallowcallbackobjace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid_2((PSID) &(pallowcallbackobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid_2((PSID) & (pallowcallbackobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -3982,12 +3984,12 @@ static int __get_explicit_access_2(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *ps
             pallowobjace = (PACCESS_ALLOWED_OBJECT_ACE) pheader;
             pcuracc->grfAccessMode = GRANT_ACCESS;
             pcuracc->grfAccessPermissions = pallowobjace->Mask;
-            ret = __trans_aceflags_to_inherit_2(pallowobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit_2(pallowobjace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid_2((PSID) &(pallowobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid_2((PSID) & (pallowobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -3999,12 +4001,12 @@ static int __get_explicit_access_2(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *ps
             pdenyace = (ACCESS_DENIED_ACE*) pheader;
             pcuracc->grfAccessMode = DENY_ACCESS;
             pcuracc->grfAccessPermissions = pdenyace->Mask;
-            ret = __trans_aceflags_to_inherit_2(pdenyace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit_2(pdenyace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid_2((PSID) &(pdenyace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid_2((PSID) & (pdenyace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -4016,12 +4018,12 @@ static int __get_explicit_access_2(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *ps
             pdenycallbackace = (PACCESS_DENIED_CALLBACK_ACE) pheader;
             pcuracc->grfAccessMode = DENY_ACCESS;
             pcuracc->grfAccessPermissions = pdenycallbackace->Mask;
-            ret = __trans_aceflags_to_inherit_2(pdenycallbackace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit_2(pdenycallbackace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid_2((PSID) &(pdenycallbackace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid_2((PSID) & (pdenycallbackace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -4033,12 +4035,12 @@ static int __get_explicit_access_2(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *ps
             pdenycallbackobjace = (PACCESS_DENIED_CALLBACK_OBJECT_ACE) pheader;
             pcuracc->grfAccessMode = DENY_ACCESS;
             pcuracc->grfAccessPermissions = pdenycallbackobjace->Mask;
-            ret = __trans_aceflags_to_inherit_2(pdenycallbackobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit_2(pdenycallbackobjace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid_2((PSID) &(pdenycallbackobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid_2((PSID) & (pdenycallbackobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -4050,12 +4052,12 @@ static int __get_explicit_access_2(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *ps
             pdenyobjace = (PACCESS_DENIED_OBJECT_ACE) pheader;
             pcuracc->grfAccessMode = DENY_ACCESS;
             pcuracc->grfAccessPermissions = pdenyobjace->Mask;
-            ret = __trans_aceflags_to_inherit_2(pdenyobjace->Header.AceFlags,&(pcuracc->grfInheritance));
+            ret = __trans_aceflags_to_inherit_2(pdenyobjace->Header.AceFlags, &(pcuracc->grfInheritance));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __copy_sid_2((PSID) &(pdenyobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
+            ret = __copy_sid_2((PSID) & (pdenyobjace->SidStart), (PSID*) & (pcuracc->Trustee.ptstrName));
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -4219,6 +4221,87 @@ out:
     __get_security_descriptor_from_string_2(NULL, &pdp);
     SETERRNO(ret);
     return ret;
+}
+
+int __get_code(pextargs_state_t parsestate, char** ppcode, int* psize)
+{
+    int cnt = 0;
+    int ret;
+    char* pcode = NULL;
+    int retsize = 0;
+    int num;
+    int idx;
+    if (parsestate == NULL) {
+        if (ppcode && *ppcode) {
+            free(*ppcode);
+            *ppcode = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (parsestate->leftargs != NULL) {
+        while (parsestate->leftargs[cnt] != NULL) {
+            cnt ++;
+        }
+    }
+
+    if (retsize <= cnt || pcode == NULL) {
+        if (retsize <= cnt) {
+            retsize = cnt + 1;
+        }
+        pcode = malloc(retsize);
+        if (pcode == NULL) {
+            GETERRNO(ret);
+            fprintf(stderr, "alloc %d error[%d]\n", retsize, ret);
+            goto fail;
+        }
+    }
+    memset(pcode, 0, retsize);
+    idx = 0;
+    for(i=0;i<cnt;i++) {
+        GET_OPT_INT(num,"number");
+        /*we change the idx*/
+        pcode[i] = (char)num;
+    }
+
+
+    if (*ppcode && *ppcode != pcode) {
+        free(*ppcode);
+    }
+    *ppcode = pcode;
+    *psize = retsize;
+    return cnt;
+fail:
+    if (pcode && pcode != *ppcode) {
+        free(pcode);
+    }
+    pcode = NULL;
+    retsize = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int utf8toansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* putf8 = NULL;
+    int utf8size = 0;
+    int utf8len=0;
+    ret= __get_code(parsestate,&putf8,&utf8size);
+
+out:
+    __get_code(NULL,&putf8,&utf8size);
+    SETERRNO(ret);
+    return ret;
+}
+
+int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+
 }
 
 
