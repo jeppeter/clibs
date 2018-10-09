@@ -45,6 +45,24 @@ WINLIB_API int TcharToAnsi(TCHAR *ptchar,char** ppChar,int*pCharSize);
 **********************************************************/
 WINLIB_API int AnsiToTchar(const char *pChar,TCHAR **pptchar,int *ptcharsize);
 
+/**********************************************************
+*    if pUtf8==NULL will reset *ppchars=NULL and free memory
+*    else set *ppchars by new and *pcharsize is the size of *ppchars
+*    return value success >= 0 number of bytes in *ppchars not including the end of
+*    '\0'
+*    otherwise negative error code
+**********************************************************/
+WINLIB_API int Utf8ToAnsi(const char *pUtf8,char** ppchars,int*pcharsize);
+
+/**********************************************************
+*    if pchars==NULL will reset *ppUtf8=NULL and free memory
+*    else set *ppUtf8 by new and *pUtf8size is the size of *ppUtf8
+*    return value success >= 0 number of bytes in *ppUtf8 not including the end of
+*    '\0'
+*    otherwise negative error code
+**********************************************************/
+WINLIB_API int AnsiToUtf8(const char* pchars, char** ppUtf8,int *pUtf8size);
+
 #ifdef __cplusplus
 };
 #endif

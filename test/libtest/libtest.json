@@ -127,5 +127,11 @@
     },
     "dumpdacl<dumpdacl_handler>##saclstr... to dump dacl##" : {
         "$" : "+"
+    },
+    "utf8toansi<utf8toansi_handler>##bytes... to trans bytes to ansi##" : {
+        "$" : "+"
+    },
+    "ansitoutf8<ansitoutf8_handler>##bytes... to trans bytes to utf8##" : {
+        "$" : "+"
     }
 }

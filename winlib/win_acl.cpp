@@ -3693,6 +3693,7 @@ int get_file_acls(const char* fname, void** ppacl1)
         goto fail;
     }
     pacl->m_namesize = (int)strlen(fname) + 1;
+    DEBUG_BUFFER_FMT(pacl->m_fname, pacl->m_namesize, "get file name [%s]", pacl->m_fname);
 
     if (pacl->m_ownersdp) {
         LocalFree(pacl->m_ownersdp);

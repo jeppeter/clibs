@@ -172,3 +172,204 @@ int AnsiToTchar(const char *pChar,TCHAR **pptchar,int *ptcharsize)
 #endif
 	return ret;
 }
+
+int Utf8ToAnsi(const char *pUtf8,char** ppchars,int*pcharsize)
+{
+    int ret;
+    int retlen=0;
+    char* pretchars=NULL;
+    int retsize = 0;
+    int needlen =0;
+    int len=0;
+    wchar_t* punicode=NULL;
+    int unisize=0,unilen;
+    if (pUtf8 == NULL) {
+        if (ppchars && *ppchars) {
+            free(*ppchars);
+            *ppchars = NULL;
+        }
+        if (pcharsize) {
+            *pcharsize = 0;
+        }
+        return 0;
+    }
+    if (ppchars == NULL || pcharsize == NULL) {
+        ret = -ERROR_INVALID_PARAMETERS;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretchars = *ppchars;
+    retsize = *pcharsize;
+
+
+    len = strlen(pUtf8);
+    unilen = MultiByteToWideChar(CP_UTF8, 0, pUtf8, len, NULL, 0);
+    if (unisize < unilen || punicode == NULL) {
+        if (unisize < unilen) {
+            unisize = unilen + 1;
+        }
+        punicode = malloc(unisize * sizeof(*punicode));
+        if (punicode == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    memset(punicode , 0, unisize * sizeof(*punicode));
+
+    unilen = MultiByteToWideChar(CP_UTF8,0,pUtf8,len,punicode,unisize);
+    if (unilen < 0 || unilen > unisize) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    /*now change*/
+    retlen = WideCharToMultiByte(CP_ACP,0,punicode,unilen,NULL,0);
+    if (retlen >= retsize || pretchars == NULL) {
+        if (retsize <= retlen) {
+            retsize = retlen + 1;
+        }
+        pretchars = malloc(retsize);
+        if (pretchars == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    memset(pretchars, 0, retsize);
+
+    retlen = WideCharToMultiByte(CP_ACP,0,punicode,unilen, pretchars, retsize);
+    if (retlen < 0 || retlen >= retsize) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (punicode) {
+        free(punicode);
+    }
+    punicode = NULL;
+    unisize = 0;
+    unilen = 0;
+
+    if (*ppchars && *ppchars != pretchars) {
+        free(*ppchars);
+    }
+    *ppchars = pretchars;
+    *pcharsize = retsize;
+
+    SETERRNO(0);
+    return retlen;
+fail:
+    if (punicode) {
+        free(punicode);
+    }
+    punicode = NULL;
+    unisize = 0;
+    unilen = 0;
+
+    if (pretchars && pretchars != *ppchars) {
+        free(pretchars);
+    }
+    pretchars = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int AnsiToUtf8(const char* pchars, char** ppUtf8,int *pUtf8size)
+{
+    int ret;
+    int retlen=0;
+    char* pretutf8=NULL;
+    int retsize = 0;
+    int len=0;
+    wchar_t* punicode=NULL;
+    int unisize=0,unilen;
+    if (pchars == NULL) {
+        if (ppUtf8 && *ppUtf8) {
+            free(*ppUtf8);
+            *ppUtf8 = NULL;
+        }
+        if (pUtf8size) {
+            *pUtf8size = 0;
+        }
+        return 0;
+    }
+    if (ppUtf8 == NULL || pUtf8size == NULL) {
+        ret = -ERROR_INVALID_PARAMETERS;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretutf8 = *ppUtf8;
+    retsize = *pUtf8size;
+
+
+    len = strlen(pchars);
+    unilen = MultiByteToWideChar(CP_ACP, 0, pchars, len, NULL, 0);
+    if (unisize < unilen || punicode == NULL) {
+        if (unisize < unilen) {
+            unisize = unilen + 1;
+        }
+        punicode = malloc(unisize * sizeof(*punicode));
+        if (punicode == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    memset(punicode , 0, unisize * sizeof(*punicode));
+
+    unilen = MultiByteToWideChar(CP_ACP,0,pchars,len,punicode,unisize);
+    if (unilen < 0 || unilen > unisize) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    /*now change*/
+    retlen = WideCharToMultiByte(CP_UTF8,0,punicode,unilen,NULL,0);
+    if (retlen >= retsize || pretutf8 == NULL) {
+        if (retsize <= retlen) {
+            retsize = retlen + 1;
+        }
+        pretutf8 = malloc(retsize);
+        if (pretutf8 == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    memset(pretutf8, 0, retsize);
+
+    retlen = WideCharToMultiByte(CP_UTF8,0,punicode,unilen, pretutf8, retsize);
+    if (retlen < 0 || retlen >= retsize) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (punicode) {
+        free(punicode);
+    }
+    punicode = NULL;
+    unisize = 0;
+    unilen = 0;
+
+    if (*ppUtf8 && *ppUtf8 != pretutf8) {
+        free(*ppUtf8);
+    }
+    *ppUtf8 = pretutf8;
+    *pUtf8size = retsize;
+
+    SETERRNO(0);
+    return retlen;
+fail:
+    if (punicode) {
+        free(punicode);
+    }
+    punicode = NULL;
+    unisize = 0;
+    unilen = 0;
+
+    if (pretutf8 && pretutf8 != *ppUtf8) {
+        free(pretutf8);
+    }
+    pretutf8 = NULL;
+    SETERRNO(ret);
+    return ret;
+}
