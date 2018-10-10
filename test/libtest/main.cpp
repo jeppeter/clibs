@@ -4229,8 +4229,9 @@ int __get_code(pextargs_state_t parsestate, char** ppcode, int* psize)
     int ret;
     char* pcode = NULL;
     int retsize = 0;
-    int num;
+    int num=0;
     int idx;
+    int i;
     if (parsestate == NULL) {
         if (ppcode && *ppcode) {
             free(*ppcode);
@@ -4252,14 +4253,14 @@ int __get_code(pextargs_state_t parsestate, char** ppcode, int* psize)
         if (retsize <= cnt) {
             retsize = cnt + 1;
         }
-        pcode = malloc(retsize);
+        pcode = (char*)malloc((size_t)retsize);
         if (pcode == NULL) {
             GETERRNO(ret);
             fprintf(stderr, "alloc %d error[%d]\n", retsize, ret);
             goto fail;
         }
     }
-    memset(pcode, 0, retsize);
+    memset(pcode, 0, (size_t)retsize);
     idx = 0;
     for(i=0;i<cnt;i++) {
         GET_OPT_INT(num,"number");
@@ -4274,6 +4275,7 @@ int __get_code(pextargs_state_t parsestate, char** ppcode, int* psize)
     *ppcode = pcode;
     *psize = retsize;
     return cnt;
+out:
 fail:
     if (pcode && pcode != *ppcode) {
         free(pcode);
@@ -4291,9 +4293,35 @@ int utf8toansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     char* putf8 = NULL;
     int utf8size = 0;
     int utf8len=0;
-    ret= __get_code(parsestate,&putf8,&utf8size);
+    char* pansi=NULL;
+    int ansisize=0,ansilen=0;
+    pargs_options_t pargs= (pargs_options_t) popt;
 
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
+    ret= __get_code(parsestate,&putf8,&utf8size);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    utf8len = ret;
+    ret = Utf8ToAnsi(putf8,&pansi,&ansisize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not trans buffer [%d]\n", ret);
+        goto out;
+    }
+    ansilen = ret;
+
+    fprintf(stdout,"utf8 buffer [%d]\n", utf8len);
+    __debug_buf(stdout,putf8,utf8len);
+    fprintf(stdout,"ansi buffer [%d]\n", ansilen);
+    __debug_buf(stdout,pansi,ansilen);
+    ret = 0;
 out:
+    Utf8ToAnsi(NULL,&pansi,&ansisize);
     __get_code(NULL,&putf8,&utf8size);
     SETERRNO(ret);
     return ret;
@@ -4301,7 +4329,41 @@ out:
 
 int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
+    int ret;
+    char* putf8 = NULL;
+    int utf8size = 0;
+    int utf8len=0;
+    char* pansi=NULL;
+    int ansisize=0,ansilen=0;
+    pargs_options_t pargs= (pargs_options_t) popt;
 
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+    ret= __get_code(parsestate,&pansi,&ansisize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    ansilen = ret;
+    ret = AnsiToUtf8(pansi,&putf8,&utf8size);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not trans buffer [%d]\n", ret);
+        goto out;
+    }
+    utf8len = ret;
+
+    fprintf(stdout,"ansi buffer [%d]\n", ansilen);
+    __debug_buf(stdout,pansi,ansilen);
+    fprintf(stdout,"utf8 buffer [%d]\n", utf8len);
+    __debug_buf(stdout,putf8,utf8len);
+    ret = 0;
+out:
+    AnsiToUtf8(NULL,&putf8,&utf8size);
+    __get_code(NULL,&pansi,&ansisize);
+    SETERRNO(ret);
+    return ret;
 }
 
 

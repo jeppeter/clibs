@@ -106,46 +106,46 @@ fail:
 #ifndef _UNICODE
 int _chartoansi(const char *ptchar, char** ppChar, int*pCharSize)
 {
-	size_t needlen=0;
-	size_t needsize= (size_t)(*pCharSize);
-	int ret;
-	char* pRetChar = *ppChar;
+    size_t needlen = 0;
+    size_t needsize = (size_t)(*pCharSize);
+    int ret;
+    char* pRetChar = *ppChar;
 
-	if (ptchar == NULL){
-		/*if null, we just free memory*/
-		if (pRetChar){
-			free(pRetChar);
-		}
-		*ppChar = NULL;
-		*pCharSize = 0;
-		return 0;
-	}
+    if (ptchar == NULL) {
+        /*if null, we just free memory*/
+        if (pRetChar) {
+            free(pRetChar);
+        }
+        *ppChar = NULL;
+        *pCharSize = 0;
+        return 0;
+    }
 
-	needlen = strlen(ptchar);
-	if (pRetChar == NULL || *pCharSize <= (int)needlen){
-		pRetChar =(char*) malloc(needlen + 1);
-		if (pRetChar == NULL){
-			GETERRNO(ret);
-			goto fail;
-		}
-		needsize = needlen + 1;
-	}
-    memset(pRetChar,0, needsize);
-	memcpy(pRetChar,ptchar,needlen);
-	if (pRetChar != *ppChar && *ppChar != NULL){
-		free(*ppChar);
-	}
+    needlen = strlen(ptchar);
+    if (pRetChar == NULL || *pCharSize <= (int)needlen) {
+        pRetChar = (char*) malloc(needlen + 1);
+        if (pRetChar == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        needsize = needlen + 1;
+    }
+    memset(pRetChar, 0, needsize);
+    memcpy(pRetChar, ptchar, needlen);
+    if (pRetChar != *ppChar && *ppChar != NULL) {
+        free(*ppChar);
+    }
 
-	*ppChar = pRetChar;
-	*pCharSize = (int)needsize;
+    *ppChar = pRetChar;
+    *pCharSize = (int)needsize;
 
-	return  (int)needlen;
+    return  (int)needlen;
 fail:
-	if (pRetChar != *ppChar && pRetChar != NULL){
-		free(pRetChar);
-	}
-	pRetChar = NULL;
-	return ret;
+    if (pRetChar != *ppChar && pRetChar != NULL) {
+        free(pRetChar);
+    }
+    pRetChar = NULL;
+    return ret;
 }
 
 #endif
@@ -153,36 +153,36 @@ fail:
 
 int TcharToAnsi(TCHAR *ptchar, char** ppChar, int*pCharSize)
 {
-	int ret;
+    int ret;
 #ifdef _UNICODE
-	ret = UnicodeToAnsi(ptchar,ppChar,pCharSize);
+    ret = UnicodeToAnsi(ptchar, ppChar, pCharSize);
 #else
-	ret = _chartoansi(ptchar,ppChar,pCharSize);
+    ret = _chartoansi(ptchar, ppChar, pCharSize);
 #endif
-	return ret;
+    return ret;
 }
 
-int AnsiToTchar(const char *pChar,TCHAR **pptchar,int *ptcharsize)
-{
-	int ret;
-#ifdef _UNICODE
-	ret = AnsiToUnicode((char*)pChar,pptchar,ptcharsize);
-#else
-	ret = _chartoansi(pChar,pptchar,ptcharsize);
-#endif
-	return ret;
-}
-
-int Utf8ToAnsi(const char *pUtf8,char** ppchars,int*pcharsize)
+int AnsiToTchar(const char *pChar, TCHAR **pptchar, int *ptcharsize)
 {
     int ret;
-    int retlen=0;
-    char* pretchars=NULL;
+#ifdef _UNICODE
+    ret = AnsiToUnicode((char*)pChar, pptchar, ptcharsize);
+#else
+    ret = _chartoansi(pChar, pptchar, ptcharsize);
+#endif
+    return ret;
+}
+
+int Utf8ToAnsi(const char *pUtf8, char** ppchars, int*pcharsize)
+{
+    int ret;
+    int retlen = 0;
+    char* pretchars = NULL;
     int retsize = 0;
-    int needlen =0;
-    int len=0;
-    wchar_t* punicode=NULL;
-    int unisize=0,unilen;
+    int needlen = 0;
+    int len = 0;
+    wchar_t* punicode = NULL;
+    int unisize = 0, unilen;
     if (pUtf8 == NULL) {
         if (ppchars && *ppchars) {
             free(*ppchars);
@@ -194,7 +194,7 @@ int Utf8ToAnsi(const char *pUtf8,char** ppchars,int*pcharsize)
         return 0;
     }
     if (ppchars == NULL || pcharsize == NULL) {
-        ret = -ERROR_INVALID_PARAMETERS;
+        ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
         return ret;
     }
@@ -203,33 +203,33 @@ int Utf8ToAnsi(const char *pUtf8,char** ppchars,int*pcharsize)
     retsize = *pcharsize;
 
 
-    len = strlen(pUtf8);
+    len = (int)strlen(pUtf8);
     unilen = MultiByteToWideChar(CP_UTF8, 0, pUtf8, len, NULL, 0);
-    if (unisize < unilen || punicode == NULL) {
-        if (unisize < unilen) {
-            unisize = unilen + 1;
+    if ((unisize <= (int)(unilen * sizeof(wchar_t)) ) || punicode == NULL) {
+        if (unisize <= (int)(unilen * sizeof(wchar_t))) {
+            unisize = (unilen + 1) * sizeof(wchar_t);
         }
-        punicode = malloc(unisize * sizeof(*punicode));
+        punicode = (wchar_t*)malloc(unisize);
         if (punicode == NULL) {
             GETERRNO(ret);
             goto fail;
         }
     }
-    memset(punicode , 0, unisize * sizeof(*punicode));
+    memset(punicode , 0, unisize);
 
-    unilen = MultiByteToWideChar(CP_UTF8,0,pUtf8,len,punicode,unisize);
-    if (unilen < 0 || unilen > unisize) {
+    unilen = MultiByteToWideChar(CP_UTF8, 0, pUtf8, len, punicode, (unisize / sizeof(wchar_t)));
+    if (unilen < 0 || unilen >= (int)(unisize / sizeof(wchar_t))) {
         GETERRNO(ret);
         goto fail;
     }
 
     /*now change*/
-    retlen = WideCharToMultiByte(CP_ACP,0,punicode,unilen,NULL,0);
-    if (retlen >= retsize || pretchars == NULL) {
-        if (retsize <= retlen) {
-            retsize = retlen + 1;
+    needlen = WideCharToMultiByte(CP_ACP, 0, punicode, unilen, NULL, 0, NULL, NULL);
+    if (needlen >= retsize || pretchars == NULL) {
+        if (retsize <= needlen) {
+            retsize = needlen + 1;
         }
-        pretchars = malloc(retsize);
+        pretchars = (char*)malloc(retsize);
         if (pretchars == NULL) {
             GETERRNO(ret);
             goto fail;
@@ -237,8 +237,8 @@ int Utf8ToAnsi(const char *pUtf8,char** ppchars,int*pcharsize)
     }
     memset(pretchars, 0, retsize);
 
-    retlen = WideCharToMultiByte(CP_ACP,0,punicode,unilen, pretchars, retsize);
-    if (retlen < 0 || retlen >= retsize) {
+    retlen = WideCharToMultiByte(CP_ACP, 0, punicode, unilen, pretchars, retsize, NULL, NULL);
+    if (retlen != needlen) {
         GETERRNO(ret);
         goto fail;
     }
@@ -274,15 +274,15 @@ fail:
     return ret;
 }
 
-int AnsiToUtf8(const char* pchars, char** ppUtf8,int *pUtf8size)
+int AnsiToUtf8(const char* pchars, char** ppUtf8, int *pUtf8size)
 {
     int ret;
-    int retlen=0;
-    char* pretutf8=NULL;
+    int retlen = 0;
+    int needlen = 0;
+    char* pretutf8 = NULL;
     int retsize = 0;
-    int len=0;
-    wchar_t* punicode=NULL;
-    int unisize=0,unilen;
+    wchar_t* punicode = NULL;
+    int unisize = 0, unilen;
     if (pchars == NULL) {
         if (ppUtf8 && *ppUtf8) {
             free(*ppUtf8);
@@ -294,7 +294,7 @@ int AnsiToUtf8(const char* pchars, char** ppUtf8,int *pUtf8size)
         return 0;
     }
     if (ppUtf8 == NULL || pUtf8size == NULL) {
-        ret = -ERROR_INVALID_PARAMETERS;
+        ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
         return ret;
     }
@@ -303,33 +303,32 @@ int AnsiToUtf8(const char* pchars, char** ppUtf8,int *pUtf8size)
     retsize = *pUtf8size;
 
 
-    len = strlen(pchars);
-    unilen = MultiByteToWideChar(CP_ACP, 0, pchars, len, NULL, 0);
-    if (unisize < unilen || punicode == NULL) {
-        if (unisize < unilen) {
-            unisize = unilen + 1;
+    unilen = MultiByteToWideChar(CP_ACP, 0, pchars, -1, NULL, 0);
+    if (unisize <= (int)(unilen*sizeof(wchar_t)) || punicode == NULL) {
+        if (unisize <= (int)(unilen* sizeof(wchar_t))) {
+            unisize = (unilen + 1) * sizeof(wchar_t);
         }
-        punicode = malloc(unisize * sizeof(*punicode));
+        punicode = (wchar_t*)malloc(unisize);
         if (punicode == NULL) {
             GETERRNO(ret);
             goto fail;
         }
     }
-    memset(punicode , 0, unisize * sizeof(*punicode));
+    memset(punicode , 0, unisize);
 
-    unilen = MultiByteToWideChar(CP_ACP,0,pchars,len,punicode,unisize);
-    if (unilen < 0 || unilen > unisize) {
+    unilen = MultiByteToWideChar(CP_ACP, 0, pchars, -1, punicode, (unisize / sizeof(wchar_t)));
+    if (unilen < 0 || unilen >= (int)(unisize/ sizeof(wchar_t))) {
         GETERRNO(ret);
         goto fail;
     }
 
     /*now change*/
-    retlen = WideCharToMultiByte(CP_UTF8,0,punicode,unilen,NULL,0);
-    if (retlen >= retsize || pretutf8 == NULL) {
-        if (retsize <= retlen) {
-            retsize = retlen + 1;
+    needlen = WideCharToMultiByte(CP_UTF8, 0, punicode, -1, NULL, 0, NULL, NULL);
+    if (needlen >= retsize || pretutf8 == NULL) {
+        if (retsize <= needlen) {
+            retsize = needlen + 1;
         }
-        pretutf8 = malloc(retsize);
+        pretutf8 = (char*)malloc(retsize);
         if (pretutf8 == NULL) {
             GETERRNO(ret);
             goto fail;
@@ -337,11 +336,13 @@ int AnsiToUtf8(const char* pchars, char** ppUtf8,int *pUtf8size)
     }
     memset(pretutf8, 0, retsize);
 
-    retlen = WideCharToMultiByte(CP_UTF8,0,punicode,unilen, pretutf8, retsize);
-    if (retlen < 0 || retlen >= retsize) {
+    retlen = WideCharToMultiByte(CP_UTF8, 0, punicode, -1, pretutf8, retsize, NULL, NULL);
+    if (retlen != needlen) {
         GETERRNO(ret);
         goto fail;
     }
+
+    retlen = (int)strlen(pretutf8);
 
     if (punicode) {
         free(punicode);
