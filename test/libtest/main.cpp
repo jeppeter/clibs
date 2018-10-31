@@ -1572,10 +1572,17 @@ int sendmsg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         GET_OPT_TYPE(lparam, "get lparam", LPARAM);
 
         lret = SendMessage(hwnd, msg, wparam, lparam);
+#if _M_X64        
         fprintf(stdout, "send [%p] msg[%d:0x%x] with wparam [%lld:0x%llx] lparam[%lld:0x%llx] ret[%lld]\n",
                 hwnd, msg, msg,
                 wparam, wparam,
                 lparam, lparam, lret);
+#else
+        fprintf(stdout, "send [%p] msg[%d:0x%x] with wparam [%d:0x%x] lparam[%ld:0x%lx] ret[%ld]\n",
+                hwnd, msg, msg,
+                wparam, wparam,
+                lparam, lparam, lret);
+#endif
         if (pargs->m_timeout > 0) {
             SleepEx((DWORD)pargs->m_timeout, TRUE);
         }
