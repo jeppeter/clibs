@@ -212,6 +212,7 @@ public:
 	{
 
 	}
+	virtual ~windbgEventCallback() {}
 };
 
 class windbgInputCallBack : public IDebugInputCallbacks
@@ -228,6 +229,12 @@ public:
 
 	HRESULT  STDMETHODCALLTYPE EndInput() {return S_OK;}
 	HRESULT STDMETHODCALLTYPE StartInput(ULONG buffersize) { buffersize = buffersize; return S_OK;}
+	windbgInputCallBack() {
+
+	}
+	virtual ~windbgInputCallBack() {
+
+	}
 };
 
 
