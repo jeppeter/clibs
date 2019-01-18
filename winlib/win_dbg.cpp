@@ -214,6 +214,22 @@ public:
 	}
 };
 
+class windbgInputCallBack : public IDebugInputCallbacks
+{
+public:
+	HRESULT STDMETHODCALLTYPE QueryInterface(const IID& InterfaceId, PVOID* Interface) { 
+		if (InterfaceId == IID_IUnknown) {
+			Interface = Interface;	
+		}		
+		return E_NOINTERFACE; 
+	}
+	ULONG	STDMETHODCALLTYPE AddRef() { return 1; }
+	ULONG	STDMETHODCALLTYPE Release() { return 0; }	
+
+	HRESULT  STDMETHODCALLTYPE EndInput() {return S_OK;}
+	HRESULT STDMETHODCALLTYPE StartInput(ULONG buffersize) { buffersize = buffersize; return S_OK;}
+};
+
 
 #define WIN_DBG_MAGIC           0x31dcae09
 
@@ -237,6 +253,7 @@ typedef struct __win_debug_t {
 #endif
 	windbgcallBackOutput*             m_outputcallback;
 	windbgEventCallback*              m_evtcallback;
+	windbgInputCallBack*              m_inputcallback;
 	CComPtr<IDebugClient5>            m_client;
     CComPtr<IDebugControl5>           m_control;
     CComPtr<IDebugSystemObjects4>     m_system;
@@ -250,6 +267,7 @@ void __release_win_debug(pwin_debug_t* ppdbg)
 			if (pdbg->m_client) {
 				pdbg->m_client->SetEventCallbacks(NULL);
 				pdbg->m_client->SetOutputCallbacks(NULL);
+				pdbg->m_client->SetInputCallbacks(NULL);
 			}
 			if (pdbg->m_outputcallback) {
 				pdbg->m_outputcallback->Release();
@@ -260,6 +278,12 @@ void __release_win_debug(pwin_debug_t* ppdbg)
 				pdbg->m_evtcallback->Release();
 				delete pdbg->m_evtcallback;
 				pdbg->m_evtcallback = NULL;
+			}
+
+			if (pdbg->m_inputcallback) {
+				pdbg->m_inputcallback->Release();
+				delete pdbg->m_inputcallback;
+				pdbg->m_inputcallback = NULL;
 			}
 
 		}
@@ -287,6 +311,7 @@ pwin_debug_t __alloc_win_debug(void)
 	pdbg->m_system = NULL;
 	pdbg->m_outputcallback = NULL;
 	pdbg->m_evtcallback = NULL;
+	pdbg->m_inputcallback = NULL;
 
 	return pdbg;
 fail:
@@ -348,9 +373,11 @@ int create_client(char* option, void** ppclient)
 
 	pretdbg->m_evtcallback = new windbgEventCallback();
 	pretdbg->m_outputcallback = new windbgcallBackOutput();
+	pretdbg->m_inputcallback = new windbgInputCallBack();
 
 	pretdbg->m_client->SetEventCallbacksWide(pretdbg->m_evtcallback);
 	pretdbg->m_client->SetOutputCallbacksWide(pretdbg->m_outputcallback);
+	pretdbg->m_client->SetInputCallbacks(pretdbg->m_inputcallback);
 
 	*ppclient = (void*) pretdbg;
 	AnsiToUnicode(NULL,&pwoption,&woptsize);
