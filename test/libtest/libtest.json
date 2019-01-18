@@ -135,6 +135,6 @@
         "$" : "+"
     },
     "windbg<windbg_handler>##options cmds ... to start windbg##" : {
-        "$" : "*"
+        "$" : "+"
     }
 }

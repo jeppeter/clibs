@@ -4380,8 +4380,15 @@ int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 {
     pargs_options_t pargs = (pargs_options_t) popt;
     int cnt=0;
+    int i;
     void* pdbg=NULL;
     int ret =0;
+    char* pcmd=NULL;
+    int cmdsize=0;
+    char* pcurquote=NULL;
+    int curquotesize=0;
+
+
     argc = argc;
     argv = argv;
     init_log_level(pargs);
@@ -4389,6 +4396,24 @@ int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     while(parsestate->leftargs != NULL && parsestate->leftargs[cnt] != NULL) {
         cnt ++;
     }
+
+    for (i=0;i<cnt;i++) {
+        ret = quote_string(&pcurquote,&curquotesize,"%s", parsestate->leftargs[i]);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        if (i > 0) {
+            ret = append_snprintf_safe(&pcmd,&cmdsize," %s", pcurquote);
+        } else {
+            ret = snprintf_safe(&pcmd,&cmdsize,"%s",pcurquote);
+        }
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
 
 
  
@@ -4399,18 +4424,27 @@ int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         goto out;
     }
 
-    ret = create_client("", &pdbg);
+    ret = windbg_create_client("", &pdbg);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr, "can not get client error[%d]\n", ret);
         goto out;
     }
 
-    fprintf(stdout, "connect dbg succ\n");
+    ret = windbg_start_process_single(pdbg,pcmd,WIN_DBG_FLAGS_CHILDREN);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "create [%s] error[%d]\n", pcmd, ret);
+        goto out;
+    }
+
+    fprintf(stdout, "dbg [%s] succ\n", pcmd);
     ret = 0;
-out:
-    create_client(NULL,&pdbg);
+out:    
+    windbg_create_client(NULL,&pdbg);
     uninitialize_com();
+    snprintf_safe(&pcmd,&cmdsize,NULL);
+    quote_string(&pcurquote,&curquotesize,NULL);
     SETERRNO(ret);
     return ret;
 }

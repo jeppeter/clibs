@@ -8,8 +8,9 @@ extern "C" {
 #define WIN_DBG_FLAGS_CHILDREN                   0x1
 #define WIN_DBG_FLAGS_HEAP                       0x2
 
-int create_client(char* option, void** ppclient);
-int start_process_single(void* pclient, char* cmd, int flags);
+int windbg_create_client(char* option, void** ppclient);
+int windbg_start_process_single(void* pclient, char* cmd, int flags);
+int windbg_stop_process(void* pclient);
 
 #ifdef __cplusplus
 };
