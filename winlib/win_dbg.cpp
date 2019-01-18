@@ -7,6 +7,187 @@
 #include <dbgeng.h>
 #include <atlcomcli.h>
 
+
+class windbgcallBackOutput : public IDebugOutputCallbacksWide
+{
+public:
+	HRESULT STDMETHODCALLTYPE QueryInterface(const IID& InterfaceId, PVOID* Interface) { 
+		if (InterfaceId == IID_IUnknown) {
+			Interface = Interface;	
+		}		
+		return E_NOINTERFACE; 
+	}
+	ULONG	STDMETHODCALLTYPE AddRef() { return 1; }
+	ULONG	STDMETHODCALLTYPE Release() { return 0; }	
+	HRESULT Output(ULONG mask, PCWSTR text);
+	windbgcallBackOutput();
+	virtual ~windbgcallBackOutput();
+
+	int get_error(char* pbuf,int bufsize);
+	int get_info(char* pbuf, int bufsize);
+
+
+private:
+	int add_text(PCWSTR text, char** ppbuf,int *psize, int* plen);
+	int get_text(char* pbuf,int bufsize, char* psrc,int* plen);
+
+	char* m_errorbuffer;
+	int m_errorsize;
+	int m_errorlen;
+
+	char* m_infobuffer;
+	int m_infosize;
+	int m_infolen;
+};
+
+int windbgcallBackOutput::add_text(PCWSTR text, char** ppbuf,int *psize, int* plen)
+{
+	int ret = 0;
+	char* pretbuf=NULL;
+	int retsize = 0;
+	int retlen=0;
+	int wlen=0;
+	char* pansi=NULL;
+	int ansisize=0;
+	int ansilen=0;
+	if (text == NULL) {
+		if (ppbuf && *ppbuf) {
+			free(*ppbuf);
+			*ppbuf = NULL;
+		}
+		if (psize) {
+			*psize = 0;
+		}
+		if (plen) {
+			*plen = 0;
+		}
+		return 0;
+	}
+
+	if (ppbuf == NULL || psize == NULL || plen == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	retsize = *psize;
+	retlen = *plen;
+	pretbuf = *ppbuf;
+
+	ret = UnicodeToAnsi((wchar_t*)text,&pansi,&ansisize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ansilen = ret;
+
+	wlen = ansilen + retlen;
+	if (wlen >= retsize || pretbuf == NULL) {
+		if (wlen >= retsize) {
+			retsize = wlen + 1;
+		}
+		pretbuf = (char*)malloc(retsize);
+		if (pretbuf == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		memset(pretbuf, 0 ,retsize);
+		if (retlen > 0) {
+			memcpy(pretbuf, *ppbuf, retlen);
+		}
+	}
+	memcpy(&(pretbuf[retlen]), pansi, ansilen);
+	retlen += ansilen;
+
+	if (*ppbuf && *ppbuf != pretbuf) {
+		free(*ppbuf);
+	}
+	*ppbuf = pretbuf;
+	*psize = retsize;
+	*plen = retlen;
+	UnicodeToAnsi(NULL,&pansi,&ansisize);
+	return wlen;
+fail:
+	UnicodeToAnsi(NULL,&pansi,&ansisize);
+	if (pretbuf && pretbuf != *ppbuf) {
+		free(pretbuf);
+	}
+	pretbuf = NULL;
+	retsize = 0;
+	retlen = 0;
+	SETERRNO(ret);
+	return ret;
+}
+
+int windbgcallBackOutput::get_text(char* pbuf,int bufsize, char* psrc,int* plen)
+{
+	int ret = 0;
+	int i,j;
+	if (pbuf == NULL || bufsize == 0) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+	if (psrc != NULL && *plen != 0) {
+		if (*plen <= bufsize) {
+			ret = *plen;
+			memcpy(pbuf, psrc,ret);
+			*plen = 0;
+		} else {
+			ret = bufsize;
+			memcpy(pbuf, psrc, bufsize);
+			for (i=bufsize,j=0;i<*plen;i++, j++) {
+				psrc[j] = psrc[i];
+			}
+			*plen -= bufsize;
+		}
+	}
+	return ret;
+}
+
+HRESULT windbgcallBackOutput::Output(ULONG mask, PCWSTR text)
+{
+	int ret;
+	HRESULT hr = S_OK;
+	if (mask == DEBUG_OUTPUT_ERROR || mask == DEBUG_OUTPUT_WARNING) {
+		ret = this->add_text(text, &(this->m_errorbuffer), &(this->m_errorsize), &(this->m_errorlen));
+	} else {
+		ret = this->add_text(text,&(this->m_infobuffer), &(this->m_infosize), &(this->m_infolen));
+	}
+
+	if (ret < 0) {
+		hr = 0x80000000 | GetLastError();
+	}
+	return hr;
+}
+
+int windbgcallBackOutput::get_error(char* pbuf,int bufsize)
+{
+	return this->get_text(pbuf,bufsize,this->m_errorbuffer,  &(this->m_errorlen));
+}
+
+int windbgcallBackOutput::get_info(char* pbuf,int bufsize)
+{
+	return this->get_text(pbuf,bufsize, this->m_infobuffer,&(this->m_infolen));
+}
+
+windbgcallBackOutput::~windbgcallBackOutput()
+{
+	this->add_text(NULL,&(this->m_errorbuffer),&(this->m_errorsize),&(this->m_errorlen));
+	this->add_text(NULL,&(this->m_infobuffer),&(this->m_infosize),&(this->m_infolen));
+}
+
+windbgcallBackOutput::windbgcallBackOutput()
+{
+	this->m_errorlen = 0;
+	this->m_errorsize = 0;
+	this->m_errorbuffer = NULL;
+	this->m_infobuffer = NULL;
+	this->m_infosize = 0;
+	this->m_infolen = 0;
+}
+
+
 #define WIN_DBG_MAGIC           0x31dcae09
 
 #define WIN_DBG_CHECK           1
@@ -27,6 +208,7 @@ typedef struct __win_debug_t {
 #if WIN_DBG_CHECK
 	uint32_t m_magic;
 #endif
+	windbgcallBackOutput*             m_outputcallback;
 	CComPtr<IDebugClient4>            m_client;
     CComPtr<IDebugControl4>           m_control;
     CComPtr<IDebugSystemObjects4>     m_system;
@@ -41,6 +223,12 @@ void __release_win_debug(pwin_debug_t* ppdbg)
 				pdbg->m_client->SetEventCallbacks(NULL);
 				pdbg->m_client->SetOutputCallbacks(NULL);
 			}
+			if (pdbg->m_outputcallback) {
+				pdbg->m_outputcallback->Release();
+				delete pdbg->m_outputcallback;
+				pdbg->m_outputcallback = NULL;
+			}
+
 		}
 		free(pdbg);
 		*ppdbg=  NULL;
@@ -64,6 +252,7 @@ pwin_debug_t __alloc_win_debug(void)
 	pdbg->m_client = NULL;
 	pdbg->m_control = NULL;
 	pdbg->m_system = NULL;
+	pdbg->m_outputcallback = NULL;
 
 	return pdbg;
 fail:
