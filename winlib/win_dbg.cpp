@@ -188,6 +188,33 @@ windbgcallBackOutput::windbgcallBackOutput()
 }
 
 
+class windbgEventCallback : public DebugBaseEventCallbacksWide
+{
+public:
+	ULONG	STDMETHODCALLTYPE AddRef() { return 1; }
+	ULONG	STDMETHODCALLTYPE Release() { return 0; }	
+    HRESULT STDMETHODCALLTYPE GetInterestMask(PULONG Mask){
+        *Mask = 0;
+        *Mask |= DEBUG_EVENT_BREAKPOINT;
+        *Mask |= DEBUG_EVENT_CHANGE_ENGINE_STATE;
+        *Mask |= DEBUG_EVENT_CHANGE_SYMBOL_STATE;
+        *Mask |= DEBUG_EVENT_EXCEPTION;
+        *Mask |= DEBUG_EVENT_LOAD_MODULE;
+        *Mask |= DEBUG_EVENT_UNLOAD_MODULE;
+        *Mask |= DEBUG_EVENT_CREATE_PROCESS;
+        *Mask |= DEBUG_EVENT_EXIT_PROCESS;
+        *Mask |= DEBUG_EVENT_CREATE_THREAD;
+        *Mask |= DEBUG_EVENT_EXIT_THREAD;
+
+        return S_OK;
+    }
+	windbgEventCallback() : DebugBaseEventCallbacksWide()
+	{
+
+	}
+};
+
+
 #define WIN_DBG_MAGIC           0x31dcae09
 
 #define WIN_DBG_CHECK           1
@@ -209,8 +236,9 @@ typedef struct __win_debug_t {
 	uint32_t m_magic;
 #endif
 	windbgcallBackOutput*             m_outputcallback;
-	CComPtr<IDebugClient4>            m_client;
-    CComPtr<IDebugControl4>           m_control;
+	windbgEventCallback*              m_evtcallback;
+	CComPtr<IDebugClient5>            m_client;
+    CComPtr<IDebugControl5>           m_control;
     CComPtr<IDebugSystemObjects4>     m_system;
 } win_debug_t,*pwin_debug_t;
 
@@ -227,6 +255,11 @@ void __release_win_debug(pwin_debug_t* ppdbg)
 				pdbg->m_outputcallback->Release();
 				delete pdbg->m_outputcallback;
 				pdbg->m_outputcallback = NULL;
+			}
+			if (pdbg->m_evtcallback) {
+				pdbg->m_evtcallback->Release();
+				delete pdbg->m_evtcallback;
+				pdbg->m_evtcallback = NULL;
 			}
 
 		}
@@ -253,6 +286,7 @@ pwin_debug_t __alloc_win_debug(void)
 	pdbg->m_control = NULL;
 	pdbg->m_system = NULL;
 	pdbg->m_outputcallback = NULL;
+	pdbg->m_evtcallback = NULL;
 
 	return pdbg;
 fail:
@@ -297,9 +331,9 @@ int create_client(char* option, void** ppclient)
 	}
 
 	if (len == 0) {
-		hr = DebugCreate(__uuidof(IDebugClient4), (void**) &(pretdbg->m_client));
+		hr = DebugCreate(__uuidof(IDebugClient5), (void**) &(pretdbg->m_client));
 	} else {
-		hr = DebugConnectWide(pwoption,__uuidof(IDebugClient4),(void**)&(pretdbg->m_client));
+		hr = DebugConnectWide(pwoption,__uuidof(IDebugClient5),(void**)&(pretdbg->m_client));
 	}
 
 	if (hr != S_OK) {
@@ -309,8 +343,14 @@ int create_client(char* option, void** ppclient)
 		goto fail;
 	}
 
-	pretdbg->m_control = CComQIPtr<IDebugControl4>(pretdbg->m_client);
+	pretdbg->m_control = CComQIPtr<IDebugControl5>(pretdbg->m_client);
 	pretdbg->m_system = CComQIPtr<IDebugSystemObjects4>(pretdbg->m_client);
+
+	pretdbg->m_evtcallback = new windbgEventCallback();
+	pretdbg->m_outputcallback = new windbgcallBackOutput();
+
+	pretdbg->m_client->SetEventCallbacksWide(pretdbg->m_evtcallback);
+	pretdbg->m_client->SetOutputCallbacksWide(pretdbg->m_outputcallback);
 
 	*ppclient = (void*) pretdbg;
 	AnsiToUnicode(NULL,&pwoption,&woptsize);
