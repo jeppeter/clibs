@@ -7,6 +7,7 @@
 #include <dbgeng.h>
 #include <atlcomcli.h>
 
+#define GET_HR_ERROR(hr)    ((hr) & 0xffffff)
 
 class windbgcallBackOutput : public IDebugOutputCallbacksWide
 {
@@ -264,6 +265,8 @@ typedef struct __win_debug_t {
 	CComPtr<IDebugClient5>            m_client;
     CComPtr<IDebugControl5>           m_control;
     CComPtr<IDebugSystemObjects4>     m_system;
+    int                               m_created;
+    int                               m_procid;
 } win_debug_t,*pwin_debug_t;
 
 void __release_win_debug(pwin_debug_t* ppdbg)
@@ -271,6 +274,15 @@ void __release_win_debug(pwin_debug_t* ppdbg)
 	if (ppdbg && *ppdbg) {
 		pwin_debug_t pdbg = *ppdbg;
 		if (CHECK_WINDBG_MAGIC(pdbg)){
+			if (pdbg->m_procid >= 0) {
+				if (pdbg->m_created) {
+					__stop_process(pdbg);
+				} else {
+					__detach_process(pdbg);
+				}
+				pdbg->m_procid = -1;
+				pdbg->m_created = 0;
+			}
 			if (pdbg->m_client) {
 				pdbg->m_client->SetEventCallbacks(NULL);
 				pdbg->m_client->SetOutputCallbacks(NULL);
@@ -319,6 +331,8 @@ pwin_debug_t __alloc_win_debug(void)
 	pdbg->m_outputcallback = NULL;
 	pdbg->m_evtcallback = NULL;
 	pdbg->m_inputcallback = NULL;
+	pdbg->m_procid = -1;
+	pdbg->m_created = 0;
 
 	return pdbg;
 fail:
@@ -369,7 +383,7 @@ int create_client(char* option, void** ppclient)
 	}
 
 	if (hr != S_OK) {
-		ret = (hr & 0xffffff);
+		ret = GET_HR_ERROR(hr);
 		ret = -ret;
 		ERROR_INFO("connect [%s] options error [0x%lx:%d]", option, hr, hr);
 		goto fail;
@@ -398,11 +412,152 @@ fail:
 	return ret;
 }
 
+int __detach_process(pwin_debug_t pdbg)
+{
+	int ret;
+	HRESULT hr;
+	if (pdbg->m_procid < 0) {
+		return 0;
+	}
+	hr = pdbg->m_client->DetachProcesses();
+	if (hr != S_OK) {
+		ret = GET_HR_ERROR(hr);
+		ret = -ret;
+		ERROR_INFO("detach process error [0x%x:%d]", hr, hr);
+		goto fail;
+	}
+	pdbg->m_procid = -1;
+	pdbg->m_created = 0;
+
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int __stop_process(pwin_debug_t pdbg)
+{
+	HANDLE hproc=NULL;
+	int ret;
+	int trycnt=0;
+	int maxcnt = 5;
+	ULONG status;
+	HRESULT hr;
+	if (pdbg->m_procid < 0) {
+		return 0;
+	}
+
+	hproc = OpenProcess(PROCESS_TERMINATE , TRUE,pdbg->m_procid);
+	if (hproc == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("can not open process %d error[%d]", pdbg->m_procid, ret);
+		goto fail;
+	}
+
+	do {
+		bret = TerminateProcess(hproc,32);
+		if (!bret) {
+			GETERRNO(ret);
+			ERROR_INFO("can not terminate proc[%d] error[%d]", pdbg->m_procid, ret);
+		}
+
+		hr = pdbg->m_control->GetExecutionStatus(&status);
+		if (hr == S_OK) {
+			DEBUG_INFO("status [0x%lx:%d]", status,status);
+		} else {
+			hr = pdbg->m_control->WaitForEvent(0,1);			
+		}
+		if (trycnt >= maxcnt) {
+			ret = -ERROR_INTERNAL_ERROR;
+			ERROR_INFO("over maxcnt [%d]", maxcnt);
+			goto fail;
+		}
+		trycnt ++;
+	} while(1);
+
+	if (hproc != NULL) {
+		CloseHandle(hproc);
+	}
+	hproc = NULL;
+	ret = __detach_process(pdbg);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 1;
+fail:
+	if (hproc != NULL) {
+		CloseHandle(hproc);
+	}
+	hproc = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+ULONG  _create_process_flag(int flags)
+{
+	ULONG cflags=0;
+	if (!(flags & WIN_DBG_FLAGS_CHILDREN)) {
+		cflags |= DEBUG_ONLY_THIS_PROCESS;
+	} else {
+		cflags |= DEBUG_PROCESS;
+	}
+
+	if (!(flags & WIN_DBG_FLAGS_HEAP)) {
+		cflags |= DEBUG_CREATE_PROCESS_NO_DEBUG_HEAP;
+	}
+
+	return cflags;
+}
+
 
 int start_process_single(void* pclient, char* cmd, int flags)
 {
-	pclient = pclient;
-	cmd = cmd;
-	flags = flags;
-	return 0;
+	wchar_t * pwcmd=NULL;
+	int wcmdsize=0;
+	int ret;
+	ULONG cflags=0;
+	pwin_debug_t pdbg = (pwin_debug_t) pclient;
+	if (!CHECK_WINDBG_MAGIC(pdbg) || cmd == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (pdbg->m_procid >= 0) {
+		ret = -ERROR_ALREADY_EXISTS;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	ret = AnsiToUnicode(cmd,&pwcmd,&wcmdsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	cflags = _create_process_flag(flags);
+
+	hr = pdbg->m_client->CreateProcessAndAttachWide(0,
+		pwcmd,cflags , 0);
+	if (hr != S_OK) {
+		ret = GET_HR_ERROR(hr);
+		ret = -ret;
+		ERROR_INFO("create process [%s] error[0x%lx:%d]",cmd, hr, hr);
+		goto fail;
+	}
+
+	/*now wait for the process running*/
+
+
+
+	return 1;
+fail:
+	if (pdbg->m_procid >= 0) {
+		__stop_process(pdbg);
+	}
+	AnsiToUnicode(NULL,&pwcmd,&wcmdsize);
+	SETERRNO(ret);
+	return ret;
 }
