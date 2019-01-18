@@ -50,15 +50,23 @@ WINLIB_API int error_out(const char* fmt, ...);
 		__INNER_CONSOLE_OUTPUTU(BASE_LOG_DEBUG,fmt,__VA_ARGS__);\
 	}while(0)
 
+#define ERROR_INFO(fmt,...)  \
+	do{  \
+		__INNER_BACKGROUND_OUTPUT(BASE_LOG_ERROR,fmt,__VA_ARGS__);\
+		__INNER_CONSOLE_OUTPUTU(BASE_LOG_ERROR,fmt,__VA_ARGS__);\
+	}while(0)
+
 #elif defined(WIN_BACKGROUND_OUTPUT)
 #define DEBUG_INFO(fmt,...) __INNER_BACKGROUND_OUTPUT(BASE_LOG_DEBUG,fmt,__VA_ARGS__)
+#define ERROR_INFO(fmt,...) __INNER_BACKGROUND_OUTPUT(BASE_LOG_ERROR,fmt,__VA_ARGS__)
 #elif defined(WIN_CONSOLE_OUTPUT)
 #define DEBUG_INFO(fmt,...) __INNER_CONSOLE_OUTPUTU(BASE_LOG_DEBUG,fmt,__VA_ARGS__)
+#define ERROR_INFO(fmt,...) __INNER_CONSOLE_OUTPUTU(BASE_LOG_ERROR,fmt,__VA_ARGS__)
 #else
 #define DEBUG_INFO(fmt,...)
+#define ERROR_INFO(fmt,...)
 #endif
 
-#define ERROR_INFO  DEBUG_INFO
 
 
 

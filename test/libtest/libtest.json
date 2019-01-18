@@ -133,5 +133,8 @@
     },
     "ansitoutf8<ansitoutf8_handler>##bytes... to trans bytes to utf8##" : {
         "$" : "+"
+    },
+    "windbg<windbg_handler>##options cmds ... to start windbg##" : {
+        "$" : "*"
     }
 }

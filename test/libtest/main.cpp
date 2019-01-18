@@ -17,6 +17,8 @@
 #include <win_ver.h>
 #include <win_acl.h>
 #include <win_priv.h>
+#include <win_com.h>
+#include <win_dbg.h>
 
 #include <sddl.h>
 #include <aclapi.h>
@@ -81,6 +83,7 @@ int dumpsacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int dumpdacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int utf8toansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -4373,6 +4376,44 @@ out:
     return ret;
 }
 
+int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int cnt=0;
+    void* pdbg=NULL;
+    int ret =0;
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
+    while(parsestate->leftargs != NULL && parsestate->leftargs[cnt] != NULL) {
+        cnt ++;
+    }
+
+
+ 
+    ret = initialize_com();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not initialized com [%d]\n", ret);
+        goto out;
+    }
+
+    ret = create_client("", &pdbg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get client error[%d]\n", ret);
+        goto out;
+    }
+
+    fprintf(stdout, "connect dbg succ\n");
+    ret = 0;
+out:
+    create_client(NULL,&pdbg);
+    uninitialize_com();
+    SETERRNO(ret);
+    return ret;
+}
 
 int _tmain(int argc, TCHAR* argv[])
 {
