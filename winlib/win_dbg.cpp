@@ -385,6 +385,7 @@ int create_client(char* option, void** ppclient)
 	pretdbg->m_client->SetEventCallbacksWide(pretdbg->m_evtcallback);
 	pretdbg->m_client->SetOutputCallbacksWide(pretdbg->m_outputcallback);
 	pretdbg->m_client->SetInputCallbacks(pretdbg->m_inputcallback);
+	pretdbg->m_client->SetOutputMask(DEBUG_OUTPUT_NORMAL);
 
 	*ppclient = (void*) pretdbg;
 	AnsiToUnicode(NULL,&pwoption,&woptsize);
@@ -395,4 +396,13 @@ fail:
 	AnsiToUnicode(NULL,&pwoption,&woptsize);
 	SETERRNO(ret);
 	return ret;
+}
+
+
+int start_process_single(void* pclient, char* cmd, int flags)
+{
+	pclient = pclient;
+	cmd = cmd;
+	flags = flags;
+	return 0;
 }
