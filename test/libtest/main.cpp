@@ -4438,6 +4438,13 @@ int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         goto out;
     }
 
+    ret = windbg_go(pdbg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "go [%s] error[%d]\n", pcmd, ret);
+        goto out;
+    }
+
     fprintf(stdout, "dbg [%s] succ\n", pcmd);
     ret = 0;
 out:    

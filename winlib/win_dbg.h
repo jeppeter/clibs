@@ -11,6 +11,7 @@ extern "C" {
 int windbg_create_client(char* option, void** ppclient);
 int windbg_start_process_single(void* pclient, char* cmd, int flags);
 int windbg_stop_process(void* pclient);
+int windbg_go(void* pclient);
 
 #ifdef __cplusplus
 };

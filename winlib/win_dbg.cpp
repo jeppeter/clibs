@@ -11,6 +11,9 @@
 #define GET_HR_ERROR(hr)    -((hr) & 0xffffff)
 #define DEFAULT_WAIT_FLAG   0
 
+typedef struct __win_debug_t win_debug_t,*pwin_debug_t;
+
+
 class windbgcallBackOutput : public IDebugOutputCallbacksWide
 {
 public:
@@ -24,7 +27,7 @@ public:
     ULONG	STDMETHODCALLTYPE AddRef() { return 1; }
     ULONG	STDMETHODCALLTYPE Release() { return 0; }
     HRESULT Output(ULONG mask, PCWSTR text);
-    windbgcallBackOutput();
+    windbgcallBackOutput(pwin_debug_t pdbg);
     virtual ~windbgcallBackOutput();
 
     int get_error(char* pbuf, int bufsize);
@@ -42,6 +45,8 @@ private:
     char* m_infobuffer;
     int m_infosize;
     int m_infolen;
+
+    pwin_debug_t m_pdbg;
 };
 
 int windbgcallBackOutput::add_text(PCWSTR text, char** ppbuf, int *psize, int* plen)
@@ -181,7 +186,7 @@ windbgcallBackOutput::~windbgcallBackOutput()
     this->add_text(NULL, &(this->m_infobuffer), &(this->m_infosize), &(this->m_infolen));
 }
 
-windbgcallBackOutput::windbgcallBackOutput()
+windbgcallBackOutput::windbgcallBackOutput(pwin_debug_t pdbg)
 {
     this->m_errorlen = 0;
     this->m_errorsize = 0;
@@ -189,7 +194,9 @@ windbgcallBackOutput::windbgcallBackOutput()
     this->m_infobuffer = NULL;
     this->m_infosize = 0;
     this->m_infolen = 0;
+    this->m_pdbg = pdbg;
 }
+
 
 
 class windbgEventCallback : public DebugBaseEventCallbacksWide 
@@ -216,9 +223,10 @@ public:
 
         return S_OK;
     }
-    windbgEventCallback() : DebugBaseEventCallbacksWide()
-    {
 
+    windbgEventCallback(pwin_debug_t pdbg) : DebugBaseEventCallbacksWide()
+    {
+        this->m_pdbg = pdbg;
     }
     virtual ~windbgEventCallback() {}
     HRESULT STDMETHODCALLTYPE Breakpoint( PDEBUG_BREAKPOINT2 Bp) {Bp = Bp ;DEBUG_INFO("get Breakpoint") ;return S_OK; }
@@ -310,7 +318,10 @@ public:
     	DEBUG_INFO(">>>get UnloadModule");
     	return S_OK;
     }
+private:
+    pwin_debug_t m_pdbg;
 };
+
 
 class windbgInputCallBack : public IDebugInputCallbacks
 {
@@ -327,16 +338,17 @@ public:
 
     HRESULT  STDMETHODCALLTYPE EndInput() {return S_OK;}
     HRESULT STDMETHODCALLTYPE StartInput(ULONG buffersize) { buffersize = buffersize; return S_OK;}
-    windbgInputCallBack()
+    windbgInputCallBack(pwin_debug_t pdbg)
     {
-
+        this->m_pdbg = pdbg;
     }
     virtual ~windbgInputCallBack()
     {
 
     }
+private:
+    pwin_debug_t m_pdbg;
 };
-
 
 #define WIN_DBG_MAGIC           0x31dcae09
 
@@ -368,6 +380,7 @@ typedef struct __win_debug_t {
     int                               m_procid;
 } win_debug_t, *pwin_debug_t;
 
+
 int __detach_process(pwin_debug_t pdbg)
 {
     int ret;
@@ -396,7 +409,7 @@ int __stop_process(pwin_debug_t pdbg)
     int ret;
     int trycnt = 0;
     BOOL bret;
-    int maxcnt = 5;
+    int maxcnt=5;
     ULONG status;
     HRESULT hr;
     if (pdbg->m_procid < 0) {
@@ -419,6 +432,9 @@ int __stop_process(pwin_debug_t pdbg)
 
         hr = pdbg->m_control->GetExecutionStatus(&status);
         if (hr == S_OK) {
+            if (status == DEBUG_STATUS_BREAK) {
+                break;
+            }
             DEBUG_INFO("status [0x%lx:%d]", status, status);
         } else {
             hr = pdbg->m_control->WaitForEvent(DEFAULT_WAIT_FLAG, 1);
@@ -602,9 +618,9 @@ int windbg_create_client(char* option, void** ppclient)
     DEBUG_INFO("control %p", pretdbg->m_control);
     DEBUG_INFO("system %p", pretdbg->m_system);
 
-    pretdbg->m_evtcallback = new windbgEventCallback();
-    pretdbg->m_outputcallback = new windbgcallBackOutput();
-    pretdbg->m_inputcallback = new windbgInputCallBack();
+    pretdbg->m_outputcallback = new windbgcallBackOutput(pretdbg);
+    pretdbg->m_inputcallback = new windbgInputCallBack(pretdbg);
+    pretdbg->m_evtcallback = new windbgEventCallback(pretdbg);
 
     pretdbg->m_client->SetEventCallbacksWide(pretdbg->m_evtcallback);
     pretdbg->m_client->SetOutputCallbacksWide(pretdbg->m_outputcallback);
@@ -649,11 +665,12 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
     ULONG status;
     ULONG pid;
     HRESULT hr;
-    int matchcnt = 0;
-    DEBUG_EVENT dbgevt;
     BOOL bret;
     int enbled=0;
+    int validhd=0;
     pwin_debug_t pdbg = (pwin_debug_t) pclient;
+    STARTUPINFOW startinfo = {0};
+    PROCESS_INFORMATION infoproc = {0};
     if (!CHECK_WINDBG_MAGIC(pdbg) || cmd == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
@@ -681,15 +698,27 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
 
     cflags = _create_process_flag(flags);
 
-    //hr = pdbg->m_client->CreateProcessAndAttachWide(0,
-    //        pwcmd, cflags, 0, DEBUG_ATTACH_DEFAULT);
-    hr = pdbg->m_client->CreateProcessAndAttachWide(0,
-        pwcmd, cflags, 0 , DEBUG_ATTACH_DEFAULT);
-    if (hr != S_OK) {
-        ret = GET_HR_ERROR(hr);
-        ERROR_INFO("create process [%s] error[0x%lx:%d]", cmd, hr, hr);
+    memset(&startinfo,0, sizeof(startinfo));
+    memset(&infoproc, 0, sizeof(infoproc));
+    startinfo.cb = sizeof(startinfo);
+    bret = CreateProcessW(NULL,pwcmd,NULL,NULL,FALSE,cflags,NULL,NULL,&startinfo,&infoproc);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("can not create [%s] error[%d]", cmd, ret);
         goto fail;
     }
+    validhd = 1;
+    pid = GetProcessId(infoproc.hProcess);
+
+    hr = pdbg->m_client->AttachProcess(0,pid,DEBUG_ATTACH_EXISTING);
+    if (hr != S_OK) {
+        ret = GET_HR_ERROR(hr);
+        ERROR_INFO("attach proc [%ld] error[0x%lx:%d]", pid, hr,hr);
+        goto fail;
+    }
+    CloseHandle(infoproc.hThread);
+    CloseHandle(infoproc.hProcess);
+    validhd = 0;
 
     /*now wait for the process running*/
     while (1) {
@@ -704,21 +733,11 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
         DEBUG_INFO("status [0x%lx:%d]", status, status);
 
         hr = pdbg->m_control->WaitForEvent(DEBUG_WAIT_DEFAULT, 10);
-        //hr = pdbg->m_control->WaitForEvent(DEBUG_EVENT_CREATE_PROCESS | DEBUG_EVENT_CHANGE_ENGINE_STATE, 10);
-
-#if 0        
-        if (hr != S_OK)	{
-            ret = GET_HR_ERROR(hr);
-            ERROR_INFO("wait event error[0x%lx:%d]", hr, hr);
-            goto fail;
-        }
-#else
         DEBUG_INFO("hr [0x%lx:%d]", hr, hr);
-        if (hr == E_UNEXPECTED) {
+        if (FAILED(hr)) {
         	ret = GET_HR_ERROR(hr);
         	goto fail;
         }
-#endif
 
         hr = pdbg->m_control->GetExecutionStatus(&status);
         if (hr != S_OK) {
@@ -728,22 +747,10 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
         }
         DEBUG_INFO("status [0x%lx:%d]", status, status);
         if (status == DEBUG_STATUS_BREAK) {
-        	matchcnt ++;
-        } else {
-        	matchcnt = 0;
-        }
-        if (matchcnt >= 10) {
-        	DEBUG_INFO("BREAK already");
         	break;
         }
     }
 
-    hr = pdbg->m_system->GetCurrentProcessId(&pid);
-    if (hr != S_OK) {
-        ret = GET_HR_ERROR(hr);
-        ERROR_INFO("getpid error [0x%lx:%d]", hr, hr);
-        goto fail;
-    }
     pdbg->m_procid = (int) pid;
     pdbg->m_created = 1;
     disable_debug_priv();
@@ -753,6 +760,12 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
     AnsiToUnicode(NULL, &pwcmd, &wcmdsize);
     return 1;
 fail:
+    if (validhd) {
+        CloseHandle(infoproc.hThread);
+        CloseHandle(infoproc.hProcess);
+    }
+    validhd = 0;
+
     if (pdbg->m_procid >= 0) {
         __stop_process(pdbg);
     }
@@ -776,4 +789,34 @@ int windbg_stop_process(void* pclient)
         return ret;
     }
     return __stop_process(pdbg);
+}
+
+int windbg_go(void* pclient)
+{
+    pwin_debug_t pdbg = (pwin_debug_t) pclient;
+    int ret = -ERROR_INVALID_PARAMETER;
+    HRESULT hr;
+    ULONG status;
+    if (!CHECK_WINDBG_MAGIC(pdbg)) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    while (1) {
+        hr = pdbg->m_control->WaitForEvent(DEBUG_WAIT_DEFAULT,INFINITE);
+        if (hr != S_OK) {
+            ret = GET_HR_ERROR(hr);
+            ERROR_INFO("wait error [0x%lx:%d]", hr ,hr);
+            return ret;
+        }
+        hr = pdbg->m_control->GetExecutionStatus(&status);
+        if (hr != S_OK) {
+            ret = GET_HR_ERROR(hr);
+            ERROR_INFO("get status error [0x%lx:%d]", hr ,hr);
+            return ret;
+        }
+        DEBUG_INFO("status [0x%d:%d]", status,status);
+        break;
+    }
+    return 0;
 }
