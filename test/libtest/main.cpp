@@ -4431,7 +4431,7 @@ int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         goto out;
     }
 
-    ret = windbg_start_process_single(pdbg,pcmd,WIN_DBG_FLAGS_CHILDREN);
+    ret = windbg_start_process_single(pdbg,pcmd,WIN_DBG_FLAGS_CHILDREN | WIN_DBG_FLAGS_HEAP);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr, "create [%s] error[%d]\n", pcmd, ret);
