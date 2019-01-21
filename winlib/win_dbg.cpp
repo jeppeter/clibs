@@ -229,7 +229,7 @@ public:
         this->m_pdbg = pdbg;
     }
     virtual ~windbgEventCallback() {}
-    HRESULT STDMETHODCALLTYPE Breakpoint( PDEBUG_BREAKPOINT2 Bp) {Bp = Bp ;DEBUG_INFO("get Breakpoint") ;return S_OK; }
+    HRESULT STDMETHODCALLTYPE Breakpoint( PDEBUG_BREAKPOINT2 Bp) {Bp = Bp ;DEBUG_INFO("get Breakpoint") ;return DEBUG_STATUS_BREAK; }
     HRESULT STDMETHODCALLTYPE ChangeDebuggeeState(ULONG   Flags,ULONG64 Argument) { 
     	Flags = Flags ; 
     	Argument = Argument; 
@@ -297,7 +297,7 @@ public:
     HRESULT STDMETHODCALLTYPE ExitProcess(ULONG ExitCode) {
     	ExitCode = ExitCode;
     	DEBUG_INFO(">>>get ExitProcess");
-    	return S_OK;
+    	return DEBUG_STATUS_BREAK;
     }
     HRESULT STDMETHODCALLTYPE LoadModule(ULONG64 ImageFileHandle,ULONG64 BaseOffset,ULONG   ModuleSize,
     		PCWSTR  ModuleName,PCWSTR  ImageName,ULONG   CheckSum,ULONG   TimeDateStamp){
@@ -718,8 +718,7 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
     }
     CloseHandle(infoproc.hThread);
     CloseHandle(infoproc.hProcess);
-    validhd = 0;
-
+    validhd = 0;    
     /*now wait for the process running*/
     while (1) {
 
@@ -732,7 +731,7 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
         }
         DEBUG_INFO("status [0x%lx:%d]", status, status);
 
-        hr = pdbg->m_control->WaitForEvent(DEBUG_WAIT_DEFAULT, 10);
+        hr = pdbg->m_control->WaitForEvent(DEBUG_WAIT_DEFAULT, INFINITE);
         DEBUG_INFO("hr [0x%lx:%d]", hr, hr);
         if (FAILED(hr)) {
         	ret = GET_HR_ERROR(hr);
