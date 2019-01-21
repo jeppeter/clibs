@@ -125,3 +125,13 @@ int disable_audit_priv(void)
 {
 	return __handle_priv("SeAuditPrivilege",0);
 }
+
+int enable_debug_priv(void)
+{
+    return __handle_priv("SeDebugPrivilege", 1);
+}
+
+int disable_debug_priv(void)
+{
+    return __handle_priv("SeDebugPrivilege", 0);   
+}

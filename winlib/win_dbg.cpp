@@ -2,6 +2,7 @@
 #include <win_dbg.h>
 #include <win_output_debug.h>
 #include <win_uniansi.h>
+#include <win_priv.h>
 
 #include <Windows.h>
 #include <dbgeng.h>
@@ -224,47 +225,47 @@ public:
     HRESULT STDMETHODCALLTYPE ChangeDebuggeeState(ULONG   Flags,ULONG64 Argument) { 
     	Flags = Flags ; 
     	Argument = Argument; 
-    	DEBUG_INFO("get ChangeDebuggeeState Flags [0x%lx:%ld] Argument [0x%llx:%lld]", Flags, Flags,Argument,Argument); 
+    	DEBUG_INFO(">>>get ChangeDebuggeeState Flags [0x%lx:%ld] Argument [0x%llx:%lld]", Flags, Flags,Argument,Argument); 
     	return S_OK;}
     HRESULT STDMETHODCALLTYPE ChangeEngineState( ULONG   Flags, ULONG64 Argument) { 
     	Flags = Flags ; 
     	Argument = Argument; 
-    	DEBUG_INFO("get ChangeEngineState Flags [0x%lx:%ld] Argument [0x%llx:%lld]", Flags, Flags, Argument,Argument); 
+    	DEBUG_INFO(">>>get ChangeEngineState Flags [0x%lx:%ld] Argument [0x%llx:%lld]", Flags, Flags, Argument,Argument); 
     	return S_OK;
     }
     HRESULT STDMETHODCALLTYPE CreateThread( ULONG64 Handle, ULONG64 DataOffset, ULONG64 StartOffset) {
     	Handle = Handle;
     	DataOffset = DataOffset;
     	StartOffset = StartOffset;
-    	DEBUG_INFO("get CreateThread");
+    	DEBUG_INFO(">>>get CreateThread");
     	return S_OK;
     }
     HRESULT STDMETHODCALLTYPE ExitThread(ULONG ExitCode) {
     	ExitCode = ExitCode;
-    	DEBUG_INFO("get ExitThread");
+    	DEBUG_INFO(">>>get ExitThread");
     	return S_OK;
     }
     HRESULT STDMETHODCALLTYPE SessionStatus(ULONG Status){
     	Status = Status;
-    	DEBUG_INFO("get SessionStatus");
+    	DEBUG_INFO(">>>get SessionStatus");
     	return S_OK;
     }
     HRESULT STDMETHODCALLTYPE SystemError(ULONG Error,ULONG Level){
     	Error = Error;
     	Level = Level;
-    	DEBUG_INFO("get SystemError");
+    	DEBUG_INFO(">>>get SystemError");
     	return S_OK;
     }
     HRESULT STDMETHODCALLTYPE ChangeSymbolState(ULONG   Flags,ULONG64 Argument){
     	Flags = Flags;
     	Argument = Argument;
-    	DEBUG_INFO("get ChangeSymbolState");
+    	DEBUG_INFO(">>>get ChangeSymbolState");
     	return S_OK;
     }
     HRESULT STDMETHODCALLTYPE Exception(PEXCEPTION_RECORD64 Exception,ULONG               FirstChance) {
     	Exception = Exception;
     	FirstChance = FirstChance;
-    	DEBUG_INFO("get Exception");
+    	DEBUG_INFO(">>>get Exception");
     	return S_OK;
     }
     HRESULT STDMETHODCALLTYPE CreateProcess(ULONG64 ImageFileHandle,ULONG64 Handle,ULONG64 BaseOffset,
@@ -281,13 +282,13 @@ public:
     	InitialThreadHandle = InitialThreadHandle;
     	ThreadDataOffset = ThreadDataOffset;
     	StartOffset = StartOffset;
-    	DEBUG_INFO("get CreateProcess");
+    	DEBUG_INFO(">>>get CreateProcess");
     	return S_OK;
     }
 
     HRESULT STDMETHODCALLTYPE ExitProcess(ULONG ExitCode) {
     	ExitCode = ExitCode;
-    	DEBUG_INFO("get ExitProcess");
+    	DEBUG_INFO(">>>get ExitProcess");
     	return S_OK;
     }
     HRESULT STDMETHODCALLTYPE LoadModule(ULONG64 ImageFileHandle,ULONG64 BaseOffset,ULONG   ModuleSize,
@@ -299,14 +300,14 @@ public:
     	ImageName = ImageName;
     	CheckSum = CheckSum;
     	TimeDateStamp = TimeDateStamp;
-    	DEBUG_INFO("get LoadModule");
+    	DEBUG_INFO(">>>get LoadModule");
     	return S_OK;
     }
 
     HRESULT STDMETHODCALLTYPE UnloadModule(PCWSTR  ImageBaseName,ULONG64 BaseOffset){
     	ImageBaseName = ImageBaseName;
     	BaseOffset = BaseOffset;
-    	DEBUG_INFO("get UnloadModule");
+    	DEBUG_INFO(">>>get UnloadModule");
     	return S_OK;
     }
 };
@@ -360,9 +361,9 @@ typedef struct __win_debug_t {
     windbgcallBackOutput*             m_outputcallback;
     windbgEventCallback*              m_evtcallback;
     windbgInputCallBack*              m_inputcallback;
-    CComPtr<IDebugClient5>            m_client;
-    CComPtr<IDebugControl4>           m_control;
-    CComPtr<IDebugSystemObjects4>     m_system;
+    IDebugClient5*                    m_client;
+    IDebugControl4*                   m_control;
+    IDebugSystemObjects4*             m_system;
     int                               m_created;
     int                               m_procid;
 } win_debug_t, *pwin_debug_t;
@@ -487,6 +488,21 @@ void __release_win_debug(pwin_debug_t* ppdbg)
                 pdbg->m_inputcallback = NULL;
             }
 
+            if (pdbg->m_system) {
+                pdbg->m_system->Release();
+                pdbg->m_system = NULL;
+            }
+
+            if (pdbg->m_control) {
+                pdbg->m_control->Release();
+                pdbg->m_control = NULL;
+            }
+
+            if (pdbg->m_client) {
+                pdbg->m_client->Release();
+                pdbg->m_client = NULL;
+            }
+
         }
         free(pdbg);
         *ppdbg =  NULL;
@@ -570,8 +586,19 @@ int windbg_create_client(char* option, void** ppclient)
         goto fail;
     }
 
-    pretdbg->m_control = CComQIPtr<IDebugControl4>(pretdbg->m_client);
-    pretdbg->m_system = CComQIPtr<IDebugSystemObjects4>(pretdbg->m_client);
+    hr = pretdbg->m_client->QueryInterface(__uuidof(IDebugControl4),(void**)&(pretdbg->m_control));
+    if (hr != S_OK) {
+        ret= GET_HR_ERROR(hr);
+        ERROR_INFO("query control error [0x%lx:%d]", hr, hr);
+        goto fail;
+    }
+
+    hr = pretdbg->m_client->QueryInterface(__uuidof(IDebugSystemObjects4),(void**)&(pretdbg->m_system));
+    if (hr != S_OK) {
+        ret = GET_HR_ERROR(hr);
+        ERROR_INFO("query system error [0x%lx:%d]", hr ,hr);
+        goto fail;
+    }
     DEBUG_INFO("control %p", pretdbg->m_control);
     DEBUG_INFO("system %p", pretdbg->m_system);
 
@@ -623,6 +650,9 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
     ULONG pid;
     HRESULT hr;
     int matchcnt = 0;
+    DEBUG_EVENT dbgevt;
+    BOOL bret;
+    int enbled=0;
     pwin_debug_t pdbg = (pwin_debug_t) pclient;
     if (!CHECK_WINDBG_MAGIC(pdbg) || cmd == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
@@ -636,6 +666,13 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
         return ret;
     }
 
+    ret = enable_debug_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enbled = 1;
+
     ret = AnsiToUnicode(cmd, &pwcmd, &wcmdsize);
     if (ret < 0) {
         GETERRNO(ret);
@@ -644,8 +681,10 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
 
     cflags = _create_process_flag(flags);
 
+    //hr = pdbg->m_client->CreateProcessAndAttachWide(0,
+    //        pwcmd, cflags, 0, DEBUG_ATTACH_DEFAULT);
     hr = pdbg->m_client->CreateProcessAndAttachWide(0,
-            pwcmd, cflags, 0, DEBUG_ATTACH_DEFAULT);
+        pwcmd, cflags, 0 , DEBUG_ATTACH_DEFAULT);
     if (hr != S_OK) {
         ret = GET_HR_ERROR(hr);
         ERROR_INFO("create process [%s] error[0x%lx:%d]", cmd, hr, hr);
@@ -664,7 +703,8 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
         }
         DEBUG_INFO("status [0x%lx:%d]", status, status);
 
-        hr = pdbg->m_control->WaitForEvent(DEBUG_WAIT_DEFAULT, INFINITE);
+        hr = pdbg->m_control->WaitForEvent(DEBUG_WAIT_DEFAULT, 10);
+        //hr = pdbg->m_control->WaitForEvent(DEBUG_EVENT_CREATE_PROCESS | DEBUG_EVENT_CHANGE_ENGINE_STATE, 10);
 
 #if 0        
         if (hr != S_OK)	{
@@ -706,6 +746,8 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
     }
     pdbg->m_procid = (int) pid;
     pdbg->m_created = 1;
+    disable_debug_priv();
+    enbled = 0;
 
     DEBUG_INFO("procid %d", pdbg->m_procid);
     AnsiToUnicode(NULL, &pwcmd, &wcmdsize);
@@ -715,6 +757,11 @@ fail:
         __stop_process(pdbg);
     }
     AnsiToUnicode(NULL, &pwcmd, &wcmdsize);
+    if (enbled) {
+        disable_debug_priv();
+    }
+    enbled = 0;
+
     SETERRNO(ret);
     return ret;
 }

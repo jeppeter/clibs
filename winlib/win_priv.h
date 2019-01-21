@@ -23,6 +23,8 @@ WINLIB_API int enable_impersonate_priv(void);
 WINLIB_API int disable_impersonate_priv(void);
 WINLIB_API int enable_audit_priv(void);
 WINLIB_API int disable_audit_priv(void);
+WINLIB_API int enable_debug_priv(void);
+WINLIB_API int disable_debug_priv(void);
 
 
 
