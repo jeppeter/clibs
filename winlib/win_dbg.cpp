@@ -877,11 +877,16 @@ fail:
     return ret;
 }
 
+#define MIN_BUF_SIZE            512
+
 int windbg_get_out(void* pclient,int flags, char** ppout, int *psize)
 {
     int ret;
     pwin_debug_t pdbg = (pwin_debug_t) pclient;
     int outlen=0;
+    char* pretout=NULL;
+    char* ptmpout=NULL;
+    int retsize=0;
     if (flags == WIN_DBG_FLAGS_FREE) {
         if (ppout && *ppout) {
             free(*ppout);
@@ -895,11 +900,77 @@ int windbg_get_out(void* pclient,int flags, char** ppout, int *psize)
 
     if (!CHECK_WINDBG_MAGIC(pdbg) || 
         (flags != WIN_DBG_OUTPUT_OUT && 
-        flags != WIN_DBG_OUTPUT_ERR)) {
+        flags != WIN_DBG_OUTPUT_ERR) || 
+        ppout == NULL || psize == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
         return ret;
     }
+    pretout = *ppout;
+    retsize = *psize;
 
+    if (pdbg->m_outputcallback == NULL) {
+        ret = -ERROR_NOT_READY;
+        goto fail;
+    }
+
+    if (retsize < MIN_BUF_SIZE || pretout == NULL) {
+        if (retsize < MIN_BUF_SIZE) {
+            retsize = MIN_BUF_SIZE;
+        }
+        pretout = (char*) malloc(retsize);
+        if (pretout == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc [%d] error[%d]", retsize, ret);
+            goto fail;
+        }
+        memset(pretout, 0 ,retsize);
+    }
+
+try_again:
+    if (flags == WIN_DBG_OUTPUT_OUT) {
+        ret = pdbg->m_outputcallback->get_info(&(pretout[outlen]), (retsize - outlen));    
+    } else if (flags == WIN_DBG_OUTPUT_ERR) {
+        ret = pdbg->m_outputcallback->get_error(&(pretout[outlen]), (retsize - outlen));
+    } else {
+        ASSERT_IF(0!=0);
+    }
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    outlen += ret;
+    if (outlen == retsize) {
+        retsize <<= 1;
+        ptmpout = (char*) malloc(retsize);
+        if (ptmpout == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc [%d] error[%d]", retsize, ret);
+            goto fail;
+        }
+        memset(ptmpout, 0, retsize);
+        if (outlen > 0) {
+            memcpy(ptmpout, pretout, outlen);
+        }
+        if (pretout && pretout != *ppout) {
+            free(pretout);
+        }
+        pretout = ptmpout;
+        goto try_again;
+    }
+
+    if (*ppout && *ppout != pretout) {
+        free(*ppout);
+    }
+
+    *ppout = pretout;
+    *psize = retsize;
     return outlen;
+fail:
+    if (pretout != NULL && pretout != *ppout) {
+        free(pretout);
+    }
+    pretout = NULL;
+    SETERRNO(ret);
+    return ret;
 }

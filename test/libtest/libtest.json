@@ -136,5 +136,8 @@
     },
     "windbg<windbg_handler>##options cmds ... to start windbg##" : {
         "$" : "+"
+    },
+    "execdbg<execdbg_handler>##runcmd rundbg to run output##" : {
+        "$" : 2
     }
 }

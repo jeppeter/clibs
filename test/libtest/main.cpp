@@ -84,6 +84,7 @@ int dumpdacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int utf8toansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int execdbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -4503,6 +4504,90 @@ out:
     uninitialize_com();
     snprintf_safe(&pcmd,&cmdsize,NULL);
     quote_string(&pcurquote,&curquotesize,NULL);
+    SETERRNO(ret);
+    return ret;
+}
+
+int execdbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* singlecmd=NULL;
+    char* runcmd=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    void* pdbg=NULL;
+    char* pout=NULL;
+    int outsize=0;
+    int outlen=0;
+    char* perr=NULL;
+    int errsize=0;
+    int errlen=0;
+
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
+    singlecmd = parsestate->leftargs[0];
+    runcmd = parsestate->leftargs[1];
+
+    ret = initialize_com();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not initialized com [%d]\n", ret);
+        goto out;
+    }
+
+    ret = windbg_create_client("", &pdbg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get client error[%d]\n", ret);
+        goto out;
+    }
+
+    st_pdbg = pdbg;
+
+    ret = windbg_start_process_single(pdbg,singlecmd,WIN_DBG_FLAGS_CHILDREN | WIN_DBG_FLAGS_HEAP);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "create [%s] error[%d]\n", singlecmd, ret);
+        goto out;
+    }
+
+    ret = windbg_exec(pdbg,runcmd);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "run [%s] error[%d]\n", runcmd, ret);
+        goto out;
+    }
+
+    ret = windbg_get_out(pdbg,WIN_DBG_OUTPUT_OUT,&pout,&outsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "get out for [%s] error[%d]\n", runcmd, ret);
+        goto out;
+    }
+    outlen = ret;
+
+    ret = windbg_get_out(pdbg,WIN_DBG_OUTPUT_ERR,&perr,&errsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "get err for [%s] error[%d]\n", runcmd, ret);
+        goto out;
+    }
+    errlen = ret;
+
+    fprintf(stdout,"out [%d]\n", outlen);
+    fprintf(stdout,"%s\n", pout);
+
+    fprintf(stdout,"err [%d]\n", errlen);
+    fprintf(stdout,"%s\n", perr);
+
+
+    ret = 0;
+out:
+    windbg_get_out(NULL,WIN_DBG_FLAGS_FREE,&pout,&outsize);
+    windbg_get_out(NULL,WIN_DBG_FLAGS_FREE,&perr,&errsize);
+    windbg_create_client(NULL,&pdbg);
+    uninitialize_com();
     SETERRNO(ret);
     return ret;
 }
