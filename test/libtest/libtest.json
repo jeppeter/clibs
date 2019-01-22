@@ -138,6 +138,6 @@
         "$" : "+"
     },
     "execdbg<execdbg_handler>##runcmd rundbg to run output##" : {
-        "$" : 2
+        "$" : "+"
     }
 }

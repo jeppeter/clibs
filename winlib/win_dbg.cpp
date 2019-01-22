@@ -30,17 +30,12 @@ public:
     windbgcallBackOutput(pwin_debug_t pdbg);
     virtual ~windbgcallBackOutput();
 
-    int get_error(char* pbuf, int bufsize);
     int get_info(char* pbuf, int bufsize);
 
 
 private:
     int add_text(PCWSTR text, char** ppbuf, int *psize, int* plen);
     int get_text(char* pbuf, int bufsize, char* psrc, int* plen);
-
-    char* m_errorbuffer;
-    int m_errorsize;
-    int m_errorlen;
 
     char* m_infobuffer;
     int m_infosize;
@@ -158,11 +153,8 @@ HRESULT windbgcallBackOutput::Output(ULONG mask, PCWSTR text)
 {
     int ret;
     HRESULT hr = S_OK;
-    if (mask == DEBUG_OUTPUT_ERROR || mask == DEBUG_OUTPUT_WARNING) {
-        ret = this->add_text(text, &(this->m_errorbuffer), &(this->m_errorsize), &(this->m_errorlen));
-    } else {
-        ret = this->add_text(text, &(this->m_infobuffer), &(this->m_infosize), &(this->m_infolen));
-    }
+    mask = mask;
+    ret = this->add_text(text, &(this->m_infobuffer), &(this->m_infosize), &(this->m_infolen));
 
     if (ret < 0) {
         hr = 0x80000000 | GetLastError();
@@ -170,10 +162,6 @@ HRESULT windbgcallBackOutput::Output(ULONG mask, PCWSTR text)
     return hr;
 }
 
-int windbgcallBackOutput::get_error(char* pbuf, int bufsize)
-{
-    return this->get_text(pbuf, bufsize, this->m_errorbuffer,  &(this->m_errorlen));
-}
 
 int windbgcallBackOutput::get_info(char* pbuf, int bufsize)
 {
@@ -182,15 +170,11 @@ int windbgcallBackOutput::get_info(char* pbuf, int bufsize)
 
 windbgcallBackOutput::~windbgcallBackOutput()
 {
-    this->add_text(NULL, &(this->m_errorbuffer), &(this->m_errorsize), &(this->m_errorlen));
     this->add_text(NULL, &(this->m_infobuffer), &(this->m_infosize), &(this->m_infolen));
 }
 
 windbgcallBackOutput::windbgcallBackOutput(pwin_debug_t pdbg)
 {
-    this->m_errorlen = 0;
-    this->m_errorsize = 0;
-    this->m_errorbuffer = NULL;
     this->m_infobuffer = NULL;
     this->m_infosize = 0;
     this->m_infolen = 0;
@@ -899,8 +883,7 @@ int windbg_get_out(void* pclient,int flags, char** ppout, int *psize)
     }
 
     if (!CHECK_WINDBG_MAGIC(pdbg) || 
-        (flags != WIN_DBG_OUTPUT_OUT && 
-        flags != WIN_DBG_OUTPUT_ERR) || 
+        (flags != WIN_DBG_OUTPUT_OUT) || 
         ppout == NULL || psize == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
@@ -928,13 +911,7 @@ int windbg_get_out(void* pclient,int flags, char** ppout, int *psize)
     }
 
 try_again:
-    if (flags == WIN_DBG_OUTPUT_OUT) {
-        ret = pdbg->m_outputcallback->get_info(&(pretout[outlen]), (retsize - outlen));    
-    } else if (flags == WIN_DBG_OUTPUT_ERR) {
-        ret = pdbg->m_outputcallback->get_error(&(pretout[outlen]), (retsize - outlen));
-    } else {
-        ASSERT_IF(0!=0);
-    }
+    ret = pdbg->m_outputcallback->get_info(&(pretout[outlen]), (retsize - outlen));
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;

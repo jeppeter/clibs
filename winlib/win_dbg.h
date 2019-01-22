@@ -10,7 +10,6 @@ extern "C" {
 
 #define WIN_DBG_FLAGS_FREE                       0x0
 #define WIN_DBG_OUTPUT_OUT                       0x1
-#define WIN_DBG_OUTPUT_ERR                       0x2
 
 int windbg_create_client(char* option, void** ppclient);
 int windbg_start_process_single(void* pclient, char* cmd, int flags);
