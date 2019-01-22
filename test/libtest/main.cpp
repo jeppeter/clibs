@@ -4376,6 +4376,47 @@ out:
     return ret;
 }
 
+
+static void* st_pdbg=NULL;
+
+BOOL WINAPI HandlerCtrlcRoutine(DWORD dwCtrlType)
+{
+    BOOL bret = TRUE;
+    int ret;
+    switch (dwCtrlType) {
+    case CTRL_C_EVENT:
+        DEBUG_INFO("CTRL_C_EVENT\n");
+        break;
+    case CTRL_BREAK_EVENT:
+        DEBUG_INFO("CTRL_BREAK_EVENT\n");
+        break;
+    case CTRL_CLOSE_EVENT:
+        DEBUG_INFO("CTRL_CLOSE_EVENT\n");
+        break;
+    case CTRL_LOGOFF_EVENT:
+        DEBUG_INFO("CTRL_LOGOFF_EVENT\n");
+        break;
+    case CTRL_SHUTDOWN_EVENT:
+        DEBUG_INFO("CTRL_SHUTDOWN_EVENT\n");
+        break;
+    default:
+        DEBUG_INFO("ctrltype %d\n", dwCtrlType);
+        bret = FALSE;
+        break;
+    }
+
+    if (st_pdbg) {
+        ret = windbg_interrupt(st_pdbg);
+        if (ret < 0) {
+            ERROR_INFO("can not interrupt [%d]", ret);
+            bret = FALSE;
+        }
+    }
+
+    return bret;
+}
+
+
 int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     pargs_options_t pargs = (pargs_options_t) popt;
@@ -4387,6 +4428,7 @@ int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     int cmdsize=0;
     char* pcurquote=NULL;
     int curquotesize=0;
+    BOOL bret;
 
 
     argc = argc;
@@ -4415,6 +4457,12 @@ int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
 
 
+    bret = SetConsoleCtrlHandler(HandlerCtrlcRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not set ctrl handler [%d]", ret);
+        goto out;
+    }
 
  
     ret = initialize_com();
@@ -4430,6 +4478,8 @@ int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         fprintf(stderr, "can not get client error[%d]\n", ret);
         goto out;
     }
+
+    st_pdbg = pdbg;
 
     ret = windbg_start_process_single(pdbg,pcmd,WIN_DBG_FLAGS_CHILDREN | WIN_DBG_FLAGS_HEAP);
     if (ret < 0) {
@@ -4447,7 +4497,8 @@ int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     fprintf(stdout, "dbg [%s] succ\n", pcmd);
     ret = 0;
-out:    
+out:
+    st_pdbg = NULL;    
     windbg_create_client(NULL,&pdbg);
     uninitialize_com();
     snprintf_safe(&pcmd,&cmdsize,NULL);

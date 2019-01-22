@@ -819,3 +819,87 @@ int windbg_go(void* pclient)
     }
     return 0;
 }
+
+int windbg_exec(void* pclient, const char* cmd)
+{
+    int ret;
+    pwin_debug_t pdbg = (pwin_debug_t) pclient;
+    wchar_t* pwcmd=NULL;
+    int wcmdsize=0;
+    HRESULT hr;
+    if (!CHECK_WINDBG_MAGIC(pdbg) || cmd == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret= AnsiToUnicode((char*)cmd,&pwcmd,&wcmdsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    hr = pdbg->m_control->ExecuteWide(DEBUG_OUTCTL_THIS_CLIENT,pwcmd,DEBUG_EXECUTE_NOT_LOGGED);
+    if (hr != S_OK) {
+        ret = GET_HR_ERROR(hr);
+        ERROR_INFO("exec[%s] error[0x%lx:%d]", cmd, hr, hr);
+        goto fail;
+    }
+    AnsiToUnicode(NULL,&pwcmd,&wcmdsize);
+    return 1;
+fail:
+    AnsiToUnicode(NULL,&pwcmd,&wcmdsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int windbg_interrupt(void* pclient)
+{
+    pwin_debug_t pdbg = (pwin_debug_t) pclient;
+    int ret;
+    HRESULT hr;
+    if (!CHECK_WINDBG_MAGIC(pdbg)) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    hr = pdbg->m_control->SetInterrupt(DEBUG_INTERRUPT_ACTIVE);
+    if (hr != S_OK) {
+        ret = GET_HR_ERROR(hr);
+        ERROR_INFO("interrupt error [0x%lx:%d]", hr, hr);
+        goto fail;
+    }
+
+    return 1;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+int windbg_get_out(void* pclient,int flags, char** ppout, int *psize)
+{
+    int ret;
+    pwin_debug_t pdbg = (pwin_debug_t) pclient;
+    int outlen=0;
+    if (flags == WIN_DBG_FLAGS_FREE) {
+        if (ppout && *ppout) {
+            free(*ppout);
+            *ppout = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (!CHECK_WINDBG_MAGIC(pdbg) || 
+        (flags != WIN_DBG_OUTPUT_OUT && 
+        flags != WIN_DBG_OUTPUT_ERR)) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    return outlen;
+}
