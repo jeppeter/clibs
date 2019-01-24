@@ -4584,7 +4584,7 @@ int execdbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         DEBUG_INFO("pptr [%p] readbuf [%p]", pptr, readbuf);
         while(pptr >= readbuf && 
             (*pptr == '\r' || *pptr == '\n' || *pptr =='\0')) {
-            DEBUG_INFO("pptr [%p] [%c]", pptr, *pptr);
+            DEBUG_INFO("pptr [%p] [0x%02x]", pptr, *pptr);
             *pptr = '\0';
             pptr --;
         }

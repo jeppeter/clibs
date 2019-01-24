@@ -636,6 +636,8 @@ ULONG  _create_process_flag(int flags)
         cflags |= DEBUG_CREATE_PROCESS_NO_DEBUG_HEAP;
     }
 
+    cflags |= CREATE_SUSPENDED;
+
     return cflags;
 }
 
@@ -700,9 +702,6 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
         ERROR_INFO("attach proc [%ld] error[0x%lx:%d]", pid, hr,hr);
         goto fail;
     }
-    CloseHandle(infoproc.hThread);
-    CloseHandle(infoproc.hProcess);
-    validhd = 0;    
     /*now wait for the process running*/
     while (1) {
 
@@ -738,8 +737,19 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
     pdbg->m_created = 1;
     disable_debug_priv();
     enbled = 0;
-
     DEBUG_INFO("procid %d", pdbg->m_procid);
+    bret = ResumeThread(infoproc.hThread);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("resume thread error[%d]", ret);
+        goto fail;
+    }
+
+    CloseHandle(infoproc.hThread);
+    CloseHandle(infoproc.hProcess);
+    validhd = 0;    
+
+
     AnsiToUnicode(NULL, &pwcmd, &wcmdsize);
     return 1;
 fail:
