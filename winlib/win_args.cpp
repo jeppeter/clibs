@@ -326,6 +326,9 @@ int split_argv(char* pcmd,char***pppargv, int* pargc)
         }
 
         pstartptr = pcurpatr;
+        if (pcopystr) {
+            memset(pcopystr,0, cpysize);
+        }
         ret = __find_quote_string(pstartptr,&pendstr,&pcopystr,&cpysize,isquoted);
         if (ret < 0) {
             GETERRNO(ret);
