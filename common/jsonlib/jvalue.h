@@ -285,13 +285,13 @@ union jvalue {
  * @def MAX_KEY_STRING_SIZE
  * Max size for a key string.
  */
-#define MAX_KEY_STRING_SIZE     512
+#define MAX_KEY_STRING_SIZE     (1 << 16)
 
 /**
  * @def MAX_VALUE_STRING_SIZE
  * Max size for a value string.
  */
-#define MAX_VALUE_STRING_SIZE   16384
+#define MAX_VALUE_STRING_SIZE   (1 << 26)
 
 /******************************************************************************/
 /* primitive creators */

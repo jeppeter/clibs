@@ -4492,6 +4492,9 @@ int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     int outsize=0;
     int outlen=0;
     int ret;
+    char* expandline=NULL;
+    int expandsize=0;
+    int expandlen=0;
 
     init_log_level(pargs);
     argc = argc;
@@ -4534,8 +4537,17 @@ try_again:
     }
 
     outlen = ret;
-    fprintf(stdout, "inlen [%d]outlen [%d]\n", inlen,outlen);
-    ret = write_file_whole(output,outbuf,outlen);
+    ret = base64_splite_line(outbuf,outlen,76,&expandline,&expandsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "expand line error[%d]\n", ret);
+        goto out;
+    }
+
+    expandlen = ret;
+
+    fprintf(stdout, "inlen [%d]outlen [%d]\n", inlen,expandlen);
+    ret = write_file_whole(output,expandline,expandlen);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr, "write [%s] error[%d]\n", output,ret );
@@ -4546,6 +4558,7 @@ try_again:
     ret = 0;
 
 out:
+    base64_splite_line(NULL,0,0,&expandline,&expandsize);
     read_file_whole(NULL,&inbuf,&insize);
     if (outbuf) {
         free(outbuf);
@@ -4566,6 +4579,8 @@ int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     int outsize=0;
     int outlen=0;
     int ret;
+    char* compactbuf=NULL;
+    int compactlen=0,compactsize=0;
 
     init_log_level(pargs);
     argc = argc;
@@ -4581,6 +4596,15 @@ int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
     inlen = ret;
 
+
+    ret = base64_compact_line(inbuf,inlen,&compactbuf,&compactsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "compact error[%d]\n", ret);
+        goto out;
+    }
+    compactlen = ret;
+
     outsize = 32;
 try_again:
     if (outbuf) {
@@ -4594,7 +4618,9 @@ try_again:
         goto out;
     }
 
-    ret = decode_base64(inbuf,inlen,(unsigned char*)outbuf,outsize);
+
+
+    ret = decode_base64(compactbuf,compactlen,(unsigned char*)outbuf,outsize);
     if (ret < 0) {
         GETERRNO(ret);
         if (ret == -ERROR_INSUFFICIENT_BUFFER) {
@@ -4620,6 +4646,7 @@ try_again:
     ret = 0;
 
 out:
+    base64_compact_line(NULL,0,&compactbuf,&compactsize);
     read_file_whole(NULL,&inbuf,&insize);
     if (outbuf) {
         free(outbuf);
