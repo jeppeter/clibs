@@ -82,6 +82,8 @@ int dumpdacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int utf8toansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int startdetach_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getexe_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getexedir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -4419,6 +4421,63 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+
+int getexe_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    char* pwhole=NULL;
+    int wholesize=0;
+    init_log_level(pargs);
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+
+    ret = get_executable_wholepath(0,&pwhole,&wholesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "get whole path error[%d]\n", ret);
+        goto out;
+    }
+
+    fprintf(stdout, "whole path [%s]\n", pwhole);
+
+    ret = 0;
+out:
+    get_executable_wholepath(1,&pwhole,&wholesize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int getexedir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    char* pwhole=NULL;
+    int wholesize=0;
+    init_log_level(pargs);
+
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+
+    ret = get_executable_dirname(0,&pwhole,&wholesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "get whole path error[%d]\n", ret);
+        goto out;
+    }
+
+    fprintf(stdout, "whole path dirname [%s]\n", pwhole);
+
+    ret = 0;
+out:
+    get_executable_dirname(1,&pwhole,&wholesize);
+    SETERRNO(ret);
+    return ret;    
+}
+
 
 int _tmain(int argc, TCHAR* argv[])
 {

@@ -23,6 +23,8 @@ WINLIB_API int set_computer_name(int type,char* pname);
 WINLIB_API int get_codepage(void);
 WINLIB_API int set_codepage(int cp);
 WINLIB_API int get_current_user(int freed,char** ppuser,int *psize);
+WINLIB_API int get_executable_wholepath(int freed,char** ppath, int *psize);
+WINLIB_API int get_executable_dirname(int freed,char** ppath, int *psize);
 
 #ifdef __cplusplus
 };

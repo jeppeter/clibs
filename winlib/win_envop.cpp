@@ -1,8 +1,11 @@
 #include <win_envop.h>
 #include <win_err.h>
 #include <win_uniansi.h>
+#include <wdbgexts.h>
+#include <psapi.h>
 
 #pragma warning(disable:4996)
+#pragma comment(lib, "shlwapi.lib")
 
 int get_env_variable(char* envvar, char** ppenvval, int* pvalsize)
 {
@@ -353,4 +356,187 @@ fail:
     SETERRNO(ret);
     return ret;
 
+}
+
+int get_executable_wholepath(int freed,char** ppath, int *psize)
+{
+    TCHAR* ptpath=NULL;
+    int tsize=0;
+    int retlen=0;
+    DWORD dret=0;
+    int ret;
+    if (freed) {
+        TcharToAnsi(NULL,ppath,psize);
+        return 0;
+    }
+
+    if (ppath == NULL || psize==NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    tsize = 32;
+
+try_again:
+    if (ptpath) {
+        free(ptpath);
+    }
+    ptpath = NULL;
+    ptpath = (TCHAR*) malloc(sizeof(*ptpath) * tsize);
+    if (ptpath == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc [%d] error[%d]", sizeof(*ptpath)* tsize, ret);
+        goto fail;
+    }
+    memset(ptpath, 0 ,sizeof(*ptpath) * tsize);
+
+    dret = GetModuleFileName(NULL,ptpath,tsize);
+    if (dret == 0) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            tsize <<= 1;
+            goto try_again;
+        }
+        ERROR_INFO("module name error[%d]", ret);
+        goto fail;
+    } else if (dret >= (DWORD)tsize) {
+        tsize <<= 1;
+        goto try_again;
+    }
+
+    ret = TcharToAnsi(ptpath,ppath,psize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = ret;
+    if (ptpath) {
+        free(ptpath);
+    }
+    ptpath = NULL;
+    tsize = 0;
+    return retlen;
+fail:
+    if (ptpath) {
+        free(ptpath);
+    }
+    ptpath = NULL;
+    tsize = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+int get_executable_dirname(int freed,char** ppath, int *psize)
+{
+    DWORD dret;
+    TCHAR* ptpath=NULL;
+    char* pathansi=NULL;
+    int tsize=0;
+    int apsize=0,aplen=0;
+    int cpylen=0;
+    int retsize=0;
+    char* pretpath=NULL;
+    char* ptr;
+    int ret;
+    if (freed) {
+        if (ppath && *ppath) {
+            free(*ppath);
+            *ppath = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    tsize= 32;
+get_wholeagain:
+    if (ptpath) {
+        free(ptpath);
+    }
+    ptpath = NULL;
+    ptpath = (TCHAR*) malloc(sizeof(*ptpath) * tsize);
+    if (ptpath == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc [%d] error[%d]", sizeof(*ptpath)* tsize, ret);
+        goto fail;
+    }
+    memset(ptpath, 0 ,sizeof(*ptpath) * tsize);
+
+    dret = GetModuleFileName(NULL,ptpath,tsize);
+    if (dret == 0) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            tsize <<= 1;
+            goto get_wholeagain;
+        }
+        ERROR_INFO("module name error[%d]", ret);
+        goto fail;
+    } else if (dret >= (DWORD)tsize) {
+        tsize <<= 1;
+        goto get_wholeagain;
+    }
+
+
+    ret = TcharToAnsi(ptpath,&pathansi,&apsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    aplen = ret;
+    cpylen = aplen;
+    ptr = pathansi + aplen;
+    cpylen --;
+    ptr --;
+
+    while(cpylen > 0 && *ptr != '\\') {
+        cpylen --;
+        ptr --;
+    }
+
+
+    pretpath = *ppath;
+    retsize = *psize;
+
+    if (pretpath == NULL || retsize <= cpylen) {
+        if (retsize <= cpylen) {
+            retsize = cpylen + 1;
+        }
+        pretpath = (char*)malloc(retsize);
+        if (pretpath == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("alloc %d error[%d]", retsize, ret);
+            goto fail;
+        }
+    }
+    memset(pretpath, 0, retsize);
+    memcpy(pretpath, pathansi, cpylen);
+
+    if (*ppath && *ppath != pretpath) {
+        free(*ppath);
+    }
+    *ppath = pretpath;
+    *psize = retsize;
+
+    TcharToAnsi(NULL,&pathansi,&apsize);
+    if (ptpath) {
+        free(ptpath);
+    }
+    ptpath = NULL;
+
+    return cpylen;
+fail:
+    if (pretpath && pretpath != *ppath) {
+        free(pretpath);
+    }
+    pretpath = NULL;
+    retsize = 0;
+
+    TcharToAnsi(NULL,&pathansi,&apsize);
+    if (ptpath) {
+        free(ptpath);
+    }
+    ptpath = NULL;
+    SETERRNO(ret);
+    return ret;
 }
