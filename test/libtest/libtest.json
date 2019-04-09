@@ -133,5 +133,8 @@
     },
     "ansitoutf8<ansitoutf8_handler>##bytes... to trans bytes to utf8##" : {
         "$" : "+"
+    },
+    "startdetach<startdetach_handler>##cmds ... to start##" : {
+        "$" : "+"
     }
 }

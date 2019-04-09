@@ -2618,3 +2618,92 @@ int run_cmd_output(char* pin, int insize, char** ppout, int *poutsize, char** pp
     va_start(ap, prog);
     return run_cmd_event_outputa(NULL,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
 }
+
+
+int start_cmdv_detach(int createflag,char* progv[])
+{
+    int retpid=0;
+    pproc_handle_t ppinfo=NULL;
+    int ret;
+    ppinfo = (pproc_handle_t)start_cmdv(createflag, progv);
+    if (ppinfo == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    retpid = GetProcessId(ppinfo->m_prochd);
+    CloseHandle(ppinfo->m_prochd);
+    /*exited*/
+    ppinfo->m_exited = 1;
+    __free_proc_handle(&ppinfo);
+    return retpid;
+fail:
+    __free_proc_handle(&ppinfo);
+    SETERRNO(ret);
+    return ret;
+
+}
+
+
+int start_cmd_detach(int createflag,const char* prog,...)
+{
+    va_list oldap;
+    char** progv = NULL;
+    int cnt;
+    int retpid=0;
+    va_list ap;
+    char* curarg=NULL;
+    int ret;
+    int i;
+
+    va_start(ap,prog);
+
+    cnt = 1;
+    va_copy(oldap, ap);
+    while (1) {
+        curarg = va_arg(ap, char*);
+        if (curarg == NULL) {
+            break;
+        }
+        cnt ++;
+    }
+
+    progv = (char**) malloc(sizeof(*progv ) * (cnt + 1));
+    if (progv == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*progv) * (cnt + 1), ret);
+        goto fail;
+    }
+
+    memset(progv, 0 , sizeof(*progv) * (cnt + 1));
+    va_copy(ap, oldap);
+    progv[0] = (char*)prog;
+    for (i = 1; i < cnt ; i++) {
+        curarg = va_arg(ap, char*);
+        ASSERT_IF(curarg != NULL);
+        progv[i] = curarg;
+    }
+
+    ret = start_cmdv_detach(createflag,progv);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retpid = ret;
+
+    if (progv) {
+        free(progv);
+    }
+    progv = NULL;
+
+    return retpid;
+fail:
+    if (progv) {
+        free(progv);
+    }
+    progv = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+

@@ -81,6 +81,7 @@ int dumpsacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int dumpdacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int utf8toansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int startdetach_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -4373,6 +4374,51 @@ out:
     return ret;
 }
 
+
+int startdetach_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char** progv=NULL;
+    int createflags = 0;
+    int ret;
+    pargs_options_t pargs= (pargs_options_t) popt;
+    int i;
+
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    progv = parsestate->leftargs;
+    ret = start_cmdv_detach(createflags,progv);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not start");
+        if (parsestate->leftargs) {
+            for (i=0;parsestate->leftargs[i]!=NULL;i++) {
+                if (i > 0) {
+                    fprintf(stderr," ");
+                }
+                fprintf(stderr,"[%s]", parsestate->leftargs[i]);
+            }
+        }
+        fprintf(stderr," error[%d]\n", ret);
+        goto out;
+    }
+
+    fprintf(stdout,"start ");
+    if (parsestate->leftargs) {
+        for (i=0;parsestate->leftargs[i]!=NULL;i++) {
+            if (i > 0) {
+                fprintf(stdout," ");
+            }
+            fprintf(stdout,"[%s]", parsestate->leftargs[i]);
+        }
+    }
+    fprintf(stdout," pid[%d]\n",ret);
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
 
 int _tmain(int argc, TCHAR* argv[])
 {
