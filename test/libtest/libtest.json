@@ -142,5 +142,11 @@
     },
     "getexedir<getexedir_handler>##get current exe dir whole##" : {
         "$" : 0
+    },
+    "encbase64<encbase64_handler>##input output to encode buffer in base64##" : {
+        "$" : 2
+    },
+    "decbase64<decbase64_handler>##input output to decode base64 for file##" : {
+        "$" : 2
     }
 }

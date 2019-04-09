@@ -6,6 +6,7 @@
 
 #pragma warning(disable:4996)
 #pragma comment(lib, "shlwapi.lib")
+#pragma comment(lib,"Advapi32.lib")
 
 int get_env_variable(char* envvar, char** ppenvval, int* pvalsize)
 {

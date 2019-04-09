@@ -17,6 +17,7 @@
 #include <win_ver.h>
 #include <win_acl.h>
 #include <win_priv.h>
+#include <win_base64.h>
 
 #include <sddl.h>
 #include <aclapi.h>
@@ -84,6 +85,8 @@ int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int startdetach_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getexe_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getexedir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -4474,6 +4477,154 @@ int getexedir_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     ret = 0;
 out:
     get_executable_dirname(1,&pwhole,&wholesize);
+    SETERRNO(ret);
+    return ret;    
+}
+
+int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* input=NULL;
+    char* output=NULL;
+    char* inbuf=NULL;
+    int insize=0,inlen=0;
+    char* outbuf=NULL;
+    int outsize=0;
+    int outlen=0;
+    int ret;
+
+    init_log_level(pargs);
+    argc = argc;
+    argv = argv;
+    input = parsestate->leftargs[0];
+    output = parsestate->leftargs[1];
+
+    ret = read_file_whole(input, &inbuf,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "read %s error%d\n", input, ret);
+        goto out;
+    }
+    inlen = ret;
+
+    outsize = 32;
+try_again:
+    if (outbuf) {
+        free(outbuf);
+    }
+    outbuf = NULL;
+    outbuf = (char*)malloc((size_t)outsize);
+    if (outbuf == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "alloc %d error%d\n", outsize, ret );
+        goto out;
+    }
+
+    ret = encode_base64((unsigned char*)inbuf,inlen,outbuf,outsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            outsize <<= 1;
+            goto try_again;
+        }
+        fprintf(stderr, "can not encode base\n");
+        __debug_buf(stderr,inbuf,insize);
+        fprintf(stderr,"error [%d]\n", ret);
+        goto out;
+    }
+
+    outlen = ret;
+    fprintf(stdout, "inlen [%d]outlen [%d]\n", inlen,outlen);
+    ret = write_file_whole(output,outbuf,outlen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "write [%s] error[%d]\n", output,ret );
+        goto out;
+    }
+
+    fprintf(stdout, "encode [%s] => [%s] succ\n", input, output );
+    ret = 0;
+
+out:
+    read_file_whole(NULL,&inbuf,&insize);
+    if (outbuf) {
+        free(outbuf);
+    }
+    outbuf = NULL;
+    SETERRNO(ret);
+    return ret;
+
+}
+int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* input=NULL;
+    char* output=NULL;
+    char* inbuf=NULL;
+    int insize=0,inlen=0;
+    char* outbuf=NULL;
+    int outsize=0;
+    int outlen=0;
+    int ret;
+
+    init_log_level(pargs);
+    argc = argc;
+    argv = argv;
+    input = parsestate->leftargs[0];
+    output = parsestate->leftargs[1];
+
+    ret = read_file_whole(input, &inbuf,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "read %s error%d\n", input, ret);
+        goto out;
+    }
+    inlen = ret;
+
+    outsize = 32;
+try_again:
+    if (outbuf) {
+        free(outbuf);
+    }
+    outbuf = NULL;
+    outbuf = (char*)malloc((size_t)outsize);
+    if (outbuf == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "alloc %d error%d\n", outsize, ret );
+        goto out;
+    }
+
+    ret = decode_base64(inbuf,inlen,(unsigned char*)outbuf,outsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            outsize <<= 1;
+            goto try_again;
+        }
+        fprintf(stderr, "can not decode base\n");
+        __debug_buf(stderr,inbuf,insize);
+        fprintf(stderr,"error [%d]\n", ret);
+        goto out;
+    }
+
+    outlen = ret;
+    fprintf(stdout, "inlen [%d]outlen [%d]\n", inlen,outlen);
+    ret = write_file_whole(output,outbuf,outlen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "write [%s] error[%d]\n", output,ret );
+        goto out;
+    }
+
+    fprintf(stdout, "decode [%s] => [%s] succ\n", input, output );
+    ret = 0;
+
+out:
+    read_file_whole(NULL,&inbuf,&insize);
+    if (outbuf) {
+        free(outbuf);
+    }
+    outbuf = NULL;
     SETERRNO(ret);
     return ret;    
 }
