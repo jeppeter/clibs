@@ -74,8 +74,6 @@ int __handle_priv(const char* privstr, int enabled)
         goto fail;
     }
 
-    DEBUG_INFO("%s [%s] succ",  enabled ? "enable" : "disable",privstr);
-
     if (htoken != NULL) {
     	CloseHandle(htoken);
     }
@@ -163,6 +161,16 @@ int disable_debug_priv(void)
     return __handle_priv("SeDebugPrivilege",0);   
 }
 
+int enable_tcb_priv(void)
+{
+    return __handle_priv("SeTcbPrivilege",1);
+}
+
+int disable_tcb_priv(void)
+{
+    return __handle_priv("SeTcbPrivilege",0);   
+}
+
 
 int enable_token_debug_priv(HANDLE htoken)
 {
@@ -172,4 +180,14 @@ int enable_token_debug_priv(HANDLE htoken)
 int disable_token_debug_priv(HANDLE htoken)
 {
     return __handle_priv_token(htoken,"SeDebugPrivilege", 0);
+}
+
+int enable_token_tcb_priv(HANDLE htoken)
+{
+    return __handle_priv_token(htoken,"SeTcbPrivilege", 1);
+}
+
+int disable_token_tcb_priv(HANDLE htoken)
+{
+    return __handle_priv_token(htoken,"SeTcbPrivilege", 0);
 }

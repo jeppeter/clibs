@@ -2882,6 +2882,7 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
     TCHAR* ptcmdline=NULL;
     int cmdsize=0;
     DWORD createflag = 0;
+    SECURITY_ATTRIBUTES      sa;
 
     bret = ProcessIdToSessionId(winlogonpid,&getsessid);
     if (!bret) {
@@ -2916,7 +2917,7 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
     pstartinfo->cb = sizeof(*pstartinfo);
     pstartinfo->lpDesktop = ptdesktop;
 
-    createflag |= NORMAL_PRIORITY_CLASS|CREATE_NEW_CONSOLE;
+    createflag |= NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE;
 
 
     procinfo = (PROCESS_INFORMATION*)malloc(sizeof(*procinfo));
@@ -2934,8 +2935,9 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
     }
 
     bret = OpenProcessToken(hproc, 
-                            TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_ADJUST_SESSIONID | TOKEN_READ | TOKEN_WRITE, 
+                            //TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_ADJUST_SESSIONID | TOKEN_READ | TOKEN_WRITE, 
                             //TOKEN_QUERY | TOKEN_DUPLICATE |  TOKEN_READ | TOKEN_ADJUST_PRIVILEGES,
+                            TOKEN_DUPLICATE,
                             &htoken);
     if (!bret) {
         GETERRNO(ret);
@@ -2943,10 +2945,26 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
         goto fail;
     }
 
-    bret = DuplicateTokenEx(htoken,MAXIMUM_ALLOWED,NULL,SecurityIdentification,TokenPrimary,&husertoken);
+    memset(&sa, 0 ,sizeof(sa));
+    sa.nLength = sizeof(sa);
+
+    //bret = DuplicateTokenEx(htoken,MAXIMUM_ALLOWED,NULL,SecurityIdentification,TokenPrimary,&husertoken);
+    bret = DuplicateTokenEx(htoken,MAXIMUM_ALLOWED,&sa,SecurityIdentification,TokenPrimary,&husertoken);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("can not duplicate token error [%d]", ret);
+        goto fail;
+    }
+
+    ret = enable_token_debug_priv(husertoken);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = disable_token_tcb_priv(husertoken);
+    if (ret < 0) {
+        GETERRNO(ret);
         goto fail;
     }
 
@@ -2957,11 +2975,6 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
         goto fail;
     }
 
-    ret = enable_token_debug_priv(husertoken);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
 
     bret = CreateEnvironmentBlock(&penv,husertoken,TRUE);
     if (!bret) {
@@ -2969,6 +2982,8 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
         ERROR_INFO("create environment block error[%d]", ret);
         goto fail;
     }
+
+    createflag |= CREATE_UNICODE_ENVIRONMENT;
 
     ret = AnsiToTchar(cmdline,&ptcmdline,&cmdsize);
     if (ret < 0) {
