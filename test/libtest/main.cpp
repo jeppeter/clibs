@@ -89,6 +89,7 @@ int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getsess_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getpidsname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int sessrunv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -4724,6 +4725,67 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int sessrunv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    int retpid=-1;
+    int num;
+    DWORD sessid=0;
+    int cnt =0;
+    char** progv=NULL;
+    int i;
+    int idx = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i] ; i++) {
+        cnt ++;
+    }
+
+    if (cnt < 2) {
+        ret=  -ERROR_INVALID_PARAMETER;
+        fprintf(stderr,"need session progv...\n");
+        goto out;
+    }
+
+    num = 0;
+    GET_OPT_INT(num,"session id");
+    sessid = (DWORD)num;
+    progv = &(parsestate->leftargs[1]);
+
+    ret = start_cmdv_session_detach(sessid, progv);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not start [");
+        for (i=1;i<cnt;i++) {
+            if (i > 1) {
+                fprintf(stderr," ");
+            }
+            fprintf(stderr,"%s", parsestate->leftargs[i]);
+        }
+        fprintf(stderr,"] on session[%d] error[%d]\n", (int)sessid, ret);
+        goto out;
+    }
+    retpid = ret;
+
+    fprintf(stdout,"run [");
+    for(i=1;i<cnt;i++) {
+        if (i > 1) {
+            fprintf(stdout, " ");
+        }
+        fprintf(stdout,"%s", parsestate->leftargs[i]);
+    }
+    fprintf(stdout,"] on session[%d] [%d]succ\n", (int)sessid, retpid);
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
 
 int _tmain(int argc, TCHAR* argv[])
 {

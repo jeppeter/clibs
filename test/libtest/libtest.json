@@ -154,5 +154,8 @@
     },
     "getpidsname<getpidsname_handler>##name ...##" : {
         "$" : "+"
+    },
+    "sessrunv<sessrunv_handler>##sessid prog ...##" : {
+        "$" : "+"
     }
 }

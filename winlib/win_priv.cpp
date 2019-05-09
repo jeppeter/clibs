@@ -59,8 +59,6 @@ int __handle_priv(const char* privstr, int enabled)
     int tprivsize = 0;
     int ret;
     BOOL bret;
-    TOKEN_PRIVILEGES tp;
-    LUID luid;
     HANDLE htoken=NULL;
 
     bret = OpenProcessToken(GetCurrentProcess(),TOKEN_ADJUST_PRIVILEGES,&htoken);
