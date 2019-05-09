@@ -2723,6 +2723,8 @@ int get_pids_by_name(const char* name, DWORD** ppids, int *psize)
     DWORD* ptmppids = NULL;
     int retsize = 0;
     BOOL bret;
+    TCHAR* ptname=NULL;
+    int namesize=0;
     if (name == NULL) {
         if (ppids && *ppids) {
             free(*ppids);
@@ -2768,8 +2770,15 @@ int get_pids_by_name(const char* name, DWORD** ppids, int *psize)
         ERROR_INFO("first process error [%d]", ret);
         goto fail;
     }
+
+    ret = AnsiToTchar(name, &ptname,&namesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
     do {
-        if (strcmp(procentry->szExeFile, name) == 0) {
+        if (_tcscmp(procentry->szExeFile, ptname) == 0) {
             if (cnt >= retsize || pretpids == NULL) {
                 if (cnt >= retsize) {
                     if (retsize == 0) {
@@ -2810,6 +2819,8 @@ int get_pids_by_name(const char* name, DWORD** ppids, int *psize)
 
 succ:
 
+    AnsiToTchar(NULL,&ptname,&namesize);
+
     if (procentry != NULL) {
         free(procentry);
     }
@@ -2828,6 +2839,7 @@ succ:
 
     return cnt;
 fail:
+    AnsiToTchar(NULL,&ptname,&namesize);
     if (procentry != NULL) {
         free(procentry);
     }
@@ -2914,16 +2926,17 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
     }
     memset(procinfo, 0, sizeof(*procinfo));
 
-    hproc = OpenProcess(MAXIMUM_ALLOWED, FALSE, winlogonpid);
+    hproc = OpenProcess(PROCESS_DUP_HANDLE |PROCESS_QUERY_INFORMATION | PROCESS_SET_INFORMATION, FALSE, winlogonpid);
     if (hproc == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not open [%d] error [%d]", (int) winlogonpid, ret);
         goto fail;
     }
 
-    bret = OpenProcessToken(hproc, TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY
-                            | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_ADJUST_SESSIONID
-                            | TOKEN_READ | TOKEN_WRITE, &htoken);
+    bret = OpenProcessToken(hproc, 
+                            //TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_ADJUST_SESSIONID | TOKEN_READ | TOKEN_WRITE, 
+                            TOKEN_QUERY | TOKEN_DUPLICATE |  TOKEN_READ | TOKEN_ADJUST_PRIVILEGES,
+                            &htoken);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("can not get token for [%d] error[%d]", (int) winlogonpid, ret);
