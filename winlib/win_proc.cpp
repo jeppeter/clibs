@@ -2926,7 +2926,7 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
     }
     memset(procinfo, 0, sizeof(*procinfo));
 
-    hproc = OpenProcess(PROCESS_DUP_HANDLE |PROCESS_QUERY_INFORMATION | PROCESS_SET_INFORMATION, FALSE, winlogonpid);
+    hproc = OpenProcess(MAXIMUM_ALLOWED, FALSE, winlogonpid);
     if (hproc == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not open [%d] error [%d]", (int) winlogonpid, ret);
@@ -2934,8 +2934,8 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
     }
 
     bret = OpenProcessToken(hproc, 
-                            //TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_ADJUST_SESSIONID | TOKEN_READ | TOKEN_WRITE, 
-                            TOKEN_QUERY | TOKEN_DUPLICATE |  TOKEN_READ | TOKEN_ADJUST_PRIVILEGES,
+                            TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_ADJUST_SESSIONID | TOKEN_READ | TOKEN_WRITE, 
+                            //TOKEN_QUERY | TOKEN_DUPLICATE |  TOKEN_READ | TOKEN_ADJUST_PRIVILEGES,
                             &htoken);
     if (!bret) {
         GETERRNO(ret);
@@ -2950,7 +2950,7 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
         goto fail;
     }
 
-    bret = SetTokenInformation(husertoken,TokenSessionId,(void*)(session),sizeof(DWORD));
+    bret = SetTokenInformation(husertoken,TokenSessionId,(void*)(&session),sizeof(DWORD));
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("set session id for duplicate token error[%d]", ret);
