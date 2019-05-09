@@ -151,5 +151,8 @@
     },
     "getsess<getsess_handler>" : {
         "$" : 0
+    },
+    "getpidsname<getpidsname_handler>##name ...##" : {
+        "$" : "+"
     }
 }

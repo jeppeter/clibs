@@ -88,6 +88,7 @@ int getexedir_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getsess_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getpidsname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -4661,6 +4662,13 @@ out:
 int getsess_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_level(pargs);
+
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
 
     ret = get_desktop_session();
     if (ret < 0) {
@@ -4673,6 +4681,46 @@ int getsess_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
     ret = 0;
 out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int getpidsname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    DWORD *ppids=NULL;
+    int size=0,cnt;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+    char* procname;
+    int j;
+
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i] ; i++) {
+        procname = parsestate->leftargs[i];
+        ret = get_pids_by_name(procname, &ppids,&size);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr,"can not get [%s] error[%d]\n", procname, ret);
+            goto out;
+        }
+        cnt = ret;
+        fprintf(stdout,"find [%s] count[%d]", procname, cnt);
+        for (j=0;j<cnt;j++) {
+            if ((j % 5) == 0) {
+                fprintf(stdout,"\n%d ", j);
+            }
+            fprintf(stdout," %d", (int)ppids[j]);
+        }
+        fprintf(stdout,"\n");
+    }
+
+    ret = 0;
+out:
+    get_pids_by_name(NULL,&ppids,&size);
     SETERRNO(ret);
     return ret;
 }

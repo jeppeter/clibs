@@ -5,6 +5,7 @@
 #include <win_uniansi.h>
 #include <win_strop.h>
 #include <win_time.h>
+#include <tlhelp32.h>
 
 #pragma comment(lib,"Shell32.lib")
 #pragma warning(disable:4996)
@@ -2707,3 +2708,212 @@ fail:
 }
 
 
+
+int get_pids_by_name(const char* name, DWORD** ppids, int *psize)
+{
+    PROCESSENTRY32* procentry=NULL;
+    HANDLE hsnap=INVALID_HANDLE_VALUE;
+    int ret;
+    int cnt=0;
+    DWORD* pretpids=NULL;
+    DWORD* ptmppids=NULL;
+    int retsize=0;
+    BOOL bret;
+    if (name == NULL) {
+        if (ppids && *ppids) {
+            free(*ppids);
+            *ppids = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (ppids == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return  ret;
+    }
+
+    pretpids = *ppids;
+    retsize = *psize;
+
+
+    hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS,0);
+    if (hsnap == INVALID_HANDLE_VALUE) {
+        GETERRNO(ret);
+        ERROR_INFO("create snapshot error [%d]", ret);
+        goto fail;
+    }
+
+    procentry = (PROCESSENTRY32*)malloc(sizeof(*procentry));
+    if (procentry == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(procentry , 0 , sizeof(*procentry));
+    procentry->dwSize = sizeof(*procentry);
+
+    bret = Process32First(hsnap, procentry);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_NO_MORE_FILES) {
+            goto succ;
+        }
+        ERROR_INFO("first process error [%d]", ret);
+        goto fail;
+    }
+    do {
+        if (strcmp(procentry->szExeFile, name) == 0) {
+            if (cnt >= retsize || pretpids == NULL) {
+                if (cnt >= retsize) {
+                    if (retsize == 0) {
+                        retsize = 4;
+                    } else {
+                        retsize <<= 1;
+                    }
+                }
+                ptmppids = (DWORD*)malloc(sizeof(*ptmppids) * retsize);
+                if (ptmppids == NULL) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                memset(ptmppids, 0, sizeof(*ptmppids) * retsize);
+                if (cnt > 0) {
+                    memcpy(ptmppids, pretpids, cnt * sizeof(*pretpids));
+                }
+                if (pretpids && pretpids != *ppids) {
+                    free(pretpids);
+                }
+                pretpids = ptmppids;
+                ptmppids = NULL;
+            }
+            pretpids[cnt] = procentry->th32ProcessID;
+            cnt ++;
+        }
+
+        bret = Process32Next(hsnap,procentry);
+        if (!bret) {
+            GETERRNO(ret);
+            if (ret == -ERROR_NO_MORE_FILES) {
+                break;
+            }
+            ERROR_INFO("can not next error[%d]", ret);
+            goto fail;
+        }
+    } while (1);
+
+succ:
+
+    if (procentry != NULL) {
+        free(procentry);
+    }
+    procentry = NULL;
+
+    if (hsnap != INVALID_HANDLE_VALUE && hsnap != NULL) {
+        CloseHandle(hsnap);
+    }
+    hsnap = INVALID_HANDLE_VALUE;
+
+    if (*ppids && *ppids != pretpids) {
+        free(*ppids);
+    }
+    *ppids = pretpids;
+    *psize = retsize;
+
+    return cnt;
+fail:
+    if (procentry != NULL) {
+        free(procentry);
+    }
+    procentry = NULL;
+
+    if (hsnap != INVALID_HANDLE_VALUE && hsnap != NULL) {
+        CloseHandle(hsnap);
+    }
+    hsnap = INVALID_HANDLE_VALUE;
+
+    if (ptmppids) {
+        free(ptmppids);
+    }
+    ptmppids = NULL;
+
+    if (pretpids && pretpids != *ppids) {
+        free(pretpids);
+    }
+    pretpids = NULL;
+    retsize = 0;
+
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int start_cmdv_session_detach(DWORD session, char* prog[])
+{
+    //
+    return 0;
+}
+
+
+int start_cmd_session_detach(DWORD session, const char* prog,...)
+{
+    va_list oldap;
+    char** progv = NULL;
+    int cnt;
+    int retpid=0;
+    va_list ap;
+    char* curarg=NULL;
+    int ret;
+    int i;
+
+    va_start(ap,prog);
+
+    cnt = 1;
+    va_copy(oldap, ap);
+    while (1) {
+        curarg = va_arg(ap, char*);
+        if (curarg == NULL) {
+            break;
+        }
+        cnt ++;
+    }
+
+    progv = (char**) malloc(sizeof(*progv ) * (cnt + 1));
+    if (progv == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*progv) * (cnt + 1), ret);
+        goto fail;
+    }
+
+    memset(progv, 0 , sizeof(*progv) * (cnt + 1));
+    va_copy(ap, oldap);
+    progv[0] = (char*)prog;
+    for (i = 1; i < cnt ; i++) {
+        curarg = va_arg(ap, char*);
+        ASSERT_IF(curarg != NULL);
+        progv[i] = curarg;
+    }
+
+    ret = start_cmdv_session_detach(session,progv);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retpid = ret;
+
+    if (progv) {
+        free(progv);
+    }
+    progv = NULL;
+
+    return retpid;
+fail:
+    if (progv) {
+        free(progv);
+    }
+    progv = NULL;
+    SETERRNO(ret);
+    return ret;
+}

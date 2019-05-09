@@ -43,6 +43,7 @@ WINLIB_API int run_cmd_event_output_single(HANDLE hevt, char* pin, int insize, c
 
 WINLIB_API int start_cmd_session_detach(DWORD session, const char* prog,...);
 WINLIB_API int start_cmdv_session_detach(DWORD session, char* prog[]);
+WINLIB_API int get_pids_by_name(const char* name, DWORD** ppids, int *psize);
 
 
 #ifdef __cplusplus
