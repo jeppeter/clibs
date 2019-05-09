@@ -41,6 +41,10 @@ WINLIB_API int run_cmd_event_outputa(HANDLE hevt, char* pin, int insize, char** 
 WINLIB_API int run_cmd_event_outputv(HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[]);
 WINLIB_API int run_cmd_event_output_single(HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog);
 
+WINLIB_API int start_cmd_session_detach(DWORD session, const char* prog,...);
+WINLIB_API int start_cmdv_session_detach(DWORD session, char* prog[]);
+
+
 #ifdef __cplusplus
 };
 #endif

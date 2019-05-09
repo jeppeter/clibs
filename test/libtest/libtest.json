@@ -148,5 +148,8 @@
     },
     "decbase64<decbase64_handler>##input output to decode base64 for file##" : {
         "$" : 2
+    },
+    "getsess<getsess_handler>" : {
+        "$" : 0
     }
 }

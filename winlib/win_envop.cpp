@@ -541,3 +541,21 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+
+int get_desktop_session(void)
+{
+    DWORD dwsess;
+    int ret;
+
+    dwsess = WTSGetActiveConsoleSessionId();
+    if (dwsess == 0xffffffff) {
+        ret = -ERROR_NO_SUCH_LOGON_SESSION;
+        goto fail;
+    }
+    SETERRNO(0);
+    return dwsess;
+fail:
+    SETERRNO(ret);
+    return ret;
+}

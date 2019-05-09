@@ -87,6 +87,7 @@ int getexe_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int getexedir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getsess_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -4656,6 +4657,25 @@ out:
     return ret;    
 }
 
+
+int getsess_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+
+    ret = get_desktop_session();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not get desktop session [%d]\n", ret);
+        goto out;
+    }
+
+    fprintf(stdout,"session [%d]\n", ret);
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
 
 int _tmain(int argc, TCHAR* argv[])
 {

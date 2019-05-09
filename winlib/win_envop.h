@@ -25,6 +25,7 @@ WINLIB_API int set_codepage(int cp);
 WINLIB_API int get_current_user(int freed,char** ppuser,int *psize);
 WINLIB_API int get_executable_wholepath(int freed,char** ppath, int *psize);
 WINLIB_API int get_executable_dirname(int freed,char** ppath, int *psize);
+WINLIB_API int get_desktop_session(void);
 
 #ifdef __cplusplus
 };
