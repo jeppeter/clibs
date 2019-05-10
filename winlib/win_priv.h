@@ -25,6 +25,12 @@ WINLIB_API int enable_audit_priv(void);
 WINLIB_API int disable_audit_priv(void);
 WINLIB_API int enable_debug_priv(void);
 WINLIB_API int disable_debug_priv(void);
+WINLIB_API int enable_tcb_priv(void);
+WINLIB_API int disable_tcb_priv(void);
+WINLIB_API int enable_token_debug_priv(HANDLE htoken);
+WINLIB_API int disable_token_debug_priv(HANDLE htoken);
+WINLIB_API int enable_token_tcb_priv(HANDLE htoken);
+WINLIB_API int disable_token_tcb_priv(HANDLE htoken);
 
 
 

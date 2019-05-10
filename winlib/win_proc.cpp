@@ -5,9 +5,14 @@
 #include <win_uniansi.h>
 #include <win_strop.h>
 #include <win_time.h>
+#include <win_priv.h>
+#include <tlhelp32.h>
+#include <userenv.h>
 
 #pragma comment(lib,"Shell32.lib")
+#pragma comment(lib,"Userenv.lib")
 #pragma warning(disable:4996)
+#pragma warning(disable:4312)
 
 #define pid_wmic_cmd_fmt "WMIC /OUTPUT:%s process where \"ProcessId=%d\" get CommandLine,ProcessId"
 
@@ -1214,7 +1219,7 @@ void* start_cmd_single(int createflag, char* prog)
         goto fail;
     }
 
-    ret = __start_proc(pproc,createflag, prog);
+    ret = __start_proc(pproc, createflag, prog);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -1239,23 +1244,23 @@ void* start_cmdv(int createflag, char* prog[])
         goto fail;
     }
 
-    ret = __get_command_lines(&pcmdline,&cmdlinesize,prog);
+    ret = __get_command_lines(&pcmdline, &cmdlinesize, prog);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    pproc = (pproc_handle_t) start_cmd_single(createflag,pcmdline);
+    pproc = (pproc_handle_t) start_cmd_single(createflag, pcmdline);
     if (pproc == NULL) {
         GETERRNO(ret);
         goto fail;
     }
 
-    __get_command_lines(&pcmdline,&cmdlinesize,NULL);
+    __get_command_lines(&pcmdline, &cmdlinesize, NULL);
     return (void*) pproc;
 fail:
     __free_proc_handle(&pproc);
-    __get_command_lines(&pcmdline,&cmdlinesize,NULL);
+    __get_command_lines(&pcmdline, &cmdlinesize, NULL);
     SETERRNO(ret);
     return NULL;
 }
@@ -1750,7 +1755,7 @@ fail:
     READ_LEFT(m_stderrpipe,preterr, pperr,errlen,errsize)
 
 #if 1
-int __inner_run(pproc_handle_t pproc,HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout)
+int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout)
 {
     int inlen = 0;
     char* pretout = NULL;
@@ -1896,7 +1901,7 @@ fail:
     return ret;
 }
 #else
-int __inner_run(pproc_handle_t pproc,HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout)
+int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout)
 {
     int inlen = 0;
     char* pretout = NULL;
@@ -2362,7 +2367,7 @@ fail:
 
 #endif
 
-int run_cmd_event_output_single(HANDLE hevt,char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
+int run_cmd_event_output_single(HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
 {
     pproc_handle_t pproc = NULL;
     int ret;
@@ -2444,7 +2449,7 @@ fail:
 
 int run_cmd_output_single(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
 {
-    return run_cmd_event_output_single(NULL,pin,insize,ppout,poutsize, pperr,perrsize, exitcode, timeout,prog);
+    return run_cmd_event_output_single(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog);
 }
 
 int run_cmd_event_outputv(HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
@@ -2453,7 +2458,7 @@ int run_cmd_event_outputv(HANDLE hevt, char* pin, int insize, char** ppout, int 
     int ret;
     int createflag = 0;
 
-    DEBUG_INFO("prog [%p]",prog);
+    DEBUG_INFO("prog [%p]", prog);
     if (prog == NULL) {
         if (ppout != NULL) {
             if (*ppout != NULL) {
@@ -2528,10 +2533,10 @@ fail:
 
 int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
 {
-    return run_cmd_event_outputv(NULL, pin, insize, ppout,poutsize, pperr, perrsize, exitcode, timeout, prog);
+    return run_cmd_event_outputv(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog);
 }
 
-int run_cmd_event_outputa(HANDLE hevt,char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, va_list ap)
+int run_cmd_event_outputa(HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, va_list ap)
 {
     va_list oldap;
     char** progv = NULL;
@@ -2542,7 +2547,7 @@ int run_cmd_event_outputa(HANDLE hevt,char* pin, int insize, char** ppout, int *
     int cnt = 0;
 
     if (prog == NULL) {
-        return run_cmd_event_outputv(hevt,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL);
+        return run_cmd_event_outputv(hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL);
     }
 
     cnt = 1;
@@ -2574,7 +2579,7 @@ int run_cmd_event_outputa(HANDLE hevt,char* pin, int insize, char** ppout, int *
     curarg = va_arg(ap, char*);
     ASSERT_IF(curarg == NULL);
 
-    ret = run_cmd_event_outputv(hevt,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, progv);
+    ret = run_cmd_event_outputv(hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, progv);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -2596,25 +2601,609 @@ fail:
 
 int run_cmd_outputa(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, va_list ap)
 {
-    return run_cmd_event_outputa(NULL,pin, insize, ppout, poutsize, pperr,perrsize, exitcode,timeout,prog,ap);
+    return run_cmd_event_outputa(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
 }
 
-int run_cmd_event_output(HANDLE hevt,char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
+int run_cmd_event_output(HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
 {
     va_list ap = NULL;
     if (prog == NULL) {
-        return run_cmd_event_outputa(hevt,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL, ap);
+        return run_cmd_event_outputa(hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL, ap);
     }
     va_start(ap, prog);
-    return run_cmd_event_outputa(NULL,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
+    return run_cmd_event_outputa(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
 }
 
 int run_cmd_output(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
 {
     va_list ap = NULL;
     if (prog == NULL) {
-        return run_cmd_event_outputa(NULL,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL, ap);
+        return run_cmd_event_outputa(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL, ap);
     }
     va_start(ap, prog);
-    return run_cmd_event_outputa(NULL,pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
+    return run_cmd_event_outputa(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
+}
+
+
+int start_cmdv_detach(int createflag, char* progv[])
+{
+    int retpid = 0;
+    pproc_handle_t ppinfo = NULL;
+    int ret;
+    ppinfo = (pproc_handle_t)start_cmdv(createflag, progv);
+    if (ppinfo == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    retpid = GetProcessId(ppinfo->m_prochd);
+    CloseHandle(ppinfo->m_prochd);
+    /*exited*/
+    ppinfo->m_exited = 1;
+    __free_proc_handle(&ppinfo);
+    return retpid;
+fail:
+    __free_proc_handle(&ppinfo);
+    SETERRNO(ret);
+    return ret;
+
+}
+
+
+int start_cmd_detach(int createflag, const char* prog, ...)
+{
+    va_list oldap;
+    char** progv = NULL;
+    int cnt;
+    int retpid = 0;
+    va_list ap;
+    char* curarg = NULL;
+    int ret;
+    int i;
+
+    va_start(ap, prog);
+
+    cnt = 1;
+    va_copy(oldap, ap);
+    while (1) {
+        curarg = va_arg(ap, char*);
+        if (curarg == NULL) {
+            break;
+        }
+        cnt ++;
+    }
+
+    progv = (char**) malloc(sizeof(*progv ) * (cnt + 1));
+    if (progv == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*progv) * (cnt + 1), ret);
+        goto fail;
+    }
+
+    memset(progv, 0 , sizeof(*progv) * (cnt + 1));
+    va_copy(ap, oldap);
+    progv[0] = (char*)prog;
+    for (i = 1; i < cnt ; i++) {
+        curarg = va_arg(ap, char*);
+        ASSERT_IF(curarg != NULL);
+        progv[i] = curarg;
+    }
+
+    ret = start_cmdv_detach(createflag, progv);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retpid = ret;
+
+    if (progv) {
+        free(progv);
+    }
+    progv = NULL;
+
+    return retpid;
+fail:
+    if (progv) {
+        free(progv);
+    }
+    progv = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+
+int get_pids_by_name(const char* name, DWORD** ppids, int *psize)
+{
+    PROCESSENTRY32* procentry = NULL;
+    HANDLE hsnap = INVALID_HANDLE_VALUE;
+    int ret;
+    int cnt = 0;
+    DWORD* pretpids = NULL;
+    DWORD* ptmppids = NULL;
+    int retsize = 0;
+    BOOL bret;
+    TCHAR* ptname=NULL;
+    int namesize=0;
+    if (name == NULL) {
+        if (ppids && *ppids) {
+            free(*ppids);
+            *ppids = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (ppids == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return  ret;
+    }
+
+    pretpids = *ppids;
+    retsize = *psize;
+
+
+    hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hsnap == INVALID_HANDLE_VALUE) {
+        GETERRNO(ret);
+        ERROR_INFO("create snapshot error [%d]", ret);
+        goto fail;
+    }
+
+    procentry = (PROCESSENTRY32*)malloc(sizeof(*procentry));
+    if (procentry == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(procentry , 0 , sizeof(*procentry));
+    procentry->dwSize = sizeof(*procentry);
+
+    bret = Process32First(hsnap, procentry);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_NO_MORE_FILES) {
+            goto succ;
+        }
+        ERROR_INFO("first process error [%d]", ret);
+        goto fail;
+    }
+
+    ret = AnsiToTchar(name, &ptname,&namesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    do {
+        if (_tcscmp(procentry->szExeFile, ptname) == 0) {
+            if (cnt >= retsize || pretpids == NULL) {
+                if (cnt >= retsize) {
+                    if (retsize == 0) {
+                        retsize = 4;
+                    } else {
+                        retsize <<= 1;
+                    }
+                }
+                ptmppids = (DWORD*)malloc(sizeof(*ptmppids) * retsize);
+                if (ptmppids == NULL) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                memset(ptmppids, 0, sizeof(*ptmppids) * retsize);
+                if (cnt > 0) {
+                    memcpy(ptmppids, pretpids, cnt * sizeof(*pretpids));
+                }
+                if (pretpids && pretpids != *ppids) {
+                    free(pretpids);
+                }
+                pretpids = ptmppids;
+                ptmppids = NULL;
+            }
+            pretpids[cnt] = procentry->th32ProcessID;
+            cnt ++;
+        }
+
+        bret = Process32Next(hsnap, procentry);
+        if (!bret) {
+            GETERRNO(ret);
+            if (ret == -ERROR_NO_MORE_FILES) {
+                break;
+            }
+            ERROR_INFO("can not next error[%d]", ret);
+            goto fail;
+        }
+    } while (1);
+
+succ:
+
+    AnsiToTchar(NULL,&ptname,&namesize);
+
+    if (procentry != NULL) {
+        free(procentry);
+    }
+    procentry = NULL;
+
+    if (hsnap != INVALID_HANDLE_VALUE && hsnap != NULL) {
+        CloseHandle(hsnap);
+    }
+    hsnap = INVALID_HANDLE_VALUE;
+
+    if (*ppids && *ppids != pretpids) {
+        free(*ppids);
+    }
+    *ppids = pretpids;
+    *psize = retsize;
+
+    return cnt;
+fail:
+    AnsiToTchar(NULL,&ptname,&namesize);
+    if (procentry != NULL) {
+        free(procentry);
+    }
+    procentry = NULL;
+
+    if (hsnap != INVALID_HANDLE_VALUE && hsnap != NULL) {
+        CloseHandle(hsnap);
+    }
+    hsnap = INVALID_HANDLE_VALUE;
+
+    if (ptmppids) {
+        free(ptmppids);
+    }
+    ptmppids = NULL;
+
+    if (pretpids && pretpids != *ppids) {
+        free(pretpids);
+    }
+    pretpids = NULL;
+    retsize = 0;
+
+    SETERRNO(ret);
+    return ret;
+}
+
+int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
+{
+    int retpid = -1;
+    int ret,res;
+    STARTUPINFO* pstartinfo = NULL;
+    PROCESS_INFORMATION* procinfo = NULL;
+    TCHAR* ptdesktop = NULL;
+    int tdesksize = 0;
+    HANDLE hproc = INVALID_HANDLE_VALUE;
+    HANDLE htoken = INVALID_HANDLE_VALUE;
+    HANDLE husertoken=INVALID_HANDLE_VALUE;
+    BOOL bret;
+    DWORD getsessid;
+    PVOID penv=NULL;
+    TCHAR* ptcmdline=NULL;
+    int cmdsize=0;
+    DWORD createflag = 0;
+    SECURITY_ATTRIBUTES      sa;
+
+    bret = ProcessIdToSessionId(winlogonpid,&getsessid);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("can not get sessionid from [%d] error[%d]", (int) winlogonpid, ret);
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (getsessid != session) {
+        ret = -ERROR_SERVER_SID_MISMATCH;
+        ERROR_INFO("mismatch sessionid [%d] != [%d]", (int) getsessid, (int) session);
+        SETERRNO(ret);
+        return ret;
+    }
+
+
+    pstartinfo = (STARTUPINFO*)malloc(sizeof(*pstartinfo));
+    if (pstartinfo == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    memset(pstartinfo, 0, sizeof(*pstartinfo));
+
+    ret = AnsiToTchar("winsta0\\default", &ptdesktop, &tdesksize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pstartinfo->cb = sizeof(*pstartinfo);
+    pstartinfo->lpDesktop = ptdesktop;
+
+    createflag |= NORMAL_PRIORITY_CLASS | CREATE_NEW_CONSOLE;
+
+
+    procinfo = (PROCESS_INFORMATION*)malloc(sizeof(*procinfo));
+    if (procinfo == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(procinfo, 0, sizeof(*procinfo));
+
+    hproc = OpenProcess(MAXIMUM_ALLOWED, FALSE, winlogonpid);
+    if (hproc == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not open [%d] error [%d]", (int) winlogonpid, ret);
+        goto fail;
+    }
+
+    bret = OpenProcessToken(hproc, 
+                            //TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_ADJUST_SESSIONID | TOKEN_READ | TOKEN_WRITE, 
+                            //TOKEN_QUERY | TOKEN_DUPLICATE |  TOKEN_READ | TOKEN_ADJUST_PRIVILEGES,
+                            TOKEN_DUPLICATE,
+                            &htoken);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("can not get token for [%d] error[%d]", (int) winlogonpid, ret);
+        goto fail;
+    }
+
+    memset(&sa, 0 ,sizeof(sa));
+    sa.nLength = sizeof(sa);
+
+    //bret = DuplicateTokenEx(htoken,MAXIMUM_ALLOWED,NULL,SecurityIdentification,TokenPrimary,&husertoken);
+    bret = DuplicateTokenEx(htoken,MAXIMUM_ALLOWED,&sa,SecurityIdentification,TokenPrimary,&husertoken);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("can not duplicate token error [%d]", ret);
+        goto fail;
+    }
+
+    ret = enable_token_debug_priv(husertoken);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = disable_token_tcb_priv(husertoken);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    bret = SetTokenInformation(husertoken,TokenSessionId,(void*)(&session),sizeof(DWORD));
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("set session id for duplicate token error[%d]", ret);
+        goto fail;
+    }
+
+
+    bret = CreateEnvironmentBlock(&penv,husertoken,TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("create environment block error[%d]", ret);
+        goto fail;
+    }
+
+    createflag |= CREATE_UNICODE_ENVIRONMENT;
+
+    ret = AnsiToTchar(cmdline,&ptcmdline,&cmdsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    bret = CreateProcessAsUser(husertoken,NULL,ptcmdline,
+            NULL,NULL,FALSE,createflag,penv,NULL,pstartinfo,procinfo);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("create [%s] session [%d] error[%d]", cmdline, session, ret);
+        goto fail;
+    }
+
+    if (procinfo->hThread) {
+        CloseHandle(procinfo->hThread);
+    }
+
+    if (procinfo->hProcess) {
+        CloseHandle(procinfo->hProcess);
+    }
+
+    retpid = procinfo->dwProcessId;
+
+
+    AnsiToTchar(NULL,&ptcmdline,&cmdsize);
+
+    if (penv) {
+        bret = DestroyEnvironmentBlock(penv);
+        if (!bret) {
+            GETERRNO(res);
+            ERROR_INFO("destroy environment block error[%d]", res);
+        }
+    }
+    penv = NULL;
+
+
+    if (husertoken != NULL && husertoken != INVALID_HANDLE_VALUE) {
+        CloseHandle(husertoken);
+    }
+    husertoken = INVALID_HANDLE_VALUE;
+
+    if (htoken != NULL && htoken != INVALID_HANDLE_VALUE) {
+        CloseHandle(htoken);
+    }
+    htoken = INVALID_HANDLE_VALUE;
+
+    if (hproc != NULL && hproc != INVALID_HANDLE_VALUE) {
+        CloseHandle(hproc);
+    }
+    hproc = INVALID_HANDLE_VALUE;
+
+    AnsiToTchar(NULL, &ptdesktop, &tdesksize);
+
+    if (pstartinfo) {
+        free(pstartinfo);
+    }
+    pstartinfo = NULL;
+    if (procinfo) {
+        free(procinfo);
+    }
+    procinfo = NULL;
+
+
+    return retpid;
+fail:
+    AnsiToTchar(NULL,&ptcmdline,&cmdsize);
+
+    if (penv) {
+        bret = DestroyEnvironmentBlock(penv);
+        if (!bret) {
+            GETERRNO(res);
+            ERROR_INFO("destroy environment block error[%d]", res);
+        }
+    }
+    penv = NULL;
+
+
+    if (husertoken != NULL && husertoken != INVALID_HANDLE_VALUE) {
+        CloseHandle(husertoken);
+    }
+    husertoken = INVALID_HANDLE_VALUE;
+
+    if (htoken != NULL && htoken != INVALID_HANDLE_VALUE) {
+        CloseHandle(htoken);
+    }
+    htoken = INVALID_HANDLE_VALUE;
+
+    if (hproc != NULL && hproc != INVALID_HANDLE_VALUE) {
+        CloseHandle(hproc);
+    }
+    hproc = INVALID_HANDLE_VALUE;
+
+    AnsiToTchar(NULL, &ptdesktop, &tdesksize);
+
+    if (pstartinfo) {
+        free(pstartinfo);
+    }
+    pstartinfo = NULL;
+    if (procinfo) {
+        free(procinfo);
+    }
+    procinfo = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int start_cmdv_session_detach(DWORD session, char* prog[])
+{
+    int ret;
+    int cnt = 0;
+    int size = 0;
+    DWORD* ppids = NULL;
+    int i;
+    int retpid = -1;
+    char* cmdlines = NULL;
+    int cmdsize = 0;
+
+    /*to find the winlogon and get the session id*/
+    ret = get_pids_by_name("winlogon.exe", &ppids, &size);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    cnt = ret;
+    if (cnt == 0) {
+        ret = -ERROR_NO_SUCH_LOGON_SESSION;
+        ERROR_INFO("no such [%d] session", (int)session);
+        goto fail;
+    }
+
+    ret = __get_command_lines(&cmdlines, &cmdsize, prog);
+
+    /*now we find the session*/
+    for (i = 0; i < cnt; i++) {
+        ret = __start_cmdv_session_detach(session,ppids[i], cmdlines);
+        if (ret >= 0) {
+            retpid = ret;
+            break;
+        }
+    }
+
+    if (retpid < 0) {
+        ret = -ERROR_BAD_LOGON_SESSION_STATE;
+        ERROR_INFO("can not run [%s] for sessions", cmdlines);
+        goto fail;
+    }
+
+    __get_command_lines(&cmdlines, &cmdsize, NULL);
+    get_pids_by_name(NULL, &ppids, &size);
+
+    return retpid;
+
+fail:
+    __get_command_lines(&cmdlines, &cmdsize, NULL);
+    get_pids_by_name(NULL, &ppids, &size);
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int start_cmd_session_detach(DWORD session, const char* prog, ...)
+{
+    va_list oldap;
+    char** progv = NULL;
+    int cnt;
+    int retpid = 0;
+    va_list ap;
+    char* curarg = NULL;
+    int ret;
+    int i;
+
+    va_start(ap, prog);
+
+    cnt = 1;
+    va_copy(oldap, ap);
+    while (1) {
+        curarg = va_arg(ap, char*);
+        if (curarg == NULL) {
+            break;
+        }
+        cnt ++;
+    }
+
+    progv = (char**) malloc(sizeof(*progv ) * (cnt + 1));
+    if (progv == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*progv) * (cnt + 1), ret);
+        goto fail;
+    }
+
+    memset(progv, 0 , sizeof(*progv) * (cnt + 1));
+    va_copy(ap, oldap);
+    progv[0] = (char*)prog;
+    for (i = 1; i < cnt ; i++) {
+        curarg = va_arg(ap, char*);
+        ASSERT_IF(curarg != NULL);
+        progv[i] = curarg;
+    }
+
+    ret = start_cmdv_session_detach(session, progv);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retpid = ret;
+
+    if (progv) {
+        free(progv);
+    }
+    progv = NULL;
+
+    return retpid;
+fail:
+    if (progv) {
+        free(progv);
+    }
+    progv = NULL;
+    SETERRNO(ret);
+    return ret;
 }

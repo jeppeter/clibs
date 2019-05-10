@@ -342,9 +342,12 @@ static void print_jvalue(const jvalue *value, char **buf, unsigned int *bufsiz, 
   } else if (value->type == JUSER) {
     const juser *v = (const juser *) value;
     if (v->write) {
-      char tmp[MAX_VALUE_STRING_SIZE] = {0};
-      unsigned int len = v->write(v->value, tmp, MAX_VALUE_STRING_SIZE);
-      util_strexpand(buf, bufsiz, pos, tmp, len);
+      char* tmp = util_malloc(MAX_VALUE_STRING_SIZE);
+      if (tmp != NULL) {
+        unsigned int len = v->write(v->value, tmp, MAX_VALUE_STRING_SIZE);
+        util_strexpand(buf, bufsiz, pos, tmp, len);
+        util_free(tmp);        
+      }
     } else {
       util_strexpand(buf, bufsiz, pos, "null", 4);
     }

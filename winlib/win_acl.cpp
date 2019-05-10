@@ -2142,7 +2142,7 @@ int __new_sid_descriptor(PSID psid, int mode , PSECURITY_DESCRIPTOR *ppsdp, int 
     int retlen;
     DWORD dret;
     PSECURITY_DESCRIPTOR pdp = NULL;
-    PTRUSTEE_A  ptrustee = NULL;
+    PTRUSTEE  ptrustee = NULL;
 
     if (psid == NULL) {
         if (ppsdp && *ppsdp) {

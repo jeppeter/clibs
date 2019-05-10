@@ -19,6 +19,7 @@
 #include <win_priv.h>
 #include <win_com.h>
 #include <win_dbg.h>
+#include <win_base64.h>
 
 #include <sddl.h>
 #include <aclapi.h>
@@ -85,6 +86,14 @@ int utf8toansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int execdbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int startdetach_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getexe_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getexedir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getsess_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getpidsname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int sessrunv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -4377,7 +4386,6 @@ out:
     return ret;
 }
 
-
 static void* st_pdbg=NULL;
 
 BOOL WINAPI HandlerCtrlcRoutine(DWORD dwCtrlType)
@@ -4618,6 +4626,410 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int startdetach_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char** progv=NULL;
+    int createflags = 0;
+    int ret;
+    pargs_options_t pargs= (pargs_options_t) popt;
+    int i;
+
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    progv = parsestate->leftargs;
+    ret = start_cmdv_detach(createflags,progv);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not start");
+        if (parsestate->leftargs) {
+            for (i=0;parsestate->leftargs[i]!=NULL;i++) {
+                if (i > 0) {
+                    fprintf(stderr," ");
+                }
+                fprintf(stderr,"[%s]", parsestate->leftargs[i]);
+            }
+        }
+        fprintf(stderr," error[%d]\n", ret);
+        goto out;
+    }
+
+    fprintf(stdout,"start ");
+    if (parsestate->leftargs) {
+        for (i=0;parsestate->leftargs[i]!=NULL;i++) {
+            if (i > 0) {
+                fprintf(stdout," ");
+            }
+            fprintf(stdout,"[%s]", parsestate->leftargs[i]);
+        }
+    }
+    fprintf(stdout," pid[%d]\n",ret);
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int getexe_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    char* pwhole=NULL;
+    int wholesize=0;
+    init_log_level(pargs);
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+
+    ret = get_executable_wholepath(0,&pwhole,&wholesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "get whole path error[%d]\n", ret);
+        goto out;
+    }
+
+    fprintf(stdout, "whole path [%s]\n", pwhole);
+
+    ret = 0;
+out:
+    get_executable_wholepath(1,&pwhole,&wholesize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int getexedir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    char* pwhole=NULL;
+    int wholesize=0;
+    init_log_level(pargs);
+
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+
+    ret = get_executable_dirname(0,&pwhole,&wholesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "get whole path error[%d]\n", ret);
+        goto out;
+    }
+
+    fprintf(stdout, "whole path dirname [%s]\n", pwhole);
+
+    ret = 0;
+out:
+    get_executable_dirname(1,&pwhole,&wholesize);
+    SETERRNO(ret);
+    return ret;    
+}
+
+int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* input=NULL;
+    char* output=NULL;
+    char* inbuf=NULL;
+    int insize=0,inlen=0;
+    char* outbuf=NULL;
+    int outsize=0;
+    int outlen=0;
+    int ret;
+    char* expandline=NULL;
+    int expandsize=0;
+    int expandlen=0;
+
+    init_log_level(pargs);
+    argc = argc;
+    argv = argv;
+    input = parsestate->leftargs[0];
+    output = parsestate->leftargs[1];
+
+    ret = read_file_whole(input, &inbuf,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "read %s error%d\n", input, ret);
+        goto out;
+    }
+    inlen = ret;
+
+    outsize = 32;
+try_again:
+    if (outbuf) {
+        free(outbuf);
+    }
+    outbuf = NULL;
+    outbuf = (char*)malloc((size_t)outsize);
+    if (outbuf == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "alloc %d error%d\n", outsize, ret );
+        goto out;
+    }
+
+    ret = encode_base64((unsigned char*)inbuf,inlen,outbuf,outsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            outsize <<= 1;
+            goto try_again;
+        }
+        fprintf(stderr, "can not encode base\n");
+        __debug_buf(stderr,inbuf,insize);
+        fprintf(stderr,"error [%d]\n", ret);
+        goto out;
+    }
+
+    outlen = ret;
+    ret = base64_splite_line(outbuf,outlen,76,&expandline,&expandsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "expand line error[%d]\n", ret);
+        goto out;
+    }
+
+    expandlen = ret;
+
+    fprintf(stdout, "inlen [%d]outlen [%d]\n", inlen,expandlen);
+    ret = write_file_whole(output,expandline,expandlen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "write [%s] error[%d]\n", output,ret );
+        goto out;
+    }
+
+    fprintf(stdout, "encode [%s] => [%s] succ\n", input, output );
+    ret = 0;
+
+out:
+    base64_splite_line(NULL,0,0,&expandline,&expandsize);
+    read_file_whole(NULL,&inbuf,&insize);
+    if (outbuf) {
+        free(outbuf);
+    }
+    outbuf = NULL;
+    SETERRNO(ret);
+    return ret;
+
+}
+int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* input=NULL;
+    char* output=NULL;
+    char* inbuf=NULL;
+    int insize=0,inlen=0;
+    char* outbuf=NULL;
+    int outsize=0;
+    int outlen=0;
+    int ret;
+    char* compactbuf=NULL;
+    int compactlen=0,compactsize=0;
+
+    init_log_level(pargs);
+    argc = argc;
+    argv = argv;
+    input = parsestate->leftargs[0];
+    output = parsestate->leftargs[1];
+
+    ret = read_file_whole(input, &inbuf,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "read %s error%d\n", input, ret);
+        goto out;
+    }
+    inlen = ret;
+
+
+    ret = base64_compact_line(inbuf,inlen,&compactbuf,&compactsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "compact error[%d]\n", ret);
+        goto out;
+    }
+    compactlen = ret;
+
+    outsize = 32;
+try_again:
+    if (outbuf) {
+        free(outbuf);
+    }
+    outbuf = NULL;
+    outbuf = (char*)malloc((size_t)outsize);
+    if (outbuf == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "alloc %d error%d\n", outsize, ret );
+        goto out;
+    }
+
+
+
+    ret = decode_base64(compactbuf,compactlen,(unsigned char*)outbuf,outsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            outsize <<= 1;
+            goto try_again;
+        }
+        fprintf(stderr, "can not decode base\n");
+        __debug_buf(stderr,inbuf,insize);
+        fprintf(stderr,"error [%d]\n", ret);
+        goto out;
+    }
+
+    outlen = ret;
+    fprintf(stdout, "inlen [%d]outlen [%d]\n", inlen,outlen);
+    ret = write_file_whole(output,outbuf,outlen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "write [%s] error[%d]\n", output,ret );
+        goto out;
+    }
+
+    fprintf(stdout, "decode [%s] => [%s] succ\n", input, output );
+    ret = 0;
+
+out:
+    base64_compact_line(NULL,0,&compactbuf,&compactsize);
+    read_file_whole(NULL,&inbuf,&insize);
+    if (outbuf) {
+        free(outbuf);
+    }
+    outbuf = NULL;
+    SETERRNO(ret);
+    return ret;    
+}
+
+
+int getsess_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_level(pargs);
+
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+
+    ret = get_desktop_session();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not get desktop session [%d]\n", ret);
+        goto out;
+    }
+
+    fprintf(stdout,"session [%d]\n", ret);
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int getpidsname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    DWORD *ppids=NULL;
+    int size=0,cnt;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+    char* procname;
+    int j;
+
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i] ; i++) {
+        procname = parsestate->leftargs[i];
+        ret = get_pids_by_name(procname, &ppids,&size);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr,"can not get [%s] error[%d]\n", procname, ret);
+            goto out;
+        }
+        cnt = ret;
+        fprintf(stdout,"find [%s] count[%d]", procname, cnt);
+        for (j=0;j<cnt;j++) {
+            if ((j % 5) == 0) {
+                fprintf(stdout,"\n%d ", j);
+            }
+            fprintf(stdout," %d", (int)ppids[j]);
+        }
+        fprintf(stdout,"\n");
+    }
+
+    ret = 0;
+out:
+    get_pids_by_name(NULL,&ppids,&size);
+    SETERRNO(ret);
+    return ret;
+}
+
+int sessrunv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    int retpid=-1;
+    int num;
+    DWORD sessid=0;
+    int cnt =0;
+    char** progv=NULL;
+    int i;
+    int idx = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i] ; i++) {
+        cnt ++;
+    }
+
+    if (cnt < 2) {
+        ret=  -ERROR_INVALID_PARAMETER;
+        fprintf(stderr,"need session progv...\n");
+        goto out;
+    }
+
+    num = 0;
+    GET_OPT_INT(num,"session id");
+    sessid = (DWORD)num;
+    progv = &(parsestate->leftargs[1]);
+
+    ret = start_cmdv_session_detach(sessid, progv);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not start [");
+        for (i=1;i<cnt;i++) {
+            if (i > 1) {
+                fprintf(stderr," ");
+            }
+            fprintf(stderr,"%s", parsestate->leftargs[i]);
+        }
+        fprintf(stderr,"] on session[%d] error[%d]\n", (int)sessid, ret);
+        goto out;
+    }
+    retpid = ret;
+
+    fprintf(stdout,"run [");
+    for(i=1;i<cnt;i++) {
+        if (i > 1) {
+            fprintf(stdout, " ");
+        }
+        fprintf(stdout,"%s", parsestate->leftargs[i]);
+    }
+    fprintf(stdout,"] on session[%d] [%d]succ\n", (int)sessid, retpid);
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
 
 int _tmain(int argc, TCHAR* argv[])
 {
