@@ -157,5 +157,8 @@
     },
     "sessrunv<sessrunv_handler>##sessid prog ...##" : {
         "$" : "+"
+    },
+    "setregstr<setregstr_handler>##path valname val##" : {
+        "$" : 3
     }
 }

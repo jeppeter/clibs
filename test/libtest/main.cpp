@@ -90,6 +90,7 @@ int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int getsess_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getpidsname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sessrunv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int setregstr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -4786,6 +4787,55 @@ out:
     return ret;
 }
 
+int setregstr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    char* path;
+    char* key;
+    char* val;
+    void* pregop=NULL;
+    int idx=0;
+    int cnt =0;
+
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+    for (idx=0;parsestate->leftargs && parsestate->leftargs[idx] ; idx++) {
+        cnt ++;
+    }
+
+    if (cnt < 3) {
+        fprintf(stderr, "need path key val\n");
+        ret = -ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+
+    path = parsestate->leftargs[0];
+    key = parsestate->leftargs[1];
+    val = parsestate->leftargs[2];
+
+    pregop = open_hklm(path, ACCESS_KEY_ALL);
+    if (pregop == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not open [%s] for write [%d]\n", path, ret);
+        goto out;
+    }
+
+    ret = set_hklm_string(pregop, key, val);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"write [%s].[%s] value [%s] error[%d]\n", path,key,val,ret);
+        goto out;
+    }
+    
+    fprintf(stdout, "write [%s].[%s] value [%s] succ\n", path,key,val);
+    ret = 0;
+out:
+    close_hklm(&pregop);
+    SETERRNO(ret);
+    return ret;
+}
 
 int _tmain(int argc, TCHAR* argv[])
 {
