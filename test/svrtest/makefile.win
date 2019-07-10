@@ -85,23 +85,23 @@ LDFLAGS = $(NOLOGO_LDFLAGS) $(INC_LDFLAGS) $(REL_LDFLAGS)
 SOURCES=main.cpp
 OBJECTS=$(SOURCES:.cpp=.obj)
 
-all:libtest.exe pipewin.exe
+all:svrtest.exe
 
 !IFDEF STATICLIB
 !IF $(STATICLIB) != 0
-libtest.exe:$(OBJECTS) $(STATICDIR)\winlib.lib $(STATICDIR)\json.lib $(STATICDIR)\extargslib.lib
+svrtest.exe:$(OBJECTS) $(STATICDIR)\winlib.lib $(STATICDIR)\json.lib $(STATICDIR)\extargslib.lib
 	$(QUIETCMD) echo "call static $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@  $(LDFLAGS)  $(OBJECTS)
 	$(QUIETCMD)echo "use static lib"
 !ELSE
-libtest.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMICDIR)\extargslib.dll
+svrtest.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMICDIR)\extargslib.dll
 	$(QUIETCMD) echo "call dynamic $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
 	$(QUIETCMD)echo "use dynamic lib"
 !ENDIF	
 
 !ELSE
-libtest.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMICDIR)\extargslib.dll
+svrtest.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMICDIR)\extargslib.dll
 	$(QUIETCMD) echo "call dynamic $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
 	$(QUIETCMD) copy /Y $(DYNAMICDIR)\extargslib.dll $(CURDIR)\extargslib.dll
@@ -116,23 +116,11 @@ libtest.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMI
 
 main.cpp:args_options.cpp
 
-args_options.cpp:args_options.cpp.tmpl libtest.json $(TOPDIR)\coutput.py
-	$(QUIETCMD)$(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\libtest.json -i $(CURDIR)\args_options.cpp.tmpl cmdstruct | \
+args_options.cpp:args_options.cpp.tmpl svrtest.json $(TOPDIR)\coutput.py
+	$(QUIETCMD)$(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\svrtest.json -i $(CURDIR)\args_options.cpp.tmpl cmdstruct | \
 	 $(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\libtest.json -i - -o $(CURDIR)\args_options.cpp freefunc
 
 
-
-pipewin.exe : pipewin.go loglib.go loglib_windows.go
-	$(QUIETCMD)$(GOBIN) build -o $@ pipewin.go loglib.go loglib_windows.go
-
-loglib.go : $(TOPDIR)\golib
-	$(QUIETCMD)$(CP) $(TOPDIR)\golib\log\loglib.go $@
-
-loglib_windows.go: $(TOPDIR)\golib
-	$(QUIETCMD)$(CP) $(TOPDIR)\golib\log\loglib_windows.go $@
-
-$(TOPDIR)\golib:
-	$(QUIETCMD)(cd $(TOPDIR) && $(GIT) clone https://github.com/jeppeter/golib.git golib && cd $(CURDIR))
 
 $(DYNAMICDIR)\extargslib.dll:
 	$(QUIETCMD)cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)"
@@ -169,4 +157,3 @@ clean:clean_extargslib
 	$(QUIETCMD) $(RM) *.dll 2>NUL
 	$(QUIETCMD) $(RM) args_options.cpp 2>NUL
 	$(QUIETCMD) $(RM) *.dll 2>NUL
-	$(QUIETCMD) $(RM) pipewin.exe loglib.go loglib_windows.go 2>NUL
