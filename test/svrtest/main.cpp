@@ -4,6 +4,7 @@
 #include <win_strop.h>
 #include <win_uniansi.h>
 #include <tchar.h>
+#include <proto_api.h>
 
 
 #define  TSTSVR_PIPE "\\\\.\\pipe\\tstsvr_pipe"
