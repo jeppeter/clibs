@@ -118,7 +118,7 @@ main.cpp:args_options.cpp
 
 args_options.cpp:args_options.cpp.tmpl svrtest.json $(TOPDIR)\coutput.py
 	$(QUIETCMD)$(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\svrtest.json -i $(CURDIR)\args_options.cpp.tmpl cmdstruct | \
-	 $(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\libtest.json -i - -o $(CURDIR)\args_options.cpp freefunc
+	 $(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\svrtest.json -i - -o $(CURDIR)\args_options.cpp freefunc
 
 
 

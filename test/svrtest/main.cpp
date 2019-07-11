@@ -1,11 +1,24 @@
 #include <extargs.h>
 #include <win_svc.h>
+#include <win_time.h>
+#include <win_strop.h>
+#include <win_uniansi.h>
+#include <tchar.h>
 
 
 #define  TSTSVR_PIPE "\\\\.\\pipe\\tstsvr_pipe"
 #define  SVCNAME     "tstsvr"
 #define  PIPE_BUFSIZE  4096
 #define  PIPE_TIMEOUT  5000
+
+#pragma comment(lib,"Advapi32.lib")
+
+typedef struct __args_options {
+    int m_verbose;
+} args_options_t,*pargs_options_t;
+
+
+#include "args_options.cpp"
 
 int handle_cmds(int argc, char* argv[])
 {
@@ -49,7 +62,7 @@ int read_file_overlapped(HANDLE hd, OVERLAPPED* ov, HANDLE evt, void* pbuf, int 
 
     ov->hEvent = evt;
     while (retlen < size) {
-        bret = ReadFile(hd,  &(pcurptr[retlen]), (size - retlen), &cbret, ov);
+        bret = ReadFile(hd,  &(pcurptr[retlen]), (DWORD)(size - retlen), &cbret, ov);
         if (!bret) {
             GETERRNO(ret);
             if (ret != -ERROR_IO_PENDING) {
@@ -122,7 +135,7 @@ int write_file_overlap(HANDLE hd, OVERLAPPED *ov, HANDLE evt, void* pbuf, int si
     ov->hEvent = evt;
     while (retlen < size) {
         //DEBUG_INFO("before [%d]", retlen);
-        bret = WriteFile(hd, &(pcurptr[retlen]), (size - retlen), &cbret, ov);
+        bret = WriteFile(hd, &(pcurptr[retlen]), (DWORD)(size - retlen), &cbret, ov);
         //DEBUG_INFO("after [%d] cbret %d", retlen, cbret);
         if (!bret) {
             GETERRNO(ret);
@@ -150,7 +163,8 @@ int write_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, 
     uint64_t sticks, curticks = 0;
     int timeoutmills;
     HANDLE waithds[2];
-    int waitnum = 0;
+    DWORD waitnum = 0;
+    DWORD dret;
 
     sticks = get_current_ticks();
 
@@ -175,7 +189,7 @@ int write_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, 
             goto fail;
         }
 
-        dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, timeoutmills, TRUE);
+        dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, (DWORD)timeoutmills, TRUE);
         if (dret == WAIT_OBJECT_0) {
             ret = -ERROR_CONTROL_C_EXIT;
             goto fail;
@@ -187,7 +201,7 @@ int write_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, 
             }
             retlen += ret;
         } else {
-            ret = dret;
+            ret = (int)dret;
             if (ret > 0) {
                 ret = -ret;
             }
@@ -209,13 +223,12 @@ fail:
 int read_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, char** ppdata, int *datasize)
 {
     char* pretdata = NULL;
-    int retsize = 0;
+    size_t retsize = 0;
     char* ptmpdata = NULL;
     int retlen = 0;
-    int waithds[2];
-    int waitnum = 0;
+    HANDLE waithds[2];
+    DWORD waitnum = 0;
     int ret;
-    int readlen = 0;
     DWORD dret;
     uint64_t sticks = 0, curticks;
     int timeoutmills;
@@ -239,14 +252,14 @@ int read_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, c
         return ret;
     }
 
-    retsize = *datasize;
+    retsize = (size_t)*datasize;
     pretdata = *ppdata;
 
     if (retsize == 0 || pretdata == NULL) {
-        if (retsize < 0) {
+        if (retsize <= 0) {
             retsize = 16;
         }
-        pretdata = malloc(retsize);
+        pretdata = (char*)malloc((size_t)retsize);
         if (pretdata == NULL) {
             GETERRNO(ret);
             ERROR_INFO("malloc %d error [%d]", retsize, ret);
@@ -254,7 +267,7 @@ int read_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, c
         }
     }
 
-    memset(pretdata, 0, retsize);
+    memset(pretdata, 0, (size_t)retsize);
 
     ret = read_file_overlapped(hpipe, ov, ov->hEvent, &(pretdata[retlen]), sizeof(pipe_hdr_t));
     if (ret < 0) {
@@ -277,7 +290,7 @@ try_headers:
     curmaxmills = 15000;
 
     timeoutmills = curmaxmills;
-    dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, timeoutmills, TRUE);
+    dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, (DWORD)timeoutmills, TRUE);
     if (dret == WAIT_OBJECT_0) {
         ret = -ERROR_CONTROL_C_EXIT;
         goto fail;
@@ -289,12 +302,12 @@ try_headers:
         }
         retlen += ret;
     } else {
-    	if (dret == WAIT_TIMEOUT) {
-    		/*we first to get the header ,so we should */
-    		goto try_headers;
-    	}
+        if (dret == WAIT_TIMEOUT) {
+            /*we first to get the header ,so we should */
+            goto try_headers;
+        }
 
-        ret = dret;
+        ret = (int)dret;
         if (ret > 0) {
             ret = -ret;
         }
@@ -311,14 +324,14 @@ try_headers:
 
 
 next_read_more:
-	sticks = get_current_ticks();
+    sticks = get_current_ticks();
     phdr = (ppipe_hdr_t) pretdata;
     if (phdr->m_datalen == sizeof(pipe_hdr_t)) {
         goto read_all;
     }
     if (retsize < phdr->m_datalen) {
         retsize = phdr->m_datalen;
-        ptmpdata = malloc(retsize);
+        ptmpdata = (char*)malloc(retsize);
         if (ptmpdata == NULL) {
             GETERRNO(ret);
             ERROR_INFO("malloc %d error[%d]", retsize, ret);
@@ -326,25 +339,25 @@ next_read_more:
         }
         memset(ptmpdata, 0, retsize);
         if (retlen > 0) {
-            memcpy(ptmpdata, pretdata, retlen);
+            memcpy(ptmpdata, pretdata, (size_t)retlen);
         }
         if (pretdata && pretdata != *ppdata) {
             free(pretdata);
         }
         pretdata = ptmpdata;
         ptmpdata = NULL;
-    } else 	if (phdr->m_datalen <= retlen) {
+    } else  if ((int)phdr->m_datalen <= retlen) {
         goto read_all;
     }
 
-    ret = read_file_overlapped(hpipe, ov, ov->hEvent, &(pretdata[retlen]), (phdr->m_datalen - retlen));
+    ret = read_file_overlapped(hpipe, ov, ov->hEvent, &(pretdata[retlen]), (int)(phdr->m_datalen - retlen));
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
     retlen += ret;
-    if (retlen == phdr->m_datalen) {
+    if (retlen == (int)phdr->m_datalen) {
         goto read_all;
     }
 
@@ -362,7 +375,7 @@ try_read_more:
         goto fail;
     }
 
-    dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, timeoutmills, TRUE);
+    dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, (DWORD)timeoutmills, TRUE);
     if (dret == WAIT_OBJECT_0) {
         ret = -ERROR_CONTROL_C_EXIT;
         goto fail;
@@ -374,7 +387,7 @@ try_read_more:
         }
         retlen += ret;
     } else {
-        ret = dret;
+        ret = (int)dret;
         if (ret > 0) {
             ret = -ret;
         }
@@ -385,7 +398,7 @@ try_read_more:
         goto fail;
     }
 
-    if (retlen < phdr->m_datalen) {
+    if (retlen < (int)phdr->m_datalen) {
         goto try_read_more;
     }
 
@@ -395,7 +408,7 @@ read_all:
         *ppdata = NULL;
     }
     *ppdata = pretdata;
-    *datasize = retsize;
+    *datasize = (int)retsize;
 
     return retlen;
 
@@ -413,19 +426,74 @@ fail:
     return ret;
 }
 
+void free_overlap(OVERLAPPED** ppov)
+{
+    OVERLAPPED* pov = NULL;
+    if (ppov && *ppov) {
+        pov = *ppov;
+        if (pov->hEvent != NULL) {
+            CloseHandle(pov->hEvent);
+            pov->hEvent = NULL;
+        }
+        free(pov);
+        *ppov = NULL;
+    }
+    return ;
+}
 
-int main_loop(HANDLE exitevt, char* pipename, int maxmills)
+OVERLAPPED* alloc_overlap(const char* fmt, ...)
+{
+    OVERLAPPED* pov = NULL;
+    va_list ap;
+    char* errstr = NULL;
+    int errsize = 0;
+    int ret;
+    int res;
+
+
+
+    pov = (OVERLAPPED*)malloc(sizeof(*pov));
+    if (pov == NULL) {
+        GETERRNO(ret);
+        va_start(ap, fmt);
+        res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
+        if (res > 0) {
+            ERROR_INFO("alloc %s size [%d] error[%d]\n", errstr, sizeof(*pov), ret);
+        }
+        goto fail;
+    }
+
+    memset(pov, 0, sizeof(*pov));
+    pov->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (pov->hEvent == NULL) {
+        GETERRNO(ret);
+        va_start(ap, fmt);
+        res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
+        if (res > 0) {
+            ERROR_INFO("create %s event error[%d]\n", errstr, ret);
+        }
+    }
+
+    return pov;
+fail:
+    free_overlap(&pov);
+    SETERRNO(ret);
+    return NULL;
+}
+
+
+int connect_pipe(char* pipename, HANDLE exitevt, HANDLE* phd, OVERLAPPED** pprdov, OVERLAPPED** ppwrov)
 {
     HANDLE hpipe = NULL;
-    HANDLE wrevt=NULL,rdevt=NULL,connevt=NULL;
-    OVERLAPPED *pwrov=NULL,*prdov=NULL,*pconnov=NULL;
-    TCHAR *ptname=NULL;
+    OVERLAPPED *pwrov = NULL, *prdov = NULL, *pconnov = NULL;
+    TCHAR *ptname = NULL;
     int tnamesize = 0;
-    char* pindata=NULL;
-    int indatasize=0,indatalen=0;
     int ret;
     BOOL bret;
     DWORD cbret;
+    DWORD waitnum=0;
+    HANDLE waithds[2];
+    DWORD dret;
     SECURITY_ATTRIBUTES sa;
     SECURITY_DESCRIPTOR sd;
     /*we set the security for everyone*/
@@ -436,258 +504,181 @@ int main_loop(HANDLE exitevt, char* pipename, int maxmills)
     sa.bInheritHandle = TRUE;
 
 
-bind_pipe_again:
-	if (connevt != NULL) {
-		CloseHandle(connevt);
-	}
-	connevt = NULL;
-
-	if (pconnov) {
-		free(pconnov);
-	}
-	pconnov = NULL;
-
-
-	if (wrevt != NULL) {
-		CloseHandle(wrevt);
-	}
-	wrevt = NULL;
-
-	if (pwrov) {
-		free(pwrov);
-	}
-	pwrov = NULL;
-
-	if (rdevt != NULL) {
-		CloseHandle(rdevt);
-	}
-	rdevt = NULL;
-
-	if (prdov) {
-		free(prdov);
-	}
-	prdov = NULL;
-
-
-    if (hpipe != NULL) {
-        CloseHandle(hpipe);
+    if (pipename == NULL) {
+        free_overlap(pprdov);
+        free_overlap(ppwrov);
+        if (phd && *phd != NULL) {
+            CloseHandle(*phd);
+            *phd = NULL;
+        }
+        return 0;
     }
-    hpipe = NULL;
 
-    /**/
+    if (phd == NULL || *phd != NULL ||
+            pprdov == NULL || *pprdov != NULL ||
+            ppwrov == NULL || *ppwrov != NULL ||
+            exitevt == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
     DEBUG_INFO("connect [%s]", pipename);
-    AnsiToTchar(NULL, &ptname, &tnamesize);
     ret = AnsiToTchar(pipename, &ptname, &tnamesize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    connevt = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (connevt == NULL) {
-    	GETERRNO(ret);
-    	ERROR_INFO("can not connevt error[%d]", ret);
-    	goto fail;
-    }
-
-    pconnov = malloc(sizeof(*pconnov));
+    pconnov = alloc_overlap("%s connect event",pipename);
     if (pconnov == NULL) {
-    	GETERRNO(ret);
-    	ERROR_INFO("conn ov error[%d]", ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
-    memset(pconnov, 0, sizoef(*pconnov));
-    pconnov->hEvent = connevt;
 
     hpipe = CreateNamedPipe(
-                        ptname,
-                        PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
-                        PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
-                        1, /*we only accept 1 instance*/
-                        PIPE_BUFSIZE * sizeof(TCHAR),
-                        PIPE_BUFSIZE * sizeof(TCHAR),
-                        PIPE_TIMEOUT,
-                        //NULL
-                        &sa
-                    );
+                ptname,
+                PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
+                PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE | PIPE_WAIT,
+                1, /*we only accept 1 instance*/
+                PIPE_BUFSIZE * sizeof(TCHAR),
+                PIPE_BUFSIZE * sizeof(TCHAR),
+                PIPE_TIMEOUT,
+                //NULL
+                &sa
+            );
     if (hpipe == NULL || hpipe == INVALID_HANDLE_VALUE) {
         GETERRNO(ret);
         hpipe = NULL;
         ERROR_INFO("can not open pipe [%s] error[%d]", pipename, ret);
+        goto fail;
+    }
+
+    bret = ConnectNamedPipe(hpipe, pconnov);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret != -ERROR_PIPE_CONNECTED &&
+                ret != -ERROR_IO_PENDING) {
+            ERROR_INFO("connect [%s] error [%d]", pipename, ret);
+            goto fail;
+        }
+
+        if (ret == -ERROR_IO_PENDING) {
+            waitnum = 0;
+            waithds[waitnum] = exitevt;
+            waitnum ++;
+            waithds[waitnum] = pconnov->hEvent;
+            waitnum ++;
+
+            /*wait for connecting*/
+            dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, 5000, FALSE);
+            if (dret == WAIT_OBJECT_0) {
+                ret = -ERROR_CONTROL_C_EXIT;
+                goto fail;
+            } else if (dret == (WAIT_OBJECT_0 + 1)) {
+                bret = GetOverlappedResult(hpipe, pconnov, &cbret, FALSE);
+                if (!bret) {
+                    GETERRNO(ret);
+                    ERROR_INFO("get [%s] connect overlap error[%d]", pipename, ret);
+                    goto fail;
+                }
+            } else {
+                GETERRNO(ret);
+                ERROR_INFO("wait connect error [%d] dret[%d]", ret, dret);
+                goto fail;
+            }
+        }
+    }
+
+    prdov = alloc_overlap("%s read event", pipename);
+    if (prdov == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pwrov = alloc_overlap("%s write event", pipename);
+    if (pwrov == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    *ppwrov = pwrov;
+    *pprdov = prdov;
+    *phd = hpipe;
+
+    free_overlap(&pconnov);
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    return 0;
+fail:
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    free_overlap(&pconnov);
+    free_overlap(&prdov);
+    free_overlap(&pwrov);
+    if (hpipe != NULL) {
+        CloseHandle(hpipe);
+    }
+    hpipe = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int main_loop(HANDLE exitevt, char* pipename, int maxmills)
+{
+    char* pindata = NULL;
+    int indatasize = 0, indatalen = 0;
+    int ret;
+    HANDLE hpipe=NULL;
+    OVERLAPPED *prdov=NULL,*pwrov=NULL;
+    HANDLE waithds[2];
+    DWORD waitnum = 0;
+    DWORD dret;
+
+
+bind_pipe_again:
+    connect_pipe(NULL, exitevt, &hpipe, &prdov, &pwrov);
+    ret = connect_pipe(pipename, exitevt, &hpipe, &prdov, &pwrov);
+    if (ret < 0) {
+        GETERRNO(ret);
+        if (ret == -ERROR_CONTROL_C_EXIT) {
+            goto fail;
+        }
+        waitnum = 0;
+        waithds[waitnum] = exitevt;
+        waitnum ++;
+        /*a 1000 ms to retry*/
+        dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, 1000, FALSE);
+        if (dret == WAIT_OBJECT_0) {
+            ret = -ERROR_CONTROL_C_EXIT;
+            goto fail;
+        }
         goto bind_pipe_again;
     }
-
-    bret = ConnectNamedPipe(hpipe,pconnov);
-    if (!bret) {
-    	GETERRNO(ret);
-    	if (ret != -ERROR_PIPE_CONNECTED && 
-    		ret != -ERROR_IO_PENDING) {
-    		ERROR_INFO("connect [%s] error [%d]",pipename, ret);
-    		waitnum=0;
-    		waithds[waitnum] = exitevt;
-    		waitnum ++;
-    		/*a 1000 ms to retry*/
-    		dret = WaitForMultipleObjectsEx(waitnum,waithds, FALSE,1000,FALSE);
-    		if (dret == WAIT_OBJECT_0) {
-    			ret = -ERROR_CONTROL_C_EXIT;
-    			goto fail;
-    		}
-    		goto bind_pipe_again;
-    	}
-
-    	if (ret == -ERROR_IO_PENDING) {
-    		waitnum = 0;
-    		waithds[waitnum] = exitevt;
-    		waitnum ++;
-    		waithds[waitnum] = connevt;
-    		waitnum ++;
-
-    		/*wait for connecting*/
-    		dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE,5000,FALSE);
-    		if (dret == WAIT_OBJECT_0) {
-    			ret = -ERROR_CONTROL_C_EXIT;
-    			goto fail;
-    		} else if (dret == (WAIT_OBJECT_0 + 1)) {
-    			bret = GetOverlappedResult(hpipe,pconnov,&cbret,FALSE);
-    			if (!bret) {
-    				goto bind_pipe_again;
-    			}
-    		} else {
-    			GETERRNO(ret);
-    			ERROR_INFO("wait connect error [%d] dret[%d]", ret,dret);
-    			goto bind_pipe_again;
-    		}
-    	}
-    }
-
-    rdevt = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (rdevt == NULL) {
-    	GETERRNO(ret);
-    	ERROR_INFO("can not rdevt error[%d]", ret);
-    	goto fail;
-    }
-
-    wrevt = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (wrevt == NULL) {
-    	GETERRNO(ret);
-    	ERROR_INFO("can not rdevt error[%d]", ret);
-    	goto fail;
-    }
-
-    pwrov = malloc(sizeof(*pwrov));
-    if (pwrov == NULL) {
-    	GETERRNO(ret);
-    	ERROR_INFO("wrov alloc error[%d]",ret);
-    	goto fail;
-    }
-    memset(pwrov,0, sizeof(*pwrov));
-    pwrov->hEvent = wrevt;
-
-    prdov = malloc(sizeof(*prdov));
-    if (prdov == NULL) {
-    	GETERRNO(ret);
-    	ERROR_INFO("rdov alloc error[%d]",ret);
-    	goto fail;
-    }
-    memset(prdov,0, sizeof(*prdov));
-    prdov->hEvent = rdevt;
-
 
 
 
     while (1) {
-    	ret = read_pipe_data(exitevt,hpipe,prdov,1000,&pindata,&indatasize);
-    	if (ret < 0) {
-    		if (ret == -ERROR_CONTROL_C_EXIT) {
-    			break;
-    		}
-    		ERROR_INFO("will build pipe again");
-    		goto bind_pipe_again;
-    	}
+        ret = read_pipe_data(exitevt, hpipe, prdov, maxmills, &pindata, &indatasize);
+        if (ret < 0) {
+            if (ret == -ERROR_CONTROL_C_EXIT) {
+                break;
+            }
+            ERROR_INFO("will build pipe again");
+            goto bind_pipe_again;
+        }
 
-    	indatalen = ret;
-    	DEBUG_BUFFER_FMT(pindata,ret,"indatalen [%d]", indatalen);
+        indatalen = ret;
+        DEBUG_BUFFER_FMT(pindata, ret, "indatalen [%d]", indatalen);
     }
 
 
-
-	if (connevt != NULL) {
-		CloseHandle(connevt);
-	}
-	connevt = NULL;
-
-	if (wrevt != NULL) {
-		CloseHandle(wrevt);
-	}
-	wrevt = NULL;
-	if (rdevt != NULL) {
-		CloseHandle(rdevt);
-	}
-	rdevt = NULL;
-
-	if (pwrov) {
-		free(pwrov);
-	}
-	pwrov = NULL;
-	if (prdov) {
-		free(prdov);
-	}
-	prdov = NULL;
-
-	if (pconnov) {
-		free(pconnov);
-	}
-	pconnov = NULL;
-
-    if (hpipe != NULL) {
-        CloseHandle(hpipe);
-    }
-    hpipe = NULL;
-
-    AnsiToTchar(NULL, &ptname, &tnamesize);
-
-    read_pipe_data(NULL,NULL,NULL,0,&pindata,&indatasize);
-
-
+    connect_pipe(NULL,exitevt,&hpipe,&prdov,&pwrov);
+    read_pipe_data(NULL, NULL, NULL, 0, &pindata, &indatasize);
     return 0;
 
 fail:
-	if (connevt != NULL) {
-		CloseHandle(connevt);
-	}
-	connevt = NULL;
-
-	if (wrevt != NULL) {
-		CloseHandle(wrevt);
-	}
-	wrevt = NULL;
-	if (rdevt != NULL) {
-		CloseHandle(rdevt);
-	}
-	rdevt = NULL;
-
-	if (pwrov) {
-		free(pwrov);
-	}
-	pwrov = NULL;
-	if (prdov) {
-		free(prdov);
-	}
-	prdov = NULL;
-
-	if (pconnov) {
-		free(pconnov);
-	}
-	pconnov = NULL;
-
-    if (hpipe != NULL) {
-        CloseHandle(hpipe);
-    }
-    hpipe = NULL;
-
-    AnsiToTchar(NULL, &ptname, &tnamesize);
-
-    read_pipe_data(NULL,NULL,NULL,0,&pindata,&indatasize);
+    connect_pipe(NULL,exitevt,&hpipe,&prdov,&pwrov);
+    read_pipe_data(NULL, NULL, NULL, 0, &pindata, &indatasize);
     SETERRNO(ret);
     return ret;
 }
@@ -701,7 +692,7 @@ VOID WINAPI svc_ctrl_handler( DWORD dwCtrl )
     int ret;
     switch (dwCtrl) {
     case SERVICE_CONTROL_STOP:
-        ret = report_svc_mode(SERVICE_STOP_PENDING, 500);
+        ret = svc_report_mode(SERVICE_STOP_PENDING, 500);
         if (ret < 0) {
             ERROR_INFO("ctrl handle stop pending error %d\n", ret);
         }
@@ -721,7 +712,6 @@ VOID WINAPI svc_ctrl_handler( DWORD dwCtrl )
 int svc_main_loop()
 {
     int ret, res;
-    int mask;
 
     st_hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (st_hEvent == NULL) {
@@ -730,7 +720,7 @@ int svc_main_loop()
         goto fail;
     }
 
-    ret = report_svc_mode(SERVICE_RUNNING, 0);
+    ret = svc_report_mode(SERVICE_RUNNING, 0);
     if (ret < 0) {
         ERROR_INFO("report running error %d\n", ret);
         goto fail;
@@ -746,7 +736,7 @@ int svc_main_loop()
 
 
 
-    res = report_svc_mode(SERVICE_STOPPED, 0);
+    res = svc_report_mode(SERVICE_STOPPED, 0);
     if (res < 0) {
         ERROR_INFO("report svc stopped error %d\n", res);
         ret = res;
@@ -759,7 +749,7 @@ int svc_main_loop()
 
     return ret;
 fail:
-    res = report_svc_mode(SERVICE_STOPPED, 0);
+    res = svc_report_mode(SERVICE_STOPPED, 0);
     if (res < 0) {
         ERROR_INFO("report svc stopped error %d\n", res);
     }
@@ -770,23 +760,27 @@ fail:
     return ret;
 }
 
-VOID WINAPI svc_main( DWORD dwArgc, LPTSTR *lpszArgv )
+VOID WINAPI svc_main( DWORD dwArgc, LPSTR *lpszArgv )
 {
     int ret;
+    dwArgc = dwArgc;
+    lpszArgv = lpszArgv;
     DEBUG_INFO("in main\n ");
-    ret = init_svc_mode(SVCNAME, svc_ctrl_handler);
+    ret = svc_init_mode(SVCNAME, svc_ctrl_handler);
     if (ret < 0) {
         ERROR_INFO("can not init svc\n");
         return ;
     }
     svc_main_loop();
 
-    close_svc_mode();
+    svc_close_mode();
     return ;
 }
 
 int _tmain(int argc, _TCHAR* argv[])
 {
     DEBUG_INFO("start simplsvc\n");
-    return start_svc(SVCNAME, (LPSERVICE_MAIN_FUNCTION)svc_main);
+    argc = argc;
+    argv = argv;
+    return svc_start(SVCNAME, svc_main);
 }

@@ -11,6 +11,8 @@ extern "C" {
 #undef __WINLIB_INNER_INCLUDE__
 
 
+#include <Windows.h>
+
 #define  SVC_START_ON_UNKNOWN         0
 #define  SVC_START_ON_BOOT            1
 #define  SVC_START_ON_SYSTEM          2
@@ -39,6 +41,14 @@ WINLIB_API int service_running_mode(const char* name);
 WINLIB_API int stop_service(const char* name,int mills);
 WINLIB_API int start_service(const char* name, int mills);
 WINLIB_API int config_service_start_mode(const char* name, int startmode);
+
+
+
+WINLIB_API int svc_init_mode(char* svcname,LPHANDLER_FUNCTION pFunc);
+WINLIB_API int svc_report_mode(DWORD mode,DWORD time);
+WINLIB_API void svc_close_mode();
+WINLIB_API int svc_start(char* svcname, LPSERVICE_MAIN_FUNCTION pProc);
+
 
 #ifdef __cplusplus
 };
