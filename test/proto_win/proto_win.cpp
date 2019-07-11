@@ -223,11 +223,11 @@ OVERLAPPED* alloc_overlap(const char* fmt, ...)
         }
     }
 
-    vsnprintf_safe(&errstr,&errsize,NULL,ap);
+    vsnprintf_safe(&errstr, &errsize, NULL, ap);
     return pov;
 fail:
     free_overlap(&pov);
-    vsnprintf_safe(&errstr,&errsize,NULL,ap);
+    vsnprintf_safe(&errstr, &errsize, NULL, ap);
     SETERRNO(ret);
     return NULL;
 }
@@ -242,7 +242,7 @@ int bind_pipe(char* pipename, HANDLE exitevt, HANDLE* phd, OVERLAPPED** pprdov, 
     int ret;
     BOOL bret;
     DWORD cbret;
-    DWORD waitnum=0;
+    DWORD waitnum = 0;
     HANDLE waithds[2];
     DWORD dret;
     SECURITY_ATTRIBUTES sa;
@@ -281,7 +281,7 @@ int bind_pipe(char* pipename, HANDLE exitevt, HANDLE* phd, OVERLAPPED** pprdov, 
         goto fail;
     }
 
-    pconnov = alloc_overlap("%s connect event",pipename);
+    pconnov = alloc_overlap("%s connect event", pipename);
     if (pconnov == NULL) {
         GETERRNO(ret);
         goto fail;
@@ -364,6 +364,84 @@ int bind_pipe(char* pipename, HANDLE exitevt, HANDLE* phd, OVERLAPPED** pprdov, 
 fail:
     AnsiToTchar(NULL, &ptname, &tnamesize);
     free_overlap(&pconnov);
+    free_overlap(&prdov);
+    free_overlap(&pwrov);
+    if (hpipe != NULL) {
+        CloseHandle(hpipe);
+    }
+    hpipe = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int connect_pipe(char* pipename, HANDLE exitevt, HANDLE *phd, OVERLAPPED** pprdov, OVERLAPPED** ppwrov)
+{
+    TCHAR* ptpipename = NULL;
+    int tpipesize = 0;
+    HANDLE hpipe = NULL;
+    OVERLAPPED *prdov = NULL, *pwrov = NULL;
+    int ret;
+
+    if (pipename == NULL) {
+        free_overlap(pprdov);
+        free_overlap(ppwrov);
+        if (phd && *phd) {
+            CloseHandle(*phd);
+            *phd = NULL;
+        }
+        return 0;
+    }
+
+    if (exitevt == NULL ||
+            phd == NULL || *phd != NULL ||
+            pprdov == NULL || *pprdov != NULL ||
+            ppwrov == NULL || *ppwrov != NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = AnsiToTchar(pipename, &ptpipename, &tpipesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    hpipe = CreateFile(ptpipename,
+                       GENERIC_READ | GENERIC_WRITE,
+                       0,
+                       NULL,
+                       OPEN_EXISTING,
+                       FILE_FLAG_OVERLAPPED,
+                       NULL);
+   	if (hpipe == NULL || hpipe == INVALID_HANDLE_VALUE) {
+   		GETERRNO(ret);
+   		hpipe = NULL;
+   		ERROR_INFO("connect [%s] pipe error [%d]", pipename, ret);
+   		goto fail;
+   	}
+
+   	prdov = alloc_overlap("%s rd evt", pipename);
+   	if (prdov == NULL) {
+   		GETERRNO(ret);
+   		goto fail;
+   	}
+
+
+   	pwrov = alloc_overlap("%s wr evt", pipename);
+   	if (pwrov == NULL) {
+   		GETERRNO(ret);
+   		goto fail;
+   	}
+
+    AnsiToTchar(NULL, &ptpipename, &tpipesize);
+    *phd = hpipe;
+    *pprdov = prdov;
+    *ppwrov = pwrov;
+    return 0;
+fail:
+    AnsiToTchar(NULL, &ptpipename, &tpipesize);
     free_overlap(&prdov);
     free_overlap(&pwrov);
     if (hpipe != NULL) {

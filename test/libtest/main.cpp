@@ -5041,12 +5041,43 @@ int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 {
     int ret=0;
     char* pipename=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    HANDLE hpipe=NULL;
+    OVERLAPPED* prdov=NULL,*pwrov=NULL;
 
-    argc = argc;
-    argv = argv;
-    parsestate = parsestate;
-    popt = popt;
+    pipename = pargs->m_pipename;
+    if (pipename == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr,"no pipename\n");
+        goto out;
+    }
 
+    st_ExitEvt = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (st_ExitEvt == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create exit event %d\n", ret);
+        goto out;
+    }
+    bret = SetConsoleCtrlHandler(HandlerConsoleRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
+        goto out;
+    }
+
+    ret = connect_pipe(pipename, st_ExitEvt,&hpipe,&prdov,&pwrov);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not connect pipe [%s] error[%d]\n", pipename, ret);
+        goto out;
+    }
+
+
+
+
+    ret = 0;
+out:
+    connect_pipe(NULL,NULL,&hpipe,&prdov,&pwrov);
     SETERRNO(ret);
     return ret;
 }
