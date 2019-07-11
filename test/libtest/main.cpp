@@ -20,6 +20,7 @@
 #include <win_com.h>
 #include <win_dbg.h>
 #include <win_base64.h>
+#include <proto_api.h>
 
 #include <sddl.h>
 #include <aclapi.h>
@@ -34,6 +35,7 @@ typedef struct __args_options {
     char* m_errout;
     int m_timeout;
     int m_bufsize;
+    char* m_pipename;
 } args_options_t, *pargs_options_t;
 
 #pragma comment(lib,"user32.lib")
@@ -94,6 +96,7 @@ int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int getsess_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getpidsname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sessrunv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -5030,6 +5033,29 @@ out:
     return ret;
 }
 
+int write_pipe_data(HANDLE hd,OVERLAPPED* pwrov,int maxmills,char* pbuf,int buflen)
+{
+
+}
+
+
+
+int connect_pipe(char* pipename,HANDLE exitevt,HANDLE *phd,OVERLAPPED** ppwrov,OVERLAPPED** pprdov)
+{
+    if (pipename == NULL) {
+    }
+}
+
+int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* pipename=NULL;
+
+
+out:
+    SETERRNO(ret);
+    return ret;
+}
 
 int _tmain(int argc, TCHAR* argv[])
 {

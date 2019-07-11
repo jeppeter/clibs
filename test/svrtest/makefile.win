@@ -70,7 +70,7 @@ WINLIB_VALUE=0
 INC_LDFLAGS = "$(DYNAMICDIR)\extargslib.lib" "$(DYNAMICDIR)\winlib.lib" "$(DYNAMICDIR)\json.lib"
 !ENDIF
 
-INC_CFLAGS = /I"$(CURDIR)\..\proto" /I"$(TOPDIR)\common\extargslib" /I"$(TOPDIR)\winlib" /I"$(TOPDIR)\common\jsonlib" /I"$(TOPDIR)\common"
+INC_CFLAGS = /I"$(CURDIR)\..\proto" /I"$(CURDIR)\..\proto_win" /I"$(TOPDIR)\common\extargslib" /I"$(TOPDIR)\winlib" /I"$(TOPDIR)\common\jsonlib" /I"$(TOPDIR)\common"
 COM_CFLAGS = /Wall /wd"4820" /wd"4668" /wd"4127" /wd"4510" /wd"4512" /wd"4610" /wd"4710" /wd"5045"
 REL_CFLAGS = 
 DBG_CFLAGS = /Zi /Od 
@@ -82,7 +82,7 @@ REL_LDFLAGS =
 CFLAGS  = $(UNICODE_CFLAGS) $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(INC_CFLAGS) $(COM_CFLAGS) $(REL_CFLAGS) $(DBG_CFLAGS)
 LDFLAGS = $(NOLOGO_LDFLAGS) $(INC_LDFLAGS) $(REL_LDFLAGS)
 
-SOURCES=main.cpp
+SOURCES=main.cpp proto_win.cpp
 OBJECTS=$(SOURCES:.cpp=.obj)
 
 all:svrtest.exe
@@ -115,6 +115,9 @@ svrtest.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMI
 	$(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
 
 main.cpp:args_options.cpp
+
+proto_win.cpp:$(CURDIR)\..\proto_win\proto_win.cpp
+	$(QUIETCMD)copy /Y $(CURDIR)\..\proto_win\proto_win.cpp proto_win.cpp
 
 args_options.cpp:args_options.cpp.tmpl svrtest.json $(TOPDIR)\coutput.py
 	$(QUIETCMD)$(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\svrtest.json -i $(CURDIR)\args_options.cpp.tmpl cmdstruct | \
@@ -152,6 +155,7 @@ clean_extargslib: clean_json
 
 
 clean:clean_extargslib
+	$(QUIETCMD) $(RM) proto_win.cpp 2>NUL
 	$(QUIETCMD) $(RM) *.exe *.obj 2>NUL
 	$(QUIETCMD) $(RM) *.pdb *.ilk 2>NUL
 	$(QUIETCMD) $(RM) *.dll 2>NUL

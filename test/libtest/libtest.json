@@ -5,6 +5,7 @@
     "output|o<m_output>" : null,
     "errout|e<m_errout>" : null,
     "timeout|t<m_timeout>" : 0,
+    "pipename|P<m_pipename>" : "\\\\.\\pipe\\tstsvr_pipe",
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },
@@ -138,6 +139,9 @@
         "$" : "+"
     },
     "execdbg<execdbg_handler>##runcmd rundbg to run output##" : {
+        "$" : "+"
+    },
+    "svrcmd<svrcmd_handler>##run command in the server##" : {
         "$" : "+"
     }
 }
