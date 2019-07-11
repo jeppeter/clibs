@@ -5,8 +5,14 @@
 extern "C" {
 #endif /* __cplusplus*/
 
-int initialize_com(void);
-void uninitialize_com(void);
+#undef __WINLIB_INNER_INCLUDE__
+#define __WINLIB_INNER_INCLUDE__
+#include <win_inner.h>
+#undef __WINLIB_INNER_INCLUDE__
+
+
+WINLIB_API int initialize_com(void);
+WINLIB_API void uninitialize_com(void);
 
 #ifdef __cplusplus
 };

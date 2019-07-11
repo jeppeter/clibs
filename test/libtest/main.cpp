@@ -5033,26 +5033,20 @@ out:
     return ret;
 }
 
-int write_pipe_data(HANDLE hd,OVERLAPPED* pwrov,int maxmills,char* pbuf,int buflen)
-{
-
-}
 
 
 
-int connect_pipe(char* pipename,HANDLE exitevt,HANDLE *phd,OVERLAPPED** ppwrov,OVERLAPPED** pprdov)
-{
-    if (pipename == NULL) {
-    }
-}
 
 int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    int ret;
+    int ret=0;
     char* pipename=NULL;
 
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+    popt = popt;
 
-out:
     SETERRNO(ret);
     return ret;
 }
