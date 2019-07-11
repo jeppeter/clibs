@@ -47,10 +47,6 @@ out:
 
 
 
-typedef struct __pipe_hdr_t {
-    uint32_t m_datalen;
-    uint32_t m_cmd;
-} pipe_hdr_t, *ppipe_hdr_t;
 
 int read_file_overlapped(HANDLE hd, OVERLAPPED* ov, HANDLE evt, void* pbuf, int size)
 {
@@ -259,7 +255,7 @@ int read_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, c
         if (retsize <= 0) {
             retsize = 16;
         }
-        pretdata = (char*)malloc((size_t)retsize);
+        pretdata = (char*)malloc(retsize);
         if (pretdata == NULL) {
             GETERRNO(ret);
             ERROR_INFO("malloc %d error [%d]", retsize, ret);
@@ -267,7 +263,7 @@ int read_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, c
         }
     }
 
-    memset(pretdata, 0, (size_t)retsize);
+    memset(pretdata, 0, retsize);
 
     ret = read_file_overlapped(hpipe, ov, ov->hEvent, &(pretdata[retlen]), sizeof(pipe_hdr_t));
     if (ret < 0) {
@@ -451,11 +447,10 @@ OVERLAPPED* alloc_overlap(const char* fmt, ...)
     int res;
 
 
-
+    va_start(ap, fmt);
     pov = (OVERLAPPED*)malloc(sizeof(*pov));
     if (pov == NULL) {
         GETERRNO(ret);
-        va_start(ap, fmt);
         res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
         if (res > 0) {
             ERROR_INFO("alloc %s size [%d] error[%d]\n", errstr, sizeof(*pov), ret);
@@ -467,16 +462,17 @@ OVERLAPPED* alloc_overlap(const char* fmt, ...)
     pov->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (pov->hEvent == NULL) {
         GETERRNO(ret);
-        va_start(ap, fmt);
         res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
         if (res > 0) {
             ERROR_INFO("create %s event error[%d]\n", errstr, ret);
         }
     }
 
+    vsnprintf_safe(&errstr,&errsize,NULL,ap);
     return pov;
 fail:
     free_overlap(&pov);
+    vsnprintf_safe(&errstr,&errsize,NULL,ap);
     SETERRNO(ret);
     return NULL;
 }
