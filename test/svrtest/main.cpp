@@ -15,7 +15,7 @@
 
 typedef struct __args_options {
     int m_verbose;
-} args_options_t,*pargs_options_t;
+} args_options_t, *pargs_options_t;
 
 
 #include "args_options.cpp"
@@ -60,7 +60,7 @@ int read_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, c
     int curmaxmills = 0;
     ppipe_hdr_t phdr = NULL;
     if (exitevt == NULL ||
-        hpipe == NULL) {
+            hpipe == NULL) {
         if (ppdata && *ppdata) {
             DEBUG_INFO("free %p", *ppdata);
             free(*ppdata);
@@ -78,7 +78,7 @@ int read_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, c
         return ret;
     }
 
-    retsize = (size_t)*datasize;
+    retsize = (size_t) * datasize;
     pretdata = *ppdata;
 
     if (retsize < sizeof(pipe_hdr_t) || pretdata == NULL) {
@@ -91,7 +91,7 @@ int read_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, c
             ERROR_INFO("malloc %d error [%d]", retsize, ret);
             goto fail;
         }
-        DEBUG_INFO("alloc %p",pretdata);
+        DEBUG_INFO("alloc %p", pretdata);
     }
     memset(pretdata, 0, retsize);
 
@@ -170,7 +170,7 @@ next_read_more:
             memcpy(ptmpdata, pretdata, (size_t)retlen);
         }
         if (pretdata && pretdata != *ppdata) {
-            DEBUG_INFO("free %p",pretdata);
+            DEBUG_INFO("free %p", pretdata);
             free(pretdata);
         }
         pretdata = ptmpdata;
@@ -261,75 +261,57 @@ fail:
     return ret;
 }
 
-int run_cmd(HANDLE exitevt,ppipe_hdr_t phdr, int hdrlen)
+int run_cmd(HANDLE exitevt, ppipe_hdr_t phdr, int hdrlen)
 {
-    char* pcurptr=NULL;
-    char** prog=NULL;
+    char* pcurptr = NULL;
     int i;
-    int cnt =0;
+    int cnt = 0;
     int passlen = 0;
     int curlen = 0;
     int totallen = (int)(hdrlen - sizeof(pipe_hdr_t));
-    char* pout=NULL,*perr=NULL;
-    int outsize=0,errsize=0;
-    int exitcode=0;
+    char* pout = NULL, *perr = NULL;
+    int outsize = 0, errsize = 0;
+    int exitcode = 0;
     int ret;
+    char* cmdline = NULL;
+    int cmdsize = 0;
 
     pcurptr = (char*) phdr;
     pcurptr += sizeof(pipe_hdr_t);
-    cnt =0;
-    for (passlen = 0;passlen < (totallen-1);) {
+    cnt = 0;
+    for (passlen = 0, i = 0; passlen < (totallen - 1); i++) {
         curlen = (int)(strlen(pcurptr) + 1);
+        if (i > 0) {
+            ret = append_snprintf_safe(&cmdline, &cmdsize, " %s", pcurptr);
+        } else {
+            ret = snprintf_safe(&cmdline, &cmdsize, "%s", pcurptr);
+        }
         passlen += curlen;
         cnt ++;
         pcurptr += curlen;
     }
 
     DEBUG_INFO("count %d", cnt);
-    prog = (char**) malloc(sizeof(*prog) * (cnt + 1));
-    if (prog == NULL) {
-        GETERRNO(ret);
-        goto fail;
-    }
 
-    memset(prog,0, sizeof(*prog) * (cnt + 1));
-    passlen = 0;
-    pcurptr = (char*) phdr;
-    pcurptr += sizeof(pipe_hdr_t);    
-    for (i=0;passlen < (totallen - 1);i++) {
-        curlen = (int)(strlen(pcurptr) + 1);
-        prog[i] = pcurptr;
-        passlen += curlen;
-        pcurptr += curlen;
-    }
-
-    ret = wts_run_cmd_event_outputv(exitevt,NULL,0,&pout,&outsize,&perr,&errsize,&exitcode,0,prog);
+    ret = wts_run_cmd_event_output_single(exitevt, NULL, 0, &pout, &outsize, &perr, &errsize, &exitcode, 0, cmdline);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not run wts outputv error[%d]", ret);
         goto fail;
     }
 
-    for(i=0;i<cnt;i++) {
-        DEBUG_INFO("[%d]=[%s]", i, prog[i]);
-    }
+    DEBUG_INFO("cmd line [%s]", cmdline);
     DEBUG_INFO("run exit [%d]" , exitcode);
 
 
 
-    wts_run_cmd_event_outputv(exitevt,NULL,0,&pout,&outsize,&perr,&errsize,&exitcode,0,NULL);
+    wts_run_cmd_event_output_single(exitevt, NULL, 0, &pout, &outsize, &perr, &errsize, &exitcode, 0, NULL);
 
-    if (prog) {
-        free(prog);
-    }
-    prog = NULL;
+    snprintf_safe(&cmdline, &cmdsize, NULL);
     return 0;
 fail:
-    wts_run_cmd_event_outputv(exitevt,NULL,0,&pout,&outsize,&perr,&errsize,&exitcode,0,NULL);
-    if (prog) {
-        free(prog);
-    }
-    prog = NULL;
+    wts_run_cmd_event_output_single(exitevt, NULL, 0, &pout, &outsize, &perr, &errsize, &exitcode, 0, NULL);
+    snprintf_safe(&cmdline, &cmdsize, NULL);
     SETERRNO(ret);
     return ret;
 }
@@ -340,12 +322,12 @@ int main_loop(HANDLE exitevt, char* pipename, int maxmills)
     char* pindata = NULL;
     int indatasize = 0, indatalen = 0;
     int ret;
-    HANDLE hpipe=NULL;
-    OVERLAPPED *prdov=NULL,*pwrov=NULL;
+    HANDLE hpipe = NULL;
+    OVERLAPPED *prdov = NULL, *pwrov = NULL;
     HANDLE waithds[2];
     DWORD waitnum = 0;
     DWORD dret;
-    ppipe_hdr_t phdr=NULL;
+    ppipe_hdr_t phdr = NULL;
 
 
 bind_pipe_again:
@@ -387,7 +369,7 @@ bind_pipe_again:
         DEBUG_BUFFER_FMT(pindata, ret, "indatalen [%d]", indatalen);
         phdr = (ppipe_hdr_t) pindata;
         if (phdr->m_cmd == EXECUTE_COMMAND) {
-            ret = run_cmd(exitevt,phdr, indatalen);
+            ret = run_cmd(exitevt, phdr, indatalen);
             if (ret < 0) {
                 if (ret == -ERROR_CONTROL_C_EXIT) {
                     break;
@@ -398,12 +380,12 @@ bind_pipe_again:
     }
 
 
-    bind_pipe(NULL,exitevt,&hpipe,&prdov,&pwrov);
+    bind_pipe(NULL, exitevt, &hpipe, &prdov, &pwrov);
     read_pipe_data(NULL, NULL, NULL, 0, &pindata, &indatasize);
     return 0;
 
 fail:
-    bind_pipe(NULL,exitevt,&hpipe,&prdov,&pwrov);
+    bind_pipe(NULL, exitevt, &hpipe, &prdov, &pwrov);
     read_pipe_data(NULL, NULL, NULL, 0, &pindata, &indatasize);
     SETERRNO(ret);
     return ret;

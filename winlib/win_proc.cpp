@@ -1378,7 +1378,7 @@ int __start_proc_wts(pproc_handle_t pproc, int createflag, char* prog)
         usehd ++;
     }
 
-    pstartinfo->lpDesktop = L"winsta0\\default";
+    //pstartinfo->lpDesktop = L"winsta0\\default";
 
     if (usehd > 0) {
         pstartinfo->dwFlags  |= STARTF_USESTDHANDLES;
@@ -1401,6 +1401,8 @@ int __start_proc_wts(pproc_handle_t pproc, int createflag, char* prog)
     if (createflag & PROC_NO_WINDOW) {
         dwflag |= CREATE_NO_WINDOW;
     }
+
+    dwflag |= CREATE_UNICODE_ENVIRONMENT;
 
     ret = AnsiToUnicode(pproc->m_cmdline, &wcmdline, &wcmdsize);
     if (ret < 0) {
