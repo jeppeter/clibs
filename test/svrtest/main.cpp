@@ -192,6 +192,7 @@ next_read_more:
     }
 
 try_read_more:
+    DEBUG_BUFFER_FMT(phdr, sizeof(*phdr), "header");
     waitnum = 0;
     waithds[waitnum] = exitevt;
     waitnum ++;
@@ -216,6 +217,7 @@ try_read_more:
             goto fail;
         }
         retlen += ret;
+        DEBUG_INFO("retlen %d datalen %d", retlen, phdr->m_datalen);
     } else {
         ret = (int)dret;
         if (ret > 0) {
@@ -224,6 +226,7 @@ try_read_more:
         if (ret == 0) {
             ret = -WAIT_TIMEOUT;
         }
+        DEBUG_INFO("retlen %d datalen %d", retlen, phdr->m_datalen);
         ERROR_INFO("wait error [%d] %d", ret, dret);
         goto fail;
     }
@@ -275,6 +278,7 @@ bind_pipe_again:
     if (ret < 0) {
         GETERRNO(ret);
         if (ret == -ERROR_CONTROL_C_EXIT) {
+            ERROR_INFO(" ");
             goto fail;
         }
         waitnum = 0;
@@ -288,6 +292,8 @@ bind_pipe_again:
         }
         goto bind_pipe_again;
     }
+
+    DEBUG_INFO("bind [%s] succ", pipename);
 
 
 

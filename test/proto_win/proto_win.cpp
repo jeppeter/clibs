@@ -25,8 +25,8 @@ int read_file_overlapped(HANDLE hd, OVERLAPPED* ov, HANDLE evt, void* pbuf, int 
         bret = ReadFile(hd,  &(pcurptr[retlen]), (DWORD)(size - retlen), &cbret, ov);
         if (!bret) {
             GETERRNO(ret);
-            if (ret != -ERROR_IO_PENDING) {
-                ERROR_INFO("can not read [%d] error[%d]", retlen, ret);
+            if (ret != -ERROR_IO_PENDING && ret != -ERROR_MORE_DATA) {
+                ERROR_INFO("can not read [%d] size [%d] error[%d]", retlen, size, ret);
                 goto fail;
             }
             break;
@@ -186,6 +186,7 @@ void free_overlap(OVERLAPPED** ppov)
             CloseHandle(pov->hEvent);
             pov->hEvent = NULL;
         }
+        DEBUG_INFO("free [%p]", pov);
         free(pov);
         *ppov = NULL;
     }
@@ -199,30 +200,32 @@ OVERLAPPED* alloc_overlap(const char* fmt, ...)
     char* errstr = NULL;
     int errsize = 0;
     int ret;
-    int res;
 
-
+    DEBUG_INFO(" ");
     va_start(ap, fmt);
+    ret = vsnprintf_safe(&errstr, &errsize, fmt, ap);
+    if (ret < 0 ) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    DEBUG_INFO("alloc size %zd", sizeof(*pov));
     pov = (OVERLAPPED*)malloc(sizeof(*pov));
     if (pov == NULL) {
         GETERRNO(ret);
-        res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
-        if (res > 0) {
-            ERROR_INFO("alloc %s size [%d] error[%d]\n", errstr, sizeof(*pov), ret);
-        }
+        ERROR_INFO("alloc %s size [%d] error[%d]\n", errstr, sizeof(*pov), ret);
         goto fail;
     }
 
+    DEBUG_INFO(" ");
     memset(pov, 0, sizeof(*pov));
     pov->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (pov->hEvent == NULL) {
         GETERRNO(ret);
-        res = vsnprintf_safe(&errstr, &errsize, fmt, ap);
-        if (res > 0) {
-            ERROR_INFO("create %s event error[%d]\n", errstr, ret);
-        }
+        ERROR_INFO("create %s event error[%d]\n", errstr, ret);
+        goto fail;
     }
 
+    DEBUG_INFO("[%s]alloc %p",errstr, pov);
     vsnprintf_safe(&errstr, &errsize, NULL, ap);
     return pov;
 fail:
@@ -256,6 +259,7 @@ int bind_pipe(char* pipename, HANDLE exitevt, HANDLE* phd, OVERLAPPED** pprdov, 
 
 
     if (pipename == NULL) {
+        DEBUG_INFO(" ");
         free_overlap(pprdov);
         free_overlap(ppwrov);
         if (phd && *phd != NULL) {
@@ -269,23 +273,28 @@ int bind_pipe(char* pipename, HANDLE exitevt, HANDLE* phd, OVERLAPPED** pprdov, 
             pprdov == NULL || *pprdov != NULL ||
             ppwrov == NULL || *ppwrov != NULL ||
             exitevt == NULL) {
+        DEBUG_INFO(" ");
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
         return ret;
     }
 
-    DEBUG_INFO("connect [%s]", pipename);
+    DEBUG_INFO("bind [%s]", pipename);
     ret = AnsiToTchar(pipename, &ptname, &tnamesize);
     if (ret < 0) {
         GETERRNO(ret);
+        ERROR_INFO(" ");
         goto fail;
     }
+    DEBUG_INFO(" ");
 
     pconnov = alloc_overlap("%s connect event", pipename);
     if (pconnov == NULL) {
         GETERRNO(ret);
+        ERROR_INFO(" ");
         goto fail;
     }
+    DEBUG_INFO(" ");
 
     hpipe = CreateNamedPipe(
                 ptname,
@@ -294,7 +303,8 @@ int bind_pipe(char* pipename, HANDLE exitevt, HANDLE* phd, OVERLAPPED** pprdov, 
                 1, /*we only accept 1 instance*/
                 PIPE_BUFSIZE * sizeof(TCHAR),
                 PIPE_BUFSIZE * sizeof(TCHAR),
-                PIPE_TIMEOUT,
+                //PIPE_TIMEOUT,
+                0,
                 //NULL
                 &sa
             );
@@ -304,6 +314,7 @@ int bind_pipe(char* pipename, HANDLE exitevt, HANDLE* phd, OVERLAPPED** pprdov, 
         ERROR_INFO("can not open pipe [%s] error[%d]", pipename, ret);
         goto fail;
     }
+    DEBUG_INFO(" ");
 
     bret = ConnectNamedPipe(hpipe, pconnov);
     if (!bret) {
@@ -322,7 +333,7 @@ int bind_pipe(char* pipename, HANDLE exitevt, HANDLE* phd, OVERLAPPED** pprdov, 
             waitnum ++;
 
             /*wait for connecting*/
-            dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, 5000, FALSE);
+            dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, 5000, TRUE);
             if (dret == WAIT_OBJECT_0) {
                 ret = -ERROR_CONTROL_C_EXIT;
                 goto fail;
@@ -341,18 +352,20 @@ int bind_pipe(char* pipename, HANDLE exitevt, HANDLE* phd, OVERLAPPED** pprdov, 
         }
     }
 
+    DEBUG_INFO(" ");
     prdov = alloc_overlap("%s read event", pipename);
     if (prdov == NULL) {
         GETERRNO(ret);
         goto fail;
     }
 
+    DEBUG_INFO(" ");
     pwrov = alloc_overlap("%s write event", pipename);
     if (pwrov == NULL) {
         GETERRNO(ret);
         goto fail;
     }
-
+    DEBUG_INFO(" ");
 
     *ppwrov = pwrov;
     *pprdov = prdov;
@@ -415,25 +428,25 @@ int connect_pipe(char* pipename, HANDLE exitevt, HANDLE *phd, OVERLAPPED** pprdo
                        OPEN_EXISTING,
                        FILE_FLAG_OVERLAPPED,
                        NULL);
-   	if (hpipe == NULL || hpipe == INVALID_HANDLE_VALUE) {
-   		GETERRNO(ret);
-   		hpipe = NULL;
-   		ERROR_INFO("connect [%s] pipe error [%d]", pipename, ret);
-   		goto fail;
-   	}
+    if (hpipe == NULL || hpipe == INVALID_HANDLE_VALUE) {
+        GETERRNO(ret);
+        hpipe = NULL;
+        ERROR_INFO("connect [%s] pipe error [%d]", pipename, ret);
+        goto fail;
+    }
 
-   	prdov = alloc_overlap("%s rd evt", pipename);
-   	if (prdov == NULL) {
-   		GETERRNO(ret);
-   		goto fail;
-   	}
+    prdov = alloc_overlap("%s rd evt", pipename);
+    if (prdov == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
 
-   	pwrov = alloc_overlap("%s wr evt", pipename);
-   	if (pwrov == NULL) {
-   		GETERRNO(ret);
-   		goto fail;
-   	}
+    pwrov = alloc_overlap("%s wr evt", pipename);
+    if (pwrov == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
     AnsiToTchar(NULL, &ptpipename, &tpipesize);
     *phd = hpipe;

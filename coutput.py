@@ -31,6 +31,27 @@ def quote_string(s):
             rets += c
     return rets
 
+def val_quote_string(s):
+    rets = ''
+    sb = 0
+    for c in s:
+        if c in [ '"']:
+            if sb :
+                rets += c
+            else:
+                rets += '\\'
+                rets += c
+            sb = 0
+        elif c == '\\':
+            sb = 1
+            rets += '\\'
+            rets += '\\'
+        else:
+            sb = 0
+            rets += c
+    return rets
+
+
 def __format_tabs_line(fmt,tabs=1):
     s = ' ' * tabs * 4
     s += fmt
@@ -209,7 +230,8 @@ def __get_value_modify_str(keycls,prefix):
             s = rets
     elif keycls.type == 'string' or (sys.version[0] == '2' and keycls.type == 'unicode') :
         if keycls.value is not None:
-            rets += '((uintptr_t)"%s")'%(quote_string(keycls.value))
+            #rets += '((uintptr_t)"%s")'%(quote_string(keycls.value))
+            rets += '((uintptr_t)"%s")'%(val_quote_string(keycls.value))
             s = rets
     elif keycls.type == 'float':
         rets += '((uintptr_t)&(st_%s_defval))'%(__format_name_with_prefix(keycls.varname,prefix))

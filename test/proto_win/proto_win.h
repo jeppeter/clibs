@@ -14,6 +14,7 @@ int write_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, 
 void free_overlap(OVERLAPPED** ppov);
 OVERLAPPED* alloc_overlap(const char* fmt, ...);
 int bind_pipe(char* pipename, HANDLE exitevt, HANDLE* phd, OVERLAPPED** pprdov, OVERLAPPED** ppwrov);
+int connect_pipe(char* pipename, HANDLE exitevt, HANDLE *phd, OVERLAPPED** pprdov, OVERLAPPED** ppwrov);
 
 
 #ifdef __cplusplus

@@ -21,6 +21,7 @@
 #include <win_dbg.h>
 #include <win_base64.h>
 #include <proto_api.h>
+#include <proto_win.h>
 
 #include <sddl.h>
 #include <aclapi.h>
@@ -5034,9 +5035,6 @@ out:
 }
 
 
-
-
-
 int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret=0;
@@ -5044,6 +5042,17 @@ int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     pargs_options_t pargs = (pargs_options_t) popt;
     HANDLE hpipe=NULL;
     OVERLAPPED* prdov=NULL,*pwrov=NULL;
+    size_t totallen = 0;
+    pipe_hdr_t* phdr = NULL;
+    char* pcurptr;
+    int i;
+    size_t curlen;
+    BOOL bret;
+
+    argv = argv;
+    argc = argc;
+
+    init_log_level(pargs);
 
     pipename = pargs->m_pipename;
     if (pipename == NULL) {
@@ -5072,8 +5081,51 @@ int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         goto out;
     }
 
+    /*now format the buffer*/
+    for (i=0;parsestate->leftargs != NULL && parsestate->leftargs[i] != NULL ;i++) {
+        totallen += (strlen(parsestate->leftargs[i]) + 1);
+    }
 
+    if (totallen > 0) {
+        totallen ++;
+        totallen += sizeof(*phdr);
+    }
 
+    if (totallen == 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "can not accept zero command\n");
+        goto out;
+    }
+
+    phdr = (pipe_hdr_t*)malloc(totallen);
+    if (phdr == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memset(phdr, 0, totallen);
+    phdr->m_datalen = (uint32_t)totallen;
+    phdr->m_cmd = EXECUTE_COMMAND;
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(*phdr);
+
+    for (i=0;parsestate->leftargs!=NULL && parsestate->leftargs[i]; i++) {
+        curlen = strlen(parsestate->leftargs[i]);
+        memcpy(pcurptr, parsestate->leftargs[i],curlen);
+        pcurptr += (curlen + 1);
+    }
+    DEBUG_BUFFER_FMT(phdr, totallen, "buffer write");
+
+    ret = write_pipe_data(st_ExitEvt,hpipe,pwrov,pargs->m_timeout, (char*)phdr,(int)totallen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"write [%s] with len [%zd] error[%d]\n",pipename, totallen, ret);
+        goto out;
+    }
+
+    DEBUG_INFO("Sleep before");
+    SleepEx(1000,TRUE);
+    DEBUG_INFO("Sleep after");
 
     ret = 0;
 out:

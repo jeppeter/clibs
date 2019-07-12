@@ -16,6 +16,8 @@ typedef struct __pipe_hdr_t {
 #pragma pack(pop)
 
 
+#define   EXECUTE_COMMAND                    0x1321
+
 
 #ifdef __cplusplus
 };
