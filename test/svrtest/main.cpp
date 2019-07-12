@@ -3,6 +3,7 @@
 #include <win_time.h>
 #include <win_strop.h>
 #include <win_uniansi.h>
+#include <win_proc.h>
 #include <tchar.h>
 #include <proto_api.h>
 #include <proto_win.h>
@@ -260,6 +261,79 @@ fail:
     return ret;
 }
 
+int run_cmd(HANDLE exitevt,ppipe_hdr_t phdr, int hdrlen)
+{
+    char* pcurptr=NULL;
+    char** prog=NULL;
+    int i;
+    int cnt =0;
+    int passlen = 0;
+    int curlen = 0;
+    int totallen = (int)(hdrlen - sizeof(pipe_hdr_t));
+    char* pout=NULL,*perr=NULL;
+    int outsize=0,errsize=0;
+    int exitcode=0;
+    int ret;
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);
+    cnt =0;
+    for (passlen = 0;passlen < (totallen-1);) {
+        curlen = (int)(strlen(pcurptr) + 1);
+        passlen += curlen;
+        cnt ++;
+        pcurptr += curlen;
+    }
+
+    DEBUG_INFO("count %d", cnt);
+    prog = (char**) malloc(sizeof(*prog) * (cnt + 1));
+    if (prog == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    memset(prog,0, sizeof(*prog) * (cnt + 1));
+    passlen = 0;
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);    
+    for (i=0;passlen < (totallen - 1);i++) {
+        curlen = (int)(strlen(pcurptr) + 1);
+        prog[i] = pcurptr;
+        passlen += curlen;
+        pcurptr += curlen;
+    }
+
+    ret = wts_run_cmd_event_outputv(exitevt,NULL,0,&pout,&outsize,&perr,&errsize,&exitcode,0,prog);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not run wts outputv error[%d]", ret);
+        goto fail;
+    }
+
+    for(i=0;i<cnt;i++) {
+        DEBUG_INFO("[%d]=[%s]", i, prog[i]);
+    }
+    DEBUG_INFO("run exit [%d]" , exitcode);
+
+
+
+    wts_run_cmd_event_outputv(exitevt,NULL,0,&pout,&outsize,&perr,&errsize,&exitcode,0,NULL);
+
+    if (prog) {
+        free(prog);
+    }
+    prog = NULL;
+    return 0;
+fail:
+    wts_run_cmd_event_outputv(exitevt,NULL,0,&pout,&outsize,&perr,&errsize,&exitcode,0,NULL);
+    if (prog) {
+        free(prog);
+    }
+    prog = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
 
 int main_loop(HANDLE exitevt, char* pipename, int maxmills)
 {
@@ -271,6 +345,7 @@ int main_loop(HANDLE exitevt, char* pipename, int maxmills)
     HANDLE waithds[2];
     DWORD waitnum = 0;
     DWORD dret;
+    ppipe_hdr_t phdr=NULL;
 
 
 bind_pipe_again:
@@ -310,6 +385,16 @@ bind_pipe_again:
 
         indatalen = ret;
         DEBUG_BUFFER_FMT(pindata, ret, "indatalen [%d]", indatalen);
+        phdr = (ppipe_hdr_t) pindata;
+        if (phdr->m_cmd == EXECUTE_COMMAND) {
+            ret = run_cmd(exitevt,phdr, indatalen);
+            if (ret < 0) {
+                if (ret == -ERROR_CONTROL_C_EXIT) {
+                    break;
+                }
+                goto bind_pipe_again;
+            }
+        }
     }
 
 
