@@ -231,14 +231,14 @@ int bind_pipe(char* pipename, HANDLE exitevt, HANDLE* phd, OVERLAPPED** pprdov, 
 	int ret;
 	TCHAR* ptpipename=NULL;
 	int tpipesize = 0;
-    SECURITY_ATTRIBUTES sa;
-    SECURITY_DESCRIPTOR sd;
     BOOL bret;
     DWORD dret;
     DWORD waitnum;
     HANDLE waithds[2];
     DWORD cbret;
 	OVERLAPPED *pconnov=NULL;
+    SECURITY_ATTRIBUTES sa;
+    SECURITY_DESCRIPTOR sd;
     /*we set the security for everyone*/
     InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
     SetSecurityDescriptorDacl(&sd, TRUE, (PACL) NULL, FALSE);

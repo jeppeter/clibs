@@ -452,9 +452,6 @@ fail:
     return ret;
 }
 
-
-
-
 int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *pevt, int *pstate)
 {
     int ret;
