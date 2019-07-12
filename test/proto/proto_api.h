@@ -10,8 +10,8 @@ extern "C" {
 #pragma pack(push)
 #pragma pack(1)
 typedef struct __pipe_hdr_t {
-    uint32_t m_datalen;
     uint32_t m_cmd;
+    uint32_t m_datalen;
 } pipe_hdr_t, *ppipe_hdr_t;
 #pragma pack(pop)
 

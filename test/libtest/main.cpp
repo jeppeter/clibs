@@ -5114,7 +5114,7 @@ int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         memcpy(pcurptr, parsestate->leftargs[i],curlen);
         pcurptr += (curlen + 1);
     }
-    DEBUG_BUFFER_FMT(phdr, totallen, "buffer write");
+    DEBUG_BUFFER_FMT(phdr, (int)totallen, "buffer write");
 
     ret = write_pipe_data(st_ExitEvt,hpipe,pwrov,pargs->m_timeout, (char*)phdr,(int)totallen);
     if (ret < 0) {

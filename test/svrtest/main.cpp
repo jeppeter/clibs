@@ -44,12 +44,6 @@ out:
 }
 
 
-
-
-
-
-
-
 int read_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, char** ppdata, int *datasize)
 {
     char* pretdata = NULL;
@@ -65,11 +59,12 @@ int read_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, c
     int curmaxmills = 0;
     ppipe_hdr_t phdr = NULL;
     if (exitevt == NULL ||
-            hpipe == NULL) {
+        hpipe == NULL) {
         if (ppdata && *ppdata) {
+            DEBUG_INFO("free %p", *ppdata);
             free(*ppdata);
+            *ppdata = NULL;
         }
-        *ppdata = NULL;
         if (datasize) {
             *datasize = 0;
         }
@@ -85,8 +80,8 @@ int read_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, c
     retsize = (size_t)*datasize;
     pretdata = *ppdata;
 
-    if (retsize == 0 || pretdata == NULL) {
-        if (retsize <= 0) {
+    if (retsize < sizeof(pipe_hdr_t) || pretdata == NULL) {
+        if (retsize  < sizeof(pipe_hdr_t)) {
             retsize = 16;
         }
         pretdata = (char*)malloc(retsize);
@@ -95,10 +90,11 @@ int read_pipe_data(HANDLE exitevt, HANDLE hpipe, OVERLAPPED* ov, int maxmills, c
             ERROR_INFO("malloc %d error [%d]", retsize, ret);
             goto fail;
         }
+        DEBUG_INFO("alloc %p",pretdata);
     }
-
     memset(pretdata, 0, retsize);
 
+    ASSERT_IF(retlen == 0);
     ret = read_file_overlapped(hpipe, ov, ov->hEvent, &(pretdata[retlen]), sizeof(pipe_hdr_t));
     if (ret < 0) {
         GETERRNO(ret);
@@ -168,10 +164,12 @@ next_read_more:
             goto fail;
         }
         memset(ptmpdata, 0, retsize);
+        DEBUG_INFO("alloc %p", ptmpdata);
         if (retlen > 0) {
             memcpy(ptmpdata, pretdata, (size_t)retlen);
         }
         if (pretdata && pretdata != *ppdata) {
+            DEBUG_INFO("free %p",pretdata);
             free(pretdata);
         }
         pretdata = ptmpdata;
@@ -237,6 +235,7 @@ try_read_more:
 
 read_all:
     if (*ppdata && pretdata != *ppdata) {
+        DEBUG_INFO("free %p", *ppdata);
         free(*ppdata);
         *ppdata = NULL;
     }
@@ -247,11 +246,13 @@ read_all:
 
 fail:
     if (ptmpdata) {
+        DEBUG_INFO("free %p", ptmpdata);
         free(ptmpdata);
     }
     ptmpdata = NULL;
 
     if (pretdata && pretdata != *ppdata) {
+        DEBUG_INFO("free %p" , pretdata);
         free(pretdata);
     }
     pretdata = NULL;
