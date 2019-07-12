@@ -46,6 +46,17 @@ WINLIB_API int start_cmdv_session_detach(DWORD session, char* prog[]);
 WINLIB_API int get_pids_by_name(const char* name, DWORD** ppids, int *psize);
 
 
+WINLIB_API int wts_run_cmd_output(char* pin, int insize, char** ppout, int* poutsize, char** pperr, int *perrsize,int *exitcode, int timeout, const char* prog,...);
+WINLIB_API int wts_run_cmd_outputa(char* pin, int insize, char** ppout, int* poutsize, char** pperr, int *perrsize,int *exitcode, int timeout, const char* prog,va_list ap);
+WINLIB_API int wts_run_cmd_outputv(char* pin, int insize, char** ppout, int* poutsize, char** pperr, int *perrsize,int *exitcode, int timeout, char* prog[]);
+WINLIB_API int wts_run_cmd_output_single(char* pin, int insize, char** ppout, int* poutsize, char** pperr, int *perrsize,int *exitcode, int timeout, char* prog);
+
+
+WINLIB_API int wts_run_cmd_event_output(HANDLE hevt,char* pin, int insize, char** ppout, int* poutsize, char** pperr, int *perrsize,int *exitcode, int timeout, const char* prog,...);
+WINLIB_API int wts_run_cmd_event_outputa(HANDLE hevt,char* pin, int insize, char** ppout, int* poutsize, char** pperr, int *perrsize,int *exitcode, int timeout, const char* prog,va_list ap);
+WINLIB_API int wts_run_cmd_event_outputv(HANDLE hevt,char* pin, int insize, char** ppout, int* poutsize, char** pperr, int *perrsize,int *exitcode, int timeout, char* prog[]);
+WINLIB_API int wts_run_cmd_event_output_single(HANDLE hevt,char* pin, int insize, char** ppout, int* poutsize, char** pperr, int *perrsize,int *exitcode, int timeout, char* prog);
+
 #ifdef __cplusplus
 };
 #endif

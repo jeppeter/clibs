@@ -17,7 +17,11 @@
 #include <win_ver.h>
 #include <win_acl.h>
 #include <win_priv.h>
+#include <win_com.h>
+#include <win_dbg.h>
 #include <win_base64.h>
+#include <proto_api.h>
+#include <proto_win.h>
 
 #include <sddl.h>
 #include <aclapi.h>
@@ -32,6 +36,7 @@ typedef struct __args_options {
     char* m_errout;
     int m_timeout;
     int m_bufsize;
+    char* m_pipename;
 } args_options_t, *pargs_options_t;
 
 #pragma comment(lib,"user32.lib")
@@ -82,6 +87,8 @@ int dumpsacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int dumpdacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int utf8toansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int execdbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int startdetach_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getexe_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getexedir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
@@ -91,6 +98,7 @@ int getsess_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int getpidsname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sessrunv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setregstr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -4383,6 +4391,246 @@ out:
     return ret;
 }
 
+static void* st_pdbg=NULL;
+
+BOOL WINAPI HandlerCtrlcRoutine(DWORD dwCtrlType)
+{
+    BOOL bret = TRUE;
+    int ret;
+    switch (dwCtrlType) {
+    case CTRL_C_EVENT:
+        DEBUG_INFO("CTRL_C_EVENT\n");
+        break;
+    case CTRL_BREAK_EVENT:
+        DEBUG_INFO("CTRL_BREAK_EVENT\n");
+        break;
+    case CTRL_CLOSE_EVENT:
+        DEBUG_INFO("CTRL_CLOSE_EVENT\n");
+        break;
+    case CTRL_LOGOFF_EVENT:
+        DEBUG_INFO("CTRL_LOGOFF_EVENT\n");
+        break;
+    case CTRL_SHUTDOWN_EVENT:
+        DEBUG_INFO("CTRL_SHUTDOWN_EVENT\n");
+        break;
+    default:
+        DEBUG_INFO("ctrltype %d\n", dwCtrlType);
+        bret = FALSE;
+        break;
+    }
+
+    if (st_pdbg) {
+        ret = windbg_interrupt(st_pdbg);
+        if (ret < 0) {
+            ERROR_INFO("can not interrupt [%d]", ret);
+            bret = FALSE;
+        }
+    }
+
+    return bret;
+}
+
+
+int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int cnt=0;
+    int i;
+    void* pdbg=NULL;
+    int ret =0;
+    char* pcmd=NULL;
+    int cmdsize=0;
+    char* pcurquote=NULL;
+    int curquotesize=0;
+    BOOL bret;
+
+
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
+    while(parsestate->leftargs != NULL && parsestate->leftargs[cnt] != NULL) {
+        cnt ++;
+    }
+
+    for (i=0;i<cnt;i++) {
+        ret = quote_string(&pcurquote,&curquotesize,"%s", parsestate->leftargs[i]);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        if (i > 0) {
+            ret = append_snprintf_safe(&pcmd,&cmdsize," %s", pcurquote);
+        } else {
+            ret = snprintf_safe(&pcmd,&cmdsize,"%s",pcurquote);
+        }
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+
+    bret = SetConsoleCtrlHandler(HandlerCtrlcRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not set ctrl handler [%d]", ret);
+        goto out;
+    }
+
+ 
+    ret = initialize_com();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not initialized com [%d]\n", ret);
+        goto out;
+    }
+
+    ret = windbg_create_client("", &pdbg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get client error[%d]\n", ret);
+        goto out;
+    }
+
+    st_pdbg = pdbg;
+
+    ret = windbg_start_process_single(pdbg,pcmd,WIN_DBG_FLAGS_CHILDREN | WIN_DBG_FLAGS_HEAP);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "create [%s] error[%d]\n", pcmd, ret);
+        goto out;
+    }
+
+    ret = windbg_go(pdbg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "go [%s] error[%d]\n", pcmd, ret);
+        goto out;
+    }
+
+    fprintf(stdout, "dbg [%s] succ\n", pcmd);
+    ret = 0;
+out:
+    st_pdbg = NULL;    
+    windbg_create_client(NULL,&pdbg);
+    uninitialize_com();
+    snprintf_safe(&pcmd,&cmdsize,NULL);
+    quote_string(&pcurquote,&curquotesize,NULL);
+    SETERRNO(ret);
+    return ret;
+}
+
+int execdbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* singlecmd=NULL;
+    char* runcmd=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    void* pdbg=NULL;
+    char* pout=NULL;
+    int outsize=0;
+    int outlen=0;
+    BOOL bret;
+    char* readbuf=NULL,*pptr;
+    size_t readsize=512;
+    size_t slen;
+
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
+    singlecmd = parsestate->leftargs[0];
+
+    bret = SetConsoleCtrlHandler(HandlerCtrlcRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not set ctrl handler [%d]", ret);
+        goto out;
+    }
+
+
+    ret = initialize_com();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not initialized com [%d]\n", ret);
+        goto out;
+    }
+
+    ret = windbg_create_client("", &pdbg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get client error[%d]\n", ret);
+        goto out;
+    }
+
+    st_pdbg = pdbg;
+
+    ret = windbg_start_process_single(pdbg,singlecmd,WIN_DBG_FLAGS_CHILDREN | WIN_DBG_FLAGS_HEAP);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "create [%s] error[%d]\n", singlecmd, ret);
+        goto out;
+    }
+
+    readbuf = (char*) malloc(readsize);
+    if (readbuf == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr,"alloc [%zu] readbuf error[%d]\n", readsize, ret);
+        goto out;
+    }
+
+    while (1) {
+        fprintf(stdout,"dbg>");
+        fflush(stdout);
+        pptr = fgets(readbuf,(int)readsize,stdin);
+        if (pptr == NULL) {
+            GETERRNO(ret);
+            fprintf(stderr,"read error[%d]\n",ret);
+            goto out;
+        }
+        slen = strlen(readbuf);
+        if (slen >= readsize) {
+            continue;
+        }
+        pptr = readbuf + slen;
+        DEBUG_INFO("pptr [%p] readbuf [%p]", pptr, readbuf);
+        while(pptr >= readbuf && 
+            (*pptr == '\r' || *pptr == '\n' || *pptr =='\0')) {
+            DEBUG_INFO("pptr [%p] [0x%02x]", pptr, *pptr);
+            *pptr = '\0';
+            pptr --;
+        }
+
+
+        if (strcmp(readbuf,"exit") == 0) {
+            break;
+        }
+        ret = windbg_exec(pdbg,readbuf);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "run [%s] error [%d]\n", readbuf, ret);
+            goto out;
+        }
+        ret = windbg_get_out(pdbg,WIN_DBG_OUTPUT_OUT,&pout,&outsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "get out for [%s] error[%d]\n", runcmd, ret);
+            goto out;
+        }
+        outlen = ret;
+        fprintf(stdout,"%s",pout);
+    }
+
+    ret = 0;
+out:
+    st_pdbg = NULL;
+    windbg_get_out(NULL,WIN_DBG_FLAGS_FREE,&pout,&outsize);
+    windbg_create_client(NULL,&pdbg);
+    uninitialize_com();
+    SETERRNO(ret);
+    return ret;
+}
 
 int startdetach_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -4833,6 +5081,105 @@ int setregstr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     ret = 0;
 out:
     close_hklm(&pregop);
+    SETERRNO(ret);
+    return ret;
+}
+
+int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret=0;
+    char* pipename=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    HANDLE hpipe=NULL;
+    OVERLAPPED* prdov=NULL,*pwrov=NULL;
+    size_t totallen = 0;
+    pipe_hdr_t* phdr = NULL;
+    char* pcurptr;
+    int i;
+    size_t curlen;
+    BOOL bret;
+
+    argv = argv;
+    argc = argc;
+
+    init_log_level(pargs);
+
+    pipename = pargs->m_pipename;
+    if (pipename == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr,"no pipename\n");
+        goto out;
+    }
+
+    st_ExitEvt = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (st_ExitEvt == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create exit event %d\n", ret);
+        goto out;
+    }
+    bret = SetConsoleCtrlHandler(HandlerConsoleRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
+        goto out;
+    }
+
+    ret = connect_pipe(pipename, st_ExitEvt,&hpipe,&prdov,&pwrov);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not connect pipe [%s] error[%d]\n", pipename, ret);
+        goto out;
+    }
+
+    /*now format the buffer*/
+    for (i=0;parsestate->leftargs != NULL && parsestate->leftargs[i] != NULL ;i++) {
+        totallen += (strlen(parsestate->leftargs[i]) + 1);
+    }
+
+    if (totallen > 0) {
+        totallen ++;
+        totallen += sizeof(*phdr);
+    }
+
+    if (totallen == 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "can not accept zero command\n");
+        goto out;
+    }
+
+    phdr = (pipe_hdr_t*)malloc(totallen);
+    if (phdr == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memset(phdr, 0, totallen);
+    phdr->m_datalen = (uint32_t)totallen;
+    phdr->m_cmd = EXECUTE_COMMAND;
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(*phdr);
+
+    for (i=0;parsestate->leftargs!=NULL && parsestate->leftargs[i]; i++) {
+        curlen = strlen(parsestate->leftargs[i]);
+        memcpy(pcurptr, parsestate->leftargs[i],curlen);
+        pcurptr += (curlen + 1);
+    }
+    DEBUG_BUFFER_FMT(phdr, (int)totallen, "buffer write");
+
+    ret = write_pipe_data(st_ExitEvt,hpipe,pwrov,pargs->m_timeout, (char*)phdr,(int)totallen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"write [%s] with len [%zd] error[%d]\n",pipename, totallen, ret);
+        goto out;
+    }
+
+    DEBUG_INFO("Sleep before");
+    SleepEx(1000,TRUE);
+    DEBUG_INFO("Sleep after");
+
+    ret = 0;
+out:
+    connect_pipe(NULL,NULL,&hpipe,&prdov,&pwrov);
     SETERRNO(ret);
     return ret;
 }

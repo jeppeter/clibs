@@ -902,3 +902,140 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+
+
+
+SERVICE_STATUS          glbl_svc_status; 
+SERVICE_STATUS_HANDLE   glbl_svc_status_hd=NULL; 
+
+
+int  svc_init_mode(char* svcname, LPHANDLER_FUNCTION pFunc)
+{
+    int ret;
+    TCHAR* ptsvcname=NULL;
+    int tsvcsize=0;
+
+    if (glbl_svc_status_hd != NULL ){
+        return 0;
+    }
+    ret=  AnsiToTchar(svcname,&ptsvcname,&tsvcsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    glbl_svc_status_hd = RegisterServiceCtrlHandler(ptsvcname,pFunc);
+    if (glbl_svc_status_hd == NULL){
+        GETERRNO(ret);
+        ERROR_INFO("can not register svc[%s] error %d\n",svcname,ret);
+        goto fail;
+    }
+
+    memset(&glbl_svc_status,0,sizeof(glbl_svc_status));
+    glbl_svc_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS; 
+    glbl_svc_status.dwServiceSpecificExitCode = 0;
+
+    ret = svc_report_mode(SERVICE_START_PENDING, 3000);
+    if (ret < 0){
+        goto fail;
+    }
+
+    AnsiToTchar(NULL,&ptsvcname,&tsvcsize);
+
+    return 0;
+fail:
+    if (glbl_svc_status_hd){
+        CloseHandle(glbl_svc_status_hd);
+    }
+    glbl_svc_status_hd = NULL;
+    AnsiToTchar(NULL,&ptsvcname,&tsvcsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int svc_report_mode(DWORD mode, DWORD time)
+{
+    static DWORD st_chkpnt = 1;
+    BOOL bret;
+    int ret;
+    glbl_svc_status.dwCurrentState = mode;
+    glbl_svc_status.dwWin32ExitCode = NO_ERROR;
+    glbl_svc_status.dwWaitHint = time;
+
+    if (mode == SERVICE_START_PENDING){
+        glbl_svc_status.dwControlsAccepted = 0;
+    }else {
+        glbl_svc_status.dwControlsAccepted = SERVICE_ACCEPT_STOP;
+    }
+
+    if ((mode == SERVICE_RUNNING) || 
+        (mode == SERVICE_STOPPED)) {
+        glbl_svc_status.dwCheckPoint = 0;
+    }else {
+        glbl_svc_status.dwCheckPoint = st_chkpnt;
+        st_chkpnt ++;
+    }
+
+    bret = SetServiceStatus(glbl_svc_status_hd,&glbl_svc_status);
+    if (!bret){
+        GETERRNO(ret);
+        ERROR_INFO("report service mode 0x%x error %d\n",mode,ret);
+        return ret;
+    }
+    return 0;
+}
+
+
+void svc_close_mode()
+{
+    int ret;
+    if (glbl_svc_status_hd == NULL){
+        return ;
+    }
+
+    ret = svc_report_mode(SERVICE_STOPPED,1000);
+    if (ret < 0){
+        ERROR_INFO("close mode report error %d\n",ret);
+    }
+    CloseHandle(glbl_svc_status_hd);
+    glbl_svc_status_hd = NULL;
+    return ;
+}
+
+int svc_start(char* svcname, LPSERVICE_MAIN_FUNCTION pProc)
+{
+    BOOL bret;
+    int ret;
+    TCHAR* ptsvcname=NULL;
+    int tsvcsize=0;
+
+    ret = AnsiToTchar(svcname,&ptsvcname,&tsvcsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    SERVICE_TABLE_ENTRY DispatchTable[] = 
+    { 
+        { (LPTSTR)ptsvcname, pProc }, 
+        { NULL, NULL } 
+    }; 
+
+    bret = StartServiceCtrlDispatcher( DispatchTable );
+
+    if (!bret) 
+    { 
+        GETERRNO(ret);
+        ERROR_INFO("can not start service svc error %d\n",ret); 
+        goto fail;
+    }
+
+    AnsiToTchar(NULL,&ptsvcname,&tsvcsize);
+    return 0;
+fail:
+    AnsiToTchar(NULL,&ptsvcname,&tsvcsize);
+    SETERRNO(ret);
+    return ret;
+    
+}

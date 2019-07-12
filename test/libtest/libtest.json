@@ -5,6 +5,7 @@
     "output|o<m_output>" : null,
     "errout|e<m_errout>" : null,
     "timeout|t<m_timeout>" : 0,
+    "pipename|P<m_pipename>" : "\\\\.\\pipe\\tstsvr_pipe",
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },
@@ -134,28 +135,13 @@
     "ansitoutf8<ansitoutf8_handler>##bytes... to trans bytes to utf8##" : {
         "$" : "+"
     },
-    "startdetach<startdetach_handler>##cmds ... to start##" : {
+    "windbg<windbg_handler>##options cmds ... to start windbg##" : {
         "$" : "+"
     },
-    "getexe<getexe_handler>##get current exe whole##" : {
-        "$" : 0
-    },
-    "getexedir<getexedir_handler>##get current exe dir whole##" : {
-        "$" : 0
-    },
-    "encbase64<encbase64_handler>##input output to encode buffer in base64##" : {
-        "$" : 2
-    },
-    "decbase64<decbase64_handler>##input output to decode base64 for file##" : {
-        "$" : 2
-    },
-    "getsess<getsess_handler>" : {
-        "$" : 0
-    },
-    "getpidsname<getpidsname_handler>##name ...##" : {
+    "execdbg<execdbg_handler>##runcmd rundbg to run output##" : {
         "$" : "+"
     },
-    "sessrunv<sessrunv_handler>##sessid prog ...##" : {
+    "svrcmd<svrcmd_handler>##run command in the server##" : {
         "$" : "+"
     },
     "setregstr<setregstr_handler>##path valname val##" : {

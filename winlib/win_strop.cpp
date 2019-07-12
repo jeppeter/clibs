@@ -28,6 +28,7 @@ int vsnprintf_safe(char** ppbuf, int *pbufsize, const char* fmt, va_list ap)
     size_t retsize = (size_t)(*pbufsize);
     int nret;
     int ret;
+    va_list origap;
 
     if (fmt == NULL) {
         if (*ppbuf) {
@@ -49,7 +50,9 @@ int vsnprintf_safe(char** ppbuf, int *pbufsize, const char* fmt, va_list ap)
             goto fail;
         }
     }
+    va_copy(origap, ap);
 try_again:
+    va_copy(ap,origap);
     ret = vsnprintf(pRetBuf, retsize - 1, fmt, ap);
     if (ret == -1 || ret >= (int)(retsize - 1)) {
         retsize <<= 1;
@@ -110,6 +113,7 @@ int append_vsnprintf_safe(char** ppbuf, int *pbufsize, const char* fmt, va_list 
     int nret, ret;
     size_t leftsize = retsize;
     size_t cntsize = 0;
+    va_list origap;
 
     if (fmt == NULL) {
         if (*ppbuf) {
@@ -148,7 +152,9 @@ int append_vsnprintf_safe(char** ppbuf, int *pbufsize, const char* fmt, va_list 
         leftsize = retsize;
     }
 
+    va_copy(origap, ap);
 try_again:
+    va_copy(ap,origap);
     ret = vsnprintf(pcurptr, leftsize - 1, fmt, ap);
     if (ret == -1 || ret >= (int)(leftsize - 1)) {
         tmpsize = retsize << 1;

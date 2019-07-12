@@ -8,9 +8,11 @@
 #include <win_priv.h>
 #include <tlhelp32.h>
 #include <userenv.h>
+#include <wtsapi32.h>
 
 #pragma comment(lib,"Shell32.lib")
 #pragma comment(lib,"Userenv.lib")
+#pragma comment(lib,"Wtsapi32.lib")
 #pragma warning(disable:4996)
 #pragma warning(disable:4312)
 
@@ -449,9 +451,6 @@ fail:
     SETERRNO(ret);
     return ret;
 }
-
-
-
 
 int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *pevt, int *pstate)
 {
@@ -1198,6 +1197,310 @@ fail:
     return ret;
 }
 
+
+void __free_wts_token(HANDLE *phtok)
+{
+    if (phtok && *phtok)  {
+        CloseHandle(*phtok);
+        *phtok = NULL;
+    }
+    return ; 
+}
+
+
+int __get_wts_token(HANDLE* phtok)
+{
+    HANDLE curtok=NULL;
+    HANDLE copytok=NULL;
+    int ret;
+    PWTS_SESSION_INFO psessinfo=NULL;
+    PWTS_SESSION_INFO cursess=NULL;
+    DWORD cnt=0;
+    BOOL bret;
+    DWORD i;
+    int sessid = -1;
+
+    if (phtok == NULL || *phtok != NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    bret = WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE,0,1,&psessinfo,&cnt);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("can not enum session error[%d]", ret);
+        goto fail;
+    }
+
+    for (i=0;i<cnt;i++) {
+        cursess = &(psessinfo[i]);
+        if (cursess->State == WTSActive) {
+            sessid = cursess->SessionId;
+            break;
+        }
+    }
+
+    if (sessid < 0) {
+        ret = -ERROR_NOT_FOUND;
+        ERROR_INFO("can not find active session");
+        goto fail;
+    }
+
+    DEBUG_INFO("active session %d", sessid);
+
+    bret = WTSQueryUserToken(sessid, &curtok);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("can not query [%d] tok error[%d]", sessid, ret);
+        goto fail;
+    }
+
+    bret = DuplicateTokenEx(curtok,TOKEN_ASSIGN_PRIMARY | TOKEN_ALL_ACCESS | MAXIMUM_ALLOWED
+            ,0,SecurityImpersonation,TokenPrimary,&copytok);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("dup [%d] sess tok [0x%x] error[%d]", sessid, curtok, copytok);
+        goto fail;
+    }
+
+    *phtok = copytok;
+
+    if (curtok) {
+        CloseHandle(curtok);
+    }
+    curtok = NULL;
+
+    WTSFreeMemory(psessinfo);
+    psessinfo = NULL;
+    cnt = 0;
+    return 0;
+fail:
+    if (copytok) {
+        CloseHandle(copytok);
+    }
+    copytok = NULL;
+
+    if (curtok) {
+        CloseHandle(curtok);
+    }
+    curtok = NULL;
+
+    if (psessinfo) {
+        WTSFreeMemory(psessinfo);
+    }
+    psessinfo = NULL;
+    cnt = 0;
+    SETERRNO(ret);
+    return NULL;
+}
+
+
+
+int __start_proc_wts(pproc_handle_t pproc, int createflag, char* prog)
+{
+    PROCESS_INFORMATION  *pinfo = NULL;
+    STARTUPINFOW *pstartinfo = NULL;
+    int usehd = 0;
+    DWORD dwflag = 0;
+    BOOL bret;
+    wchar_t *wcmdline = NULL;
+    int wcmdsize = 0;
+    int res;
+    int ret;
+    HANDLE husertok=NULL;
+    void* penvblock=NULL;
+
+    ret = __get_wts_token(&husertok);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("husertok 0x%x", husertok);
+
+    bret = CreateEnvironmentBlock(&penvblock,husertok,FALSE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("create environment block error[%d]", ret);
+        goto fail;
+    }
+
+
+    ret = snprintf_safe(&(pproc->m_cmdline), &(pproc->m_cmdlinesize), "%s", prog);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    /*now we should make this handle*/
+    pinfo = (PROCESS_INFORMATION*) malloc(sizeof(*pinfo));
+    if (pinfo == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pinfo), ret);
+        goto fail;
+    }
+    memset(pinfo, 0 , sizeof(*pinfo));
+
+    pstartinfo = (STARTUPINFOW*) malloc(sizeof(*pstartinfo));
+    if (pstartinfo == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pstartinfo), ret);
+        goto fail;
+    }
+    memset(pstartinfo, 0 , sizeof(*pstartinfo));
+
+    pstartinfo->cb = sizeof(*pstartinfo);
+    if (pproc->m_stdinpipe != NULL) {
+        pstartinfo->hStdInput  = pproc->m_stdinpipe->m_pipecli;
+        usehd ++;
+    } else if (pproc->m_stdinnull != NULL && pproc->m_stdinnull != INVALID_HANDLE_VALUE) {
+        pstartinfo->hStdInput = pproc->m_stdinnull;
+        usehd ++;
+    }
+
+    if (pproc->m_stdoutpipe != NULL) {
+        pstartinfo->hStdOutput = pproc->m_stdoutpipe->m_pipecli;
+        usehd ++;
+    } else if (pproc->m_stdoutnull != NULL && pproc->m_stdoutnull != INVALID_HANDLE_VALUE) {
+        pstartinfo->hStdOutput = pproc->m_stdoutnull;
+        usehd ++;
+    }
+
+    if (pproc->m_stderrpipe != NULL) {
+        pstartinfo->hStdError = pproc->m_stderrpipe->m_pipecli;
+        usehd ++;
+    } else if (pproc->m_stderrnull != NULL && pproc->m_stderrnull != INVALID_HANDLE_VALUE) {
+        pstartinfo->hStdError = pproc->m_stderrnull;
+        usehd ++;
+    }
+
+    //pstartinfo->lpDesktop = L"winsta0\\default";
+
+    if (usehd > 0) {
+        pstartinfo->dwFlags  |= STARTF_USESTDHANDLES;
+    }
+
+    if (usehd > 0) {
+        if (pstartinfo->hStdInput == NULL) {
+            pstartinfo->hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+        }
+
+        if (pstartinfo->hStdOutput == NULL) {
+            pstartinfo->hStdOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+        }
+
+        if (pstartinfo->hStdError == NULL) {
+            pstartinfo->hStdError = GetStdHandle(STD_ERROR_HANDLE);
+        }
+    }
+
+    if (createflag & PROC_NO_WINDOW) {
+        dwflag |= CREATE_NO_WINDOW;
+    }
+
+    dwflag |= CREATE_UNICODE_ENVIRONMENT;
+
+    ret = AnsiToUnicode(pproc->m_cmdline, &wcmdline, &wcmdsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    DEBUG_INFO("run cmd [%s]", pproc->m_cmdline);
+    bret = CreateProcessAsUserW(husertok, 
+                                NULL,
+                                wcmdline,
+                                /*process security attr*/
+                                NULL,
+                                /*thread security attr*/
+                                NULL,
+                                /*inheritable*/
+                                FALSE,
+                                /*create flag*/
+                                dwflag,
+                                penvblock,
+                                NULL,
+                                pstartinfo,pinfo);
+#if   0  
+    bret = CreateProcessW(NULL, wcmdline,
+                          NULL, NULL,
+                          TRUE, dwflag,
+                          NULL, NULL,
+                          pstartinfo, pinfo);
+#endif
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("create [%s] error[%d]", pproc->m_cmdline
+                   , ret);
+        goto fail;
+    }
+
+    /*now started*/
+    pproc->m_exited = 0;
+    pproc->m_prochd = pinfo->hProcess;
+
+    if (pinfo->hThread != NULL) {
+        bret = CloseHandle(pinfo->hThread);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("close thread handle [%p] error[%d]", pinfo->hThread, ret);
+            goto fail;
+        }
+        pinfo->hThread = NULL;
+    }
+
+    DEBUG_INFO("start [%s] ok", pproc->m_cmdline);
+
+    AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
+    if (pinfo) {
+        free(pinfo);
+    }
+    pinfo = NULL;
+    if (pstartinfo) {
+        free(pstartinfo);
+    }
+    pstartinfo = NULL;
+
+    if (penvblock) {
+        DestroyEnvironmentBlock(penvblock);
+    }
+    penvblock = NULL;
+    __free_wts_token(&husertok);
+
+    return 0;
+fail:
+    AnsiToUnicode(NULL, &wcmdline, &wcmdsize);
+    if (pinfo) {
+        if (pinfo->hThread != NULL && pinfo->hThread != INVALID_HANDLE_VALUE) {
+            bret = CloseHandle(pinfo->hThread);
+            if (!bret) {
+                GETERRNO(res);
+                ERROR_INFO("close thread [%p] error[%d]", pinfo->hThread, res);
+            }
+        }
+        pinfo->hThread = NULL;
+
+        free(pinfo);
+    }
+    pinfo = NULL;
+    if (pstartinfo) {
+        free(pstartinfo);
+    }
+    pstartinfo = NULL;
+
+    if (penvblock) {
+        DestroyEnvironmentBlock(penvblock);
+    }
+    penvblock = NULL;
+
+    __free_wts_token(&husertok);
+    SETERRNO(ret);
+    return ret;
+}
+
+
 void* start_cmd_single(int createflag, char* prog)
 {
     pproc_handle_t pproc = NULL;
@@ -1232,6 +1535,7 @@ fail:
     return NULL;
 }
 
+
 void* start_cmdv(int createflag, char* prog[])
 {
     pproc_handle_t pproc = NULL;
@@ -1264,6 +1568,8 @@ fail:
     SETERRNO(ret);
     return NULL;
 }
+
+
 
 void* start_cmd(int createflag, const char* prog, ...)
 {
@@ -1307,6 +1613,142 @@ try_again:
     }
 
     pproc = start_cmdv(createflag, argv);
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    if (argv != NULL) {
+        free(argv);
+    }
+    argv = NULL;
+    return pproc;
+fail:
+    if (argv != NULL) {
+        free(argv);
+    }
+    argv = NULL;
+    if (pproc) {
+        __free_proc_handle((pproc_handle_t*)&pproc);
+    }
+    SETERRNO(ret);
+    return NULL;
+}
+
+
+/********************************************
+wts mode
+********************************************/
+
+void* wts_start_cmd_single(int createflag, char* prog)
+{
+    pproc_handle_t pproc = NULL;
+    int ret;
+
+    if (prog == NULL || prog[0] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    pproc = __alloc_proc_handle();
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    ret = __create_flags(pproc, createflag);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __start_proc_wts(pproc, createflag, prog);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    return (void*) pproc;
+fail:
+    __free_proc_handle(&pproc);
+    SETERRNO(ret);
+    return NULL;
+}
+
+
+void* wts_start_cmdv(int createflag, char* prog[])
+{
+    pproc_handle_t pproc = NULL;
+    int ret;
+    char* pcmdline = NULL;
+    int cmdlinesize = 0;
+
+    if (prog == NULL || prog[0] == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    ret = __get_command_lines(&pcmdline, &cmdlinesize, prog);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pproc = (pproc_handle_t) wts_start_cmd_single(createflag, pcmdline);
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    __get_command_lines(&pcmdline, &cmdlinesize, NULL);
+    return (void*) pproc;
+fail:
+    __free_proc_handle(&pproc);
+    __get_command_lines(&pcmdline, &cmdlinesize, NULL);
+    SETERRNO(ret);
+    return NULL;
+}
+
+void* wts_start_cmd(int createflag, const char* prog, ...)
+{
+    char** argv = NULL;
+    int argc = 0;
+    void* pproc = NULL;
+    char* curarg;
+    int ret;
+    int i;
+    va_list ap, oldap;
+    va_start(ap, prog);
+    va_copy(oldap, ap);
+    argc = 4;
+try_again:
+    va_copy(ap, oldap);
+    if (argv != NULL) {
+        free(argv);
+    }
+    argv = NULL;
+    argv = (char**) malloc(sizeof(*argv) * argc);
+    if (argv == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*argv)*argc, ret);
+        goto fail;
+    }
+    memset(argv, 0 , sizeof(*argv) * argc);
+    argv[0] = (char*)prog;
+    i = 1;
+    for (i = 1; i < argc; i++) {
+        curarg = va_arg(ap, char*);
+        if (curarg == NULL) {
+            break;
+        }
+        argv[i] = curarg;
+    }
+
+    if (i == argc ) {
+        /*filled so we should expand*/
+        argc <<= 1;
+        goto try_again;
+    }
+
+    pproc = wts_start_cmdv(createflag, argv);
     if (pproc == NULL) {
         GETERRNO(ret);
         goto fail;
@@ -1901,469 +2343,6 @@ fail:
     return ret;
 }
 #else
-int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout)
-{
-    int inlen = 0;
-    char* pretout = NULL;
-    int outsize = 0, outlen = 0;
-    char* preterr = NULL;
-    int errsize = 0, errlen = 0;
-    char* ptmpbuf = NULL;
-    HANDLE waithds[4];
-    int waitnum = 0;
-    DWORD dret = 0;
-    uint64_t sticks = 0, cticks = 0;
-    DWORD waittime;
-    HANDLE hd;
-    int pending;
-    int inwait = 0, outwait = 0, errwait = 0;
-    int ret;
-    int curlen;
-
-    if (ppout != NULL) {
-        pretout = *ppout;
-        outsize = *poutsize;
-    }
-
-    if (pperr != NULL) {
-        preterr = *pperr;
-        errsize = *perrsize;
-    }
-
-    if (timeout > 0) {
-        sticks = get_current_ticks();
-    }
-
-    while (1) {
-        ret = get_proc_exit(pproc, NULL);
-        if (ret >= 0) {
-            DEBUG_INFO("proc exited");
-            break;
-        }
-
-        /*now we should make waithds*/
-        memset(waithds, 0 , sizeof(waithds));
-        waitnum = 0;
-
-        if (pproc->m_stdinpipe != NULL) {
-            if (pproc->m_stdinpipe->m_state == PIPE_WAIT_CONNECT ||
-                    pproc->m_stdinpipe->m_state == PIPE_WAIT_WRITE) {
-                waithds[waitnum] = pproc->m_stdinpipe->m_evt;
-                waitnum ++;
-                DEBUG_INFO("add stdin");
-            } else if (pproc->m_stdinpipe->m_state == PIPE_READY) {
-                pending = 0;
-                ret = __write_file_sync(pproc->m_stdinpipe->m_pipesvr, &(pproc->m_stdinpipe->m_ov), &(pin[inlen]), (insize - inlen), &pending);
-                if (ret < 0) {
-                    GETERRNO(ret);
-                    goto fail;
-                }
-
-                DEBUG_INFO("ret [%d] write[%d]", ret, (insize - inlen));
-
-                inlen += ret;
-                if (inlen > insize) {
-                    ERROR_INFO("write [%s] inlen [%d] insize[%d]", pproc->m_stdinpipe->m_pipename, inlen, insize);
-                    inlen = insize;
-                }
-
-                if (inlen == insize) {
-                    /*now we should close the handle*/
-                    DEBUG_INFO("close stdin");
-                    __close_handle_note(&(pproc->m_stdinpipe->m_pipesvr), "%s close", pproc->m_stdinpipe->m_pipename);
-                    pproc->m_stdinpipe->m_state = PIPE_NONE;
-                } else if (pending) {
-                    DEBUG_INFO("add stdin");
-                    pproc->m_stdinpipe->m_state = PIPE_WAIT_WRITE;
-                    waithds[waitnum] = pproc->m_stdinpipe->m_evt;
-                    waitnum ++;
-                }
-            }
-        }
-
-        if (pproc->m_stdoutpipe != NULL) {
-            if (pproc->m_stdoutpipe->m_state == PIPE_WAIT_CONNECT ||
-                    pproc->m_stdoutpipe->m_state == PIPE_WAIT_READ) {
-                waithds[waitnum] = pproc->m_stdoutpipe->m_evt;
-                waitnum ++;
-                DEBUG_INFO("add stdout");
-            } else if (pproc->m_stdoutpipe->m_state == PIPE_READY) {
-out_again:
-                if (pretout == NULL || outsize == outlen) {
-                    if (outsize < MIN_BUF_SIZE) {
-                        outsize = MIN_BUF_SIZE;
-                    } else if (outsize == outlen) {
-                        outsize <<= 1;
-                    }
-                    ptmpbuf = (char*) malloc((size_t)outsize);
-                    if (ptmpbuf == NULL) {
-                        GETERRNO(ret);
-                        ERROR_INFO("alloc %d error[%d]", outsize, ret);
-                        goto fail;
-                    }
-                    memset(ptmpbuf, 0 , (size_t)outsize);
-                    if (outlen > 0) {
-                        memcpy(ptmpbuf, pretout, (size_t)outlen);
-                    }
-                    if (pretout != NULL && pretout != *ppout) {
-                        free(pretout);
-                    }
-                    pretout = ptmpbuf;
-                    ptmpbuf = NULL;
-                }
-
-                pending = 0;
-                ret = __read_file_sync(pproc->m_stdoutpipe->m_pipesvr, &(pproc->m_stdoutpipe->m_ov), &(pretout[outlen]), (outsize - outlen), &pending);
-                if (ret < 0) {
-                    GETERRNO(ret);
-                    goto fail;
-                }
-                if (ret > 0) {
-                    DEBUG_BUFFER_FMT(&(pretout[outlen]), ret, "stdout new in");
-                }
-                outlen += ret;
-                if (outlen > outsize) {
-                    ERROR_INFO("read [%s] outlen[%d] outsize [%d]", pproc->m_stdoutpipe->m_pipename, outlen, outsize);
-                    outlen = outsize;
-                }
-
-                if (pending == 0) {
-                    /*read again for it will give pending*/
-                    goto out_again;
-                    /*
-                    if (outlen == outsize) {
-                        goto out_again;
-                    }*/
-                    /*because we only read some bytes , so let it ok next try*/
-                } else if (pending == 2) {
-                    /*now close the file*/
-                    __close_handle_note(&(pproc->m_stdoutpipe->m_pipesvr), "%s", pproc->m_stdoutpipe->m_pipename);
-                    pproc->m_stdoutpipe->m_state = PIPE_NONE;
-                    DEBUG_INFO("close stdout");
-                } else {
-                    waithds[waitnum] = pproc->m_stdoutpipe->m_evt;
-                    waitnum ++;
-                    pproc->m_stdoutpipe->m_state = PIPE_WAIT_READ;
-                    DEBUG_INFO("add stdout");
-                }
-            }
-        }
-
-        if (pproc->m_stderrpipe != NULL) {
-            if (pproc->m_stderrpipe->m_state == PIPE_WAIT_CONNECT ||
-                    pproc->m_stderrpipe->m_state == PIPE_WAIT_READ) {
-                waithds[waitnum] = pproc->m_stderrpipe->m_evt;
-                waitnum ++;
-                DEBUG_INFO("add stderr");
-            } else if (pproc->m_stderrpipe->m_state == PIPE_READY) {
-err_again:
-                if (preterr == NULL || errsize == errlen) {
-                    if (errsize < MIN_BUF_SIZE) {
-                        errsize = MIN_BUF_SIZE;
-                    } else if (errsize == errlen) {
-                        errsize <<= 1;
-                    }
-                    ptmpbuf = (char*) malloc((size_t)errsize);
-                    if (ptmpbuf == NULL) {
-                        GETERRNO(ret);
-                        ERROR_INFO("alloc %d error[%d]", errsize, ret);
-                        goto fail;
-                    }
-                    memset(ptmpbuf, 0 , (size_t)errsize);
-                    if (errlen > 0) {
-                        memcpy(ptmpbuf, preterr, (size_t)errlen);
-                    }
-                    if (preterr != NULL && preterr != *pperr) {
-                        free(preterr);
-                    }
-                    preterr = ptmpbuf;
-                    ptmpbuf = NULL;
-                }
-                pending = 0;
-                ret = __read_file_sync(pproc->m_stderrpipe->m_pipesvr , &(pproc->m_stderrpipe->m_ov), &(preterr[errlen]), (errsize - errlen), &pending);
-                if (ret < 0) {
-                    GETERRNO(ret);
-                    goto fail;
-                }
-
-                if (ret > 0) {
-                    DEBUG_BUFFER_FMT(&(preterr[errlen]), ret, "stderr new in");
-                }
-                errlen += ret;
-                if (errlen > errsize) {
-                    ERROR_INFO("read [%s] errlen[%d] errsize[%d]", pproc->m_stderrpipe->m_pipename, errlen, errsize);
-                    errlen = errsize;
-                }
-
-                if (pending == 0) {
-                    /*read again*/
-                    goto err_again;
-                    /*
-                    if (errlen == errsize) {
-                        goto err_again;
-                    }*/
-                    /*we only read this ,so just next try*/
-                } else if (pending == 2) {
-                    __close_handle_note(&(pproc->m_stderrpipe->m_pipesvr), "%s", pproc->m_stderrpipe->m_pipename);
-                    pproc->m_stderrpipe->m_state = PIPE_NONE;
-                    DEBUG_INFO("close stderr");
-                } else {
-                    waithds[waitnum] = pproc->m_stderrpipe->m_evt;
-                    waitnum ++;
-                    pproc->m_stderrpipe->m_state = PIPE_WAIT_READ;
-                    DEBUG_INFO("add stderr");
-                }
-            }
-        }
-
-        if (hevt != NULL && hevt != INVALID_HANDLE_VALUE) {
-            waithds[waitnum] = hevt;
-            waitnum ++;
-        }
-
-        waittime = INFINITE;
-        if (timeout > 0) {
-            cticks = get_current_ticks();
-            ret = need_wait_times(sticks, cticks, timeout);
-            if (ret < 0) {
-                ret = -WAIT_TIMEOUT;
-                ERROR_INFO("wait time out");
-                goto fail;
-            }
-            waittime = (DWORD)ret;
-        }
-
-        if (waittime == INFINITE || waittime > 1000) {
-            waittime = 1000;
-        }
-
-        if (waitnum > 0 ) {
-            dret = WaitForMultipleObjectsEx((DWORD)waitnum, waithds, FALSE, waittime, FALSE);
-            DEBUG_INFO("dret [%d]", dret);
-            if ((dret >= WAIT_OBJECT_0) && (dret < (WAIT_OBJECT_0 + waitnum))) {
-                hd = waithds[(dret - WAIT_OBJECT_0)];
-                if (pproc->m_stdinpipe
-                        && (pproc->m_stdinpipe->m_state == PIPE_WAIT_CONNECT  || pproc->m_stdinpipe->m_state == PIPE_WAIT_WRITE)
-                        && hd == pproc->m_stdinpipe->m_evt) {
-                    DEBUG_INFO("stdin write");
-                    ret = __get_overlapped(pproc->m_stdinpipe->m_pipesvr, &(pproc->m_stdinpipe->m_ov), &inlen, "stdin result");
-                    if (ret < 0) {
-                        GETERRNO(ret);
-                        goto fail;
-                    }
-                    /*inwait over*/
-                    inwait = ret;
-                    if (inwait == 0) {
-                        if (pproc->m_stdinpipe->m_state == PIPE_WAIT_CONNECT) {
-                            pproc->m_stdinpipe->m_state = PIPE_READY;
-                        } else if (pproc->m_stdinpipe->m_state == PIPE_WAIT_WRITE) {
-                            pproc->m_stdinpipe->m_state = PIPE_READY;
-                        }
-                        DEBUG_INFO("stdin write inlen[%d]", inlen);
-                        /*already */
-                        if (inlen == insize) {
-                            __close_handle_note(&(pproc->m_stdinpipe->m_pipesvr), "%s", pproc->m_stdinpipe->m_pipename);
-                            pproc->m_stdinpipe->m_state = PIPE_NONE;
-                            DEBUG_INFO("close stdin");
-                        }
-                    }
-                } else if (pproc->m_stdoutpipe != NULL &&
-                           (pproc->m_stdoutpipe->m_state == PIPE_WAIT_READ || pproc->m_stdoutpipe->m_state == PIPE_WAIT_CONNECT)
-                           && hd == pproc->m_stdoutpipe->m_evt) {
-                    DEBUG_INFO("stdout read");
-                    outwait = outlen;
-                    ret = __get_overlapped(pproc->m_stdoutpipe->m_pipesvr, &(pproc->m_stdoutpipe->m_ov), &outlen, "get stdout result");
-                    if (ret < 0) {
-                        GETERRNO(ret);
-                        goto fail;
-                    }
-                    if (outlen != outwait) {
-                        DEBUG_BUFFER_FMT(&pretout[outwait], (outlen - outwait), "stdout ov");
-                    }
-
-                    outwait = ret;
-                    if (outwait == 0) {
-                        if (pproc->m_stdoutpipe->m_state == PIPE_WAIT_CONNECT) {
-                            pproc->m_stdoutpipe->m_state = PIPE_READY;
-                        } else if (pproc->m_stdoutpipe->m_state == PIPE_WAIT_READ) {
-                            pproc->m_stdoutpipe->m_state = PIPE_READY;
-                        }
-                        DEBUG_INFO("ready stdout outlen[%d]", outlen);
-                    }
-
-                } else if (pproc->m_stderrpipe && (pproc->m_stderrpipe->m_state == PIPE_WAIT_CONNECT || pproc->m_stderrpipe->m_state == PIPE_WAIT_READ)
-                           && hd == pproc->m_stderrpipe->m_evt) {
-                    DEBUG_INFO("stderr read");
-                    errwait = errlen;
-                    ret = __get_overlapped(pproc->m_stderrpipe->m_pipesvr, &(pproc->m_stderrpipe->m_ov), &errlen, "get stdout result");
-                    if (ret < 0) {
-                        GETERRNO(ret);
-                        goto fail;
-                    }
-                    if (errwait != errlen) {
-                        DEBUG_BUFFER_FMT(&preterr[errwait], (errlen - errwait), "stderr ov");
-                    }
-                    errwait = ret;
-                    if (errwait == 0) {
-                        if (pproc->m_stderrpipe->m_state == PIPE_WAIT_CONNECT) {
-                            pproc->m_stderrpipe->m_state = PIPE_READY;
-                        } else if (pproc->m_stderrpipe->m_state == PIPE_WAIT_READ) {
-                            pproc->m_stderrpipe->m_state = PIPE_READY;
-                        }
-                        DEBUG_INFO("ready stderr errlen[%d]", errlen);
-                    }
-                } else if (hevt != NULL && hevt != INVALID_HANDLE_VALUE && hd == hevt) {
-                    ret = -WSAEINTR;
-                    ERROR_INFO("interrupted");
-                    goto fail;
-                }
-            } else  if (dret == WAIT_TIMEOUT) {
-                continue;
-            } else {
-                GETERRNO(ret);
-                ERROR_INFO("run cmd [%s] [%ld] error [%d]", pproc->m_cmdline, dret, ret);
-                goto fail;
-            }
-        } else {
-            /*nothing to wait ,so we should wait for the handle of proc*/
-            if (waittime != INFINITE && waittime < 100) {
-                SleepEx(waittime, TRUE);
-            } else {
-                SleepEx(100, TRUE);
-            }
-            DEBUG_INFO("prochd time");
-        }
-    }
-
-    /*now exited we will give the output so we may have some data in the pipe*/
-    if (pproc->m_stdoutpipe != NULL ) {
-        DEBUG_INFO("stdout [%s]", pproc->m_stdoutpipe->m_state == PIPE_READY ? "READY" : "WAIT");
-        ret = __left_pipe_bytes(pproc->m_stdoutpipe->m_pipesvr);
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto fail;
-        }
-        curlen = ret;
-        if (curlen > 0) {
-            if ((outsize - outlen) < curlen) {
-                outsize = (outsize - outlen +  curlen);
-                ptmpbuf = (char*) malloc(outsize);
-                if (ptmpbuf == NULL) {
-                    GETERRNO(ret);
-                    ERROR_INFO("alloc %d error[%d]", outsize, ret);
-                    goto fail;
-                }
-                memset(ptmpbuf, 0, outsize);
-                if (outlen > 0) {
-                    memcpy(ptmpbuf, pretout, outlen);
-                }
-                if (pretout && pretout != *ppout) {
-                    free(pretout);
-                }
-                pretout = ptmpbuf;
-                ptmpbuf = NULL;
-            }
-            ret = __read_file_sync(pproc->m_stdoutpipe->m_pipesvr, &(pproc->m_stdoutpipe->m_ov), &(pretout[outlen]), curlen, &pending);
-            if (ret < 0) {
-                GETERRNO(ret);
-                goto fail;
-            }
-
-
-            if (ret != curlen) {
-                ret = -ERROR_INTERNAL_ERROR;
-                ERROR_INFO("read stdout left error[%d]", ret);
-                goto fail;
-            }
-            DEBUG_BUFFER_FMT(&(pretout[outlen]), curlen, "new stdout");
-            outlen += ret;
-        }
-    }
-
-    if (pproc->m_stderrpipe != NULL ) {
-        DEBUG_INFO("stdout [%s]", pproc->m_stderrpipe->m_state == PIPE_READY ? "READY" : "WAIT");
-        ret = __left_pipe_bytes(pproc->m_stderrpipe->m_pipesvr);
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto fail;
-        }
-        curlen = ret;
-        if (curlen > 0) {
-            if ((errsize - errlen) < curlen) {
-                errsize = (errsize - errlen +  curlen);
-                ptmpbuf = (char*) malloc(errsize);
-                if (ptmpbuf == NULL) {
-                    GETERRNO(ret);
-                    ERROR_INFO("alloc %d error[%d]", errsize, ret);
-                    goto fail;
-                }
-                memset(ptmpbuf, 0, errsize);
-                if (errlen > 0) {
-                    memcpy(ptmpbuf, preterr, errlen);
-                }
-                if (preterr && preterr != *pperr) {
-                    free(preterr);
-                }
-                preterr = ptmpbuf;
-                ptmpbuf = NULL;
-            }
-            ret = __read_file_sync(pproc->m_stderrpipe->m_pipesvr, &(pproc->m_stderrpipe->m_ov), &(preterr[errlen]), curlen, &pending);
-            if (ret < 0) {
-                GETERRNO(ret);
-                goto fail;
-            }
-
-            if (ret != curlen) {
-                ret = -ERROR_INTERNAL_ERROR;
-                ERROR_INFO("read stderr left error[%d]", ret);
-                goto fail;
-            }
-            DEBUG_BUFFER_FMT(&(preterr[errlen]), curlen, "new stderr");
-            errlen += ret;
-        }
-    }
-
-    if (exitcode) {
-        *exitcode = pproc->m_exitcode;
-    }
-    if (ppout != NULL) {
-        if (*ppout != NULL && *ppout != pretout) {
-            free(*ppout);
-        }
-        *ppout = pretout;
-    }
-
-    if (pperr != NULL) {
-        if (*pperr != NULL && *pperr != preterr) {
-            free(*pperr);
-        }
-        *pperr = preterr;
-    }
-
-    if (perrsize) {
-        *perrsize = errlen;
-    }
-
-    if (poutsize) {
-        *poutsize = outlen;
-    }
-    return 0;
-fail:
-    if (ptmpbuf) {
-        free(ptmpbuf);
-    }
-    ptmpbuf = NULL;
-    if (pretout && (ppout == NULL || pretout != *ppout)) {
-        free(pretout);
-    }
-    pretout = NULL;
-    if (preterr && (pperr == NULL || preterr != *pperr)) {
-        free(preterr);
-    }
-    preterr = NULL;
-    SETERRNO(ret);
-    return ret;
-}
 
 #endif
 
@@ -2622,6 +2601,267 @@ int run_cmd_output(char* pin, int insize, char** ppout, int *poutsize, char** pp
     }
     va_start(ap, prog);
     return run_cmd_event_outputa(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
+}
+
+
+/****************************************************
+ wts mode
+****************************************************/
+int wts_run_cmd_event_output_single(HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
+{
+    pproc_handle_t pproc = NULL;
+    int ret;
+    int createflag = 0;
+
+    DEBUG_INFO(" ");
+    if (prog == NULL) {
+        if (ppout != NULL) {
+            if (*ppout != NULL) {
+                free(*ppout);
+            }
+            *ppout = NULL;
+        }
+        if (poutsize) {
+            *poutsize = 0;
+        }
+
+        if (pperr != NULL) {
+            if (*pperr != NULL) {
+                free(*pperr);
+            }
+            *pperr = NULL;
+        }
+        if (perrsize) {
+            *perrsize = 0;
+        }
+        return 0;
+    }
+
+    if (pin != NULL) {
+        createflag |= PROC_PIPE_STDIN;
+    } else {
+        createflag |= PROC_STDIN_NULL;
+    }
+
+    if (ppout != NULL) {
+        if (poutsize == NULL) {
+            ret = -ERROR_INVALID_PARAMETER;
+            goto fail;
+        }
+        createflag |= PROC_PIPE_STDOUT;
+    } else {
+        //createflag |= PROC_STDOUT_NULL;
+    }
+
+    if (pperr != NULL) {
+        if (perrsize == NULL) {
+            ret = -ERROR_INVALID_PARAMETER;
+            goto fail;
+        }
+        createflag |= PROC_PIPE_STDERR;
+    } else {
+        //createflag |= PROC_STDERR_NULL;
+    }
+    createflag |= PROC_NO_WINDOW;
+
+    DEBUG_INFO(" ");
+
+    pproc = (pproc_handle_t)wts_start_cmd_single(createflag, prog);
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __inner_run(pproc, hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    /*now exited we will give the output*/
+    __free_proc_handle(&pproc);
+    return 0;
+fail:
+    __free_proc_handle(&pproc);
+    SETERRNO(ret);
+    return ret;
+}
+
+int wts_run_cmd_output_single(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
+{
+    return wts_run_cmd_event_output_single(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog);
+}
+
+int wts_run_cmd_event_outputv(HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
+{
+    pproc_handle_t pproc = NULL;
+    int ret;
+    int createflag = 0;
+
+    DEBUG_INFO("prog [%p]", prog);
+    if (prog == NULL) {
+        if (ppout != NULL) {
+            if (*ppout != NULL) {
+                free(*ppout);
+            }
+            *ppout = NULL;
+        }
+        if (poutsize) {
+            *poutsize = 0;
+        }
+
+        if (pperr != NULL) {
+            if (*pperr != NULL) {
+                free(*pperr);
+            }
+            *pperr = NULL;
+        }
+        if (perrsize) {
+            *perrsize = 0;
+        }
+        DEBUG_INFO(" ");
+        return 0;
+    }
+
+    if (pin != NULL) {
+        createflag |= PROC_PIPE_STDIN;
+    } else {
+        createflag |= PROC_STDIN_NULL;
+    }
+
+    if (ppout != NULL) {
+        if (poutsize == NULL) {
+            ret = -ERROR_INVALID_PARAMETER;
+            goto fail;
+        }
+        createflag |= PROC_PIPE_STDOUT;
+    } else {
+        //createflag |= PROC_STDOUT_NULL;
+    }
+
+    if (pperr != NULL) {
+        if (perrsize == NULL) {
+            ret = -ERROR_INVALID_PARAMETER;
+            goto fail;
+        }
+        createflag |= PROC_PIPE_STDERR;
+    } else {
+        //createflag |= PROC_STDERR_NULL;
+    }
+    createflag |= PROC_NO_WINDOW;
+
+
+    pproc = (pproc_handle_t)wts_start_cmdv(createflag, prog);
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __inner_run(pproc, hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    __free_proc_handle(&pproc);
+    return 0;
+fail:
+    __free_proc_handle(&pproc);
+    SETERRNO(ret);
+    return ret;
+}
+
+int wts_run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
+{
+    return wts_run_cmd_event_outputv(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog);
+}
+
+int wts_run_cmd_event_outputa(HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, va_list ap)
+{
+    va_list oldap;
+    char** progv = NULL;
+    int i;
+    int retlen;
+    int ret;
+    char* curarg;
+    int cnt = 0;
+
+    if (prog == NULL) {
+        return wts_run_cmd_event_outputv(hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL);
+    }
+
+    cnt = 1;
+    va_copy(oldap, ap);
+    while (1) {
+        curarg = va_arg(ap, char*);
+        if (curarg == NULL) {
+            break;
+        }
+        cnt ++;
+    }
+
+    progv = (char**) malloc(sizeof(*progv ) * (cnt + 1));
+    if (progv == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc %d error[%d]", sizeof(*progv) * (cnt + 1), ret);
+        goto fail;
+    }
+
+    memset(progv, 0 , sizeof(*progv) * (cnt + 1));
+    va_copy(ap, oldap);
+    progv[0] = (char*)prog;
+    for (i = 1; i < cnt ; i++) {
+        curarg = va_arg(ap, char*);
+        ASSERT_IF(curarg != NULL);
+        progv[i] = curarg;
+    }
+
+    curarg = va_arg(ap, char*);
+    ASSERT_IF(curarg == NULL);
+
+    ret = wts_run_cmd_event_outputv(hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, progv);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    retlen = ret;
+    free(progv);
+
+    return retlen;
+
+fail:
+    if (progv != NULL) {
+        free(progv);
+    }
+    progv = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int wts_run_cmd_outputa(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, va_list ap)
+{
+    return wts_run_cmd_event_outputa(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
+}
+
+int wts_run_cmd_event_output(HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
+{
+    va_list ap = NULL;
+    if (prog == NULL) {
+        return wts_run_cmd_event_outputa(hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL, ap);
+    }
+    va_start(ap, prog);
+    return wts_run_cmd_event_outputa(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
+}
+
+int wts_run_cmd_output(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
+{
+    va_list ap = NULL;
+    if (prog == NULL) {
+        return wts_run_cmd_event_outputa(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL, ap);
+    }
+    va_start(ap, prog);
+    return wts_run_cmd_event_outputa(NULL, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
 }
 
 
