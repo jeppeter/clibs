@@ -291,7 +291,7 @@ int run_cmd(HANDLE exitevt, ppipe_hdr_t phdr, int hdrlen)
         pcurptr += curlen;
     }
 
-    DEBUG_INFO("count %d", cnt);
+    DEBUG_INFO("count %d [%s]", cnt, cmdline);
 
     ret = wts_run_cmd_event_output_single(exitevt, NULL, 0, &pout, &outsize, &perr, &errsize, &exitcode, 0, cmdline);
     if (ret < 0) {

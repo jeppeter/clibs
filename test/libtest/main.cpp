@@ -22,6 +22,7 @@
 #include <win_base64.h>
 #include <proto_api.h>
 #include <proto_win.h>
+#include <Lm.h>
 
 #include <sddl.h>
 #include <aclapi.h>
@@ -40,6 +41,7 @@ typedef struct __args_options {
 } args_options_t, *pargs_options_t;
 
 #pragma comment(lib,"user32.lib")
+#pragma comment(lib,"Netapi32.lib")
 
 #ifdef __cplusplus
 extern "C" {
@@ -99,6 +101,7 @@ int getpidsname_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int sessrunv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setregstr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int uselist_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -5180,6 +5183,90 @@ int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     ret = 0;
 out:
     connect_pipe(NULL,NULL,&hpipe,&prdov,&pwrov);
+    SETERRNO(ret);
+    return ret;
+}
+
+int uselist_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* sharecomp=NULL;
+    wchar_t* pushare=NULL;
+    int usharesize=0;
+    NET_API_STATUS  status;
+    LPBYTE lpbuf=NULL;
+    DWORD entryread=0;
+    DWORD totaltry=0;
+    DWORD resumehd=0;
+    PUSE_INFO_0 pinfo0=NULL;
+    PUSE_INFO_1 pinfo1=NULL;
+    PUSE_INFO_2 pinfo2=NULL;
+    DWORD i;
+
+    sharecomp = ".";
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        sharecomp = parsestate->leftargs[0];
+    }
+    ret = AnsiToUnicode(sharecomp,&pushare,&usharesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+
+
+    status = NetUseEnum(NULL,0,&lpbuf, MAX_PREFERRED_LENGTH,&entryread,&totaltry,&resumehd);
+    if (status != NERR_Success) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get [%s] error[%d][%ld]\n", sharecomp, ret,status);
+        goto out;
+    }
+
+    fprintf(stdout, "[%s] count [%ld]\n", sharecomp, entryread);
+    pinfo0 = (PUSE_INFO_0) lpbuf;
+    for (i=0;i<entryread;i++) {
+        fprintf(stdout,"[%ld]%p\n",i , pinfo0);
+        pinfo0 ++;
+    }
+
+    status = NetUseEnum(NULL,1,&lpbuf, MAX_PREFERRED_LENGTH,&entryread,&totaltry,&resumehd);
+    if (status != NERR_Success) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get [%s] error[%d][%ld]\n", sharecomp, ret,status);
+        goto out;
+    }
+
+
+    fprintf(stdout, "[%s] count [%ld]\n", sharecomp, entryread);
+    pinfo1 = (PUSE_INFO_1) lpbuf;
+    for (i=0;i<entryread;i++) {
+        fprintf(stdout,"[%ld]=%p\n",i,pinfo1);
+        pinfo1 ++;
+    }
+
+    status = NetUseEnum(NULL,2,&lpbuf, MAX_PREFERRED_LENGTH,&entryread,&totaltry,&resumehd);
+    if (status != NERR_Success) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get [%s] error[%d][%ld]\n", sharecomp, ret,status);
+        goto out;
+    }
+
+
+    fprintf(stdout, "[%s] count [%ld]\n", sharecomp, entryread);
+    pinfo2 = (PUSE_INFO_2) lpbuf;
+    for (i=0;i<entryread;i++) {
+        fprintf(stdout,"[%ld]=%p\n",i,pinfo2);
+        pinfo2 ++;
+    }
+
+    ret = 0;
+out:
+    if (lpbuf) {
+        NetApiBufferFree(lpbuf);
+    }
+    lpbuf = NULL;
+
+    AnsiToUnicode(NULL,&pushare,&usharesize);
     SETERRNO(ret);
     return ret;
 }

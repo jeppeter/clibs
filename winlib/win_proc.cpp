@@ -1821,17 +1821,21 @@ int get_proc_exit(void* proc, int *exitcode)
     }
 
     if (pproc->m_exited == 0) {
+        SETERRNO(0);
         bret = GetExitCodeProcess(pproc->m_prochd, &exitret);
         if (bret) {
             if (exitret != STILL_ACTIVE) {
                 pproc->m_exited = 1;
                 pproc->m_exitcode = (int)exitret;
+                DEBUG_INFO("exit code %d", exitret);
                 if (exitcode) {
                     *exitcode = (int)exitret;
                 }
                 return 0;
             }
         }
+        GETERRNO(ret);
+        ERROR_INFO("get exit code error[%d]", ret);
         ret = -ERROR_ALREADY_EXISTS;
         SETERRNO(ret);
         return ret;
@@ -2342,6 +2346,146 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+
+int __wts_inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout)
+{
+    int inlen = 0;
+    char* pretout = NULL;
+    int outsize = 0, outlen = 0;
+    char* preterr = NULL;
+    int errsize = 0, errlen = 0;
+    char* ptmpbuf = NULL;
+    HANDLE waithds[4];
+    int waitnum = 0;
+    DWORD dret = 0;
+    uint64_t sticks = 0, cticks = 0;
+    DWORD waittime;
+    HANDLE hd;
+    int pending;
+    int inwait = 0, outwait = 0, errwait = 0;
+    int ret;
+    int curlen;
+
+    if (ppout != NULL) {
+        pretout = *ppout;
+        outsize = *poutsize;
+    }
+
+    if (pperr != NULL) {
+        preterr = *pperr;
+        errsize = *perrsize;
+    }
+
+    if (timeout > 0) {
+        sticks = get_current_ticks();
+    }
+
+    while (1) {
+        ret = get_proc_exit(pproc, NULL);
+        if (ret >= 0) {
+            DEBUG_INFO("proc exited");
+            break;
+        }
+
+        /*now we should make waithds*/
+        memset(waithds, 0 , sizeof(waithds));
+        waitnum = 0;
+
+
+        if (hevt != NULL && hevt != INVALID_HANDLE_VALUE) {
+            waithds[waitnum] = hevt;
+            waitnum ++;
+        }
+
+        waittime = INFINITE;
+        if (timeout > 0) {
+            cticks = get_current_ticks();
+            ret = need_wait_times(sticks, cticks, timeout);
+            if (ret < 0) {
+                ret = -WAIT_TIMEOUT;
+                ERROR_INFO("wait time out");
+                goto fail;
+            }
+            waittime = (DWORD)ret;
+        }
+
+        if (waittime == INFINITE || waittime > 1000) {
+            waittime = 1000;
+        }
+
+        if (waitnum > 0 ) {
+            dret = WaitForMultipleObjectsEx((DWORD)waitnum, waithds, FALSE, waittime, FALSE);
+            DEBUG_INFO("dret [%d]", dret);
+            if ((dret >= WAIT_OBJECT_0) && (dret < (WAIT_OBJECT_0 + waitnum))) {
+                hd = waithds[(dret - WAIT_OBJECT_0)];
+
+                if (hevt != NULL && hevt != INVALID_HANDLE_VALUE && hd == hevt) {
+                    ret = -WSAEINTR;
+                    ERROR_INFO("interrupted");
+                    goto fail;
+                }
+            } else  if (dret == WAIT_TIMEOUT) {
+                continue;
+            } else {
+                GETERRNO(ret);
+                ERROR_INFO("run cmd [%s] [%ld] error [%d]", pproc->m_cmdline, dret, ret);
+                goto fail;
+            }
+        } else {
+            /*nothing to wait ,so we should wait for the handle of proc*/
+            if (waittime != INFINITE && waittime < 100) {
+                SleepEx(waittime, TRUE);
+            } else {
+                SleepEx(100, TRUE);
+            }
+            DEBUG_INFO("prochd time");
+        }
+    }
+
+    if (exitcode) {
+        *exitcode = pproc->m_exitcode;
+    }
+    if (ppout != NULL) {
+        if (*ppout != NULL && *ppout != pretout) {
+            free(*ppout);
+        }
+        *ppout = pretout;
+    }
+
+    if (pperr != NULL) {
+        if (*pperr != NULL && *pperr != preterr) {
+            free(*pperr);
+        }
+        *pperr = preterr;
+    }
+
+    if (perrsize) {
+        *perrsize = errlen;
+    }
+
+    if (poutsize) {
+        *poutsize = outlen;
+    }
+    return 0;
+fail:
+    if (ptmpbuf) {
+        free(ptmpbuf);
+    }
+    ptmpbuf = NULL;
+    if (pretout && (ppout == NULL || pretout != *ppout)) {
+        free(pretout);
+    }
+    pretout = NULL;
+    if (preterr && (pperr == NULL || preterr != *pperr)) {
+        free(preterr);
+    }
+    preterr = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
 #else
 
 #endif
@@ -2672,7 +2816,7 @@ int wts_run_cmd_event_output_single(HANDLE hevt, char* pin, int insize, char** p
         goto fail;
     }
 
-    ret = __inner_run(pproc, hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout);
+    ret = __wts_inner_run(pproc, hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -2757,7 +2901,7 @@ int wts_run_cmd_event_outputv(HANDLE hevt, char* pin, int insize, char** ppout, 
         goto fail;
     }
 
-    ret = __inner_run(pproc, hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout);
+    ret = __wts_inner_run(pproc, hevt, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
