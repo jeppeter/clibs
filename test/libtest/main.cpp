@@ -102,6 +102,7 @@ int sessrunv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int setregstr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int uselist_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svrnetmount_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -5182,91 +5183,115 @@ int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     ret = 0;
 out:
+    if (phdr) {
+        free(phdr);
+    }
+    phdr = NULL;
     connect_pipe(NULL,NULL,&hpipe,&prdov,&pwrov);
     SETERRNO(ret);
     return ret;
 }
 
-int uselist_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
-{
-    int ret;
-    char* sharecomp=NULL;
-    wchar_t* pushare=NULL;
-    int usharesize=0;
-    NET_API_STATUS  status;
-    LPBYTE lpbuf=NULL;
-    DWORD entryread=0;
-    DWORD totaltry=0;
-    DWORD resumehd=0;
-    PUSE_INFO_0 pinfo0=NULL;
-    PUSE_INFO_1 pinfo1=NULL;
-    PUSE_INFO_2 pinfo2=NULL;
-    DWORD i;
 
-    sharecomp = ".";
-    if (parsestate->leftargs && parsestate->leftargs[0]) {
-        sharecomp = parsestate->leftargs[0];
+int svrnetmount_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret=0;
+    char* pipename=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    HANDLE hpipe=NULL;
+    OVERLAPPED* prdov=NULL,*pwrov=NULL;
+    size_t totallen = 0;
+    pipe_hdr_t* phdr = NULL;
+    char* pcurptr;
+    int i;
+    size_t curlen;
+    BOOL bret;
+
+    argv = argv;
+    argc = argc;
+
+    init_log_level(pargs);
+
+    pipename = pargs->m_pipename;
+    if (pipename == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr,"no pipename\n");
+        goto out;
     }
-    ret = AnsiToUnicode(sharecomp,&pushare,&usharesize);
+
+    st_ExitEvt = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (st_ExitEvt == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create exit event %d\n", ret);
+        goto out;
+    }
+    bret = SetConsoleCtrlHandler(HandlerConsoleRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
+        goto out;
+    }
+
+    ret = connect_pipe(pipename, st_ExitEvt,&hpipe,&prdov,&pwrov);
     if (ret < 0) {
         GETERRNO(ret);
+        fprintf(stderr, "can not connect pipe [%s] error[%d]\n", pipename, ret);
         goto out;
     }
 
+    /*now format the buffer*/
+    for (i=0;parsestate->leftargs != NULL && parsestate->leftargs[i] != NULL ;i++) {
+        totallen += (strlen(parsestate->leftargs[i]) + 1);
+    }
 
+    if (totallen > 0) {
+        totallen ++;
+        totallen += sizeof(*phdr);
+    }
 
-    status = NetUseEnum(NULL,0,&lpbuf, MAX_PREFERRED_LENGTH,&entryread,&totaltry,&resumehd);
-    if (status != NERR_Success) {
+    if (totallen == 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "can not accept zero command\n");
+        goto out;
+    }
+
+    phdr = (pipe_hdr_t*)malloc(totallen);
+    if (phdr == NULL) {
         GETERRNO(ret);
-        fprintf(stderr, "can not get [%s] error[%d][%ld]\n", sharecomp, ret,status);
         goto out;
     }
+    memset(phdr, 0, totallen);
+    phdr->m_datalen = (uint32_t)totallen;
+    phdr->m_cmd = NETSHARE_MOUNT;
 
-    fprintf(stdout, "[%s] count [%ld]\n", sharecomp, entryread);
-    pinfo0 = (PUSE_INFO_0) lpbuf;
-    for (i=0;i<entryread;i++) {
-        fprintf(stdout,"[%ld]%p\n",i , pinfo0);
-        pinfo0 ++;
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(*phdr);
+
+    for (i=0;parsestate->leftargs!=NULL && parsestate->leftargs[i]; i++) {
+        curlen = strlen(parsestate->leftargs[i]);
+        memcpy(pcurptr, parsestate->leftargs[i],curlen);
+        pcurptr += (curlen + 1);
     }
+    DEBUG_BUFFER_FMT(phdr, (int)totallen, "buffer write");
 
-    status = NetUseEnum(NULL,1,&lpbuf, MAX_PREFERRED_LENGTH,&entryread,&totaltry,&resumehd);
-    if (status != NERR_Success) {
+    ret = write_pipe_data(st_ExitEvt,hpipe,pwrov,pargs->m_timeout, (char*)phdr,(int)totallen);
+    if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr, "can not get [%s] error[%d][%ld]\n", sharecomp, ret,status);
+        fprintf(stderr,"write [%s] with len [%zd] error[%d]\n",pipename, totallen, ret);
         goto out;
     }
 
-
-    fprintf(stdout, "[%s] count [%ld]\n", sharecomp, entryread);
-    pinfo1 = (PUSE_INFO_1) lpbuf;
-    for (i=0;i<entryread;i++) {
-        fprintf(stdout,"[%ld]=%p\n",i,pinfo1);
-        pinfo1 ++;
-    }
-
-    status = NetUseEnum(NULL,2,&lpbuf, MAX_PREFERRED_LENGTH,&entryread,&totaltry,&resumehd);
-    if (status != NERR_Success) {
-        GETERRNO(ret);
-        fprintf(stderr, "can not get [%s] error[%d][%ld]\n", sharecomp, ret,status);
-        goto out;
-    }
-
-
-    fprintf(stdout, "[%s] count [%ld]\n", sharecomp, entryread);
-    pinfo2 = (PUSE_INFO_2) lpbuf;
-    for (i=0;i<entryread;i++) {
-        fprintf(stdout,"[%ld]=%p\n",i,pinfo2);
-        pinfo2 ++;
-    }
+    DEBUG_INFO("Sleep before");
+    SleepEx(1000,TRUE);
+    DEBUG_INFO("Sleep after");
 
     ret = 0;
 out:
-    if (lpbuf) {
-        NetApiBufferFree(lpbuf);
+    if (phdr) {
+        free(phdr);
     }
-    lpbuf = NULL;
-
-    AnsiToUnicode(NULL,&pushare,&usharesize);
+    phdr = NULL;
+    connect_pipe(NULL,NULL,&hpipe,&prdov,&pwrov);
     SETERRNO(ret);
     return ret;
 }

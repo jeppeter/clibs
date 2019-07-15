@@ -316,6 +316,106 @@ fail:
     return ret;
 }
 
+static char* st_POWRSHELL_MOUNT_SH = "powershell -ExecutionPolicy ByPass -Command \"$svrip=\\\"%s\\\";;;$netshare=\\\"%s\\\";;;$user=\\\"%s\\\";;;$passwd=\\\"%s\\\";;;net use | Select-String -Pattern \\\"^OK\\\" | Select-String  -Pattern $svrip | Select-String -Pattern $netshare | Tee-Object -Variable ttobj | Out-Null;;;if ($ttobj.length -gt 0) {;;    Write-Host \\\"run ok 0\\\" ;;;    exit(0);;;};;Write-Host \\\"no \\\\$svrip\\$netshare\\\";;;$ttobj;;;;;net use |  Select-String -Pattern $svrip |Tee-Object -Variable ttobj | Out-Null;;;;;if ($ttobj.length -gt 0) {;;        foreach($c in $ttobj) {;;        $s = $c -replace \\\"\\s+\\\",\\\" \\\";;;        $arr = $s.split(\\\" \\\");;;        Write-Host \\\"[\\\"$arr[1]\\\"]\\\";;;        net use $arr[1] /delete;;;    };;};;$chars=\\\"ABCDEFGHIJKLMNOPQRSTUVWXYZ\\\";;;$i = 3;;;while ($i -lt 26) {;;    $mntlabel = $chars[$i];;;    $c = \\\"$mntlabel\\\";;;    $c += \\\":\\\";;;    Write-Host \\\"c [$c]\\\";;;    Write-Host \\\"net use $c \\\\$svrip\\$netshare /user:$user $passwd\\\";;;    net use $c \\\\$svrip\\$netshare /user:$user $passwd;;;    if ($?) {;;        exit(0);;;    };;    $i++;;;};;;;Write-Host \\\"can not mount \\\\$svrip\\$netshare /user:$user $passwd\\\";;;exit(3);;;;;;;\"";
+static char* st_POWRSHELL_GET_MNT = "powershell -ExecutionPolicy ByPass -Command \"$svrip=\\\"%s\\\";;;$netshare=\\\"%s\\\";;;$user=\\\"%s\\\";;;$passwd=\\\"%s\\\";;;;;$chars=\\\"ABCDEFGHIJKLMNOPQRSTUVWXYZ\\\";;;;;net use | Select-String -Pattern \\\"^OK\\\" | Select-String  -Pattern $svrip | Select-String -Pattern $netshare | Tee-Object -Variable ttobj | Out-Null;;;if ($ttobj.length -gt 0) {;;    $s = $ttobj -replace \\\"\\s+\\\", \\\" \\\";;;    $arr = $s.split(\\\" \\\");;;    $cv = $arr[1].ToUpper();;;    $i =0;;;    while ($i -lt 26) {;;        $cg = $chars[$i];;;        $cg += \\\":\\\";;;        if ($cg.equals($cv)) {;;            exit($i+1);;;        };;        $i ++;;;    };;};;;;;;exit(255);\"";
+
+
+int netshare_cmd(HANDLE exitevt, ppipe_hdr_t phdr, int hdrlen)
+{
+    char* pcurptr = NULL;
+    int i;
+    int passlen = 0;
+    int curlen = 0;
+    int totallen = (int)(hdrlen - sizeof(pipe_hdr_t));
+    char* username = NULL, *passwd = NULL, *svrip = NULL, *netshare = NULL;
+    int exitcode = 0;
+    int ret;
+    char* cmdline = NULL;
+    int cmdsize = 0;
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);
+    for (passlen = 0, i = 0; passlen < (totallen - 1); i++) {
+        curlen = (int)(strlen(pcurptr) + 1);
+        switch (i) {
+        case 0:
+            svrip = pcurptr;
+            break;
+        case 1:
+            netshare = pcurptr;
+            break;
+        case 2:
+            username = pcurptr;
+            break;
+        case 3:
+            passwd = pcurptr;
+            break;
+        default:
+            break;
+        }
+        passlen += curlen;
+        pcurptr += curlen;
+    }
+
+    if (username == NULL || passwd == NULL || svrip == NULL || netshare == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("no username or passwd or svrip or netshare specified");
+        goto fail;
+    }
+
+    ret= snprintf_safe(&cmdline,&cmdsize,st_POWRSHELL_MOUNT_SH,svrip,netshare,username,passwd);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    DEBUG_INFO("mount cmdline [%s]",cmdline);
+
+
+    ret = wts_run_cmd_event_output_single(exitevt, NULL, 0, NULL,NULL,NULL,NULL, &exitcode, 0, cmdline);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not run wts outputv error[%d]", ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("run mount [%d]", exitcode);
+    if (exitcode != 0) {
+        ret = exitcode;
+        if (ret > 0) {
+            ret = -ret;
+        }
+        goto fail;
+    }
+
+    ret= snprintf_safe(&cmdline,&cmdsize,st_POWRSHELL_GET_MNT,svrip,netshare,username,passwd);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    DEBUG_INFO("getmount cmdline [%s]",cmdline);
+    ret = wts_run_cmd_event_output_single(exitevt, NULL, 0, NULL,NULL,NULL,NULL, &exitcode, 0, cmdline);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not run wts outputv error[%d]", ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("get mount ret[%d]",exitcode);
+
+
+
+    snprintf_safe(&cmdline, &cmdsize, NULL);
+    return 0;
+fail:
+    snprintf_safe(&cmdline, &cmdsize, NULL);
+    SETERRNO(ret);
+    return ret;
+
+}
+
+
 
 int main_loop(HANDLE exitevt, char* pipename, int maxmills)
 {
@@ -375,6 +475,14 @@ bind_pipe_again:
                     break;
                 }
                 goto bind_pipe_again;
+            }
+        } else if (phdr->m_cmd == NETSHARE_MOUNT) {
+            ret = netshare_cmd(exitevt,phdr,indatalen);
+            if (ret < 0) {
+                if (ret == -ERROR_CONTROL_C_EXIT) {
+                    break;
+                }
+                goto bind_pipe_again;                
             }
         }
     }

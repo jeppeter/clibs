@@ -147,7 +147,7 @@
     "setregstr<setregstr_handler>##path valname val##" : {
         "$" : 3
     },
-    "uselist<uselist_handler>##servername no servername local machine##" : {
-        "$" : "*"
+    "svrnetmount<svrnetmount_handler>##svrip netshare username passwd : to mount##" : {
+        "$" : 4
     }
 }
