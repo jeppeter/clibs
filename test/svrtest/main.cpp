@@ -415,7 +415,35 @@ fail:
 
 }
 
+int run_powershell(HANDLE exitevt)
+{
+    char* cmdline=NULL;
+    int cmdsize=0;
+    int ret;
+    int exitcode;
 
+    ret = snprintf_safe(&cmdline,&cmdsize,"powershell -Command \"\" ");
+    if (ret < 0 ) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = wts_run_cmd_event_output_single(exitevt, NULL,0,NULL,NULL,NULL,NULL,&exitcode,0,cmdline);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("run [%s] exitcode [%d]", cmdline, exitcode);
+
+
+    snprintf_safe(&cmdline,&cmdsize,NULL);
+    return 0;
+fail:
+    snprintf_safe(&cmdline,&cmdsize,NULL);
+    SETERRNO(ret);
+    return ret;
+}
 
 int main_loop(HANDLE exitevt, char* pipename, int maxmills)
 {
@@ -431,6 +459,7 @@ int main_loop(HANDLE exitevt, char* pipename, int maxmills)
 
 
 bind_pipe_again:
+    run_powershell(exitevt);
     bind_pipe(NULL, exitevt, &hpipe, &prdov, &pwrov);
     ret = bind_pipe(pipename, exitevt, &hpipe, &prdov, &pwrov);
     if (ret < 0) {
@@ -456,6 +485,7 @@ bind_pipe_again:
 
 
     while (1) {
+        run_powershell(exitevt);
         ret = read_pipe_data(exitevt, hpipe, prdov, maxmills, &pindata, &indatasize);
         if (ret < 0) {
             if (ret == -ERROR_CONTROL_C_EXIT) {
@@ -485,6 +515,7 @@ bind_pipe_again:
                 goto bind_pipe_again;                
             }
         }
+
     }
 
 

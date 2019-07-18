@@ -1292,7 +1292,7 @@ fail:
     psessinfo = NULL;
     cnt = 0;
     SETERRNO(ret);
-    return NULL;
+    return ret;
 }
 
 
