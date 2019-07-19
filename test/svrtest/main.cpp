@@ -464,7 +464,6 @@ int main_loop(HANDLE exitevt, char* pipename, int maxmills)
 
 bind_pipe_again:
     /*to reset the event*/
-    ResetEvent(exitevt);
     if (st_EXITED_MODE) {
         ret = -ERROR_CONTROL_C_EXIT;
         goto fail;
@@ -494,7 +493,11 @@ bind_pipe_again:
         run_powershell(exitevt);
         ret = read_pipe_data(exitevt, hpipe, prdov, maxmills, &pindata, &indatasize);
         if (ret < 0) {
+            GETERRNO(ret);
             ERROR_INFO("will build pipe again");
+            if (ret ==  -ERROR_CONTROL_C_EXIT)  {
+                break;
+            }
             goto bind_pipe_again;
         }
 
@@ -578,7 +581,9 @@ DWORD WINAPI svc_ctrl_handler( DWORD dwCtrl ,DWORD type,LPVOID peventdata,LPVOID
 int svc_main_loop()
 {
     int ret, res;
+    int beginrunning = 0;
 
+try_again:
     st_hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (st_hEvent == NULL) {
         GETERRNO(ret);
@@ -586,32 +591,35 @@ int svc_main_loop()
         goto fail;
     }
 
-    ret = svc_report_mode(SERVICE_RUNNING, 0);
-    if (ret < 0) {
-        ERROR_INFO("report running error %d\n", ret);
-        goto fail;
+    if (beginrunning  == 0)   {
+        ret = svc_report_mode(SERVICE_RUNNING, 0);
+        if (ret < 0) {
+            ERROR_INFO("report running error %d\n", ret);
+            goto fail;
+        }
+        beginrunning = 1;        
     }
 
 
     ret = main_loop(st_hEvent, TSTSVR_PIPE, 1000);
-    if (ret < 0) {
-        GETERRNO(ret);
-        ERROR_INFO("can not run main loop error %d", ret);
-        goto fail;
-    }
 
 
 
-    res = svc_report_mode(SERVICE_STOPPED, 0);
-    if (res < 0) {
-        ERROR_INFO("report svc stopped error %d\n", res);
-        ret = res;
-        goto fail;
+    if (st_EXITED_MODE) {
+        res = svc_report_mode(SERVICE_STOPPED, 0);
+        if (res < 0) {
+            ERROR_INFO("report svc stopped error %d\n", res);
+            ret = res;
+            goto fail;
+        }        
     }
     if (st_hEvent) {
         CloseHandle(st_hEvent);
     }
     st_hEvent = NULL;
+    if (st_EXITED_MODE == 0)  {
+        goto try_again;
+    }
 
     return ret;
 fail:
