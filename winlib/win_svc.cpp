@@ -910,7 +910,7 @@ SERVICE_STATUS          glbl_svc_status;
 SERVICE_STATUS_HANDLE   glbl_svc_status_hd=NULL; 
 
 
-int  svc_init_mode(char* svcname, LPHANDLER_FUNCTION pFunc)
+int  svc_init_mode(char* svcname, LPHANDLER_FUNCTION_EX pFunc,void* puserdata)
 {
     int ret;
     TCHAR* ptsvcname=NULL;
@@ -925,7 +925,7 @@ int  svc_init_mode(char* svcname, LPHANDLER_FUNCTION pFunc)
         goto fail;
     }
 
-    glbl_svc_status_hd = RegisterServiceCtrlHandler(ptsvcname,pFunc);
+    glbl_svc_status_hd = RegisterServiceCtrlHandlerEx(ptsvcname,pFunc,puserdata);
     if (glbl_svc_status_hd == NULL){
         GETERRNO(ret);
         ERROR_INFO("can not register svc[%s] error %d\n",svcname,ret);
@@ -959,6 +959,7 @@ int svc_report_mode(DWORD mode, DWORD time)
     static DWORD st_chkpnt = 1;
     BOOL bret;
     int ret;
+    glbl_svc_status.dwServiceType = SERVICE_WIN32;
     glbl_svc_status.dwCurrentState = mode;
     glbl_svc_status.dwWin32ExitCode = NO_ERROR;
     glbl_svc_status.dwWaitHint = time;
@@ -966,16 +967,29 @@ int svc_report_mode(DWORD mode, DWORD time)
     if (mode == SERVICE_START_PENDING){
         glbl_svc_status.dwControlsAccepted = 0;
     }else {
-        glbl_svc_status.dwControlsAccepted = SERVICE_ACCEPT_STOP;
+        glbl_svc_status.dwControlsAccepted = SERVICE_ACCEPT_STOP
+            | SERVICE_ACCEPT_PAUSE_CONTINUE
+            | SERVICE_ACCEPT_SHUTDOWN
+            | SERVICE_ACCEPT_PARAMCHANGE
+            | SERVICE_ACCEPT_NETBINDCHANGE
+            | SERVICE_ACCEPT_HARDWAREPROFILECHANGE
+            | SERVICE_ACCEPT_POWEREVENT
+            | SERVICE_ACCEPT_SESSIONCHANGE
+            | SERVICE_ACCEPT_PRESHUTDOWN
+            | SERVICE_ACCEPT_TIMECHANGE
+            | SERVICE_ACCEPT_TRIGGEREVENT;
     }
 
     if ((mode == SERVICE_RUNNING) || 
         (mode == SERVICE_STOPPED)) {
         glbl_svc_status.dwCheckPoint = 0;
     }else {
-        glbl_svc_status.dwCheckPoint = st_chkpnt;
-        st_chkpnt ++;
+        //glbl_svc_status.dwCheckPoint = st_chkpnt;
+        //st_chkpnt ++;
+        glbl_svc_status.dwCheckPoint = 0;
     }
+
+    DEBUG_INFO("hd %p mode %d accepted control 0x%lx", glbl_svc_status_hd, mode, glbl_svc_status.dwControlsAccepted);
 
     bret = SetServiceStatus(glbl_svc_status_hd,&glbl_svc_status);
     if (!bret){

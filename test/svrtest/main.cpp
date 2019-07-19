@@ -445,6 +445,10 @@ fail:
     return ret;
 }
 
+
+static DWORD st_EXITED_MODE = 0;
+
+
 int main_loop(HANDLE exitevt, char* pipename, int maxmills)
 {
     char* pindata = NULL;
@@ -459,15 +463,17 @@ int main_loop(HANDLE exitevt, char* pipename, int maxmills)
 
 
 bind_pipe_again:
+    /*to reset the event*/
+    ResetEvent(exitevt);
+    if (st_EXITED_MODE) {
+        ret = -ERROR_CONTROL_C_EXIT;
+        goto fail;
+    }
     run_powershell(exitevt);
     bind_pipe(NULL, exitevt, &hpipe, &prdov, &pwrov);
     ret = bind_pipe(pipename, exitevt, &hpipe, &prdov, &pwrov);
     if (ret < 0) {
         GETERRNO(ret);
-        if (ret == -ERROR_CONTROL_C_EXIT) {
-            ERROR_INFO(" ");
-            goto fail;
-        }
         waitnum = 0;
         waithds[waitnum] = exitevt;
         waitnum ++;
@@ -488,9 +494,6 @@ bind_pipe_again:
         run_powershell(exitevt);
         ret = read_pipe_data(exitevt, hpipe, prdov, maxmills, &pindata, &indatasize);
         if (ret < 0) {
-            if (ret == -ERROR_CONTROL_C_EXIT) {
-                break;
-            }
             ERROR_INFO("will build pipe again");
             goto bind_pipe_again;
         }
@@ -501,9 +504,6 @@ bind_pipe_again:
         if (phdr->m_cmd == EXECUTE_COMMAND) {
             ret = run_cmd(exitevt, phdr, indatalen);
             if (ret < 0) {
-                if (ret == -ERROR_CONTROL_C_EXIT) {
-                    break;
-                }
                 goto bind_pipe_again;
             }
         } else if (phdr->m_cmd == NETSHARE_MOUNT) {
@@ -534,9 +534,16 @@ fail:
 static HANDLE st_hEvent = NULL;
 
 
-VOID WINAPI svc_ctrl_handler( DWORD dwCtrl )
+DWORD WINAPI svc_ctrl_handler( DWORD dwCtrl ,DWORD type,LPVOID peventdata,LPVOID puserdata)
 {
     int ret;
+    DEBUG_INFO("dwCtrl 0x%lx", dwCtrl);
+    if (puserdata) {
+        puserdata = puserdata;
+    }
+    if (peventdata) {
+        peventdata = peventdata;
+    }
     switch (dwCtrl) {
     case SERVICE_CONTROL_STOP:
         ret = svc_report_mode(SERVICE_STOP_PENDING, 500);
@@ -544,15 +551,27 @@ VOID WINAPI svc_ctrl_handler( DWORD dwCtrl )
             ERROR_INFO("ctrl handle stop pending error %d\n", ret);
         }
         // Signal the service to stop.
+        st_EXITED_MODE = 1;
         SetEvent(st_hEvent);
-        return;
+        return NO_ERROR;
+
+    case SERVICE_CONTROL_SESSIONCHANGE:
+        switch(type) {
+            case WTS_SESSION_LOGON:
+                DEBUG_INFO("session logon");
+                SetEvent(st_hEvent);
+                break;
+        }
+        
+        break;
+
 
     case SERVICE_CONTROL_INTERROGATE:
         break;
     default:
         break;
     }
-    return ;
+    return NO_ERROR ;
 }
 
 
@@ -613,7 +632,7 @@ VOID WINAPI svc_main( DWORD dwArgc, LPSTR *lpszArgv )
     dwArgc = dwArgc;
     lpszArgv = lpszArgv;
     DEBUG_INFO("in main\n ");
-    ret = svc_init_mode(SVCNAME, svc_ctrl_handler);
+    ret = svc_init_mode(SVCNAME, svc_ctrl_handler, NULL);
     if (ret < 0) {
         ERROR_INFO("can not init svc\n");
         return ;
