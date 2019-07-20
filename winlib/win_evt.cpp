@@ -118,7 +118,7 @@ int log_event(int level, const char* file , int lineno, char* fmt, ...)
             level <= st_evtlevel) {
         pinsertstr[0] = ptevt;
 #if defined(UNICODE) || defined(_UNICODE)
-        bret = ReportEventW(st_hevent, EVENTLOG_ERROR_TYPE, DATABASE_CATEGORY, MSG_EVENT_LOG, NULL, 1, 0, (LPWSTR *)pinsertstr, NULL);
+        bret = ReportEventW(st_hevent, EVENTLOG_ERROR_TYPE, DATABASE_CATEGORY, MSG_EVENT_LOG, NULL, 1, 0, (LPCWSTR *)pinsertstr, NULL);
 #else
         bret = ReportEventA(st_hevent, EVENTLOG_ERROR_TYPE, DATABASE_CATEGORY, MSG_EVENT_LOG, NULL, 1, 0, (LPCSTR *)pinsertstr, NULL);
 #endif
