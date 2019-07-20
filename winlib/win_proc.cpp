@@ -3591,3 +3591,20 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int is_wts_enabled(void)
+{
+    HANDLE hd=NULL;
+    int ret;
+
+    ret=  __get_wts_token(&hd);
+    if (ret < 0) {
+        goto fail;
+    }
+
+    __free_wts_token(&hd);
+    return 1;
+fail:
+    __free_wts_token(&hd);
+    return 0;
+}
