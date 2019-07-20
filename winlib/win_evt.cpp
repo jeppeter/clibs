@@ -1,0 +1,145 @@
+#include <win_evt.h>
+#include <win_err.h>
+#include <win_uniansi.h>
+#include <win_strop.h>
+
+static HANDLE st_hevent = NULL;
+static int st_evtlevel = BASE_EVENT_ERROR;
+
+//
+// MessageId: DATABASE_CATEGORY
+//
+// MessageText:
+//
+// Database Events
+//
+#define DATABASE_CATEGORY                ((WORD)0x00000002L)
+// The following are message definitions.
+//
+// MessageId: MSG_INVALID_COMMAND
+//
+// MessageText:
+//
+// The command is not valid.
+//
+#define MSG_EVENT_LOG              ((DWORD)0xC0020100L)
+
+
+int init_event_log(int level, char* name)
+{
+    int ret;
+    TCHAR* ptname = NULL;
+    int tnamesize = 0;
+    if (name == NULL || (level < BASE_EVENT_FATAL || level > BASE_EVENT_TRACE)) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (st_hevent != NULL) {
+        CloseHandle(st_hevent);
+        st_hevent = NULL;
+    }
+
+    ret = AnsiToTchar(name, &ptname, &tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    st_hevent = RegisterEventSource(NULL, ptname);
+    if (st_hevent == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not register source [%s] error[%d]", name , ret);
+        goto fail;
+    }
+
+
+    st_evtlevel = level;
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    return 0;
+
+fail:
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    if (st_hevent != NULL) {
+        CloseHandle(st_hevent);
+        st_hevent = NULL;
+    }
+    st_evtlevel = BASE_EVENT_ERROR;
+    SETERRNO(ret);
+    return ret;
+}
+
+void close_event_log(void)
+{
+    if (st_hevent != NULL) {
+        CloseHandle(st_hevent);
+        st_hevent = NULL;
+    }
+    st_evtlevel = BASE_EVENT_ERROR;
+    return ;
+}
+
+int log_event(int level, const char* file , int lineno, char* fmt, ...)
+{
+    int ret;
+    char* evtbuf = NULL;
+    int evtsize = 0;
+    int evtlen = 0;
+    TCHAR* ptevt = NULL;
+    int tevtsize = 0;
+    BOOL bret;
+    TCHAR* pinsertstr[2] = {NULL, NULL};
+    va_list ap;
+
+    ret = snprintf_safe(&evtbuf, &evtsize, "[%ld:0x%lx][%s:%d] ",GetCurrentProcessId(),GetCurrentProcessId(), file, lineno);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    va_start(ap, fmt);
+    ret = append_vsnprintf_safe(&evtbuf, &evtsize, fmt, ap);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    evtlen = ret;
+
+    ret = AnsiToTchar(evtbuf, &ptevt, &tevtsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    if (st_hevent == NULL ||
+            level <= st_evtlevel) {
+        pinsertstr[0] = ptevt;
+#if defined(UNICODE) || defined(_UNICODE)
+        bret = ReportEventW(st_hevent, EVENTLOG_ERROR_TYPE, DATABASE_CATEGORY, MSG_EVENT_LOG, NULL, 1, 0, (LPWSTR *)pinsertstr, NULL);
+#else
+        bret = ReportEventA(st_hevent, EVENTLOG_ERROR_TYPE, DATABASE_CATEGORY, MSG_EVENT_LOG, NULL, 1, 0, (LPCSTR *)pinsertstr, NULL);
+#endif
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("can not report event [%s] error[%d]", evtbuf, ret);
+            goto fail;
+        }
+        DEBUG_INFO("insert event [%s]", evtbuf);
+    } else {
+    	DEBUG_INFO("not level for [%s]", evtbuf);
+    }
+
+
+
+    AnsiToTchar(NULL, &ptevt, &tevtsize);
+    snprintf_safe(&evtbuf, &evtsize, NULL);
+    return evtlen;
+fail:
+    AnsiToTchar(NULL, &ptevt, &tevtsize);
+    snprintf_safe(&evtbuf, &evtsize, NULL);
+    SETERRNO(ret);
+    return ret;
+}

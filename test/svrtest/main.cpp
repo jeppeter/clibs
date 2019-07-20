@@ -4,6 +4,7 @@
 #include <win_strop.h>
 #include <win_uniansi.h>
 #include <win_proc.h>
+#include <win_evt.h>
 #include <tchar.h>
 #include <proto_api.h>
 #include <proto_win.h>
@@ -603,16 +604,9 @@ try_again:
 
     ret = main_loop(st_hEvent, TSTSVR_PIPE, 1000);
 
+    
+    DEBUG_LOG_EVENT("return  main loop[%d]", ret);
 
-
-    if (st_EXITED_MODE) {
-        res = svc_report_mode(SERVICE_STOPPED, 0);
-        if (res < 0) {
-            ERROR_INFO("report svc stopped error %d\n", res);
-            ret = res;
-            goto fail;
-        }        
-    }
     if (st_hEvent) {
         CloseHandle(st_hEvent);
     }
@@ -620,13 +614,10 @@ try_again:
     if (st_EXITED_MODE == 0)  {
         goto try_again;
     }
-
+    DEBUG_LOG_EVENT("exit main loop");
     return ret;
 fail:
-    res = svc_report_mode(SERVICE_STOPPED, 0);
-    if (res < 0) {
-        ERROR_INFO("report svc stopped error %d\n", res);
-    }
+    DEBUG_LOG_EVENT("fail main loop [%d]" ,ret);
     if (st_hEvent) {
         CloseHandle(st_hEvent);
     }
@@ -637,6 +628,9 @@ fail:
 VOID WINAPI svc_main( DWORD dwArgc, LPSTR *lpszArgv )
 {
     int ret;
+    init_event_log(BASE_EVENT_TRACE,"svrtest");
+
+    DEBUG_LOG_EVENT("start event log");
     dwArgc = dwArgc;
     lpszArgv = lpszArgv;
     DEBUG_INFO("in main\n ");
@@ -646,7 +640,10 @@ VOID WINAPI svc_main( DWORD dwArgc, LPSTR *lpszArgv )
         return ;
     }
     svc_main_loop();
-
+    DEBUG_LOG_EVENT("close event log");
+    close_event_log();
+    SleepEx(500,TRUE);
+    svc_report_mode(SERVICE_STOPPED, 0);
     svc_close_mode();
     return ;
 }
