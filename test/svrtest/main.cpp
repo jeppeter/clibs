@@ -581,7 +581,7 @@ DWORD WINAPI svc_ctrl_handler( DWORD dwCtrl ,DWORD type,LPVOID peventdata,LPVOID
 
 int svc_main_loop()
 {
-    int ret, res;
+    int ret;
     int beginrunning = 0;
 
 try_again:
@@ -650,9 +650,15 @@ VOID WINAPI svc_main( DWORD dwArgc, LPSTR *lpszArgv )
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-    DEBUG_INFO("start simplsvc\n");
+    output_debug_cfg_t cfg;
+    char* outfile[] = {"c:\\output.log",NULL};
+    char* appfile[] = {"c:\\append.log",NULL};
+    memset(&cfg,0,sizeof(cfg));
+    cfg.m_ppoutcreatefile = outfile;
+    cfg.m_ppoutappendfile = appfile;
     argc = argc;
     argv = argv;
-    INIT_LOG(BASE_LOG_TRACE);
+    InitOutputEx(BASE_LOG_DEBUG,&cfg);
+    DEBUG_INFO("start simplsvc\n");
     return svc_start(SVCNAME, svc_main);
 }
