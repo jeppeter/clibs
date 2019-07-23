@@ -95,9 +95,79 @@ void __free_output_buf(poutput_buf_t* ppof)
 
 typedef struct __dbwin_wait {
 	HANDLE m_readyevt;
-	
+
 } dbwin_wait_t, *pdbwin_wait_t;
 
+
+HANDLE get_mutex_dbwin(char* name, int global)
+{
+	int ret;
+	char* sname=NULL;
+	int ssize=0;
+	HANDLE mux=NULL;
+
+	if(global) {
+		ret = snprintf_safe(&sname,&ssize,"Global\\%s",name);
+	} else {
+		ret=  snprintf_safe(&sname,&ssize,"%s", name);
+	}
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	mux = get_or_create_mutex(sname);
+	if (mux == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	snprintf_safe(&sname,&ssize,NULL);
+	return mux;
+fail:
+	if (mux) {
+		CloseHandle(mux);
+	}
+	mux = NULL;
+	snprintf_safe(&sname,&ssize,NULL);
+	SETERRNO(ret);
+	return NULL;
+}
+
+HANDLE get_event_dbwin(char* name, int global)
+{
+	int ret;
+	char* sname=NULL;
+	int ssize=0;
+	HANDLE evt=NULL;
+
+	if(global) {
+		ret = snprintf_safe(&sname,&ssize,"Global\\%s",name);
+	} else {
+		ret=  snprintf_safe(&sname,&ssize,"%s", name);
+	}
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	evt = get_or_create_event(sname);
+	if (evt == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	snprintf_safe(&sname,&ssize,NULL);
+	return evt;
+fail:
+	if (evt) {
+		CloseHandle(evt);
+	}
+	evt = NULL;
+	snprintf_safe(&sname,&ssize,NULL);
+	SETERRNO(ret);
+	return NULL;
+}
 
 
 int __handle_buffer_thread(void* param, HANDLE exitevt)
