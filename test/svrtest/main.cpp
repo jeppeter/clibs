@@ -650,6 +650,10 @@ VOID WINAPI svc_main( DWORD dwArgc, LPSTR *lpszArgv )
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+    int argsize=0;
+    char* args=NULL;
+    int ret;
+    int i;
     output_debug_cfg_t cfg;
     char* outfile[] = {"c:\\output.log",NULL};
     char* appfile[] = {"c:\\append.log",NULL};
@@ -659,6 +663,13 @@ int _tmain(int argc, _TCHAR* argv[])
     argc = argc;
     argv = argv;
     InitOutputEx(BASE_LOG_DEBUG,&cfg);
-    DEBUG_INFO("start simplsvc\n");
+    DEBUG_INFO("start %s\n",SVCNAME);
+    for (i=0;i<argc;i++) {
+        ret = TcharToAnsi(argv[i], &args,&argsize);
+        if (ret >= 0) {
+            DEBUG_INFO("[%d]=[%s]", i, args);
+        }
+    }
+    TcharToAnsi(NULL,&args,&argsize);
     return svc_start(SVCNAME, svc_main);
 }
