@@ -1,0 +1,12 @@
+{
+	"verbose|v" : "+",
+	"serve<serve_handler>## to make serve mode##" : {
+		"$" : "*"
+	},
+	"install<install_handler>## to install service ##" : {
+		"$" : "*"
+	},
+	"remove<remove_handler>## to make remove service##" : {
+		"$" : "*"
+	}
+}
