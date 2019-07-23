@@ -4400,7 +4400,6 @@ static void* st_pdbg=NULL;
 BOOL WINAPI HandlerCtrlcRoutine(DWORD dwCtrlType)
 {
     BOOL bret = TRUE;
-    int ret;
     switch (dwCtrlType) {
     case CTRL_C_EVENT:
         DEBUG_INFO("CTRL_C_EVENT\n");
@@ -4423,6 +4422,8 @@ BOOL WINAPI HandlerCtrlcRoutine(DWORD dwCtrlType)
         break;
     }
 
+#ifdef  _M_X64
+    int ret;
     if (st_pdbg) {
         ret = windbg_interrupt(st_pdbg);
         if (ret < 0) {
@@ -4430,6 +4431,7 @@ BOOL WINAPI HandlerCtrlcRoutine(DWORD dwCtrlType)
             bret = FALSE;
         }
     }
+#endif  /* _M_X64*/
 
     return bret;
 }
@@ -4437,6 +4439,7 @@ BOOL WINAPI HandlerCtrlcRoutine(DWORD dwCtrlType)
 
 int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
+#ifdef _M_X64    
     pargs_options_t pargs = (pargs_options_t) popt;
     int cnt=0;
     int i;
@@ -4523,10 +4526,20 @@ out:
     quote_string(&pcurquote,&curquotesize,NULL);
     SETERRNO(ret);
     return ret;
+#else  /*_M_X64*/
+    int ret = -ERROR_NOT_SUPPORTED;
+    popt = popt;
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+    SETERRNO(ret);
+    return ret;
+#endif /*_M_X64*/
 }
 
 int execdbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
+#ifdef _M_X64
     char* singlecmd=NULL;
     char* runcmd=NULL;
     pargs_options_t pargs = (pargs_options_t) popt;
@@ -4634,6 +4647,15 @@ out:
     uninitialize_com();
     SETERRNO(ret);
     return ret;
+#else /*_M_X64*/
+    int ret = -ERROR_NOT_SUPPORTED;
+    popt = popt;
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+    SETERRNO(ret);
+    return ret;
+#endif /*_M_X64*/
 }
 
 int startdetach_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)

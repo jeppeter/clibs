@@ -8,6 +8,8 @@
 #include <dbgeng.h>
 #include <atlcomcli.h>
 
+#ifdef  _M_X64
+
 #define GET_HR_ERROR(hr)    -((hr) & 0xffffff)
 #define DEFAULT_WAIT_FLAG   0
 
@@ -961,3 +963,5 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+#endif /* _M_X64*/
