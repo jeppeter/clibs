@@ -13,7 +13,7 @@ typedef struct __dbwin_buffer {
 void* create_output_buf(int global, int maxcnt);
 HANDLE get_output_evt(void* pof);
 int get_output_buf(void* pof,pdbwin_buffer_t* ppdbwin);
-void free_output_memory(pdbwin_buffer_t pdbwin);
+void free_output_memory(void* pof,pdbwin_buffer_t pdbwin);
 void free_output_buf(void**ppof);
 
 #ifdef __cplusplus

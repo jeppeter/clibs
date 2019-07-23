@@ -143,3 +143,76 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+
+HANDLE get_or_create_event(char* name)
+{
+    TCHAR* ptname=NULL;
+    int tnamesize=0;
+    int ret;
+    HANDLE evt = NULL;
+
+    ret = AnsiToTchar(name,&ptname,&tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    evt = OpenEvent(EVENT_ALL_ACCESS,FALSE,ptname);
+    if (evt ==NULL) {
+        SETERRNO(0);
+        evt = CreateEvent(NULL,FALSE,FALSE,ptname);
+    }
+    if (evt == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("get event [%s] error[%d]", name, ret);
+        goto fail;
+    }
+
+    AnsiToTchar(NULL,&ptname,&tnamesize);
+    return evt;
+fail:
+    if (evt != NULL) {
+        CloseHandle(evt);
+    }
+    evt = NULL;
+    AnsiToTchar(NULL,&ptname,&tnamesize);
+    SETERRNO(ret);
+    return NULL;
+}
+
+HANDLE get_or_create_mutex(char* name)
+{
+    TCHAR* ptname=NULL;
+    int tnamesize=0;
+    int ret;
+    HANDLE hmux = NULL;
+
+    ret = AnsiToTchar(name,&ptname,&tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    hmux = OpenMutex(SYNCHRONIZE,FALSE,ptname);
+    if (hmux ==NULL) {
+        SETERRNO(0);
+        hmux = CreateMutex(NULL,FALSE,ptname);
+    }
+    if (hmux == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("get mutex [%s] error[%d]", name, ret);
+        goto fail;
+    }
+
+    AnsiToTchar(NULL,&ptname,&tnamesize);
+    return hmux;
+fail:
+    if (hmux != NULL) {
+        CloseHandle(hmux);
+    }
+    hmux = NULL;
+    AnsiToTchar(NULL,&ptname,&tnamesize);
+    SETERRNO(ret);
+    return NULL;    
+}

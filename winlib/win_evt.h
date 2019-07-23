@@ -7,6 +7,8 @@
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
+#include <Windows.h>
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -23,6 +25,9 @@ extern "C" {
 WINLIB_API int init_event_log(int level,char* name);
 WINLIB_API int log_event(int level,const char* file ,int lineno,char* fmt,...);
 WINLIB_API void close_event_log(void);
+
+WINLIB_API HANDLE get_or_create_event(char* name);
+WINLIB_API HANDLE get_or_create_mutex(char* name);
 
 
 #define DEBUG_LOG_EVENT(...)  log_event(BASE_EVENT_DEBUG,__FILE__,__LINE__,__VA_ARGS__)
