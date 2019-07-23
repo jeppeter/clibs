@@ -9,7 +9,7 @@ void* create_output_buf(int global, int maxcnt);
 HANDLE get_output_evt(void* pof);
 int get_output_buf(void* pof,char** ppbuf,int* bufsize);
 void free_output_memory(char** ppbuf,int * bufsize);
-void free_output_buf(void*ppof);
+void free_output_buf(void**ppof);
 
 #ifdef __cplusplus
 };

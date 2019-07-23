@@ -147,7 +147,29 @@ HANDLE get_output_evt(void* pof1)
 	return NULL;
 }
 
-int get_output_buf(void* pof,char** ppbuf,int* bufsize)
+int get_output_buf(void* pof1,char** ppbuf,int* bufsize)
 {
-	
+	poutput_buf_t pof = (poutput_buf_t) pof1;
+	int ret;
+	if (pof == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		goto fail;
+	}
+
+	return __pick_buf(pof,ppbuf,bufsize);
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+void free_output_buf(void**ppof)
+{
+	poutput_buf_t pof=NULL;
+	if (ppof && *ppof) {
+		pof = (poutput_buf_t) *ppof;
+		__free_output_buf(&pof);
+		*ppof = NULL;
+	}
+	return ;
+
 }
