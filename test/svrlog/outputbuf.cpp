@@ -3,8 +3,7 @@
 
 typedef struct __output_buf {
 	CRITICAL_SECTION m_cs;
-	std::vector<char*> *m_pbufs;
-	std::vector<int> *m_cnts;
+	std::vector<pdbwin_buffer_t> *m_pbufs;
 	int m_maxcnt;
 	int m_global;
 	HANDLE m_notifyevt;
@@ -12,45 +11,38 @@ typedef struct __output_buf {
 } output_buf_t,*poutput_buf_t;
 
 
-int __pick_buf(poutput_buf_t pof,char** ppbuf,int *plen)
+int __pick_buf(poutput_buf_t pof,pdbwin_buffer_t *ppdbwin)
 {
 	int ret = 0;
 	ASSERT_IF(pof);
 	EnterCriticalSection(&(pof->m_cs));
 	if (pof->m_pbufs->size() > 0) {
-		ASSERT_IF(pof->m_pbufs->size() == pof->m_cnts->size());
-		*ppbuf = pof->m_pbufs->at(0);
-		*plen = pof->m_cnts->at(0);
+		*ppdbwin = pof->m_pbufs->at(0);
 		pof->m_pbufs->erase(pof->m_pbufs->begin());
-		pof->m_cnts->erase(pof->m_cnts->begin());
 		ret = 1;
 	}
 	LeaveCriticalSection(&(pof->m_cs));
 	return ret;
 }
 
-int __insert_buf(poutput_buf_t pof,char* pbuf,int len)
+int __insert_buf(poutput_buf_t pof,pdbwin_buffer_t pdbwin)
 {
 	int ret=-1;
 	EnterCriticalSection(&(pof->m_cs));
 	if (pof->m_maxcnt == 0 || 
 		pof->m_maxcnt > pof->m_cnts->size()) {
-		pof->m_pbufs->push_back(pbuf);
-		pof->m_cnts->push_back(len);
+		pof->m_pbufs->push_back(pdbwinbuf);
 		ret = 1;
 	}
 	LeaveCriticalSection(&(pof->m_cs));
 	return ret;
 }
 
-void free_output_memory(char** ppbuf,int * bufsize)
+void free_output_memory(pdbwin_buffer_t* ppdbwin)
 {
-	if (ppbuf && *ppbuf) {
-		free(*ppbuf);
-		*ppbuf = NULL;
-	}
-	if (bufsize) {
-		*bufsize = 0;
+	if (ppdbwin && *ppdbwin) {
+		free(*ppdbwin);
+		*ppdbwin = NULL;
 	}
 	return;
 }
@@ -60,25 +52,20 @@ void __free_output_buf(poutput_buf_t* ppof)
 	if (ppof && *ppof) {
 		poutput_buf_t pof = *ppof;
 		int ret;
-		char* buf=NULL;
-		int len=0;
+		pdbwin_buffer_t pdbwin=NULL;
 		free_thread(&(pof->m_thread));
 		while(1) {
-			ret = __pick_buf(pof, &buf,&len);
+			ret = __pick_buf(pof, &pdbwin);
 			if (ret == 0) {
 				break;
 			}
-			free_output_memory(&buf,&len);
+			free_output_memory(&pdbwin);
 		}
+		ASSERT_IF(pdbwin == NULL);
 		if (pof->m_pbufs) {
 			delete pof->m_pbufs;
 			pof->m_pbufs = NULL;
 		}
-		if (pof->m_cnts) {
-			delete pof->m_cnts;
-			pof->m_cnts = NULL;
-		}
-
 		if (pof->m_notifyevt) {
 			CloseEvent(pof->m_notifyevt);
 			pof->m_notifyevt=  NULL;
@@ -90,8 +77,14 @@ void __free_output_buf(poutput_buf_t* ppof)
 	return ;
 }
 
-int handle_buffer_thread(void* param, HANDLE exitevt)
+int __handle_buffer_thread(void* param, HANDLE exitevt)
 {
+	int ret;
+	HANDLE 
+
+	ret = 0;
+out:
+	
 
 }
 
@@ -108,7 +101,6 @@ poutput_buf_t __alloc_output_buf(int global, int maxcnt)
 	memset(pof, 0 , sizeof(*pof));
 	InitializeCriticalSection(&(pof->m_cs));
 	pof->m_pbufs = new std::vector<char*>();
-	pof->m_cnts = new std::vector<int>();
 	pof->m_notifyevt = CreateEvent(NULL,FALSE,FALSE,NULL);
 	if (pof->m_notifyevt == NULL) {
 		GETERRNO(ret);
@@ -119,7 +111,7 @@ poutput_buf_t __alloc_output_buf(int global, int maxcnt)
 	pof->m_global = global;
 	pof->m_maxcnt = maxcnt;
 
-	ret = create_thread(handle_buffer_thread,pof,1,&(pof->m_thread));
+	ret = create_thread(__handle_buffer_thread,pof,1,&(pof->m_thread));
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -147,7 +139,7 @@ HANDLE get_output_evt(void* pof1)
 	return NULL;
 }
 
-int get_output_buf(void* pof1,char** ppbuf,int* bufsize)
+int get_output_buf(void* pof1,pdbwin_buffer_t *ppdbwin)
 {
 	poutput_buf_t pof = (poutput_buf_t) pof1;
 	int ret;
@@ -156,7 +148,7 @@ int get_output_buf(void* pof1,char** ppbuf,int* bufsize)
 		goto fail;
 	}
 
-	return __pick_buf(pof,ppbuf,bufsize);
+	return __pick_buf(pof,ppdbwin);
 fail:
 	SETERRNO(ret);
 	return ret;
@@ -171,5 +163,4 @@ void free_output_buf(void**ppof)
 		*ppof = NULL;
 	}
 	return ;
-
 }
