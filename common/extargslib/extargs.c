@@ -1496,10 +1496,10 @@ int get_opt_helpinfo(popt_help_t popthelp, char** pphelpinfo, int* phelpsize)
                     if (ret >= 0) {
                         switch (popthelp->m_opttype) {
                         case OPT_TRUE_TYPE:
-                            ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(true)");
+                            ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(false)");
                             break;
                         case OPT_FALSE_TYPE:
-                            ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(false)");
+                            ret = append_snprintf_safe(pphelpinfo, phelpsize, "default(true)");
                             break;
                         case OPT_STRING_TYPE:
                             ptr = (char*) ((uintptr_t)popthelp->m_defvalue);
