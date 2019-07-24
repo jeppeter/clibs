@@ -23,6 +23,10 @@
 #define WIN_CONSOLE_OUTPUT     1
 #define WIN_BACKGROUND_OUTPUT  1
 
+#define WINLIB_CONSOLE_DISABLED              1
+#define WINLIB_DBWIN_DISABLED                2
+#define WINLIB_FILE_DISABLED                 3
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -31,6 +35,7 @@ extern "C" {
 typedef struct __output_debug_cfg {
 	char** m_ppoutcreatefile; /*end with NULL*/
 	char** m_ppoutappendfile; /*end with NULL*/
+	int m_disableflag; /*disable console*/
 } output_debug_cfg_t, *poutput_debug_cfg_t;
 
 WINLIB_API void DebugOutString(int loglvl,const char* file,int lineno,const char* fmt,...);
@@ -52,9 +57,6 @@ WINLIB_API void FileBufferFmt(int loglvl, const char* file, int lineno, unsigned
 #define __INNER_BACKGROUND_OUTPUT(loglvl,fmt,...) DebugOutString(loglvl,__FILE__,__LINE__,fmt,__VA_ARGS__)
 #define __INNER_CONSOLE_OUTPUTU(loglvl,fmt,...)  ConsoleOutString(loglvl,__FILE__,__LINE__,fmt,__VA_ARGS__)
 #define __INNER_FILE_OUTPUT(loglvl,fmt,...)  FileOutString(loglvl,__FILE__,__LINE__,fmt,__VA_ARGS__)
-
-#define DEBUG_INFO_FILE(fmt,...)  __INNER_FILE_OUTPUT(BASE_LOG_DEBUG,fmt,__VA_ARGS__)
-#define ERROR_INFO_FILE(fmt,...)  __INNER_FILE_OUTPUT(BASE_LOG_ERROR,fmt,__VA_ARGS__)
 
 #define DEBUG_INFO(fmt,...) \
 	do{ \

@@ -109,7 +109,7 @@ void LogFileCallback::__close_file()
 		bret = CancelIoEx(this->m_hfile,&(this->m_ov));
 		if (!bret) {
 			GETERRNO(ret);
-			ERROR_INFO_FILE("can not cancel file [%s] handle error[%d]", this->m_name, ret);
+			ERROR_INFO("can not cancel file [%s] handle error[%d]", this->m_name, ret);
 		}
 		this->m_isoverlapped = 0;
 	}
@@ -161,14 +161,14 @@ int LogFileCallback::__reopen_file()
 	if (this->m_hfile == INVALID_HANDLE_VALUE) {
 		GETERRNO(ret);
 		this->m_hfile = NULL;
-		ERROR_INFO_FILE("can not open [%s] file error[%d]", this->m_name, ret);
+		ERROR_INFO("can not open [%s] file error[%d]", this->m_name, ret);
 		goto fail;
 	}
 	memset(&(this->m_ov),0 ,sizeof(this->m_ov));
 	this->m_ov.hEvent = CreateEvent(NULL,TRUE,TRUE,NULL);
 	if (this->m_ov.hEvent == NULL) {
 		GETERRNO(ret);
-		ERROR_INFO_FILE("can not create event for [%s] error[%d]", this->m_name, ret);
+		ERROR_INFO("can not create event for [%s] error[%d]", this->m_name, ret);
 		goto fail;
 	}
 
@@ -203,7 +203,7 @@ int LogFileCallback::__write_buffer()
 		if (!bret) {
 			GETERRNO(ret);
 			if (ret != -ERROR_IO_PENDING) {
-				ERROR_INFO_FILE("can not write [%s] for [%s] error[%d]", this->m_name,this->m_curbuf, ret);
+				ERROR_INFO("can not write [%s] for [%s] error[%d]", this->m_name,this->m_curbuf, ret);
 				goto fail;
 			}
 			this->m_curlen = curlen;
@@ -256,7 +256,7 @@ int LogFileCallback::__log_file_impl()
 	if (!bret) {
 		GETERRNO(ret);
 		if (ret != -ERROR_IO_PENDING) {
-			ERROR_INFO_FILE("can not get [%s] result error[%d]", this->m_name, ret);
+			ERROR_INFO("can not get [%s] result error[%d]", this->m_name, ret);
 			goto fail;
 		}
 		return 0;

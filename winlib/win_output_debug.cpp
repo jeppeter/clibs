@@ -7,6 +7,7 @@ static int st_output_loglvl = BASE_LOG_DEFAULT;
 static CRITICAL_SECTION st_outputcs;
 static HANDLE* st_output_hds = NULL; /**/
 static int st_output_cnt = 0;
+static int st_disableflag = 0;
 
 
 typedef void (*output_func_t)(char* pbuf);
@@ -195,6 +196,9 @@ void DebugOutString(int loglvl, const char* file, int lineno, const char* fmt, .
 {
     va_list ap;
     va_start(ap,fmt);
+    if (st_disableflag & WINLIB_DBWIN_DISABLED) {
+        return ;
+    }
     __inner_output_console(loglvl, file, lineno, fmt,ap,InnerDebug);
     return;
 }
@@ -203,6 +207,9 @@ void ConsoleOutString(int loglvl, const char* file, int lineno, const char* fmt,
 {
     va_list ap;
     va_start(ap,fmt);
+    if (st_disableflag & WINLIB_CONSOLE_DISABLED) {
+        return ;
+    }
     __inner_output_console(loglvl, file, lineno, fmt,ap,__console_out);
     return;
 }
@@ -211,6 +218,9 @@ void FileOutString(int loglvl, const char* file, int lineno, const char* fmt, ..
 {
     va_list ap;
     va_start(ap,fmt);
+    if (st_disableflag & WINLIB_FILE_DISABLED) {
+        return ;
+    }
     __inner_output_console(loglvl, file, lineno, fmt,ap,__file_output);
     return;
 }
@@ -437,6 +447,7 @@ int __init_output_cfg(poutput_debug_cfg_t pcfg)
     int ret;
     InitializeCriticalSection(&st_outputcs);
     __free_output_hds();
+    st_disableflag = 0;
     if (pcfg != NULL) {
         if (pcfg->m_ppoutcreatefile) {
             for (i = 0; pcfg->m_ppoutcreatefile[i] != NULL; i++) {
@@ -462,6 +473,8 @@ int __init_output_cfg(poutput_debug_cfg_t pcfg)
 
             }
         }
+
+        st_disableflag = pcfg->m_disableflag;
     }
 
     if (phds) {
