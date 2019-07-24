@@ -103,6 +103,7 @@ int setregstr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int uselist_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrnetmount_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int debugout_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -5316,6 +5317,22 @@ out:
     connect_pipe(NULL,NULL,&hpipe,&prdov,&pwrov);
     SETERRNO(ret);
     return ret;
+}
+
+int debugout_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int i;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    init_log_level(pargs);
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i] != NULL ;i ++) {
+        DEBUG_INFO("%s", parsestate->leftargs[i]);
+    }
+    SETERRNO(0);
+    return 0;
 }
 
 int _tmain(int argc, TCHAR* argv[])
