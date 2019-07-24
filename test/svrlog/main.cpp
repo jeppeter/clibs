@@ -11,6 +11,7 @@
 #include <vector>
 #include <log_rcv.h>
 #include <log_file.h>
+#include <log_console.h>
 
 
 #define  SVCNAME     "svrlog"
@@ -20,6 +21,7 @@
 typedef struct __args_options {
     int m_verbose;
     int m_global;
+    int m_teemode;
     char** m_createfiles;
     char** m_appendfiles;
     char** m_logappends;
@@ -100,6 +102,11 @@ int svrlog_main_loop(HANDLE exitevt,pargs_options_t pargs,pextargs_state_t parse
 
     for (i=0;pargs->m_createfiles && pargs->m_createfiles[i]!=NULL;i++) {
         curcallback = new LogFileCallback(pevmain,pargs->m_createfiles[i],0);
+        callbacks.push_back(curcallback);
+    }
+
+    if (pargs->m_teemode) {
+        curcallback = new LogConsole(pevmain,1);
         callbacks.push_back(curcallback);
     }
 
@@ -438,6 +445,7 @@ int console_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     }
 
     DEBUG_INFO("global [%s]", pargs->m_global ? "True" : "False");
+    DEBUG_INFO("tee [%s]", pargs->m_teemode ? "True" : "False");
 
     svrlog_main_loop(st_hEvent,pargs,parsestate,NULL,NULL);
     ret = 0;

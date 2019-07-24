@@ -82,7 +82,7 @@ REL_LDFLAGS =
 CFLAGS  = $(UNICODE_CFLAGS) $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(INC_CFLAGS) $(COM_CFLAGS) $(REL_CFLAGS) $(DBG_CFLAGS)
 LDFLAGS = $(NOLOGO_LDFLAGS) $(INC_LDFLAGS) $(REL_LDFLAGS)
 
-SOURCES=main.cpp log_file.cpp log_rcv.cpp
+SOURCES=main.cpp log_file.cpp log_rcv.cpp log_console.cpp
 OBJECTS=$(SOURCES:.cpp=.obj)
 
 all:svrlog.exe
@@ -119,6 +119,10 @@ log_file.cpp:$(CURDIR)\..\loglib\log_file.cpp
 
 log_rcv.cpp:$(CURDIR)\..\loglib\log_rcv.cpp
 	$(QUIETCMD) copy /Y $(CURDIR)\..\loglib\log_rcv.cpp $@
+
+
+log_console.cpp:$(CURDIR)\..\loglib\log_console.cpp
+	$(QUIETCMD) copy /Y $(CURDIR)\..\loglib\log_console.cpp $@
 
 
 main.cpp:args_options.cpp
@@ -163,5 +167,5 @@ clean:clean_extargslib
 	$(QUIETCMD) $(RM) args_options.cpp 2>NUL
 	$(QUIETCMD) $(RM) log_file.cpp 2>NUL
 	$(QUIETCMD) $(RM) log_rcv.cpp 2>NUL
-	$(QUIETCMD) $(RM) *.dll 2>NUL
+	$(QUIETCMD) $(RM) log_console.cpp 2>NUL
 	$(QUIETCMD) $(RM) *.dll 2>NUL

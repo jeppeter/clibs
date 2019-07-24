@@ -5,6 +5,7 @@
 	"logappend<m_logappends>" : [],
 	"logcreate<m_logcreates>" : [],
 	"global|g<m_global>" : false,
+	"tee|t<m_teemode>" : false,
 	"serve<serve_handler>## to make serve mode##" : {
 		"$" : "*"
 	},

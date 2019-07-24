@@ -625,14 +625,15 @@ fail:
     return ret;
 }
 
-VOID WINAPI svc_main( DWORD dwArgc, LPSTR *lpszArgv )
+VOID WINAPI svc_main( DWORD dwArgc, TCHAR**lpszArgv )
 {
     int ret;
     init_event_log(BASE_EVENT_TRACE,"svrtest");
 
+    REFERENCE_ARG(dwArgc);
+    REFERENCE_ARG(lpszArgv);
+
     DEBUG_LOG_EVENT("start event log");
-    dwArgc = dwArgc;
-    lpszArgv = lpszArgv;
     DEBUG_INFO("in main\n ");
     ret = svc_init_mode(SVCNAME, svc_ctrl_handler, NULL);
     if (ret < 0) {
