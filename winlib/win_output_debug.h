@@ -53,7 +53,8 @@ WINLIB_API void FileBufferFmt(int loglvl, const char* file, int lineno, unsigned
 #define __INNER_CONSOLE_OUTPUTU(loglvl,fmt,...)  ConsoleOutString(loglvl,__FILE__,__LINE__,fmt,__VA_ARGS__)
 #define __INNER_FILE_OUTPUT(loglvl,fmt,...)  FileOutString(loglvl,__FILE__,__LINE__,fmt,__VA_ARGS__)
 
-
+#define DEBUG_INFO_FILE(fmt,...)  __INNER_FILE_OUTPUT(BASE_LOG_DEBUG,fmt,__VA_ARGS__)
+#define ERROR_INFO_FILE(fmt,...)  __INNER_FILE_OUTPUT(BASE_LOG_ERROR,fmt,__VA_ARGS__)
 
 #define DEBUG_INFO(fmt,...) \
 	do{ \
