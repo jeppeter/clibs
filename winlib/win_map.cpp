@@ -118,7 +118,6 @@ fail:
 int __map_buffer(pmap_buffer_t pmap, int flag, uint64_t size)
 {
     DWORD rwflag = 0;
-    DWORD prot = 0;
     int ret;
 
     ret = __get_map_access(flag, &rwflag);
@@ -127,16 +126,10 @@ int __map_buffer(pmap_buffer_t pmap, int flag, uint64_t size)
         goto fail;
     }
 
-    ret = __get_map_prot(flag, &prot);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
     pmap->m_mapbuf = MapViewOfFile(pmap->m_maphd, rwflag, 0, (DWORD)((size >> 32) & 0xffffffff ), (DWORD)(size & 0xffffffff));
     if (pmap->m_mapbuf == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("map view [%s] with [%lld:0x%llx] error[%d]", pmap->m_name, size, size, ret);
+        ERROR_INFO("map view [%s] with [%lld:0x%llx] error[%d]", pmap->m_name ? pmap->m_name : "NULL", size, size, ret);
         goto fail;
     }
 
@@ -155,6 +148,7 @@ int __map_file(pmap_buffer_t pmap, int flag, uint64_t size)
         GETERRNO(ret);
         goto fail;
     }
+    
     pmap->m_mapbuf = MapViewOfFile(pmap->m_hfile, rwflag, 0 , (DWORD)((size >> 32) & 0xffffffff), (DWORD)(size & 0xffffffff));
     if (pmap->m_mapbuf == NULL) {
         GETERRNO(ret);
