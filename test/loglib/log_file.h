@@ -8,7 +8,7 @@
 class LogFileCallback : public LogCallback
 {
 public:
-	LogFileCallback(void* pevmain,char* filename,int appendmode=0,int maxsize=1024);
+	LogFileCallback(void* pevmain,char* filename,int appendmode=0);
 	virtual ~LogFileCallback();
 	virtual int handle_log_buffer(char* pbuf,int buflen);
 	virtual int start();
@@ -26,9 +26,9 @@ private:
 	int __alloc_vecs();
 private:
 	void* m_pevmain;
+	char* m_name;
 	std::vector<char*> *m_pwritebufs;
 	std::vector<int> *m_pwritelen;
-	char* m_name;
 	char* m_curbuf;
 	int m_curlen;
 	int m_cursize;
@@ -36,7 +36,6 @@ private:
 	OVERLAPPED m_ov;
 	int m_inserted;
 	int m_appended;
-	int m_maxsize;
 	int m_isoverlapped;
 };
 

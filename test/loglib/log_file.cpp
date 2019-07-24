@@ -4,14 +4,15 @@
 LogFileCallback::LogFileCallback(void* pevmain,char* filename,int appendmode) 
 {
 	this->m_pemain = pevmain;
-	this->m_pwritebufs = NULL;
-	this->m_pwritelen = NULL;
 	this->m_name = NULL;
 	if (filename) {
 		this->m_name  = strdup(filename);	
 	}
+	this->m_pwritebufs = NULL;
+	this->m_pwritelen = NULL;
 	this->m_curbuf = NULL;
 	this->m_curlen = 0;
+	this->m_cursize = 0;
 	this->m_hfile = NULL;
 	memset(&(this->m_ov),0, sizeof(this->m_ov));
 	this->m_inserted = 0;
@@ -27,6 +28,7 @@ void LogFileCallback::__remove_write_handle(void)
 		ASSERT_IF(ret > 0);
 		this->m_inserted = 0;
 	}
+	return ;
 }
 
 void LogFileCallback::__free_write_buf(void)
@@ -61,18 +63,12 @@ int LogFileCallback::__pick_write_buf()
 	return ret;
 }
 
-
-LogFileCallback::~LogFileCallback()
+void LogFileCallback::__free_vecs()
 {
-	int ret;
-	this->__remove_write_handle();
-
-	while(1) {
-		ret = this->__pick_write_buf();
-		if (ret == 0) {
-			break;
-		}
-	}
+	int cont;
+	do{
+		cont = this->__pick_write_buf(); 
+	}while(cont);
 	this->__free_write_buf();
 	if (this->m_pwritebufs) {
 		delete this->m_pwritebufs;
@@ -83,9 +79,15 @@ LogFileCallback::~LogFileCallback()
 		delete this->m_pwritelen;
 		this->m_pwritelen = NULL;
 	}
+	return ;	
+}
 
+LogFileCallback::~LogFileCallback()
+{
 	this->__close_file();
-
+	this->__remove_write_handle();
+	this->__free_vecs();
+	this->m_appended = 0;
 	if (this->m_name) {
 		free(this->m_name);
 		this->m_name = NULL;
@@ -102,7 +104,7 @@ void LogFileCallback::__close_file()
 		bret = CancelIoEx(this->m_hfile,&(this->m_ov));
 		if (!bret) {
 			GETERRNO(ret);
-			ERROR_INFO_FILE("can not cancel file handle");
+			ERROR_INFO_FILE("can not cancel file [%s] handle error[%d]", this->m_name, ret);
 		}
 		this->m_isoverlapped = 0;
 	}
@@ -128,6 +130,7 @@ int LogFileCallback::__reopen_file()
 	TCHAR* ptname=NULL;
 	int tnamesize=0;
 
+	this->__close_file();
 
 	/*to make start*/
 	this->m_curlen = 0;
@@ -191,7 +194,7 @@ int LogFileCallback::__write_buffer()
 	int curlen = this->m_curlen;
 
 	while(curlen < this->m_cursize) {
-		bret = WriteFile(this->m_hfile,&(this->m_curbuf[curlen]),this->m_cursize,&cbret,&(this->m_ov));
+		bret = WriteFile(this->m_hfile,&(this->m_curbuf[curlen]),(this->m_cursize - curlen),&cbret,&(this->m_ov));
 		if (!bret) {
 			GETERRNO(ret);
 			if (ret != -ERROR_IO_PENDING) {
@@ -203,6 +206,7 @@ int LogFileCallback::__write_buffer()
 		} 
 		curlen += cbret;
 	}
+	this->m_curlen = this->m_cursize;
 	return 1;
 fail:
 	SETERRNO(ret);
@@ -230,7 +234,7 @@ write_again:
 			goto write_again;
 		}
 		return 0;
-	} else if (ret < 0) {
+	} else if (ret < 0) {		
 		return ret;
 	}
 	/*now this is in io pending */
@@ -283,11 +287,6 @@ void LogFileCallback::__log_file_write(HANDLE hd,libev_enum_event_t evt,void* pe
 				if (ret < 0) {
 					libev_break_winev_loop(pevmain);
 				}
-			}
-		} else {
-			ret = pThis->__start_write();
-			if (ret < 0) {
-				goto re_open;
 			}
 		}
 	} else if (evt == timeout_event) {
@@ -364,6 +363,8 @@ int LogFileCallback::handle_log_buffer(char* pbuf,int buflen)
 	memcpy(pnewbuf, pbuf,buflen);
 	if (this->m_curbuf == NULL) {
 		/*nothing wait to write ,so just start write*/
+		ASSERT_IF(this->m_pwritebufs->size() == 0);
+		ASSERT_IF(this->m_pwritelen->size() == 0);
 		this->m_curbuf = pnewbuf;
 		this->m_cursize = newlen;
 		this->m_curlen = 0;
