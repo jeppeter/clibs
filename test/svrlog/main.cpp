@@ -7,6 +7,10 @@
 #include <win_args.h>
 #include <tchar.h>
 #include <extargs.h>
+#include <win_libev.h>
+#include <vector>
+#include <log_rcv.h>
+#include <log_file.h>
 
 
 #define  SVCNAME     "svrlog"
@@ -15,6 +19,7 @@
 
 typedef struct __args_options {
     int m_verbose;
+    int m_global;
     char** m_createfiles;
     char** m_appendfiles;
 } args_options_t, *pargs_options_t;
@@ -31,6 +36,123 @@ int console_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
 static DWORD st_EXITED_MODE = 0;
 
+void exit_event_notify(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* args)
+{
+    REFERENCE_ARG(hd);
+    REFERENCE_ARG(args);
+    REFERENCE_ARG(evt);
+    libev_break_winev_loop(pevmain);
+}
+
+typedef int (*m_init_already_func_t) (void* args,int succ);
+
+
+int svrlog_main_loop(HANDLE exitevt,pargs_options_t pargs, m_init_already_func_t funccall, void* args)
+{
+    std::vector<LogMonitor*> mons;
+    std::vector<LogCallback*> callbacks;
+    void* pevmain=NULL;
+    int ret;
+    int i;
+    DWORD j,k;
+    LogMonitor* pcurmon=NULL;
+    LogCallback* curcallback=NULL;
+
+    pevmain = libev_init_winev();
+    if (pevmain == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    pcurmon = new LogMonitor(pevmain, 0);
+    mons.push_back(pcurmon);
+
+    if (pargs->m_global) {
+        pcurmon = new LogMonitor(pevmain, 1);
+        mons.push_back(pcurmon);
+    }
+
+    /*now to create the file*/
+    for(i=0;pargs->m_appendfiles && pargs->m_appendfiles[i] != NULL;i++) {
+        curcallback = new LogFileCallback(pevmain,pargs->m_appendfiles[i],1);
+        callbacks.push_back(curcallback);
+    }
+
+    for (i=0;pargs->m_createfiles && pargs->m_createfiles[i]!=NULL;i++) {
+        curcallback = new LogFileCallback(pevmain,pargs->m_createfiles[i],0);
+        callbacks.push_back(curcallback);
+    }
+
+    /*to start callback*/
+    for (j=0;j<callbacks.size();j++) {
+        curcallback = callbacks.at(j);
+        ret = curcallback->start();
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+    /*now to add callback*/
+    for (j=0;j<mons.size();j++) {
+        pcurmon = mons.at(j);
+        for (k=0;k<callbacks.size();k++) {
+            curcallback = callbacks.at(k);
+            ret = pcurmon->add_log_callback(curcallback);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto out;
+            }
+        }
+    }
+
+    /*now to start mons */
+    for(j=0;j<mons.size();j++) {
+        pcurmon = mons.at(j);
+        ret = pcurmon->start();
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+    ret = libev_insert_handle(pevmain,exitevt,exit_event_notify,NULL,INFINIT_TIME);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    if (funccall != NULL) {
+        ret = funccall(args,1);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }        
+    }
+
+    libev_winev_loop(pevmain);
+
+    ret = 0;
+out:
+    /*first to stop monitor*/
+    while(mons.size() > 0) {
+        pcurmon = mons.at(0);
+        mons.erase(mons.begin());
+        delete pcurmon;
+        pcurmon = NULL;
+    }
+
+    while(callbacks.size() > 0) {
+        curcallback = callbacks.at(0);
+        callbacks.erase(callbacks.begin());
+        delete curcallback;
+        curcallback = NULL;
+    }
+
+    libev_free_winev(&pevmain);
+    SETERRNO(ret);
+    return ret;
+}
 
 int main_loop(HANDLE exitevt, char* pipename, int maxmills)
 {
@@ -196,12 +318,6 @@ int _wwtmain(int argc, _TCHAR* argv[])
     return svc_start(SVCNAME, svc_main);
 }
 
-#define REFERENCE_ARG(arg)                                                                        \
-do{                                                                                               \
-    if ((arg)) {                                                                                  \
-        arg = arg;                                                                                \
-    }                                                                                             \
-}while(0)
 
 int serve_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {

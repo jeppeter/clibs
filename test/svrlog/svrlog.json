@@ -2,6 +2,7 @@
 	"verbose|v<m_verbose>" : "+",
 	"append|a<m_appendfiles>" : [],
 	"file|f<m_createfiles>" : [],
+	"global|g<m_global>" : false,
 	"serve<serve_handler>## to make serve mode##" : {
 		"$" : "*"
 	},

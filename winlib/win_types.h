@@ -26,11 +26,22 @@ typedef UINT32 flags_t;
 
 #define MAX_UINT64       (0xffffffffffffffffULL)
 
+
+#define REFERENCE_ARG(arg)                                                                        \
+do{                                                                                               \
+    if ((arg)) {                                                                                  \
+        arg = arg;                                                                                \
+    }                                                                                             \
+}while(0)
+
+
+
 #ifdef __cplusplus
 #define EXPR_C  "C"
 #else
 #define EXPR_C
 #endif
+
 
 
 #endif /*__WIN_TYPES_H__*/
