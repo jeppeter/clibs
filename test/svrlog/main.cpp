@@ -4,6 +4,7 @@
 #include <win_uniansi.h>
 #include <win_output_debug.h>
 #include <win_proc.h>
+#include <win_args.h>
 #include <tchar.h>
 
 
@@ -19,13 +20,13 @@ int main_loop(HANDLE exitevt, char* pipename, int maxmills)
     HANDLE waithds[2];
     DWORD waitnum = 0;
     DWORD dret;
-    int timeoutmills=0;
+    int timeoutmills = 0;
 
     maxmills = maxmills;
     if (pipename) {
-    	pipename = pipename;	
+        pipename = pipename;
     }
-    
+
 
 bind_pipe_again:
     /*to reset the event*/
@@ -36,14 +37,14 @@ bind_pipe_again:
 
 
     while (1) {
-    	waitnum = 0;
-    	waithds[waitnum] = exitevt;
-    	waitnum ++;
-    	timeoutmills = 15000;
-    	dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, (DWORD)timeoutmills, TRUE);
-    	if (dret == WAIT_OBJECT_0) {
-    		break;
-    	}
+        waitnum = 0;
+        waithds[waitnum] = exitevt;
+        waitnum ++;
+        timeoutmills = 15000;
+        dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, (DWORD)timeoutmills, TRUE);
+        if (dret == WAIT_OBJECT_0) {
+            break;
+        }
     }
     goto bind_pipe_again;
 
@@ -57,10 +58,11 @@ fail:
 static HANDLE st_hEvent = NULL;
 
 
-DWORD WINAPI svc_ctrl_handler( DWORD dwCtrl ,DWORD type,LPVOID peventdata,LPVOID puserdata)
+DWORD WINAPI svc_ctrl_handler( DWORD dwCtrl , DWORD type, LPVOID peventdata, LPVOID puserdata)
 {
     int ret;
     DEBUG_INFO("dwCtrl 0x%lx", dwCtrl);
+    type = type;
     if (puserdata) {
         puserdata = puserdata;
     }
@@ -105,17 +107,17 @@ try_again:
     if (beginrunning  == 0)   {
         ret = svc_report_mode(SERVICE_RUNNING, 0);
         if (ret < 0) {
-            ERROR_INFO("%s report running error %d\n", SVCNAME,ret);
+            ERROR_INFO("%s report running error %d\n", SVCNAME, ret);
             goto fail;
         }
-        beginrunning = 1;        
+        beginrunning = 1;
     }
 
 
     ret = main_loop(st_hEvent, NULL, 1000);
 
-    
-    DEBUG_INFO("%s return  main loop[%d]",SVCNAME, ret);
+
+    DEBUG_INFO("%s return  main loop[%d]", SVCNAME, ret);
 
     if (st_hEvent) {
         CloseHandle(st_hEvent);
@@ -127,7 +129,7 @@ try_again:
     DEBUG_INFO("%s exit main loop", SVCNAME);
     return ret;
 fail:
-    DEBUG_INFO("%s fail main loop [%d]" ,SVCNAME,ret);
+    DEBUG_INFO("%s fail main loop [%d]" , SVCNAME, ret);
     if (st_hEvent) {
         CloseHandle(st_hEvent);
     }
@@ -135,27 +137,33 @@ fail:
     return ret;
 }
 
-VOID WINAPI svc_main( DWORD dwArgc, LPSTR *lpszArgv )
+VOID WINAPI svc_main( DWORD dwArgc, TCHAR **lpszArgv )
 {
     int ret;
     DWORD i;
+    char** args = NULL;
 
-    for (i=0;i<dwArgc;i++) {
-        DEBUG_INFO("[%ld]=[%s]", i,lpszArgv[i]);
+    args = copy_args((int)dwArgc, lpszArgv);
+    if (args != NULL) {
+        for (i = 0; i < dwArgc; i++) {
+            DEBUG_INFO("[%s] [%ld]=[%s]", SVCNAME,i, args[i]);
+        }
+        free_args(&args);
     }
 
-    DEBUG_INFO("%s start event log",SVCNAME);
+
+    DEBUG_INFO("%s start event log", SVCNAME);
     dwArgc = dwArgc;
     lpszArgv = lpszArgv;
-    DEBUG_INFO("%s in main\n ",SVCNAME);
+    DEBUG_INFO("%s in main\n ", SVCNAME);
     ret = svc_init_mode(SVCNAME, svc_ctrl_handler, NULL);
     if (ret < 0) {
-        ERROR_INFO("%s can not init svc\n",SVCNAME);
+        ERROR_INFO("%s can not init svc\n", SVCNAME);
         return ;
     }
     svc_main_loop();
-    DEBUG_INFO("%s close event log",SVCNAME);
-    SleepEx(500,TRUE);
+    DEBUG_INFO("%s close event log", SVCNAME);
+    SleepEx(500, TRUE);
     svc_report_mode(SERVICE_STOPPED, 0);
     svc_close_mode();
     return ;
@@ -163,9 +171,9 @@ VOID WINAPI svc_main( DWORD dwArgc, LPSTR *lpszArgv )
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	argc = argc;
-	argv = argv;
-    InitOutputEx(BASE_LOG_DEBUG,NULL);
-    DEBUG_INFO("start %s\n",SVCNAME);
+    argc = argc;
+    argv = argv;
+    InitOutputEx(BASE_LOG_DEBUG, NULL);
+    DEBUG_INFO("start %s\n", SVCNAME);
     return svc_start(SVCNAME, svc_main);
 }

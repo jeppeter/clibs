@@ -14,8 +14,9 @@
 #define   MAP_FILE_FLAGS               (MAP_FILE_WRITE | MAP_FILE_READ | MAP_FILE_EXEC)
 
 WINLIB_API int map_buffer(char* name,int flag,int size,void** ppmap);
-WINLIB_API int write_buffer(void* pmap, int offset,void* pbuf, int size);
-WINLIB_API int read_buffer(void* pmap, int offset, void* pbuf, int size);
+WINLIB_API int map_file(char* name, int flag, uint64_t* psize,void** ppmap);
+WINLIB_API int write_buffer(void* pmap1, uint64_t offset, void* pbuf, int size);
+WINLIB_API int read_buffer(void* pmap1, uint64_t offset, void* pbuf, int size);
 WINLIB_API void unmap_buffer(void** ppmap);
 
 #ifdef __cplusplus

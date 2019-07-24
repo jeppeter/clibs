@@ -1,14 +1,14 @@
+#include <win_types.h>
 #include <win_map.h>
 #include <win_err.h>
 #include <win_output_debug.h>
 #include <win_uniansi.h>
 
-
-typedef struct __map_buffer {
+typedef struct __map_buffer_t {
     HANDLE m_hfile;
     HANDLE m_maphd;
     void* m_mapbuf;
-    int m_size;
+    uint64_t m_size;
     char* m_name;
 } map_buffer_t, *pmap_buffer_t;
 
@@ -115,7 +115,7 @@ fail:
     return ret;
 }
 
-int __map_buffer(pmap_buffer_t pmap, int flag, int size)
+int __map_buffer(pmap_buffer_t pmap, int flag, uint64_t size)
 {
     DWORD rwflag = 0;
     DWORD prot = 0;
@@ -133,7 +133,7 @@ int __map_buffer(pmap_buffer_t pmap, int flag, int size)
         goto fail;
     }
 
-    pmap->m_mapbuf = MapViewOfFile(INVALID_HANDLE_VALUE, rwflag, 0, 0, size);
+    pmap->m_mapbuf = MapViewOfFile(INVALID_HANDLE_VALUE, rwflag, 0, (DWORD)((size >> 32) & 0xffffffff ), (DWORD)(size & 0xffffffff));
     if (pmap->m_mapbuf == NULL) {
         GETERRNO(ret);
         ERROR_INFO("map view [%s] with [%d:0x%x] error[%d]", pmap->m_name, size, size, ret);
@@ -146,7 +146,7 @@ fail:
     return ret;
 }
 
-int __map_memory_name(pmap_buffer_t pmap, int flag, int size)
+int __map_memory_name(pmap_buffer_t pmap, int flag,int size)
 {
     TCHAR* ptname = NULL;
     int tnamesize = 0;
@@ -238,13 +238,13 @@ int map_buffer(char* name, int flag, int size, void** ppmap)
         goto fail;
     }
 
-    ret = __map_memory_name(pmap, flag, size);
+    ret = __map_memory_name(pmap, flag,size);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    ret = __map_buffer(pmap, flag, size);
+    ret = __map_buffer(pmap, flag, (uint64_t)size);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -260,7 +260,8 @@ fail:
     SETERRNO(ret);
     return ret;
 }
-int write_buffer(void* pmap1, int offset, void* pbuf, int size)
+
+int write_buffer(void* pmap1, uint64_t offset, void* pbuf, int size)
 {
     int ret;
     pmap_buffer_t pmap = (pmap_buffer_t) pmap1;
@@ -275,14 +276,14 @@ int write_buffer(void* pmap1, int offset, void* pbuf, int size)
 
     pinbuf = (char*) pmap->m_mapbuf;
     if ((offset + size) > pmap->m_size) {
-        wsize = pmap->m_size - offset;
+        wsize = (int)(pmap->m_size - offset);
     }
     memcpy(&(pinbuf[offset]), pbuf, wsize);
     return wsize;
 }
 
 
-int read_buffer(void* pmap1, int offset, void* pbuf, int size)
+int read_buffer(void* pmap1, uint64_t offset, void* pbuf, int size)
 {
     int ret;
     pmap_buffer_t pmap = (pmap_buffer_t) pmap1;
@@ -297,7 +298,7 @@ int read_buffer(void* pmap1, int offset, void* pbuf, int size)
 
     poutbuf = (char*) pmap->m_mapbuf;
     if ((offset + size) > pmap->m_size) {
-        rsize = pmap->m_size - offset;
+        rsize = (int)(pmap->m_size - offset);
     }
     memcpy( pbuf, &(poutbuf[offset]), rsize);
     return rsize;
