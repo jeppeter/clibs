@@ -2381,7 +2381,16 @@ class debug_opttest_case(unittest.TestCase):
                 if m is not None and len(m) > 0:
                     ok = True
         self.assertTrue(ok)
+        return
 
+    def test_A063(self):
+        commandline='''
+        {
+            "global" : false,
+            "verbose|v" : "+"
+        }
+        '''
+        self.__extargs_opttest_out(commandline,[])
         return
 
 

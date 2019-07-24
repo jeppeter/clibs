@@ -437,6 +437,8 @@ int console_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         goto out;
     }
 
+    DEBUG_INFO("global [%s]", pargs->m_global ? "True" : "False");
+
     svrlog_main_loop(st_hEvent,pargs,parsestate,NULL,NULL);
     ret = 0;
 out:
