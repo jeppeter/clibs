@@ -22,6 +22,8 @@ typedef struct __args_options {
     int m_global;
     char** m_createfiles;
     char** m_appendfiles;
+    char** m_logappends;
+    char** m_logcreates;
 } args_options_t, *pargs_options_t;
 
 
@@ -46,6 +48,22 @@ void exit_event_notify(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* arg
 
 typedef int (*m_init_already_func_t) (void* args,int succ);
 
+int get_log_level(pargs_options_t pargs)
+{
+    int loglvl = BASE_LOG_ERROR;
+    if (pargs->m_verbose <= 0) {
+        loglvl = BASE_LOG_ERROR;
+    } else if (pargs->m_verbose == 1) {
+        loglvl = BASE_LOG_WARN;
+    } else if (pargs->m_verbose == 2) {
+        loglvl = BASE_LOG_INFO;
+    } else if (pargs->m_verbose == 3) {
+        loglvl = BASE_LOG_DEBUG;
+    } else {
+        loglvl = BASE_LOG_TRACE;
+    }
+    return loglvl;
+}
 
 int svrlog_main_loop(HANDLE exitevt,pargs_options_t pargs,pextargs_state_t parsestate, m_init_already_func_t funccall, void* args)
 {
@@ -353,16 +371,79 @@ int remove_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     ret = -ERROR_NOT_SUPPORTED;
     SETERRNO(ret);
     return ret;
-
 }
+
+
+BOOL WINAPI HandlerConsoleRoutine(DWORD dwCtrlType)
+{
+    BOOL bret = TRUE;
+    switch (dwCtrlType) {
+    case CTRL_C_EVENT:
+        DEBUG_INFO("CTRL_C_EVENT\n");
+        break;
+    case CTRL_BREAK_EVENT:
+        DEBUG_INFO("CTRL_BREAK_EVENT\n");
+        break;
+    case CTRL_CLOSE_EVENT:
+        DEBUG_INFO("CTRL_CLOSE_EVENT\n");
+        break;
+    case CTRL_LOGOFF_EVENT:
+        DEBUG_INFO("CTRL_LOGOFF_EVENT\n");
+        break;
+    case CTRL_SHUTDOWN_EVENT:
+        DEBUG_INFO("CTRL_SHUTDOWN_EVENT\n");
+        break;
+    default:
+        DEBUG_INFO("ctrltype %d\n", dwCtrlType);
+        bret = FALSE;
+        break;
+    }
+
+    if (bret && st_hEvent) {
+        DEBUG_INFO("setevent 0x%x\n", st_hEvent);
+        SetEvent(st_hEvent);
+    }
+
+    return bret;
+}
+
+
 int console_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int loglvl = get_log_level(pargs);
+    output_debug_cfg_t cfg;
+    BOOL bret;
+
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
-    REFERENCE_ARG(parsestate);
-    REFERENCE_ARG(popt);
-    ret = -ERROR_NOT_SUPPORTED;
+
+    memset(&cfg,0,sizeof(cfg));
+    cfg.m_disableflag = WINLIB_DBWIN_DISABLED;
+    cfg.m_ppoutcreatefile = pargs->m_logcreates;
+    cfg.m_ppoutappendfile = pargs->m_logappends;
+    InitOutputEx(loglvl, &cfg);
+    st_hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (st_hEvent == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create exit event %d\n", ret);
+        goto out;
+    }
+    bret = SetConsoleCtrlHandler(HandlerConsoleRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
+        goto out;
+    }
+
+    svrlog_main_loop(st_hEvent,pargs,parsestate,NULL,NULL);
+    ret = 0;
+out:
+    if (st_hEvent) {
+        CloseHandle(st_hEvent);
+    }
+    st_hEvent = NULL;
     SETERRNO(ret);
     return ret;    
 }
