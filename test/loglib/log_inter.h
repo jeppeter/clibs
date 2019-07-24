@@ -6,10 +6,9 @@
 class LogCallback 
 {
 public:
-	virtual LogCallback(void* pevmain) {};
-	virtual ~LogCallback() = 0;
-	virtual int handle_log_buffer(char* pbuf,int buflen);
-	virutal int start();
+	virtual ~LogCallback() {};
+	virtual int handle_log_buffer(char* pbuf,int buflen)=0;
+	virtual int start()=0;
 };
 
 

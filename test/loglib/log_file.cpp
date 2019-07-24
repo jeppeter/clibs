@@ -1,12 +1,15 @@
 #include <log_file.h>
+#include <win_output_debug.h>
+#include <win_err.h>
+#include <win_uniansi.h>
 
 
 LogFileCallback::LogFileCallback(void* pevmain,char* filename,int appendmode) 
 {
-	this->m_pemain = pevmain;
+	this->m_pevmain = pevmain;
 	this->m_name = NULL;
 	if (filename) {
-		this->m_name  = strdup(filename);	
+		this->m_name  = _strdup(filename);	
 	}
 	this->m_pwritebufs = NULL;
 	this->m_pwritelen = NULL;
@@ -24,7 +27,7 @@ void LogFileCallback::__remove_write_handle(void)
 {
 	int ret;
 	if (this->m_inserted) {
-		ret = libev_remove_handle(this->m_pemain,this->m_ov.hEvent);
+		ret = libev_remove_handle(this->m_pevmain,this->m_ov.hEvent);
 		ASSERT_IF(ret > 0);
 		this->m_inserted = 0;
 	}
@@ -93,11 +96,13 @@ LogFileCallback::~LogFileCallback()
 		this->m_name = NULL;
 	}
 
-	this->m_pemain = NULL;
+	this->m_pevmain = NULL;
 }
 
 void LogFileCallback::__close_file()
 {
+	BOOL bret;
+	int ret;
 	if (this->m_isoverlapped) {
 		ASSERT_IF(this->m_hfile != NULL);
 		ASSERT_IF(this->m_ov.hEvent != NULL);
@@ -180,7 +185,7 @@ int LogFileCallback::__insert_write_handle()
 {
 	int ret;
 	ASSERT_IF(this->m_inserted == 0);
-	ret = libev_insert_handle(this->m_pemain,this->m_ov.hEvent,LogFileCallback::__log_file_write,this,1000);
+	ret = libev_insert_handle(this->m_pevmain,this->m_ov.hEvent,LogFileCallback::__log_file_write,this,1000);
 	ASSERT_IF(ret > 0);
 	this->m_inserted = 1;
 	return 0;
@@ -194,7 +199,7 @@ int LogFileCallback::__write_buffer()
 	int curlen = this->m_curlen;
 
 	while(curlen < this->m_cursize) {
-		bret = WriteFile(this->m_hfile,&(this->m_curbuf[curlen]),(this->m_cursize - curlen),&cbret,&(this->m_ov));
+		bret = WriteFile(this->m_hfile,&(this->m_curbuf[curlen]),(DWORD)(this->m_cursize - curlen),&cbret,&(this->m_ov));
 		if (!bret) {
 			GETERRNO(ret);
 			if (ret != -ERROR_IO_PENDING) {
@@ -246,6 +251,7 @@ int LogFileCallback::__log_file_impl()
 {
 	BOOL bret;
 	DWORD cbret;
+	int ret;
 	bret =GetOverlappedResult(this->m_hfile,&(this->m_ov),&cbret,FALSE);
 	if (!bret) {
 		GETERRNO(ret);
@@ -275,6 +281,7 @@ void LogFileCallback::__log_file_write(HANDLE hd,libev_enum_event_t evt,void* pe
 {
 	int ret;
 	LogFileCallback* pThis = (LogFileCallback*) args;
+	hd = hd;
 	if (evt == normal_event) {
 		ret = pThis->__log_file_impl();
 		if (ret < 0) {
@@ -353,14 +360,14 @@ int LogFileCallback::handle_log_buffer(char* pbuf,int buflen)
 		return ret;
 	}
 
-	pnewbuf = (char*)malloc(buflen);
+	pnewbuf = (char*)malloc((size_t)buflen);
 	if (pnewbuf == NULL) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
 	newlen = buflen;
-	memcpy(pnewbuf, pbuf,buflen);
+	memcpy(pnewbuf, pbuf,(size_t)buflen);
 	if (this->m_curbuf == NULL) {
 		/*nothing wait to write ,so just start write*/
 		ASSERT_IF(this->m_pwritebufs->size() == 0);

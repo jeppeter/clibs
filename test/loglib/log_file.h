@@ -24,6 +24,8 @@ private:
 	int __reopen_file();
 	int __start_write();
 	int __alloc_vecs();
+	void __free_vecs();
+	void __close_file();
 private:
 	void* m_pevmain;
 	char* m_name;

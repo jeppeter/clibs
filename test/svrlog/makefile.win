@@ -70,8 +70,8 @@ WINLIB_VALUE=0
 INC_LDFLAGS = "$(DYNAMICDIR)\extargslib.lib" "$(DYNAMICDIR)\winlib.lib" "$(DYNAMICDIR)\json.lib"
 !ENDIF
 
-INC_CFLAGS = /I"$(CURDIR)\..\proto" /I"$(CURDIR)\..\proto_win" /I"$(TOPDIR)\common\extargslib" /I"$(TOPDIR)\winlib" /I"$(TOPDIR)\common\jsonlib" /I"$(TOPDIR)\common"
-COM_CFLAGS = /Wall /wd"4820" /wd"4668" /wd"4127" /wd"4510" /wd"4512" /wd"4610" /wd"4710" /wd"5045"
+INC_CFLAGS = /I"$(CURDIR)\..\loglib" /I"$(CURDIR)\..\proto_win" /I"$(TOPDIR)\common\extargslib" /I"$(TOPDIR)\winlib" /I"$(TOPDIR)\common\jsonlib" /I"$(TOPDIR)\common"
+COM_CFLAGS = /Wall /wd"4820" /wd"4668" /wd"4127" /wd"4510" /wd"4512" /wd"4610" /wd"4710" /wd"5045" /wd"4530" /wd"4577"
 REL_CFLAGS = 
 DBG_CFLAGS = /Zi /Od 
 
@@ -82,7 +82,7 @@ REL_LDFLAGS =
 CFLAGS  = $(UNICODE_CFLAGS) $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(INC_CFLAGS) $(COM_CFLAGS) $(REL_CFLAGS) $(DBG_CFLAGS)
 LDFLAGS = $(NOLOGO_LDFLAGS) $(INC_LDFLAGS) $(REL_LDFLAGS)
 
-SOURCES=main.cpp
+SOURCES=main.cpp log_file.cpp
 OBJECTS=$(SOURCES:.cpp=.obj)
 
 all:svrlog.exe
@@ -113,6 +113,9 @@ svrlog.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMIC
 
 .cpp.obj:
 	$(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
+
+log_file.cpp:$(CURDIR)\..\loglib\log_file.cpp
+	$(QUIETCMD) copy /Y $(CURDIR)\..\loglib\log_file.cpp $@
 
 $(DYNAMICDIR)\extargslib.dll:
 	$(QUIETCMD)cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)"
@@ -146,5 +149,6 @@ clean_extargslib: clean_json
 clean:clean_extargslib
 	$(QUIETCMD) $(RM) *.exe *.obj 2>NUL
 	$(QUIETCMD) $(RM) *.pdb *.ilk 2>NUL
+	$(QUIETCMD) $(RM) log_file.cpp 2>NUL
 	$(QUIETCMD) $(RM) *.dll 2>NUL
 	$(QUIETCMD) $(RM) *.dll 2>NUL
