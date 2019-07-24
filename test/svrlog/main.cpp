@@ -47,7 +47,7 @@ void exit_event_notify(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* arg
 typedef int (*m_init_already_func_t) (void* args,int succ);
 
 
-int svrlog_main_loop(HANDLE exitevt,pargs_options_t pargs, m_init_already_func_t funccall, void* args)
+int svrlog_main_loop(HANDLE exitevt,pargs_options_t pargs,pextargs_state_t parsestate, m_init_already_func_t funccall, void* args)
 {
     std::vector<LogMonitor*> mons;
     std::vector<LogCallback*> callbacks;
@@ -57,6 +57,8 @@ int svrlog_main_loop(HANDLE exitevt,pargs_options_t pargs, m_init_already_func_t
     DWORD j,k;
     LogMonitor* pcurmon=NULL;
     LogCallback* curcallback=NULL;
+
+    REFERENCE_ARG(parsestate);
 
     pevmain = libev_init_winev();
     if (pevmain == NULL) {
