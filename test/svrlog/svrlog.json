@@ -1,5 +1,7 @@
 {
-	"verbose|v" : "+",
+	"verbose|v<m_verbose>" : "+",
+	"append|a<m_appendfiles>" : [],
+	"file|f<m_createfiles>" : [],
 	"serve<serve_handler>## to make serve mode##" : {
 		"$" : "*"
 	},
@@ -7,6 +9,9 @@
 		"$" : "*"
 	},
 	"remove<remove_handler>## to make remove service##" : {
+		"$" : "*"
+	},
+	"console<console_handler>## to run in console mode##" : {
 		"$" : "*"
 	}
 }

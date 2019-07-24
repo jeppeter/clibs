@@ -6,9 +6,27 @@
 #include <win_proc.h>
 #include <win_args.h>
 #include <tchar.h>
+#include <extargs.h>
 
 
 #define  SVCNAME     "svrlog"
+
+
+
+typedef struct __args_options {
+    int m_verbose;
+    char** m_createfiles;
+    char** m_appendfiles;
+} args_options_t, *pargs_options_t;
+
+
+int serve_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int install_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int remove_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int console_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+
+
+#include "args_options.cpp"
 
 
 static DWORD st_EXITED_MODE = 0;
@@ -146,7 +164,7 @@ VOID WINAPI svc_main( DWORD dwArgc, TCHAR **lpszArgv )
     args = copy_args((int)dwArgc, lpszArgv);
     if (args != NULL) {
         for (i = 0; i < dwArgc; i++) {
-            DEBUG_INFO("[%s] [%ld]=[%s]", SVCNAME,i, args[i]);
+            DEBUG_INFO("[%s] [%ld]=[%s]", SVCNAME, i, args[i]);
         }
         free_args(&args);
     }
@@ -169,11 +187,97 @@ VOID WINAPI svc_main( DWORD dwArgc, TCHAR **lpszArgv )
     return ;
 }
 
-int _tmain(int argc, _TCHAR* argv[])
+int _wwtmain(int argc, _TCHAR* argv[])
 {
     argc = argc;
     argv = argv;
     InitOutputEx(BASE_LOG_DEBUG, NULL);
     DEBUG_INFO("start %s\n", SVCNAME);
     return svc_start(SVCNAME, svc_main);
+}
+
+#define REFERENCE_ARG(arg)                                                                        \
+do{                                                                                               \
+    if ((arg)) {                                                                                  \
+        arg = arg;                                                                                \
+    }                                                                                             \
+}while(0)
+
+int serve_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(parsestate);
+    REFERENCE_ARG(popt);
+    ret = -ERROR_NOT_SUPPORTED;
+    SETERRNO(ret);
+    return ret;
+}
+int install_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(parsestate);
+    REFERENCE_ARG(popt);
+    ret = -ERROR_NOT_SUPPORTED;
+    SETERRNO(ret);
+    return ret;
+}
+int remove_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(parsestate);
+    REFERENCE_ARG(popt);
+    ret = -ERROR_NOT_SUPPORTED;
+    SETERRNO(ret);
+    return ret;
+
+}
+int console_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(parsestate);
+    REFERENCE_ARG(popt);
+    ret = -ERROR_NOT_SUPPORTED;
+    SETERRNO(ret);
+    return ret;    
+}
+
+
+int _tmain(int argc, TCHAR* argv[])
+{
+    char** args = NULL;
+    int ret = 0;
+    args_options_t argsoption;
+    pextargs_state_t pextstate = NULL;
+
+    memset(&argsoption, 0, sizeof(argsoption));
+
+    args = copy_args(argc, argv);
+    if (args == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not copy args error[%d]\n", ret);
+        goto out;
+    }
+
+    ret = EXTARGS_PARSE(argc, args, &argsoption, pextstate);
+    //ret = parse_param_smart(argc, args, st_main_cmds, &argsoption, &pextstate, NULL, NULL);
+    if (ret < 0) {
+        fprintf(stderr, "could not parse error(%d)", ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    free_extargs_state(&pextstate);
+    release_extargs_output(&argsoption);
+    free_args(&args);
+    extargs_deinit();
+    return ret;
 }

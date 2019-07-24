@@ -117,6 +117,13 @@ svrlog.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMIC
 log_file.cpp:$(CURDIR)\..\loglib\log_file.cpp
 	$(QUIETCMD) copy /Y $(CURDIR)\..\loglib\log_file.cpp $@
 
+main.cpp:args_options.cpp
+
+
+args_options.cpp:args_options.cpp.tmpl svrlog.json $(TOPDIR)\coutput.py
+	$(QUIETCMD)$(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\svrlog.json -i $(CURDIR)\args_options.cpp.tmpl cmdstruct | \
+	 $(PYTHON) $(TOPDIR)\coutput.py -j $(CURDIR)\svrlog.json -i - -o $(CURDIR)\args_options.cpp freefunc
+
 $(DYNAMICDIR)\extargslib.dll:
 	$(QUIETCMD)cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)"
 
@@ -149,6 +156,7 @@ clean_extargslib: clean_json
 clean:clean_extargslib
 	$(QUIETCMD) $(RM) *.exe *.obj 2>NUL
 	$(QUIETCMD) $(RM) *.pdb *.ilk 2>NUL
+	$(QUIETCMD) $(RM) args_options.cpp 2>NUL
 	$(QUIETCMD) $(RM) log_file.cpp 2>NUL
 	$(QUIETCMD) $(RM) *.dll 2>NUL
 	$(QUIETCMD) $(RM) *.dll 2>NUL
