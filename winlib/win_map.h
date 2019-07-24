@@ -6,6 +6,8 @@
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
+#include <win_types.h>
+
 
 #define   WINLIB_MAP_FILE_WRITE               0x4
 #define   WINLIB_MAP_FILE_READ                0x2

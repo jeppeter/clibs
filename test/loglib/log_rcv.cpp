@@ -1,4 +1,6 @@
 #include <log_rcv.h>
+#include <win_err.h>
+#include <win_strop.h>
 
 
 typedef struct __dbwin_buffer {
@@ -14,6 +16,7 @@ LogMonitor::LogMonitor(void* pevmain,int global)
 	this->m_pcallback = NULL;
 	this->m_buffready = NULL;
 	this->m_dataready = NULL;
+	this->m_hmutex = NULL;
 	this->m_mapbuf = NULL;
 	this->m_inserted = 0;
 	this->m_pcurdata = NULL;
@@ -73,6 +76,12 @@ void LogMonitor::__close_event(void)
 		CloseHandle(this->m_buffready);
 		this->m_buffready = NULL;
 	}
+
+	if (this->m_hmutex != NULL) {
+		CloseHandle(this->m_hmutex);
+		this->m_hmutex = NULL;
+	}
+
 	return ;
 }
 
@@ -88,9 +97,10 @@ void LogMonitor::__free_buf(void)
 
 int LogMonitor::__alloc_buf(void)
 {
+	int ret;
 	this->__free_buf();
 	this->m_cursize = (sizeof(dbwin_buffer_t) - sizeof(DWORD));
-	this->m_pcurdata = malloc(this->m_cursize);
+	this->m_pcurdata = (char*)malloc((size_t)this->m_cursize);
 	if (this->m_pcurdata == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -169,41 +179,85 @@ int LogMonitor::remove_log_callback(LogCallback* pcallback)
 HANDLE LogMonitor::__create_event_name(char* name)
 {
 	int ret;
-	char* psname = NULL;
+	char* sname = NULL;
 	int snamesize=0;
 	HANDLE evt=NULL;
 
 	if (this->m_global) {
-		ret = snprintf_safe(&psname,&snamesize,"Global\\%s", name);
+		ret = snprintf_safe(&sname,&snamesize,"Global\\%s", name);
 	} else {
-		ret = snprintf_safe(&psname,&snamesize,"%s", name);
+		ret = snprintf_safe(&sname,&snamesize,"%s", name);
 	}
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	evt = get_or_create_event(psname);
+	evt = get_or_create_event(sname);
 	if (evt == NULL) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	snprintf_safe(&psname,&snamesize,NULL);
-	return 
+	snprintf_safe(&sname,&snamesize,NULL);
+	return evt;
 fail:
 	if (evt != NULL) {
 		CloseHandle(evt);
 	}
 	evt = NULL;
-	snprintf_safe(&psname,&snamesize,NULL);
+	snprintf_safe(&sname,&snamesize,NULL);
 	SETERRNO(ret);
 	return NULL;
 }
 
+HANDLE LogMonitor::__create_mutex_name(char* name)
+{
+	int ret;
+	char* sname = NULL;
+	int snamesize=0;
+	HANDLE mux=NULL;
+
+	if (this->m_global) {
+		ret = snprintf_safe(&sname,&snamesize,"Global\\%s", name);
+	} else {
+		ret = snprintf_safe(&sname,&snamesize,"%s", name);
+	}
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	mux = get_or_create_mutex(sname);
+	if (mux == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	snprintf_safe(&sname,&snamesize,NULL);
+	return  mux;
+fail:
+	if (mux != NULL) {
+		CloseHandle(mux);
+	}
+	mux = NULL;
+	snprintf_safe(&sname,&snamesize,NULL);
+	SETERRNO(ret);
+	return NULL;
+}
+
+
 int LogMonitor::__alloc_event()
 {
 	int ret;
+
+	this->__close_event();
+
+	this->m_hmutex = this->__create_mutex_name("DBWinMutex");
+	if (this->m_hmutex == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
 
 	this->m_dataready = this->__create_event_name("DBWIN_DATA_READY");
 	if (this->m_dataready == NULL) {
@@ -261,9 +315,9 @@ int LogMonitor::start(void)
 	int ret;
 
 	/*to remove */
-	this->__free_buf();
-	this->__unmap_buf();
 	this->__close_event();
+	this->__unmap_buf();
+	this->__free_buf();
 
 	ret = this->__alloc_event();
 	if (ret < 0){
@@ -292,9 +346,9 @@ int LogMonitor::start(void)
 
 	return 0;
 fail:
-	this->__free_buf();
-	this->__unmap_buf();
 	this->__close_event();
+	this->__unmap_buf();
+	this->__free_buf();
 	SETERRNO(ret);
 	return ret;
 }
@@ -314,7 +368,7 @@ int LogMonitor::__data_ready_impl(void)
 
 	if (this->m_pcallback) {
 		DWORD i;
-		this->m_curlen = strlen(this->m_pcurdata);
+		this->m_curlen = (int)strlen(this->m_pcurdata);
 		for (i=0;i<this->m_pcallback->size();i++) {
 			pcallback = this->m_pcallback->at(i);
 			ret = pcallback->handle_log_buffer(this->m_pcurdata, this->m_curlen);
@@ -338,6 +392,8 @@ fail:
 void LogMonitor::handle_data_ready(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* args)
 {
 	LogMonitor* pThis = (LogMonitor*) args;
+	int ret;
+	hd = hd;
 	if (evt == normal_event) {
 		ret = pThis->__data_ready_impl();
 		if (ret < 0) {
