@@ -171,8 +171,7 @@ HANDLE get_or_create_event(char* name)
         goto fail;
     }
 
-    DEBUG_INFO("%s [%s] event", created ? "create" : "open", name);
-
+    //DEBUG_INFO("%s [%s] event", created ? "create" : "open", name);
     AnsiToTchar(NULL,&ptname,&tnamesize);
     return evt;
 fail:
@@ -211,7 +210,7 @@ HANDLE get_or_create_mutex(char* name)
         goto fail;
     }
 
-    DEBUG_INFO("%s [%s] mutex", created ? "create" : "open", name);
+    //DEBUG_INFO("%s [%s] mutex", created ? "create" : "open", name);
     AnsiToTchar(NULL,&ptname,&tnamesize);
     return hmux;
 fail:

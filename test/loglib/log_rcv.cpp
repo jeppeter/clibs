@@ -57,7 +57,6 @@ int LogMonitor::__insert_data_ready_evt(void)
 {
 	int ret;
 	ASSERT_IF(this->m_inserted == 0);
-	DEBUG_INFO("insert dataready event");
 	ret = libev_insert_handle(this->m_pevmain,this->m_dataready,LogMonitor::handle_data_ready,this,INFINIT_TIME);
 	ASSERT_IF(ret > 0);
 	this->m_inserted = 1;
@@ -260,17 +259,19 @@ int LogMonitor::__alloc_event()
 		goto fail;
 	}
 
-	this->m_dataready = this->__create_event_name("DBWIN_DATA_READY");
-	if (this->m_dataready == NULL) {
-		GETERRNO(ret);
-		goto fail;
-	}
 
 	this->m_buffready = this->__create_event_name("DBWIN_BUFFER_READY");
 	if (this->m_buffready == NULL) {
 		GETERRNO(ret);
 		goto fail;
 	}
+
+	this->m_dataready = this->__create_event_name("DBWIN_DATA_READY");
+	if (this->m_dataready == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
 
 	return 0;
 fail:
@@ -295,7 +296,7 @@ int LogMonitor::__map_buff()
 		goto fail;
 	}
 
-	ret = map_buffer(sname, WINLIB_MAP_FILE_READ,sizeof(dbwin_buffer_t),&(this->m_mapbuf));
+	ret = map_buffer(sname, WINLIB_MAP_FILE_READ | WINLIB_MAP_FILE_WRITE,sizeof(dbwin_buffer_t),&(this->m_mapbuf));
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -363,7 +364,6 @@ int LogMonitor::__data_ready_impl(void)
 	int ret;
 	LogCallback* pcallback;
 	ASSERT_IF(this->m_mapbuf != NULL);
-	DEBUG_INFO("data ready in");
 
 	ret = read_buffer(this->m_mapbuf,sizeof(DWORD), this->m_pcurdata,this->m_cursize);
 	if (ret < 0) {
@@ -386,7 +386,6 @@ int LogMonitor::__data_ready_impl(void)
 
 	/*now to notify the buff ready*/
 	ASSERT_IF(this->m_buffready != NULL);
-	DEBUG_INFO("set buff ready");
 	SetEvent(this->m_buffready);
 
 	return 0;
