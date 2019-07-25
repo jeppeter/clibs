@@ -14,10 +14,6 @@
 #include <log_console.h>
 
 
-#define  SVCNAME     "svrlog"
-
-
-
 typedef struct __args_options {
     int m_verbose;
     int m_global;
@@ -26,6 +22,7 @@ typedef struct __args_options {
     char** m_appendfiles;
     char** m_logappends;
     char** m_logcreates;
+    char* m_servicename;
 } args_options_t, *pargs_options_t;
 
 
@@ -181,61 +178,22 @@ out:
     return ret;
 }
 
-int main_loop(HANDLE exitevt, char* pipename, int maxmills)
-{
-    int ret;
-    HANDLE waithds[2];
-    DWORD waitnum = 0;
-    DWORD dret;
-    int timeoutmills = 0;
-
-    maxmills = maxmills;
-    if (pipename) {
-        pipename = pipename;
-    }
-
-
-bind_pipe_again:
-    /*to reset the event*/
-    if (st_EXITED_MODE) {
-        ret = -ERROR_CONTROL_C_EXIT;
-        goto fail;
-    }
-
-
-    while (1) {
-        waitnum = 0;
-        waithds[waitnum] = exitevt;
-        waitnum ++;
-        timeoutmills = 15000;
-        dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, (DWORD)timeoutmills, TRUE);
-        if (dret == WAIT_OBJECT_0) {
-            break;
-        }
-    }
-    goto bind_pipe_again;
-
-
-fail:
-    SETERRNO(ret);
-    return ret;
-}
 
 
 static HANDLE st_hEvent = NULL;
+static pargs_options_t st_svr_args= NULL;
+static pextargs_state_t st_svr_state = NULL;
 
 
 DWORD WINAPI svc_ctrl_handler( DWORD dwCtrl , DWORD type, LPVOID peventdata, LPVOID puserdata)
 {
     int ret;
     DEBUG_INFO("dwCtrl 0x%lx", dwCtrl);
-    type = type;
-    if (puserdata) {
-        puserdata = puserdata;
-    }
-    if (peventdata) {
-        peventdata = peventdata;
-    }
+
+    REFERENCE_ARG(type);
+    REFERENCE_ARG(puserdata);
+    REFERENCE_ARG(peventdata);
+
     switch (dwCtrl) {
     case SERVICE_CONTROL_STOP:
         ret = svc_report_mode(SERVICE_STOP_PENDING, 500);
@@ -246,15 +204,30 @@ DWORD WINAPI svc_ctrl_handler( DWORD dwCtrl , DWORD type, LPVOID peventdata, LPV
         st_EXITED_MODE = 1;
         SetEvent(st_hEvent);
         return NO_ERROR;
-
-
-
-    case SERVICE_CONTROL_INTERROGATE:
-        break;
-    default:
-        break;
     }
     return NO_ERROR ;
+}
+
+int set_service_running(void* args, int succ)
+{
+    int* intval = (int*)args;
+    int ret;
+    if (intval && *intval) {
+        return 0;
+    }
+
+    REFERENCE_ARG(succ);
+
+    ret = svc_report_mode(SERVICE_RUNNING,0);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not set report running");
+        return ret;
+    }
+    if (intval) {
+        *intval = 1;
+    }
+    return 0;
 }
 
 
@@ -267,24 +240,16 @@ try_again:
     st_hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (st_hEvent == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("%s could not create event %d\n", SVCNAME, ret);
+        ERROR_INFO("%s could not create event %d\n", st_svr_args->m_servicename, ret);
         goto fail;
     }
 
-    if (beginrunning  == 0)   {
-        ret = svc_report_mode(SERVICE_RUNNING, 0);
-        if (ret < 0) {
-            ERROR_INFO("%s report running error %d\n", SVCNAME, ret);
-            goto fail;
-        }
-        beginrunning = 1;
-    }
 
 
-    ret = main_loop(st_hEvent, NULL, 1000);
+    ret = svrlog_main_loop(st_hEvent,st_svr_args,st_svr_state,set_service_running,(void*)&beginrunning);
 
 
-    DEBUG_INFO("%s return  main loop[%d]", SVCNAME, ret);
+    DEBUG_INFO("%s return  main loop[%d]", st_svr_args->m_servicename, ret);
 
     if (st_hEvent) {
         CloseHandle(st_hEvent);
@@ -293,10 +258,10 @@ try_again:
     if (st_EXITED_MODE == 0)  {
         goto try_again;
     }
-    DEBUG_INFO("%s exit main loop", SVCNAME);
+    DEBUG_INFO("%s exit main loop", st_svr_args->m_servicename);
     return ret;
 fail:
-    DEBUG_INFO("%s fail main loop [%d]" , SVCNAME, ret);
+    DEBUG_INFO("%s fail main loop [%d]" , st_svr_args->m_servicename, ret);
     if (st_hEvent) {
         CloseHandle(st_hEvent);
     }
@@ -307,53 +272,49 @@ fail:
 VOID WINAPI svc_main( DWORD dwArgc, TCHAR **lpszArgv )
 {
     int ret;
-    DWORD i;
-    char** args = NULL;
-
-    args = copy_args((int)dwArgc, lpszArgv);
-    if (args != NULL) {
-        for (i = 0; i < dwArgc; i++) {
-            DEBUG_INFO("[%s] [%ld]=[%s]", SVCNAME, i, args[i]);
-        }
-        free_args(&args);
-    }
 
 
-    DEBUG_INFO("%s start event log", SVCNAME);
+
+    DEBUG_INFO("%s start event log", st_svr_args->m_servicename);
     dwArgc = dwArgc;
     lpszArgv = lpszArgv;
-    DEBUG_INFO("%s in main\n ", SVCNAME);
-    ret = svc_init_mode(SVCNAME, svc_ctrl_handler, NULL);
+    DEBUG_INFO("%s in main\n ", st_svr_args->m_servicename);
+    ret = svc_init_mode(st_svr_args->m_servicename, svc_ctrl_handler, NULL);
     if (ret < 0) {
-        ERROR_INFO("%s can not init svc\n", SVCNAME);
+        ERROR_INFO("%s can not init svc\n", st_svr_args->m_servicename);
         return ;
     }
     svc_main_loop();
-    DEBUG_INFO("%s close event log", SVCNAME);
+    DEBUG_INFO("%s close event log", st_svr_args->m_servicename);
     SleepEx(500, TRUE);
     svc_report_mode(SERVICE_STOPPED, 0);
     svc_close_mode();
     return ;
 }
 
-int _wwtmain(int argc, _TCHAR* argv[])
-{
-    argc = argc;
-    argv = argv;
-    InitOutputEx(BASE_LOG_DEBUG, NULL);
-    DEBUG_INFO("start %s\n", SVCNAME);
-    return svc_start(SVCNAME, svc_main);
-}
 
 
 int serve_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int loglvl = get_log_level(pargs);
+    output_debug_cfg_t cfg;
+    
+
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
-    REFERENCE_ARG(parsestate);
-    REFERENCE_ARG(popt);
-    ret = -ERROR_NOT_SUPPORTED;
+
+    memset(&cfg,0,sizeof(cfg));
+    cfg.m_disableflag = WINLIB_DBWIN_DISABLED;
+    cfg.m_ppoutcreatefile = pargs->m_logcreates;
+    cfg.m_ppoutappendfile = pargs->m_logappends;
+    InitOutputEx(loglvl, &cfg);
+
+    st_svr_state = parsestate;
+    st_svr_args = pargs;
+
+    ret = svc_start(pargs->m_servicename,svc_main);
     SETERRNO(ret);
     return ret;
 }
