@@ -151,6 +151,7 @@ HANDLE get_or_create_event(char* name)
     int tnamesize=0;
     int ret;
     HANDLE evt = NULL;
+    int created = 0;
 
     ret = AnsiToTchar(name,&ptname,&tnamesize);
     if (ret < 0) {
@@ -162,12 +163,15 @@ HANDLE get_or_create_event(char* name)
     if (evt ==NULL) {
         SETERRNO(0);
         evt = CreateEvent(NULL,FALSE,FALSE,ptname);
+        created = 1;
     }
     if (evt == NULL) {
         GETERRNO(ret);
         ERROR_INFO("get event [%s] error[%d]", name, ret);
         goto fail;
     }
+
+    DEBUG_INFO("%s [%s] event", created ? "create" : "open", name);
 
     AnsiToTchar(NULL,&ptname,&tnamesize);
     return evt;
@@ -187,6 +191,7 @@ HANDLE get_or_create_mutex(char* name)
     int tnamesize=0;
     int ret;
     HANDLE hmux = NULL;
+    int created = 0;
 
     ret = AnsiToTchar(name,&ptname,&tnamesize);
     if (ret < 0) {
@@ -198,6 +203,7 @@ HANDLE get_or_create_mutex(char* name)
     if (hmux ==NULL) {
         SETERRNO(0);
         hmux = CreateMutex(NULL,FALSE,ptname);
+        created = 1;
     }
     if (hmux == NULL) {
         GETERRNO(ret);
@@ -205,6 +211,7 @@ HANDLE get_or_create_mutex(char* name)
         goto fail;
     }
 
+    DEBUG_INFO("%s [%s] mutex", created ? "create" : "open", name);
     AnsiToTchar(NULL,&ptname,&tnamesize);
     return hmux;
 fail:

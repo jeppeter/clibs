@@ -133,6 +133,8 @@ int __map_buffer(pmap_buffer_t pmap, int flag, uint64_t size)
         goto fail;
     }
 
+    DEBUG_INFO("map [%s]:[%p] to buffer [%p]", pmap->m_name, pmap->m_maphd, pmap->m_mapbuf);
+
     return 0;
 fail:
     SETERRNO(ret);

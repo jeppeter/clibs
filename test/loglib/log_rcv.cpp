@@ -57,6 +57,7 @@ int LogMonitor::__insert_data_ready_evt(void)
 {
 	int ret;
 	ASSERT_IF(this->m_inserted == 0);
+	DEBUG_INFO("insert dataready event");
 	ret = libev_insert_handle(this->m_pevmain,this->m_dataready,LogMonitor::handle_data_ready,this,INFINIT_TIME);
 	ASSERT_IF(ret > 0);
 	this->m_inserted = 1;
@@ -344,6 +345,9 @@ int LogMonitor::start(void)
 		goto fail;
 	}
 
+	/*this would be buffer ready*/
+	SetEvent(this->m_buffready);
+
 	return 0;
 fail:
 	this->__close_event();
@@ -359,6 +363,7 @@ int LogMonitor::__data_ready_impl(void)
 	int ret;
 	LogCallback* pcallback;
 	ASSERT_IF(this->m_mapbuf != NULL);
+	DEBUG_INFO("data ready in");
 
 	ret = read_buffer(this->m_mapbuf,sizeof(DWORD), this->m_pcurdata,this->m_cursize);
 	if (ret < 0) {
@@ -381,6 +386,7 @@ int LogMonitor::__data_ready_impl(void)
 
 	/*now to notify the buff ready*/
 	ASSERT_IF(this->m_buffready != NULL);
+	DEBUG_INFO("set buff ready");
 	SetEvent(this->m_buffready);
 
 	return 0;
