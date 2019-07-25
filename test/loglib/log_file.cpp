@@ -170,7 +170,7 @@ int LogFileCallback::__reopen_file()
         ERROR_INFO("can not open [%s] file [%s] error[%d]", this->m_name, this->m_appended ? "append" : "create", ret);
         goto fail;
     }
-    
+
     memset(&(this->m_ov), 0 , sizeof(this->m_ov));
     this->m_ov.hEvent = CreateEvent(NULL, TRUE, TRUE, NULL);
     if (this->m_ov.hEvent == NULL) {
@@ -204,15 +204,11 @@ int LogFileCallback::__write_buffer()
     int ret;
     DWORD cbret;
     int curlen = this->m_curlen;
-    LARGE_INTEGER setoff, retoff;
 
     if (curlen == 0) {
         DEBUG_INFO("write[%s] [%s] start", this->m_name, this->m_curbuf);
     }
 
-    setoff.QuadPart = 0;
-    /*we set to last*/
-    SetFilePointerEx(this->m_hfile, setoff, &retoff, FILE_END);
     while (curlen < this->m_cursize) {
         bret = WriteFile(this->m_hfile, &(this->m_curbuf[curlen]), (DWORD)(this->m_cursize - curlen), &cbret, &(this->m_ov));
         if (!bret) {
