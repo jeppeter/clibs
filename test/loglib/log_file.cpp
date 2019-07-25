@@ -205,10 +205,6 @@ int LogFileCallback::__write_buffer()
     DWORD cbret;
     int curlen = this->m_curlen;
 
-    if (curlen == 0) {
-        DEBUG_INFO("write[%s] [%s] start", this->m_name, this->m_curbuf);
-    }
-
     while (curlen < this->m_cursize) {
         bret = WriteFile(this->m_hfile, &(this->m_curbuf[curlen]), (DWORD)(this->m_cursize - curlen), &cbret, &(this->m_ov));
         if (!bret) {
@@ -276,7 +272,6 @@ int LogFileCallback::__log_file_impl()
     this->m_curlen += cbret;
     if (this->m_cursize == this->m_curlen) {
         /*this is ok */
-        DEBUG_INFO("write[%s] [%s] all over", this->m_name, this->m_curbuf);
         this->m_isoverlapped = 0;
         this->__free_write_buf();
         return this->__start_write();

@@ -672,5 +672,7 @@ int _tmain(int argc, _TCHAR* argv[])
         }
     }
     TcharToAnsi(NULL,&args,&argsize);
-    return svc_start(SVCNAME, svc_main);
+    ret = svc_start(SVCNAME, svc_main);
+    DEBUG_INFO("return from svc_start %d", ret);
+    return ret;
 }
