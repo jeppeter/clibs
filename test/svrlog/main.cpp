@@ -23,6 +23,7 @@ typedef struct __args_options {
     char** m_logappends;
     char** m_logcreates;
     char* m_servicename;
+    char** m_beforeservices;
 } args_options_t, *pargs_options_t;
 
 

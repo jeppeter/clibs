@@ -4,6 +4,7 @@
 	"file|f<m_createfiles>" : [],
 	"logappend<m_logappends>" : [],
 	"logcreate<m_logcreates>" : [],
+	"beforesvc<m_beforeservices>" : [],
 	"global|g<m_global>" : false,
 	"tee|t<m_teemode>" : false,
 	"servicename|n<m_servicename>" : "svrlog",
