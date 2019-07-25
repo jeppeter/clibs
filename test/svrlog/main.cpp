@@ -26,7 +26,7 @@ typedef struct __args_options {
 } args_options_t, *pargs_options_t;
 
 
-int serve_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int server_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int install_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int remove_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int console_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
@@ -237,7 +237,7 @@ int svc_main_loop()
     int beginrunning = 0;
 
 try_again:
-    st_hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    st_hEvent = CreateEvent(NULL, FALSE, FALSE, NULL);
     if (st_hEvent == NULL) {
         GETERRNO(ret);
         ERROR_INFO("%s could not create event %d\n", st_svr_args->m_servicename, ret);
@@ -286,7 +286,9 @@ VOID WINAPI svc_main( DWORD dwArgc, TCHAR **lpszArgv )
     }
     svc_main_loop();
     DEBUG_INFO("%s close event log", st_svr_args->m_servicename);
+
     SleepEx(500, TRUE);
+    FINI_LOG();
     svc_report_mode(SERVICE_STOPPED, 0);
     svc_close_mode();
     return ;
@@ -294,13 +296,14 @@ VOID WINAPI svc_main( DWORD dwArgc, TCHAR **lpszArgv )
 
 
 
-int serve_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+int server_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
     pargs_options_t pargs = (pargs_options_t) popt;
     int loglvl = get_log_level(pargs);
     output_debug_cfg_t cfg;
-    
+    int i;
+
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
@@ -309,12 +312,30 @@ int serve_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     cfg.m_disableflag = WINLIB_DBWIN_DISABLED;
     cfg.m_ppoutcreatefile = pargs->m_logcreates;
     cfg.m_ppoutappendfile = pargs->m_logappends;
-    InitOutputEx(loglvl, &cfg);
+    ret = InitOutputEx(loglvl, &cfg);
+    fprintf(stderr,"init return %d\n",ret);
+    DEBUG_INFO("server start");
 
     st_svr_state = parsestate;
     st_svr_args = pargs;
 
+    if (pargs->m_logappends) {
+        for (i=0;pargs->m_logappends[i];i++) {
+            DEBUG_INFO("[%d]log append [%s]",i, pargs->m_logappends[i]);
+        }
+    }
+
+    if (pargs->m_logcreates) {
+        for (i=0;pargs->m_logcreates[i];i++) {
+            DEBUG_INFO("[%d] log create [%s]", i, pargs->m_logcreates[i]);
+        }
+    }
+
+
     ret = svc_start(pargs->m_servicename,svc_main);
+
+    DEBUG_INFO("svc [%s] return %d", pargs->m_servicename, ret);
+
     SETERRNO(ret);
     return ret;
 }

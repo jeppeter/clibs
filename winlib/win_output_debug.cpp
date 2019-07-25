@@ -29,6 +29,9 @@ void __free_output_hds(void)
 
 void InnerDebug(char* pFmtStr)
 {
+    if (st_disableflag & WINLIB_DBWIN_DISABLED) {
+        return ;
+    }
 
 #ifdef UNICODE
     LPWSTR pWide = NULL;
@@ -58,6 +61,9 @@ void InnerDebug(char* pFmtStr)
 
 void __console_out(char* pFmtStr)
 {
+    if (st_disableflag & WINLIB_CONSOLE_DISABLED) {
+        return ;
+    }
     fprintf(stderr, "%s", pFmtStr);
     return;
 }
@@ -96,6 +102,10 @@ void __file_output(char* pFmtStr)
 {
     int i;
     int size=0;
+    if (st_disableflag & WINLIB_FILE_DISABLED) {
+        return ;
+    }
+
     size = (int)strlen(pFmtStr);
     EnterCriticalSection(&st_outputcs);
     if (st_output_hds != NULL) {
@@ -196,9 +206,6 @@ void DebugOutString(int loglvl, const char* file, int lineno, const char* fmt, .
 {
     va_list ap;
     va_start(ap,fmt);
-    if (st_disableflag & WINLIB_DBWIN_DISABLED) {
-        return ;
-    }
     __inner_output_console(loglvl, file, lineno, fmt,ap,InnerDebug);
     return;
 }
@@ -207,9 +214,6 @@ void ConsoleOutString(int loglvl, const char* file, int lineno, const char* fmt,
 {
     va_list ap;
     va_start(ap,fmt);
-    if (st_disableflag & WINLIB_CONSOLE_DISABLED) {
-        return ;
-    }
     __inner_output_console(loglvl, file, lineno, fmt,ap,__console_out);
     return;
 }
@@ -218,9 +222,6 @@ void FileOutString(int loglvl, const char* file, int lineno, const char* fmt, ..
 {
     va_list ap;
     va_start(ap,fmt);
-    if (st_disableflag & WINLIB_FILE_DISABLED) {
-        return ;
-    }
     __inner_output_console(loglvl, file, lineno, fmt,ap,__file_output);
     return;
 }
@@ -454,6 +455,7 @@ int __init_output_cfg(poutput_debug_cfg_t pcfg)
                 hd = __open_output_debug(pcfg->m_ppoutcreatefile[i], 0);
                 if (hd == NULL) {
                     GETERRNO(ret);
+                    InnerDebug("failed create file");
                     goto fail;
                 }
                 __OUTPUT_APPEND_HD(hd);
@@ -466,6 +468,7 @@ int __init_output_cfg(poutput_debug_cfg_t pcfg)
                 hd = __open_output_debug(pcfg->m_ppoutappendfile[i], 1);
                 if (hd == NULL) {
                     GETERRNO(ret);
+                    InnerDebug("failed append file");
                     goto fail;
                 }
                 __OUTPUT_APPEND_HD(hd);

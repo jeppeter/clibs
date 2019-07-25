@@ -7,7 +7,7 @@
 	"global|g<m_global>" : false,
 	"tee|t<m_teemode>" : false,
 	"servicename|n<m_servicename>" : "svrlog",
-	"serve<serve_handler>## to make serve mode##" : {
+	"server<server_handler>## to make serve mode##" : {
 		"$" : "*"
 	},
 	"install<install_handler>## to install service ##" : {
