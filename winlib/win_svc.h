@@ -42,12 +42,13 @@ WINLIB_API int stop_service(const char* name,int mills);
 WINLIB_API int start_service(const char* name, int mills);
 WINLIB_API int config_service_start_mode(const char* name, int startmode);
 
-
-
 WINLIB_API int svc_init_mode(char* svcname,LPHANDLER_FUNCTION_EX pFunc, void* puserdata);
 WINLIB_API int svc_report_mode(DWORD mode,DWORD time);
 WINLIB_API void svc_close_mode();
 WINLIB_API int svc_start(char* svcname, LPSERVICE_MAIN_FUNCTION pProc);
+
+WINLIB_API int create_service(const char* name, const char* desc,const char* binpath, int startmode);
+WINLIB_API int delete_service(const char* name);
 
 
 #ifdef __cplusplus

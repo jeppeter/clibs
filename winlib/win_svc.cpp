@@ -906,50 +906,50 @@ fail:
 
 
 
-SERVICE_STATUS          glbl_svc_status; 
-SERVICE_STATUS_HANDLE   glbl_svc_status_hd=NULL; 
+SERVICE_STATUS          glbl_svc_status;
+SERVICE_STATUS_HANDLE   glbl_svc_status_hd = NULL;
 
 
-int  svc_init_mode(char* svcname, LPHANDLER_FUNCTION_EX pFunc,void* puserdata)
+int  svc_init_mode(char* svcname, LPHANDLER_FUNCTION_EX pFunc, void* puserdata)
 {
     int ret;
-    TCHAR* ptsvcname=NULL;
-    int tsvcsize=0;
+    TCHAR* ptsvcname = NULL;
+    int tsvcsize = 0;
 
-    if (glbl_svc_status_hd != NULL ){
+    if (glbl_svc_status_hd != NULL ) {
         return 0;
     }
-    ret=  AnsiToTchar(svcname,&ptsvcname,&tsvcsize);
+    ret =  AnsiToTchar(svcname, &ptsvcname, &tsvcsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    glbl_svc_status_hd = RegisterServiceCtrlHandlerEx(ptsvcname,pFunc,puserdata);
-    if (glbl_svc_status_hd == NULL){
+    glbl_svc_status_hd = RegisterServiceCtrlHandlerEx(ptsvcname, pFunc, puserdata);
+    if (glbl_svc_status_hd == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("can not register svc[%s] error %d\n",svcname,ret);
+        ERROR_INFO("can not register svc[%s] error %d\n", svcname, ret);
         goto fail;
     }
 
-    memset(&glbl_svc_status,0,sizeof(glbl_svc_status));
-    glbl_svc_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS; 
+    memset(&glbl_svc_status, 0, sizeof(glbl_svc_status));
+    glbl_svc_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
     glbl_svc_status.dwServiceSpecificExitCode = 0;
 
     ret = svc_report_mode(SERVICE_START_PENDING, 3000);
-    if (ret < 0){
+    if (ret < 0) {
         goto fail;
     }
 
-    AnsiToTchar(NULL,&ptsvcname,&tsvcsize);
+    AnsiToTchar(NULL, &ptsvcname, &tsvcsize);
 
     return 0;
 fail:
-    if (glbl_svc_status_hd){
+    if (glbl_svc_status_hd) {
         CloseHandle(glbl_svc_status_hd);
     }
     glbl_svc_status_hd = NULL;
-    AnsiToTchar(NULL,&ptsvcname,&tsvcsize);
+    AnsiToTchar(NULL, &ptsvcname, &tsvcsize);
     SETERRNO(ret);
     return ret;
 }
@@ -964,26 +964,26 @@ int svc_report_mode(DWORD mode, DWORD time)
     glbl_svc_status.dwWin32ExitCode = NO_ERROR;
     glbl_svc_status.dwWaitHint = time;
 
-    if (mode == SERVICE_START_PENDING){
+    if (mode == SERVICE_START_PENDING) {
         glbl_svc_status.dwControlsAccepted = 0;
-    }else {
+    } else {
         glbl_svc_status.dwControlsAccepted = SERVICE_ACCEPT_STOP
-            | SERVICE_ACCEPT_PAUSE_CONTINUE
-            | SERVICE_ACCEPT_SHUTDOWN
-            | SERVICE_ACCEPT_PARAMCHANGE
-            | SERVICE_ACCEPT_NETBINDCHANGE
-            | SERVICE_ACCEPT_HARDWAREPROFILECHANGE
-            | SERVICE_ACCEPT_POWEREVENT
-            | SERVICE_ACCEPT_SESSIONCHANGE
-            | SERVICE_ACCEPT_PRESHUTDOWN
-            | SERVICE_ACCEPT_TIMECHANGE
-            | SERVICE_ACCEPT_TRIGGEREVENT;
+                                             | SERVICE_ACCEPT_PAUSE_CONTINUE
+                                             | SERVICE_ACCEPT_SHUTDOWN
+                                             | SERVICE_ACCEPT_PARAMCHANGE
+                                             | SERVICE_ACCEPT_NETBINDCHANGE
+                                             | SERVICE_ACCEPT_HARDWAREPROFILECHANGE
+                                             | SERVICE_ACCEPT_POWEREVENT
+                                             | SERVICE_ACCEPT_SESSIONCHANGE
+                                             | SERVICE_ACCEPT_PRESHUTDOWN
+                                             | SERVICE_ACCEPT_TIMECHANGE
+                                             | SERVICE_ACCEPT_TRIGGEREVENT;
     }
 
-    if ((mode == SERVICE_RUNNING) || 
-        (mode == SERVICE_STOPPED)) {
+    if ((mode == SERVICE_RUNNING) ||
+            (mode == SERVICE_STOPPED)) {
         glbl_svc_status.dwCheckPoint = 0;
-    }else {
+    } else {
         //glbl_svc_status.dwCheckPoint = st_chkpnt;
         //st_chkpnt ++;
         glbl_svc_status.dwCheckPoint = 0;
@@ -991,10 +991,10 @@ int svc_report_mode(DWORD mode, DWORD time)
 
     DEBUG_INFO("hd %p mode %d accepted control 0x%lx", glbl_svc_status_hd, mode, glbl_svc_status.dwControlsAccepted);
 
-    bret = SetServiceStatus(glbl_svc_status_hd,&glbl_svc_status);
-    if (!bret){
+    bret = SetServiceStatus(glbl_svc_status_hd, &glbl_svc_status);
+    if (!bret) {
         GETERRNO(ret);
-        ERROR_INFO("report service mode 0x%x error %d\n",mode,ret);
+        ERROR_INFO("report service mode 0x%x error %d\n", mode, ret);
         return ret;
     }
     return 0;
@@ -1004,13 +1004,13 @@ int svc_report_mode(DWORD mode, DWORD time)
 void svc_close_mode()
 {
     int ret;
-    if (glbl_svc_status_hd == NULL){
+    if (glbl_svc_status_hd == NULL) {
         return ;
     }
 
-    ret = svc_report_mode(SERVICE_STOPPED,1000);
-    if (ret < 0){
-        ERROR_INFO("close mode report error %d\n",ret);
+    ret = svc_report_mode(SERVICE_STOPPED, 1000);
+    if (ret < 0) {
+        ERROR_INFO("close mode report error %d\n", ret);
     }
     CloseHandle(glbl_svc_status_hd);
     glbl_svc_status_hd = NULL;
@@ -1021,35 +1021,217 @@ int svc_start(char* svcname, LPSERVICE_MAIN_FUNCTION pProc)
 {
     BOOL bret;
     int ret;
-    TCHAR* ptsvcname=NULL;
-    int tsvcsize=0;
+    TCHAR* ptsvcname = NULL;
+    int tsvcsize = 0;
 
-    ret = AnsiToTchar(svcname,&ptsvcname,&tsvcsize);
+    ret = AnsiToTchar(svcname, &ptsvcname, &tsvcsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    SERVICE_TABLE_ENTRY DispatchTable[] = 
-    { 
-        { (LPTSTR)ptsvcname, pProc }, 
-        { NULL, NULL } 
-    }; 
+    SERVICE_TABLE_ENTRY DispatchTable[] = {
+        { (LPTSTR)ptsvcname, pProc },
+        { NULL, NULL }
+    };
 
     bret = StartServiceCtrlDispatcher( DispatchTable );
 
-    if (!bret) 
-    { 
+    if (!bret) {
         GETERRNO(ret);
-        ERROR_INFO("can not start service svc error %d\n",ret); 
+        ERROR_INFO("can not start service svc error %d\n", ret);
         goto fail;
     }
 
-    AnsiToTchar(NULL,&ptsvcname,&tsvcsize);
+    AnsiToTchar(NULL, &ptsvcname, &tsvcsize);
     return 0;
 fail:
-    AnsiToTchar(NULL,&ptsvcname,&tsvcsize);
+    AnsiToTchar(NULL, &ptsvcname, &tsvcsize);
     SETERRNO(ret);
     return ret;
-    
+
+}
+
+
+int create_service(const char* name, const char* desc, const char* binpath, int startmode)
+{
+    TCHAR* ptname = NULL;
+    int tnamesize = 0;
+    TCHAR* ptdesc = NULL;
+    int tdescsize = 0;
+    TCHAR* ptbin = NULL;
+    int tbinsize = 0;
+    DWORD startdword = 0;
+    SC_HANDLE sch = NULL;
+    SC_HANDLE hservice = NULL;
+    int ret;    
+
+    if (name == NULL || binpath == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    switch (startmode) {
+    case SVC_START_ON_BOOT:
+        startdword = SERVICE_BOOT_START;
+        break;
+    case SVC_START_ON_SYSTEM:
+        startdword = SERVICE_SYSTEM_START;
+        break;
+    case SVC_START_ON_AUTO:
+        startdword = SERVICE_AUTO_START;
+        break;
+    case SVC_START_ON_DEMAND:
+        startdword = SERVICE_DEMAND_START;
+        break;
+    case SVC_START_ON_DISABLED:
+        startdword = SERVICE_DISABLED;
+        break;
+    default:
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+
+    sch = __open_scm(NULL, SC_MANAGER_ALL_ACCESS);
+    if (sch == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = AnsiToTchar(name, &ptname, &tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (desc != NULL) {
+        ret = AnsiToTchar(desc, &ptdesc, &tdescsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    ret = AnsiToTchar(binpath, &ptbin, &tbinsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    hservice = CreateService(sch,
+                             ptname,
+                             ptdesc, SERVICE_ALL_ACCESS,
+                             SERVICE_WIN32_OWN_PROCESS,
+                             startdword,
+                             SERVICE_ERROR_NORMAL,
+                             ptbin,
+                             NULL,
+                             NULL,
+                             NULL,
+                             NULL,
+                             NULL);
+    if (hservice == NULL) {
+        GETERRNO(ret);
+        if (ret != -ERROR_SERVICE_EXISTS) {
+            ERROR_INFO("create service %s [%s] error[%d]", name, binpath, ret);
+            goto fail;
+        }
+    }
+
+    if (hservice != NULL) {
+        CloseHandle(hservice);
+    }
+    hservice = NULL;
+
+
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    AnsiToTchar(NULL, &ptdesc, &tdescsize);
+    AnsiToTchar(NULL, &ptbin, &tbinsize);
+    if (sch != NULL) {
+        CloseHandle(sch);
+    }
+    sch = NULL;
+
+    return 0;
+fail:
+    if (hservice) {
+        CloseHandle(hservice);
+    }
+    hservice = NULL;
+
+    AnsiToTchar(NULL, &ptname, &tnamesize);
+    AnsiToTchar(NULL, &ptdesc, &tdescsize);
+    AnsiToTchar(NULL, &ptbin, &tbinsize);
+
+    if (sch != NULL) {
+        CloseHandle(sch);
+    }
+    sch = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int delete_service(const char* name)
+{
+    SC_HANDLE sch=NULL;
+    SC_HANDLE hservice=NULL;
+    int ret;
+    BOOL bret;
+
+    if (name == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    sch = __open_scm(NULL,SC_MANAGER_ALL_ACCESS);
+    if (sch == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    hservice = __open_svc(sch,name,SERVICE_ALL_ACCESS);
+    if (hservice == NULL) {
+        GETERRNO(ret);
+        if (ret != -ERROR_SERVICE_DOES_NOT_EXIST) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        goto succ;
+    }
+
+    bret = DeleteService(hservice);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("can not delete service %s error[%d]", name, ret);
+        goto fail;
+    }
+
+succ:
+    if (hservice) {
+        CloseHandle(hservice);
+    }
+    hservice = NULL;
+    if (sch) {
+        CloseHandle(sch);
+    }
+    sch = NULL;
+
+    return 0;
+fail:
+    if (hservice) {
+        CloseHandle(hservice);
+    }
+    hservice = NULL;
+    if (sch) {
+        CloseHandle(sch);
+    }
+    sch = NULL;
+
+    SETERRNO(ret);
+    return ret;
 }
