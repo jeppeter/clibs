@@ -666,14 +666,18 @@ int __stop_service_single(SC_HANDLE sch, char* name, int mills)
     int ret;
     uint64_t sticks,cticks;
     BOOL bret;
+    int retcnt = 0;
 
     sticks = get_current_ticks();
 
     hservice = __open_svc(sch, name, SERVICE_ALL_ACCESS);
     if (hservice == NULL) {
         GETERRNO(ret);
-        SETERRNO(ret);
-        return ret;
+        if (ret != -ERROR_SERVICE_DOES_NOT_EXIST) {
+            SETERRNO(ret);
+            return ret;            
+        }
+        return 0;
     }
 
     memset(&status, 0, sizeof(status));
@@ -705,6 +709,7 @@ int __stop_service_single(SC_HANDLE sch, char* name, int mills)
                 ERROR_INFO("control [%s] stop error[%d]", name, ret);
                 goto fail;
             }
+            retcnt = 1;
         }
     }while(status.dwCurrentState != SERVICE_STOPPED );
 
@@ -713,7 +718,7 @@ int __stop_service_single(SC_HANDLE sch, char* name, int mills)
         CloseHandle(hservice);
     }
     hservice = NULL;
-    return 1;
+    return retcnt;
 fail:
     if (hservice != NULL) {
         CloseHandle(hservice);
@@ -748,7 +753,7 @@ int __stop_service_dep(SC_HANDLE sch,psvc_depends_t pdep, int mills)
         SETERRNO(ret);
         return ret;
     }
-    ncnt ++;
+    ncnt += ret;
     return ncnt;
 }
 
@@ -783,6 +788,105 @@ fail:
     __close_scm(&sch);
     SETERRNO(ret);
     return ret;
+}
+
+int __start_service_single(SC_HANDLE sch, ENUM_SERVICE_STATUSA* pstatus,int mills)
+{
+    int nret=0;
+    SC_HANDLE hservice = NULL;
+    int ret;
+    SERVICE_STATUS_PROCESS procsts;
+    uint64_t sticks,cticks;
+    BOOL bret;
+    DWORD bufret;
+    if (pstatus->ServiceStatus.dwCurrentState != SERVICE_RUNNING) {
+        return nret;
+    }
+
+    sticks = get_current_ticks();
+    hservice = __open_svc(sch,pstatus->lpServiceName,SERVICE_ALL_ACCESS);
+    if (hservice == NULL) {
+        GETERRNO(ret);
+        if (ret != -ERROR_SERVICE_DOES_NOT_EXIST) {
+            SETERRNO(ret);
+            return ret;
+        }
+        return 0;
+    }
+
+    memset(&procsts,0, sizeof(procsts));
+    do{
+        cticks = get_current_ticks();
+        ret = need_wait_times(sticks,cticks, mills);
+        if (ret < 0) {
+            ret = -WAIT_TIMEOUT;
+            ERROR_INFO("serice [%s] wait running timeout", pstatus->lpServiceName);
+            goto fail;
+        }
+        bret = QueryServiceStatusEx(hservice,SC_STATUS_PROCESS_INFO,(LPBYTE)&procsts, sizeof(procsts),&bufret);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("query [%s] status error[%d]", pstatus->lpServiceName, ret);
+            goto fail;
+        }
+
+        if (procsts.dwCurrentState == SERVICE_START_PENDING) {
+            bret = SwitchToThread();
+            if (!bret) {
+                SleepEx(1,TRUE);
+            }
+        } else if (procsts.dwCurrentState != SERVICE_RUNNING) {
+            bret = StartService(hservice,0,NULL);
+            if (!bret) {
+                GETERRNO(ret);
+                ERROR_INFO("start service [%s] error[%d]", pstatus->lpServiceName, ret);
+                goto fail;
+            }
+            nret ++;
+        }
+    } while(procsts.dwCurrentState != SERVICE_RUNNING);
+
+
+    if (hservice) {
+        CloseHandle(hservice);
+    }
+    hservice = NULL;
+    return nret;
+fail:
+    if (hservice) {
+        CloseHandle(hservice);
+    }
+    hservice = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int __start_service_dep(SC_HANDLE sch,psvc_depends_t pdep,int mills)
+{
+    int i;
+    int retcnt = 0;
+    int ret;
+    if (pdep->m_subdepends) {
+        for (i=0;i<pdep->m_depcnt;i++) {
+            ret = __start_service_dep(sch, pdep->m_subdepends[i], mills);
+            if (ret < 0) {
+                GETERRNO(ret);
+                SETERRNO(ret);
+                return ret;
+            }
+            retcnt += ret;
+        }
+    }
+
+    ret = __start_service_dep(sch,pdep,mills);
+    if (ret < 0) {
+        GETERRNO(ret);
+        SETERRNO(ret);
+        return ret;
+    }
+    retcnt += ret;
+    return retcnt;
 }
 
 
