@@ -150,7 +150,10 @@
     "svrnetmount<svrnetmount_handler>##svrip netshare username passwd : to mount##" : {
         "$" : 4
     },
-    "debugout<debugout_handler>## ... ##" : {
-        "$" : "+"
+    "chgpass<chgpass_handler>##user oldpass newpass##" : {
+        "$" : 3
+    },
+    "svrchgpass<svrchgpass_handler>##user oldpass newpass##" : {
+        "$" : 3
     }
 }

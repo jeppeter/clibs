@@ -20,6 +20,10 @@
 #include <win_com.h>
 #include <win_dbg.h>
 #include <win_base64.h>
+#include <win_user.h>
+
+
+
 #include <proto_api.h>
 #include <proto_win.h>
 #include <Lm.h>
@@ -103,7 +107,8 @@ int setregstr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int uselist_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrnetmount_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int debugout_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int chgpass_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svrchgpass_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -5112,24 +5117,19 @@ out:
     return ret;
 }
 
-int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+int __send_svr_pipe(uint32_t cmd,pextargs_state_t parsestate, pargs_options_t pargs)
 {
-    int ret=0;
-    char* pipename=NULL;
-    pargs_options_t pargs = (pargs_options_t) popt;
-    HANDLE hpipe=NULL;
-    OVERLAPPED* prdov=NULL,*pwrov=NULL;
+    char* pipename = NULL;
+    HANDLE hpipe = NULL;
+    OVERLAPPED *prdov=NULL,*pwrov=NULL;
     size_t totallen = 0;
-    pipe_hdr_t* phdr = NULL;
-    char* pcurptr;
-    int i;
-    size_t curlen;
+    pipe_hdr_t *phdr=NULL;
+    int ret;
     BOOL bret;
+    int i;
+    char* pcurptr = NULL;
+    size_t curlen;
 
-    argv = argv;
-    argc = argc;
-
-    init_log_level(pargs);
 
     pipename = pargs->m_pipename;
     if (pipename == NULL) {
@@ -5159,6 +5159,7 @@ int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
 
     /*now format the buffer*/
+    totallen = 0;
     for (i=0;parsestate->leftargs != NULL && parsestate->leftargs[i] != NULL ;i++) {
         totallen += (strlen(parsestate->leftargs[i]) + 1);
     }
@@ -5181,7 +5182,7 @@ int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
     memset(phdr, 0, totallen);
     phdr->m_datalen = (uint32_t)totallen;
-    phdr->m_cmd = EXECUTE_COMMAND;
+    phdr->m_cmd = cmd;
 
     pcurptr = (char*) phdr;
     pcurptr += sizeof(*phdr);
@@ -5206,11 +5207,38 @@ int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     ret = 0;
 out:
+    if (st_ExitEvt) {
+        CloseHandle(st_ExitEvt);
+    }
+    st_ExitEvt = NULL;
+
     if (phdr) {
         free(phdr);
     }
     phdr = NULL;
     connect_pipe(NULL,NULL,&hpipe,&prdov,&pwrov);
+    SETERRNO(ret);
+    return ret;
+}
+
+int svrcmd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret=0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+
+    init_log_level(pargs);
+
+    ret = __send_svr_pipe(EXECUTE_COMMAND,parsestate,pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
     SETERRNO(ret);
     return ret;
 }
@@ -5219,120 +5247,70 @@ out:
 int svrnetmount_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret=0;
-    char* pipename=NULL;
-    pargs_options_t pargs = (pargs_options_t) popt;
-    HANDLE hpipe=NULL;
-    OVERLAPPED* prdov=NULL,*pwrov=NULL;
-    size_t totallen = 0;
-    pipe_hdr_t* phdr = NULL;
-    char* pcurptr;
-    int i;
-    size_t curlen;
-    BOOL bret;
-
-    argv = argv;
-    argc = argc;
-
-    init_log_level(pargs);
-
-    pipename = pargs->m_pipename;
-    if (pipename == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
-        fprintf(stderr,"no pipename\n");
-        goto out;
-    }
-
-    st_ExitEvt = CreateEvent(NULL, TRUE, FALSE, NULL);
-    if (st_ExitEvt == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("create exit event %d\n", ret);
-        goto out;
-    }
-    bret = SetConsoleCtrlHandler(HandlerConsoleRoutine, TRUE);
-    if (!bret) {
-        GETERRNO(ret);
-        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
-        goto out;
-    }
-
-    ret = connect_pipe(pipename, st_ExitEvt,&hpipe,&prdov,&pwrov);
-    if (ret < 0) {
-        GETERRNO(ret);
-        fprintf(stderr, "can not connect pipe [%s] error[%d]\n", pipename, ret);
-        goto out;
-    }
-
-    /*now format the buffer*/
-    for (i=0;parsestate->leftargs != NULL && parsestate->leftargs[i] != NULL ;i++) {
-        totallen += (strlen(parsestate->leftargs[i]) + 1);
-    }
-
-    if (totallen > 0) {
-        totallen ++;
-        totallen += sizeof(*phdr);
-    }
-
-    if (totallen == 0) {
-        ret = -ERROR_INVALID_PARAMETER;
-        fprintf(stderr, "can not accept zero command\n");
-        goto out;
-    }
-
-    phdr = (pipe_hdr_t*)malloc(totallen);
-    if (phdr == NULL) {
-        GETERRNO(ret);
-        goto out;
-    }
-    memset(phdr, 0, totallen);
-    phdr->m_datalen = (uint32_t)totallen;
-    phdr->m_cmd = NETSHARE_MOUNT;
-
-    pcurptr = (char*) phdr;
-    pcurptr += sizeof(*phdr);
-
-    for (i=0;parsestate->leftargs!=NULL && parsestate->leftargs[i]; i++) {
-        curlen = strlen(parsestate->leftargs[i]);
-        memcpy(pcurptr, parsestate->leftargs[i],curlen);
-        pcurptr += (curlen + 1);
-    }
-    DEBUG_BUFFER_FMT(phdr, (int)totallen, "buffer write");
-
-    ret = write_pipe_data(st_ExitEvt,hpipe,pwrov,pargs->m_timeout, (char*)phdr,(int)totallen);
-    if (ret < 0) {
-        GETERRNO(ret);
-        fprintf(stderr,"write [%s] with len [%zd] error[%d]\n",pipename, totallen, ret);
-        goto out;
-    }
-
-    DEBUG_INFO("Sleep before");
-    SleepEx(1000,TRUE);
-    DEBUG_INFO("Sleep after");
-
-    ret = 0;
-out:
-    if (phdr) {
-        free(phdr);
-    }
-    phdr = NULL;
-    connect_pipe(NULL,NULL,&hpipe,&prdov,&pwrov);
-    SETERRNO(ret);
-    return ret;
-}
-
-int debugout_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
-{
-    int i;
     pargs_options_t pargs = (pargs_options_t) popt;
     init_log_level(pargs);
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
-    
-    for (i=0;parsestate->leftargs && parsestate->leftargs[i] != NULL ;i ++) {
-        DEBUG_INFO("%s", parsestate->leftargs[i]);
+
+    ret = __send_svr_pipe(NETSHARE_MOUNT,parsestate,pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
     }
-    SETERRNO(0);
-    return 0;
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int chgpass_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* user, *oldpass,*newpass;
+    init_log_level(pargs);
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    user = parsestate->leftargs[0];
+    oldpass = parsestate->leftargs[1];
+    newpass = parsestate->leftargs[2];
+    ret = user_change_password(user,oldpass,newpass); 
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not change [%s] pass [%s] => [%s] error[%d]\n", user,oldpass,newpass,ret);
+        goto out;
+    }
+
+    fprintf(stdout, "change [%s] pass[%s] => [%s] succ\n", user,oldpass,newpass);
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int svrchgpass_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    init_log_level(pargs);
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    
+    ret = __send_svr_pipe(CHG_USER_PASS,parsestate,pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
 }
 
 int _tmain(int argc, TCHAR* argv[])

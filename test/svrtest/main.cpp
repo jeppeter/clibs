@@ -5,6 +5,8 @@
 #include <win_uniansi.h>
 #include <win_proc.h>
 #include <win_evt.h>
+#include <win_user.h>
+
 #include <tchar.h>
 #include <proto_api.h>
 #include <proto_win.h>
@@ -317,6 +319,37 @@ fail:
     return ret;
 }
 
+int change_password(HANDLE exitevt, ppipe_hdr_t phdr, int hdrlen)
+{
+    char* user,*oldpass,*newpass;
+    char* pcurptr;
+    int ret;
+
+    REFERENCE_ARG(exitevt);
+    REFERENCE_ARG(hdrlen);
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);
+    user = pcurptr;
+    pcurptr += strlen(user);
+    pcurptr ++;
+    oldpass = pcurptr;
+    pcurptr += strlen(oldpass);
+    pcurptr ++;
+    newpass = pcurptr;
+
+    ret = user_change_password(user,oldpass,newpass); 
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
 static char* st_POWRSHELL_MOUNT_SH = "powershell -ExecutionPolicy ByPass -Command \"$svrip=\\\"%s\\\";;;$netshare=\\\"%s\\\";;;$user=\\\"%s\\\";;;$passwd=\\\"%s\\\";;;net use | Select-String -Pattern \\\"^OK\\\" | Select-String  -Pattern $svrip | Select-String -Pattern $netshare | Tee-Object -Variable ttobj | Out-Null;;;if ($ttobj.length -gt 0) {;;    Write-Host \\\"run ok 0\\\" ;;;    exit(0);;;};;Write-Host \\\"no \\\\$svrip\\$netshare\\\";;;$ttobj;;;;;net use |  Select-String -Pattern $svrip |Tee-Object -Variable ttobj | Out-Null;;;;;if ($ttobj.length -gt 0) {;;        foreach($c in $ttobj) {;;        $s = $c -replace \\\"\\s+\\\",\\\" \\\";;;        $arr = $s.split(\\\" \\\");;;        Write-Host \\\"[\\\"$arr[1]\\\"]\\\";;;        net use $arr[1] /delete;;;    };;};;$chars=\\\"ABCDEFGHIJKLMNOPQRSTUVWXYZ\\\";;;$i = 3;;;while ($i -lt 26) {;;    $mntlabel = $chars[$i];;;    $c = \\\"$mntlabel\\\";;;    $c += \\\":\\\";;;    Write-Host \\\"c [$c]\\\";;;    Write-Host \\\"net use $c \\\\$svrip\\$netshare /user:$user $passwd\\\";;;    net use $c \\\\$svrip\\$netshare /user:$user $passwd;;;    if ($?) {;;        exit(0);;;    };;    $i++;;;};;;;Write-Host \\\"can not mount \\\\$svrip\\$netshare /user:$user $passwd\\\";;;exit(3);;;;;;;\"";
 static char* st_POWRSHELL_GET_MNT = "powershell -ExecutionPolicy ByPass -Command \"$svrip=\\\"%s\\\";;;$netshare=\\\"%s\\\";;;$user=\\\"%s\\\";;;$passwd=\\\"%s\\\";;;;;$chars=\\\"ABCDEFGHIJKLMNOPQRSTUVWXYZ\\\";;;;;net use | Select-String -Pattern \\\"^OK\\\" | Select-String  -Pattern $svrip | Select-String -Pattern $netshare | Tee-Object -Variable ttobj | Out-Null;;;if ($ttobj.length -gt 0) {;;    $s = $ttobj -replace \\\"\\s+\\\", \\\" \\\";;;    $arr = $s.split(\\\" \\\");;;    $cv = $arr[1].ToUpper();;;    $i =0;;;    while ($i -lt 26) {;;        $cg = $chars[$i];;;        $cg += \\\":\\\";;;        if ($cg.equals($cv)) {;;            exit($i+1);;;        };;        $i ++;;;    };;};;;;;;exit(255);\"";
 
@@ -517,6 +550,14 @@ bind_pipe_again:
                     break;
                 }
                 goto bind_pipe_again;                
+            }
+        } else if (phdr->m_cmd == CHG_USER_PASS) {
+            ret = change_password(exitevt,phdr,indatalen);
+            if (ret < 0) {
+                if (ret == -ERROR_CONTROL_C_EXIT) {
+                    break;
+                }
+                goto bind_pipe_again;
             }
         }
 
