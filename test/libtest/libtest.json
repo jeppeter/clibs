@@ -155,5 +155,8 @@
     },
     "svrchgpass<svrchgpass_handler>##user oldpass newpass##" : {
         "$" : 3
+    },
+    "vsinsted<vsinsted_handler>##versions ...##" : {
+        "$" : "+"
     }
 }

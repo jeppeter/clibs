@@ -82,7 +82,7 @@ REL_LDFLAGS =
 CFLAGS  = $(UNICODE_CFLAGS) $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(INC_CFLAGS) $(COM_CFLAGS) $(REL_CFLAGS) $(DBG_CFLAGS)
 LDFLAGS = $(NOLOGO_LDFLAGS) $(INC_LDFLAGS) $(REL_LDFLAGS)
 
-SOURCES=main.cpp proto_win.cpp
+SOURCES=main.cpp proto_win.cpp vssetup.cpp
 OBJECTS=$(SOURCES:.cpp=.obj)
 
 all:libtest.exe pipewin.exe
