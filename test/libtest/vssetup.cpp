@@ -1,5 +1,6 @@
 #include <win_types.h>
 #include <win_err.h>
+#include <win_uniansi.h>
 
 #include <Objbase.h>
 
@@ -8,6 +9,7 @@
 
 
 #pragma comment(lib,"Ole32.lib")
+#pragma comment(lib,"OleAut32.lib")
 
 
 static int st_vs_cominitialized=0;
@@ -165,7 +167,7 @@ fail:
 	return ret;
 }
 
-int __get_instance2(ISetupInstance* ptr, ISetupInstance2* pptr)
+int __get_instance2(ISetupInstance* ptr, ISetupInstance2** pptr)
 {
 	int ret;
 	HRESULT hres;
@@ -189,7 +191,7 @@ fail:
 	return ret;
 }
 
-void __free_bstr(BSTR** ppstr)
+void __free_bstr(BSTR* ppstr)
 {
 	if (ppstr && *ppstr) {
 		::SysFreeString(*ppstr);
@@ -198,11 +200,11 @@ void __free_bstr(BSTR** ppstr)
 	return ;
 }
 
-int __check_match_version(IID_ISetupInstance2 pinst2,const char* version)
+int __check_match_version(ISetupInstance2* pinst2,const char* version)
 {
 	int ret;
 	HRESULT hres;
-	BTSR* pstr=NULL;
+	BSTR pstr=NULL;
 	char* nstr=NULL;
 	int nsize=0;
 	InstanceState state;
