@@ -27,6 +27,10 @@ const IID IID_ISetupHelper = {
   { 0x87, 0xbf, 0xd5, 0x77, 0x83, 0x8f, 0x1d, 0x5c }
 };
 
+const IID IID_ISetupInstance2 = {
+  0x89143C9A, 0x05AF, 0x49B0,
+  { 0xB7, 0x17, 0x72, 0xE2, 0x18, 0xA2, 0x18, 0x5C }
+};
 
 const CLSID CLSID_SetupConfiguration = {
   0x177F0C4A, 0x1CD3, 0x4DE7,
@@ -161,9 +165,119 @@ fail:
 	return ret;
 }
 
+int __get_instance2(ISetupInstance* ptr, ISetupInstance2* pptr)
+{
+	int ret;
+	HRESULT hres;
+	if (ptr == NULL || pptr == NULL || *pptr != NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	hres = ptr->QueryInterface(IID_ISetupInstance2,(LPVOID*)pptr);
+	if (hres != S_OK) {
+		GETERRNO(ret);
+		ERROR_INFO("query IID_ISetupInstance2 error [%ld] [%d]", hres,ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	__free_interface((IUnknown**)pptr);
+	SETERRNO(ret);
+	return ret;
+}
+
+void __free_bstr(BSTR** ppstr)
+{
+	if (ppstr && *ppstr) {
+		::SysFreeString(*ppstr);
+		*ppstr = NULL;
+	}
+	return ;
+}
+
+int __check_match_version(IID_ISetupInstance2 pinst2,const char* version)
+{
+	int ret;
+	HRESULT hres;
+	BTSR* pstr=NULL;
+	char* nstr=NULL;
+	int nsize=0;
+	InstanceState state;
+	REFERENCE_ARG(version);
+	hres = pinst2->GetInstanceId(&pstr);
+	if (hres != S_OK) {
+		GETERRNO(ret);
+		ERROR_INFO("can not get instance id [%ld] [%d]", hres,ret);
+		goto fail;
+	}
+
+	ret = UnicodeToAnsi((wchar_t*)pstr,&nstr,&nsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	DEBUG_INFO("get instance id [%s]", nstr);
+	__free_bstr(&pstr);
+
+	hres = pinst2->GetState(&state);
+	if (hres != S_OK) {
+		GETERRNO(ret);
+		ERROR_INFO("get state error [%ld] [%d]", hres,ret);
+		goto fail;
+	}
+
+	DEBUG_INFO("state [%ld]", state);
+
+	hres = pinst2->GetInstallationVersion(&pstr);
+	if (hres != S_OK) {
+		GETERRNO(ret);
+		ERROR_INFO("can not get installation version error[%ld] [%d]", hres,ret);
+		goto fail;
+	}
+
+	ret = UnicodeToAnsi((wchar_t*)pstr, &nstr,&nsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	DEBUG_INFO("installation version [%s]", nstr);
+	__free_bstr(&pstr);
+
+	hres = pinst2->GetInstallationPath(&pstr);
+	if (hres != S_OK) {
+		GETERRNO(ret);
+		ERROR_INFO("get installation path error[%ld] [%d]", hres, ret);
+		goto fail;
+	}
+
+	ret = UnicodeToAnsi((wchar_t*)pstr,&nstr, &nsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	DEBUG_INFO("installation path [%s]" , nstr);
+	__free_bstr(&pstr);
+
+
+	UnicodeToAnsi(NULL,&nstr,&nsize);
+	__free_bstr(&pstr);
+	return 1;
+fail:
+	UnicodeToAnsi(NULL,&nstr,&nsize);
+	__free_bstr(&pstr);
+	SETERRNO(ret);
+	return ret;
+}
+
+
 int __check_inst_instance(IEnumSetupInstances* penum, const char* version)
 {
 	ISetupInstance* pinst=NULL;
+	ISetupInstance2* pinst2=NULL;
 	int ret;
 	int matched = 0;
 	HRESULT hres;
@@ -172,6 +286,7 @@ int __check_inst_instance(IEnumSetupInstances* penum, const char* version)
 	REFERENCE_ARG(version);
 
 	while(1) {
+		__free_interface((IUnknown**)&pinst2);
 		__free_interface((IUnknown**)&pinst);
 		hres = penum->Next(1, &pinst,NULL);
 		if (hres != S_OK) {
@@ -180,9 +295,21 @@ int __check_inst_instance(IEnumSetupInstances* penum, const char* version)
 			break;
 		}
 		cnt ++;
+
+		ret = __get_instance2(pinst,&pinst2);
+		if (ret < 0) {
+			continue;
+		}
+
+		ret = __check_match_version(pinst2, version);
+		if (ret > 0) {
+			matched = 1;
+			break;
+		}
 	}
 
 
+	__free_interface((IUnknown**)&pinst2);
 	__free_interface((IUnknown**)&pinst);
 	return matched;
 //fail:
