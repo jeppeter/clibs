@@ -161,6 +161,36 @@ fail:
 	return ret;
 }
 
+int __check_inst_instance(IEnumSetupInstances* penum, const char* version)
+{
+	ISetupInstance* pinst=NULL;
+	int ret;
+	int matched = 0;
+	HRESULT hres;
+	int cnt = 0;
+
+	REFERENCE_ARG(version);
+
+	while(1) {
+		__free_interface((IUnknown**)&pinst);
+		hres = penum->Next(1, &pinst,NULL);
+		if (hres != S_OK) {
+			GETERRNO(ret);
+			ERROR_INFO("can not get instance [%d] return [%ld] [%d]", cnt, hres, ret);
+			break;
+		}
+		cnt ++;
+	}
+
+
+	__free_interface((IUnknown**)&pinst);
+	return matched;
+//fail:
+//	__free_interface((IUnknown**)&pinst);
+//	SETERRNO(ret);
+//	return ret;
+}
+
 
 
 int is_visual_studio_installed(const char* version)
@@ -196,6 +226,12 @@ int is_visual_studio_installed(const char* version)
 	}
 
 	ret =__enum_get_enum_instances(psetupconfig2,&penum);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = __check_inst_instance(penum,version);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
