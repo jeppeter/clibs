@@ -1,5 +1,7 @@
 #include <win_namedpipe.h>
 #include <win_err.h>
+#include <win_types.h>
+#include <win_uniansi.h>
 
 #define   NAMED_PIPE_MAGIC             0x33219
 
@@ -48,6 +50,7 @@ void __free_namedpipe(pnamed_pipe_t *ppnp)
                 ERROR_INFO("can not cancel pending [%s] read", pnp->m_name);
             }
             pnp->m_rdpending = 0;
+            pnp->m_rdleft = 0;
         }
 
         if (pnp->m_wrpending) {
@@ -58,6 +61,7 @@ void __free_namedpipe(pnamed_pipe_t *ppnp)
                 ERROR_INFO("can not cancel pending [%s] write", pnp->m_name);
             }
             pnp->m_wrpending = 0;
+            pnp->m_wrleft = 0;
         }
 
         if (pnp->m_connevt != NULL) {
@@ -124,6 +128,7 @@ pnamed_pipe_t __alloc_namedpipe(char* name, int servermode)
     SECURITY_DESCRIPTOR sd;
     TCHAR* ptname = NULL;
     int tnamesize = 0;
+    BOOL bret;
 
     pnp = (pnamed_pipe_t)malloc(sizeof(*pnp));
     if (pnp == NULL) {
@@ -132,14 +137,14 @@ pnamed_pipe_t __alloc_namedpipe(char* name, int servermode)
     }
 
     memset(pnp, 0, sizeof(*pnp));
+    pnp->m_magic = NAMED_PIPE_MAGIC;
+
     pnp->m_name = strdup(name);
     if (pnp->m_name == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not strdup [%s] error[%d]", name, ret);
         goto fail;
     }
-
-    pnp->m_magic = NAMED_PIPE_MAGIC;
 
     ret = AnsiToTchar(name, &ptname, &tnamesize);
     if (ret < 0) {
@@ -223,6 +228,7 @@ fail:
 void* bind_namedpipe(char* name)
 {
     pnamed_pipe_t pnp = NULL;
+    int ret;
     pnp = __alloc_namedpipe(name, 1);
     if (pnp == NULL) {
         GETERRNO(ret);
@@ -235,6 +241,7 @@ void* bind_namedpipe(char* name)
 void* connect_namedpipe(char* name)
 {
     pnamed_pipe_t pnp = NULL;
+    int ret;
     pnp = __alloc_namedpipe(name, 0);
     if (pnp == NULL) {
         GETERRNO(ret);
@@ -449,6 +456,7 @@ int complete_namedpipe_rdpending(void* pnp1)
     int ret;
     int completed = 0;
     DWORD cbread = 0;
+    BOOL bret;
 
     if (pnp == NULL || pnp->m_magic != NAMED_PIPE_MAGIC) {
         ret = -ERROR_INVALID_PARAMETER;
@@ -462,7 +470,7 @@ int complete_namedpipe_rdpending(void* pnp1)
 
     bret = GetOverlappedResult(pnp->m_hpipe, &(pnp->m_rdov), &cbread, FALSE);
     if (!bret) {
-        GETERRNO(ret)
+        GETERRNO(ret);
         if (ret != -ERROR_IO_PENDING) {
             ERROR_INFO("get [%s]read ov error[%d]", pnp->m_name, ret);
             goto fail;
@@ -489,6 +497,7 @@ int complete_namedpipe_wrpending(void* pnp1)
     int ret;
     int completed = 0;
     DWORD cbwrite = 0;
+    BOOL bret;
 
     if (pnp == NULL || pnp->m_magic != NAMED_PIPE_MAGIC) {
         ret = -ERROR_INVALID_PARAMETER;
@@ -502,7 +511,7 @@ int complete_namedpipe_wrpending(void* pnp1)
 
     bret = GetOverlappedResult(pnp->m_hpipe, &(pnp->m_wrov), &cbwrite, FALSE);
     if (!bret) {
-        GETERRNO(ret)
+        GETERRNO(ret);
         if (ret != -ERROR_IO_PENDING) {
             ERROR_INFO("get [%s]write ov error[%d]", pnp->m_name, ret);
             goto fail;
@@ -529,6 +538,7 @@ int complete_namedpipe_connpending(void* pnp1)
     int ret;
     int completed = 0;
     DWORD cbret = 0;
+    BOOL bret;
 
     if (pnp == NULL || pnp->m_magic != NAMED_PIPE_MAGIC) {
         ret = -ERROR_INVALID_PARAMETER;
