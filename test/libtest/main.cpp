@@ -5945,7 +5945,8 @@ int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
         goto out;
     }
     writesize = 0;
-    while (curidx < argcnt && ridx < argcnt) {
+    while (curidx < argcnt || ridx < argcnt) {
+        DEBUG_INFO("curidx [%d] ridx [%d] argcnt [%d]", curidx, ridx, argcnt);
         waitnum = 0;
         waithds[waitnum] = st_ExitEvt;
         waitnum ++;
@@ -5969,7 +5970,6 @@ write_again:
                 writelen = (int)(filelen[curidx] + sizeof(uint32_t));
                 memcpy(&(pwritebuf[0]), &writelen, sizeof(uint32_t));
                 memcpy(&(pwritebuf[sizeof(uint32_t)]), filecon[curidx], (size_t)filelen[curidx]);
-                DEBUG_BUFFER_FMT(pwritebuf, writelen, "write [%d] packet", curidx);
                 ret = write_namedpipe(pnp, pwritebuf, writelen);
                 if (ret < 0) {
                     GETERRNO(ret);
@@ -5998,6 +5998,7 @@ read_again:
                     ERROR_INFO("can not read [%s] error[%d]", pipename, ret);
                     goto out;
                 }
+                DEBUG_INFO("read [%d]", ret);
                 if (get_namedpipe_rdstate(pnp) == 0) {
                     rcvlen = needlen;
                     if (needlen == sizeof(uint32_t)) {
@@ -6037,7 +6038,7 @@ read_again:
                     } else if (needlen > sizeof(uint32_t)) {
                         rcvlen = needlen;
 read_more:
-                        DEBUG_INFO(&(preadbuf[sizeof(uint32_t)]), (needlen - sizeof(uint32_t)), "read [%d] packet", ridx);
+                        DEBUG_BUFFER_FMT(preadbuf, needlen, "read [%d] packet", ridx);
                         ridx ++;
                         needlen = sizeof(uint32_t);
                         rcvlen = 0;
@@ -6055,12 +6056,17 @@ read_more:
             waitnum ++;
         }
 
+        if (waitnum == 1) {
+            break;
+        }
+
         dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, INFINITE, FALSE);
         if (dret < (WAIT_OBJECT_0 + waitnum)) {
             curhd = waithds[(dret - WAIT_OBJECT_0)];
             if (curhd == st_ExitEvt) {
                 break;
             } else if (curhd == get_namedpipe_rdevt(pnp)) {
+                DEBUG_INFO("rdevt");
                 ret = complete_namedpipe_rdpending(pnp);
                 if (ret < 0) {
                     GETERRNO(ret);
@@ -6069,13 +6075,19 @@ read_more:
                 }
 
                 if (ret > 0) {
+                    DEBUG_INFO("needlen [%d]", needlen);
                     if (needlen > sizeof(uint32_t)) {
+                        rcvlen = needlen;
 dump_again:
-                        DEBUG_BUFFER_FMT(&(preadbuf[sizeof(uint32_t)]), (int)(needlen - sizeof(uint32_t)), "read [%d] packet", ridx);
+                        DEBUG_BUFFER_FMT(preadbuf, needlen, "read [%d] packet", ridx);
+                        needlen = sizeof(uint32_t);
+                        rcvlen = 0;
                         ridx ++;
                     } else if (needlen == sizeof(uint32_t)) {
+                        rcvlen = needlen;
                         memcpy(&needlen, preadbuf, sizeof(uint32_t));
-                        if (needlen == sizeof(uint32_t)) {
+                        DEBUG_INFO("more [%d]", needlen);
+                        if (needlen == sizeof(uint32_t)) {                            
                             goto dump_again;
                         }
 
@@ -6098,8 +6110,6 @@ dump_again:
                         }
                     }
                 }
-
-
             } else if (curhd == get_namedpipe_wrevt(pnp)) {
                 ret = complete_namedpipe_wrpending(pnp);
                 if (ret < 0) {
@@ -6114,6 +6124,7 @@ dump_again:
             }
         }
     }
+
 
     ret = 0;
 out:

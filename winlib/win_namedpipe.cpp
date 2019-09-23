@@ -466,13 +466,15 @@ int complete_namedpipe_rdpending(void* pnp1)
         goto fail;
     }
 
+    cbread = 0;
     bret = GetOverlappedResult(pnp->m_hpipe, &(pnp->m_rdov), &cbread, FALSE);
     if (!bret) {
         GETERRNO(ret);
-        if (ret != -ERROR_IO_PENDING) {
+        if (ret != -ERROR_IO_PENDING && ret != -ERROR_MORE_DATA) {
             ERROR_INFO("get [%s]read ov error[%d]", pnp->m_name, ret);
             goto fail;
         }
+        pnp->m_rdleft -= cbread;
     } else {
         pnp->m_rdleft -= cbread;
     }
