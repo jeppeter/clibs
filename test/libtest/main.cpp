@@ -6056,11 +6056,7 @@ read_more:
             waitnum ++;
         }
 
-        if (waitnum == 1) {
-            break;
-        }
-
-        dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, INFINITE, FALSE);
+        dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, 500, FALSE);
         if (dret < (WAIT_OBJECT_0 + waitnum)) {
             curhd = waithds[(dret - WAIT_OBJECT_0)];
             if (curhd == st_ExitEvt) {
@@ -6122,6 +6118,12 @@ dump_again:
                     curidx ++;
                 }
             }
+        } else if (dret == WAIT_TIMEOUT) {
+            continue;
+        } else {
+            GETERRNO(ret);
+            ERROR_INFO("wait error [%d] [%d]", dret,ret);
+            goto out;
         }
     }
 
