@@ -161,5 +161,8 @@
     },
     "npsvr<npsvr_handler>##listen on named pipe with echo##" : {
         "$" : "*"
+    },
+    "npcli<npcli_handler>##connect to named server##" : {
+        "$" : "+"
     }
 }
