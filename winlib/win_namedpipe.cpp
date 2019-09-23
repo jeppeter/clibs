@@ -557,6 +557,7 @@ int complete_namedpipe_connpending(void* pnp1)
     	}
     } else {
     	completed = 1;
+        pnp->m_connpending = 0;
     }
 
     return completed;

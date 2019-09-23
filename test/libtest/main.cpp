@@ -5475,6 +5475,8 @@ try_again:
         goto out;
     }
 
+    DEBUG_INFO("bind [%s]", pipename);
+
     if (get_namedpipe_connstate(pnp) > 0) {
         while (1) {
             waitnum = 0;
@@ -5506,6 +5508,8 @@ try_again:
             }
         }
     }
+
+    DEBUG_INFO("client connect[%s]", pipename);
 
     curidx = 0;
     rcvlen = 0;
