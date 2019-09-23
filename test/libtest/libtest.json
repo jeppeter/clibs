@@ -158,5 +158,8 @@
     },
     "vsinsted<vsinsted_handler>##versions ...##" : {
         "$" : "+"
+    },
+    "npsvr<npsvr_handler>##listen on named pipe with echo##" : {
+        "$" : "*"
     }
 }

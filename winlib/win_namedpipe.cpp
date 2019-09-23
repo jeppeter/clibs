@@ -359,8 +359,7 @@ int read_namedpipe(void* pnp1, char* buffer, int bufsize)
     }
 
     if (pnp->m_rdpending ||
-            pnp->m_connpending ||
-            pnp->m_wrpending) {
+            pnp->m_connpending) {
         ret = -ERROR_IO_PENDING;
         goto fail;
     }
@@ -416,8 +415,7 @@ int write_namedpipe(void* pnp1, char* buffer, int bufsize)
         goto fail;
     }
 
-    if (pnp->m_rdpending ||
-            pnp->m_connpending ||
+    if (pnp->m_connpending ||
             pnp->m_wrpending) {
         ret = -ERROR_IO_PENDING;
         goto fail;
