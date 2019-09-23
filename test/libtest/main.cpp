@@ -5771,14 +5771,22 @@ int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     char* pipename = NULL;
     char* pwritebuf = NULL;
     int writelen = 0;
-    int writesize = 0;
+    uint32_t writesize = 0;
     char* preadbuf = NULL;
-    int readsize = 0;
     int needlen = 0;
     int rcvlen = 0;
     int ridx = 0;
     HANDLE waithds[MAX_WAIT_NUM];
     DWORD waitnum;
+    int i;
+    BOOL bret;
+    uint32_t rcvsize=0;
+    char* ptmpreadbuf = NULL;
+    DWORD dret;
+    HANDLE curhd;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
 
     pipename = pargs->m_pipename;
 
@@ -5795,8 +5803,8 @@ int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
             fprintf(stderr, "can not alloc [%zu] error[%d]\n", sizeof(*filecon)* argcnt, ret);
             goto out;
         }
-
         memset(filecon, 0, sizeof(*filecon) * argcnt);
+
         filelen = (int*) malloc(sizeof(*filelen) * argcnt);
         if (filelen == NULL) {
             GETERRNO(ret);
@@ -5842,7 +5850,7 @@ int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     rcvlen = 0;
     needlen = sizeof(uint32_t);
     rcvsize = 256;
-    preadbuf = malloc(rcvsize);
+    preadbuf = (char*)malloc(rcvsize);
     if (preadbuf == NULL ) {
         GETERRNO(ret);
         ERROR_INFO("can not alloc[%d] error[%d]", rcvsize, ret);
@@ -5870,14 +5878,14 @@ write_again:
                     }
                 }
                 ASSERT_IF(pwritebuf != NULL);
-                writelen = filelen[curidx] + sizeof(uint32_t);
+                writelen = (int)(filelen[curidx] + sizeof(uint32_t));
                 memcpy(&(pwritebuf[0]), &writelen, sizeof(uint32_t));
-                memcpy(&(pwritebuf[sizeof(uint32_t)], filecon[curidx]), filelen[curidx]);
+                memcpy(&(pwritebuf[sizeof(uint32_t)]), filecon[curidx], (size_t)filelen[curidx]);
                 ret = write_namedpipe(pnp, pwritebuf, writelen);
                 if (ret < 0) {
                     GETERRNO(ret);
                     ERROR_INFO("can not write [%s].[%d] error[%d]", pipename, curidx, ret);
-                    goto fail;
+                    goto out;
                 }
                 if (get_namedpipe_wrstate(pnp) == 0) {
                     curidx ++;
@@ -5905,16 +5913,16 @@ read_again:
                     rcvlen = needlen;
                     if (needlen == sizeof(uint32_t)) {
                         memcpy(&needlen, preadbuf, sizeof(uint32_t));
-                        if (needlen > rcvsize) {
-                            rcvsize = needlen;
-                            ptmpreadbuf = malloc(rcvsize);
+                        if (needlen > (int)rcvsize) {
+                            rcvsize = (uint32_t)needlen;
+                            ptmpreadbuf = (char*)malloc(rcvsize);
                             if (ptmpreadbuf == NULL) {
                                 GETERRNO(ret);
                                 ERROR_INFO("can not alloc [%d] error[%d]", rcvsize , ret);
                                 goto out;
                             }
                             if (rcvlen > 0) {
-                                memcpy(ptmpreadbuf, preadbuf, rcvlen);
+                                memcpy(ptmpreadbuf, preadbuf, (size_t)rcvlen);
                             }
                             if (preadbuf) {
                                 free(preadbuf);
@@ -5974,7 +5982,7 @@ read_more:
                 if (ret > 0) {
                     if (needlen > sizeof(uint32_t)) {
 dump_again:
-                        DEBUG_BUFFER_FMT(&(preadbuf[sizeof(uint32_t)]), (needlen - sizeof(uint32_t)), "read [%d] packet", ridx);
+                        DEBUG_BUFFER_FMT(&(preadbuf[sizeof(uint32_t)]), (int)(needlen - sizeof(uint32_t)), "read [%d] packet", ridx);
                         ridx ++;
                     } else if (needlen == sizeof(uint32_t)) {
                         memcpy(&needlen, preadbuf, sizeof(uint32_t));
@@ -5982,16 +5990,16 @@ dump_again:
                             goto dump_again;
                         }
 
-                        if (needlen > rcvsize) {
-                            rcvsize = needlen;
-                            ptmpreadbuf = malloc(rcvsize);
+                        if (needlen > (int)rcvsize) {
+                            rcvsize = (uint32_t)needlen;
+                            ptmpreadbuf = (char*)malloc(rcvsize);
                             if (ptmpreadbuf == NULL) {
                                 GETERRNO(ret);
                                 ERROR_INFO("can not alloc [%d] error[%d]", rcvsize , ret);
                                 goto out;
                             }
                             if (rcvlen > 0) {
-                                memcpy(ptmpreadbuf, preadbuf, rcvlen);
+                                memcpy(ptmpreadbuf, preadbuf, (size_t)rcvlen);
                             }
                             if (preadbuf) {
                                 free(preadbuf);
@@ -6080,7 +6088,7 @@ int _tmain(int argc, TCHAR* argv[])
     ret = EXTARGS_PARSE(argc, args, &argsoption, pextstate);
     //ret = parse_param_smart(argc, args, st_main_cmds, &argsoption, &pextstate, NULL, NULL);
     if (ret < 0) {
-        fprintf(s tderr, "could not parse error(%d)", ret);
+        fprintf(stderr, "could not parse error(%d)", ret);
         goto out;
     }
 
