@@ -23,6 +23,7 @@
 #include <win_user.h>
 #include <win_namedpipe.h>
 
+#include <jvalue.h>
 
 
 #include <proto_api.h>
@@ -117,6 +118,8 @@ int svrchgpass_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int vsinsted_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int npsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int pipedata_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -6167,6 +6170,210 @@ out:
     }
     filelen = NULL;
     argcnt = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+static int format_pipe_data(jvalue* pj, char** ppsndbuf, int* psndsize)
+{
+    jentry** entries = NULL;
+    jentry* pcurentry = NULL;
+    unsigned int entriesizes = 0;
+    int ret;
+    int sndlen = 0;
+    char* pstr = NULL;
+    int strsize = 0;
+    char* valstr = NULL;
+    unsigned int valsize = 0;
+    int retlen=0;
+    char* pretbuf=NULL;
+    unsigned int i;
+
+
+    if (psndsize == NULL || ppsndbuf == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    retlen = *psndsize;
+    pretbuf = *ppsndbuf;
+
+    entries = jobject_entries(pj,&entriesizes);
+    if (entries == NULL) {
+        ret = snprintf_safe(&pstr, &strsize, "");
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    } else {
+        for (i = 0; i < entriesizes; i++) {
+            pcurentry = entries[i];
+            switch (pcurentry->value->type) {
+            case JNONE:
+            case JBOOL:
+            case JNULL:
+            case JINT:
+            case JINT64:
+            case JREAL:
+            case JSTRING:
+            case JARRAY:
+            case JOBJECT:
+                if (valstr) {
+                    free(valstr);
+                }
+                valstr = NULL;
+                valsize = 0;
+                valstr = jvalue_write(pcurentry->value, &valsize);
+                if (valstr == NULL) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                ret = append_snprintf_safe(&pstr, &strsize, "%s=%s\n", pcurentry->key, valstr);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                break;
+            default:
+                ret = -ERROR_INVALID_PARAMETER;
+                goto fail;
+            }
+        }
+    }
+
+    sndlen = (int)(strlen(pstr) + sizeof(uint32_t));
+    if (retlen < sndlen || pretbuf == NULL) {
+        if (retlen < sndlen) {
+            retlen = sndlen;    
+        }        
+        pretbuf = (char*) malloc((size_t)retlen);
+        if (pretbuf == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    memcpy(pretbuf, &sndlen,sizeof(uint32_t));
+    if (sndlen > sizeof(uint32_t)) {
+        memcpy(&(pretbuf[sizeof(uint32_t)]), pstr, (sndlen - sizeof(uint32_t)));    
+    }
+
+    if (*ppsndbuf && *ppsndbuf != pretbuf) {
+        free(*ppsndbuf);
+    }
+    *ppsndbuf = pretbuf;
+    *psndsize = retlen;
+
+    snprintf_safe(&pstr,&strsize,NULL);
+    if (valstr) {
+        free(valstr);
+    }
+    valstr = NULL;
+    valsize = 0;
+    jentries_destroy(&entries);
+
+    return sndlen;
+fail:
+    if (pretbuf && pretbuf != *ppsndbuf) {
+        free(pretbuf);
+    }
+    pretbuf = NULL;
+
+    snprintf_safe(&pstr,&strsize,NULL);
+    if (valstr) {
+        free(valstr);
+    }
+    valstr = NULL;
+    valsize = 0;
+    jentries_destroy(&entries);
+    SETERRNO(ret);
+    return ret;
+}
+
+int pipedata_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int i;
+    char* fname;
+    jvalue* pj=NULL;
+    char* filecon=NULL;
+    int filesize=0;
+    int ret;
+    unsigned int size;
+    char* poutdata=NULL;
+    int outsize=0;
+    int outlen=0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    init_log_level(pargs);
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i] ;i++) {
+        fname = parsestate->leftargs[i];
+        ret = read_file_whole(fname,&filecon,&filesize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("read [%s] error[%d]", fname,ret);
+            goto out;
+        }
+
+        if (pj) {
+            jvalue_destroy(pj);
+        }
+        pj = NULL;
+        size = 0;
+        pj = jvalue_read(filecon,&size);
+        if (pj == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("[%s] not json file", fname);
+            goto out;
+        }
+
+        ret = format_pipe_data(pj,&poutdata,&outsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("format pipe [%s] error[%d]", fname, ret);
+            goto out;
+        }
+        outlen = ret;
+        DEBUG_BUFFER_FMT(poutdata,outlen,"[%s] format data", fname);
+    }
+
+    ret = 0;
+out:
+    if (pj) {
+        jvalue_destroy(pj);
+    }
+    pj = NULL;
+    read_file_whole(NULL,&filecon,&filesize);
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int i;
+    char* dirname=NULL;
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        dirname = parsestate->leftargs[i];
+        ret = create_directory(dirname);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("create [%s] error[%d]", dirname, ret);
+            goto out;
+        }
+        fprintf(stdout, "create %s [%s]\n", dirname, ret > 0 ? "created" : "exists");
+    }
+    ret = 0;
+out:
     SETERRNO(ret);
     return ret;
 }

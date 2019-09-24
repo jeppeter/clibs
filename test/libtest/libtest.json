@@ -164,5 +164,11 @@
     },
     "npcli<npcli_handler>##connect to named server##" : {
         "$" : "+"
+    },
+    "pipedata<pipedata_handler>##jsonfile ... ##" : {
+        "$" : "+"
+    },
+    "mkdir<mkdir_handler>##dir ... to create##" : {
+        "$" : "+"
     }
 }
