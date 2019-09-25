@@ -26,6 +26,7 @@ WINLIB_API int get_pid_argv(int pid, char*** pppargv, int *pargvsize);
 WINLIB_API void* start_cmd(int createflag, const char* prog, ...);
 WINLIB_API void* start_cmdv(int createflag, char* prog[]);
 WINLIB_API int start_cmd_detach(int createflag,const char* prog,...);
+WINLIB_API int start_cmd_single_detach(int createflag,const char* prog);
 WINLIB_API int start_cmdv_detach(int createflag,char* prog[]);
 WINLIB_API HANDLE proc_get_proc(void* proc);
 WINLIB_API int kill_proc(void* proc, int* exitcode);

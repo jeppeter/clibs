@@ -3030,7 +3030,29 @@ fail:
     __free_proc_handle(&ppinfo);
     SETERRNO(ret);
     return ret;
+}
 
+int start_cmd_single_detach(int createflag,const char* prog)
+{
+    int retpid = 0;
+    pproc_handle_t ppinfo = NULL;
+    int ret;
+    ppinfo = (pproc_handle_t)start_cmd_single(createflag, (char*)prog);
+    if (ppinfo == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    retpid = GetProcessId(ppinfo->m_prochd);
+    CloseHandle(ppinfo->m_prochd);
+    /*exited*/
+    ppinfo->m_exited = 1;
+    __free_proc_handle(&ppinfo);
+    return retpid;
+fail:
+    __free_proc_handle(&ppinfo);
+    SETERRNO(ret);
+    return ret;
 }
 
 
