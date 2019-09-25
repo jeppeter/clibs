@@ -170,5 +170,8 @@
     },
     "mkdir<mkdir_handler>##dir ... to create##" : {
         "$" : "+"
+    },
+    "wtsdetachrun<wtsdetachrun_handler>##commandline to run commandline##" : {
+        "$" : 1
     }
 }

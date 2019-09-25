@@ -120,6 +120,7 @@ int npsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int pipedata_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int wtsdetachrun_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -6372,6 +6373,27 @@ int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
         }
         fprintf(stdout, "create %s [%s]\n", dirname, ret > 0 ? "created" : "exists");
     }
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int wtsdetachrun_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    init_log_level(pargs);
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    ret = __send_svr_pipe(WTS_DETACH_RUN, parsestate, pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
     ret = 0;
 out:
     SETERRNO(ret);

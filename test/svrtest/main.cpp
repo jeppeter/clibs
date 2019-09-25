@@ -449,6 +449,34 @@ fail:
 
 }
 
+int run_wts_detach(HANDLE exitevt,ppipe_hdr_t phdr, int hdrlen)
+{
+    char* pcurptr = NULL;
+    int ret;
+    char* cmdline = NULL;
+
+    REFERENCE_ARG(exitevt);
+    REFERENCE_ARG(hdrlen);
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);
+    cmdline = pcurptr;
+
+
+    ret = wts_start_cmd_single_detach(0,cmdline);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not run wts [%s][%d]", cmdline, ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("run [%s] ret [%d]", cmdline,ret);
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;    
+}
+
 int run_powershell(HANDLE exitevt)
 {
     char* cmdline=NULL;
@@ -478,6 +506,8 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+
 
 
 static DWORD st_EXITED_MODE = 0;
@@ -553,6 +583,14 @@ bind_pipe_again:
             }
         } else if (phdr->m_cmd == CHG_USER_PASS) {
             ret = change_password(exitevt,phdr,indatalen);
+            if (ret < 0) {
+                if (ret == -ERROR_CONTROL_C_EXIT) {
+                    break;
+                }
+                goto bind_pipe_again;
+            }
+        } else if (phdr->m_cmd == WTS_DETACH_RUN) {
+            ret = run_wts_detach(exitevt,phdr,indatasize);
             if (ret < 0) {
                 if (ret == -ERROR_CONTROL_C_EXIT) {
                     break;

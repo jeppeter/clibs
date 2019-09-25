@@ -57,6 +57,11 @@ WINLIB_API int wts_run_cmd_event_outputa(HANDLE hevt,char* pin, int insize, char
 WINLIB_API int wts_run_cmd_event_outputv(HANDLE hevt,char* pin, int insize, char** ppout, int* poutsize, char** pperr, int *perrsize,int *exitcode, int timeout, char* prog[]);
 WINLIB_API int wts_run_cmd_event_output_single(HANDLE hevt,char* pin, int insize, char** ppout, int* poutsize, char** pperr, int *perrsize,int *exitcode, int timeout, char* prog);
 
+WINLIB_API int wts_start_cmd_detach(int createflag,const char* prog,...);
+WINLIB_API int wts_start_cmdv_detach(int createflag,char* prog[]);
+WINLIB_API int wts_start_cmd_single_detach(int createflag,const char* prog);
+
+
 WINLIB_API int is_wts_enabled(void);
 
 #ifdef __cplusplus

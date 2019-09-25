@@ -19,6 +19,7 @@ typedef struct __pipe_hdr_t {
 #define   EXECUTE_COMMAND                    0x1321
 #define   NETSHARE_MOUNT                     0x1322
 #define   CHG_USER_PASS                      0x1323
+#define   WTS_DETACH_RUN                     0x1324
 
 
 #ifdef __cplusplus
