@@ -63,6 +63,10 @@ WINLIB_API int Utf8ToAnsi(const char *pUtf8,char** ppchars,int*pcharsize);
 **********************************************************/
 WINLIB_API int AnsiToUtf8(const char* pchars, char** ppUtf8,int *pUtf8size);
 
+
+WINLIB_API int Utf8ToUnicode(const char* putf8, wchar_t** ppUni,int *punisize);
+WINLIB_API int UnicodeToUtf8(const wchar_t* pUni, char** pputf8, int *putf8size);
+
 #ifdef __cplusplus
 };
 #endif

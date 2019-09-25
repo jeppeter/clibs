@@ -374,3 +374,114 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+
+int Utf8ToUnicode(const char* putf8, wchar_t** ppUni,int *punisize)
+{
+    int ret;
+    wchar_t* pretuni=NULL;
+    int retsize=0;
+    int retlen=0;
+    int utflen=0;
+
+    if (putf8 == NULL) {
+        if (ppUni && *ppUni) {
+            free(*ppUni);
+            *ppUni = NULL;
+        }
+        if (punisize) {
+            *punisize = 0;
+        }
+        return 0;
+    }
+
+    if (ppUni == NULL || punisize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretuni = *ppUni;
+    retsize = *punisize;
+
+    utflen = (int)strlen(putf8);
+    if (retsize < (int)((utflen +1)* sizeof(wchar_t))) {
+        retsize = ((utflen +1)* sizeof(wchar_t));
+        pretuni = (wchar_t*) malloc(retsize);
+        if (pretuni == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }        
+    }
+
+    ret = MultiByteToWideChar(CP_UTF8,0,putf8,-1,pretuni, ((retsize / sizeof(wchar_t)) -1));
+    retlen = (ret * sizeof(wchar_t));
+    if (*ppUni && *ppUni != pretuni) {
+        free(*ppUni);
+    }
+    *ppUni = pretuni;
+    *punisize = retsize;
+    return retlen;
+fail:
+    if (pretuni && pretuni != *ppUni) {
+        free(pretuni);
+    }
+    pretuni = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int UnicodeToUtf8(const wchar_t* pUni, char** pputf8, int *putf8size)
+{
+    int ret;
+    char* pretutf8=NULL;
+    int retsize=0;
+    int retlen=0;
+    int wlen = 0;
+
+    if (pUni == NULL) {
+        if (pputf8 && *pputf8) {
+            free(*pputf8);
+            *pputf8 = NULL;
+        }
+        if (putf8size) {
+            *putf8size = 0;
+        }
+        return 0;
+    }
+
+    if (pputf8 == NULL || putf8size == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    pretutf8 = *pputf8;
+    retsize = *putf8size;
+
+    wlen = (int)wcslen(pUni);
+    if (retsize < ((wlen  + 1)* 4 )) {
+        retsize = (wlen + 1)  *4;
+        pretutf8 = (char*)malloc(retsize);
+        if (pretutf8 == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    ret = WideCharToMultiByte(CP_UTF8,0,pUni,-1,pretutf8,retsize,NULL,NULL);
+    retlen = ret;
+
+    if (*pputf8 && *pputf8 != pretutf8) {
+        free(*pputf8);
+    }
+    *pputf8 = pretutf8;
+    *putf8size = retsize;
+    return retlen;
+fail:
+    if (pretutf8 && pretutf8 != *pputf8) {
+        free(pretutf8);
+    }
+    pretutf8 = NULL;
+    SETERRNO(ret);
+    return ret;
+}

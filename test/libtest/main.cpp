@@ -121,6 +121,8 @@ int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int pipedata_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int wtsdetachrun_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int utf8touni_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -6399,6 +6401,91 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int utf8touni_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* putf8 = NULL;
+    int utf8size = 0;
+    int utf8len = 0;
+    wchar_t* puni = NULL;
+    int unisize = 0, unilen = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    ret = __get_code(parsestate, &putf8, &utf8size);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    utf8len = ret;
+    ret = Utf8ToUnicode(putf8, &puni,&unisize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not trans buffer [%d]\n", ret);
+        goto out;
+    }
+    unilen = ret;
+
+    fprintf(stdout, "utf8 buffer [%d]\n", utf8len);
+    __debug_buf(stdout, putf8, utf8len);
+    fprintf(stdout, "unicode buffer [%d]\n", unilen);
+    __debug_buf(stdout, (char*)puni,unilen);
+    ret = 0;
+out:
+    Utf8ToUnicode(NULL, &puni,&unisize);
+    __get_code(NULL, &putf8, &utf8size);
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* pbuf=NULL;
+    int bufsize=0,buflen=0;
+    char* putf8 = NULL;
+    int utf8size = 0;
+    int utf8len = 0;
+    wchar_t* puni = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    ret = __get_code(parsestate, &pbuf, &bufsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    buflen = ret;
+    puni = (wchar_t*)pbuf;
+
+    ret = UnicodeToUtf8(puni,&putf8,&utf8size);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not trans buffer [%d]\n", ret);
+        goto out;
+    }
+    utf8len = ret;
+
+    fprintf(stdout, "unicode buffer [%d]\n", buflen);
+    __debug_buf(stdout, pbuf, buflen);
+    fprintf(stdout, "utf8 buffer [%d]\n", utf8len);
+    __debug_buf(stdout, putf8,utf8len);
+    ret = 0;
+out:
+    UnicodeToUtf8(NULL, &putf8,&utf8size);
+    __get_code(NULL, &pbuf,&bufsize);
+    SETERRNO(ret);
+    return ret;
+}
+
 
 int _tmain(int argc, TCHAR* argv[])
 {

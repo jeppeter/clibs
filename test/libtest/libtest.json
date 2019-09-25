@@ -173,5 +173,11 @@
     },
     "wtsdetachrun<wtsdetachrun_handler>##commandline to run commandline##" : {
         "$" : 1
+    },
+    "utf8touni<utf8touni_handler>##char code ... ##" : {
+        "$" : "+"
+    },
+    "unitoutf8<unitoutf8_handler>##char code ...##" : {
+        "$" : "+"
     }
 }
