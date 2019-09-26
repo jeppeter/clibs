@@ -625,6 +625,7 @@ int create_directory(const char* dir)
     int partsize=0;
     char* lastptr=NULL;
     int created = 1;
+    int createcnt =0;
 
     fullsize = 12;
 get_full_again:
@@ -664,9 +665,15 @@ get_full_again:
         created = 0;
         /*to skip the \\*/
         lastptr ++;
+        createcnt = 0;
         while(lastptr) {
+            createcnt ++;
             lastptr = strchr(lastptr,'\\');
-            if (lastptr == NULL) {
+            if (lastptr == NULL) { 
+                if (createcnt <= 1) {
+                    /*because it will like f:\ format ,so we should suppose this has*/
+                    goto succ;
+                }
                 partsize = (int)strlen(fulldir);
             } else {
                 partsize = (int)(lastptr - fulldir);    
@@ -701,6 +708,7 @@ get_full_again:
         created = ret;
     }
 
+succ:
     if (partdir) {
         free(partdir);
     }
