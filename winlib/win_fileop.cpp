@@ -611,6 +611,90 @@ fail:
     snprintf_safe(&longname, &longsize, NULL);
     SETERRNO(ret);
     return ret;
+}
+
+int __get_volume_information(char* path)
+{
+    int ret;
+    BOOL bret;
+    char* namebuf = NULL;
+    int namesize = 0;
+    DWORD serialnum = 0;
+    DWORD maxlength = 0;
+    DWORD sysflag = 0;
+    char* sysnamebuffer = NULL;
+    DWORD sysnamesize = 0;
+
+    namesize = 1;
+    sysnamesize = 1;
+try_again:
+    if (namebuf) {
+        free(namebuf);
+    }
+    namebuf = NULL;
+    if (sysnamebuffer) {
+        free(sysnamebuffer);
+    }
+    sysnamebuffer = NULL;
+
+    namebuf = (char*) malloc(namesize);
+    if (namebuf == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    sysnamebuffer = (char*) malloc(sysnamesize);
+    if (sysnamebuffer == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    bret = GetVolumeInformationA(path,namebuf,namesize,&serialnum,&maxlength,&sysflag,sysnamebuffer,sysnamesize);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_MORE_DATA || ret == -ERROR_BAD_LENGTH) {
+            sysnamesize <<= 1;
+            namesize <<= 1;
+            goto try_again;
+        }
+        ERROR_INFO("can not get [%s] error[%d]", path,ret);
+        goto fail;
+    }
+    
+    DEBUG_INFO("get [%s] name[%s] sysname [%s]", path, namebuf,sysnamebuffer);
+
+
+    if (namebuf) {
+        free(namebuf);
+    }
+    namebuf = NULL;
+    namesize = 0;
+    if (sysnamebuffer) {
+        free(sysnamebuffer);
+    }
+    sysnamebuffer = NULL;
+    sysnamesize = 0;
+    serialnum = 0;
+    maxlength = 0;
+    sysflag = 0;
+
+    return 0;
+fail:
+    if (namebuf) {
+        free(namebuf);
+    }
+    namebuf = NULL;
+    namesize = 0;
+    if (sysnamebuffer) {
+        free(sysnamebuffer);
+    }
+    sysnamebuffer = NULL;
+    sysnamesize = 0;
+    serialnum = 0;
+    maxlength = 0;
+    sysflag = 0;
+    SETERRNO(ret);
+    return ret;
 
 }
 
@@ -622,10 +706,38 @@ int create_directory(const char* dir)
     int ret;
     DWORD dret;
     char* partdir = NULL;
-    int partsize=0;
-    char* lastptr=NULL;
+    int partsize = 0;
+    char* lastptr = NULL;
     int created = 1;
-    int createcnt =0;
+    int createcnt = 0;
+    char* newdir=NULL;
+    int dirsize=0;
+    int dirlen = 0;
+    if (dir == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    dirlen = (int)strlen(dir);
+    if (dirlen == 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    dirsize = dirlen + 3;
+    newdir = (char*)malloc(dirsize);
+    if (newdir == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(newdir,0,dirsize);
+    memcpy(newdir, dir, dirlen);
+    if (dir[(dirlen - 1)] != '\\')  {
+        /*to add last \ to the end*/
+        newdir[dirlen] = '\\';
+    }
 
     fullsize = 12;
 get_full_again:
@@ -639,7 +751,7 @@ get_full_again:
         goto fail;
     }
 
-    dret = GetFullPathNameA(dir, (DWORD)fullsize, fulldir, NULL);
+    dret = GetFullPathNameA(newdir, (DWORD)fullsize, fulldir, NULL);
     if (dret == 0) {
         GETERRNO(ret);
         ERROR_INFO("get fullpath for [%s] error[%d]", dir, ret);
@@ -653,10 +765,10 @@ get_full_again:
     DEBUG_INFO("fulldir [%s]", fulldir);
 
     ret = __inner_create_dir(fulldir);
-    if (ret < 0 ){
+    if (ret < 0 ) {
         GETERRNO(ret);
         /*now we should give part directory get*/
-        lastptr = strchr(fulldir,'\\');
+        lastptr = strchr(fulldir, '\\');
         if (lastptr == NULL) {
             /*can not get full dir*/
             goto fail;
@@ -666,19 +778,24 @@ get_full_again:
         /*to skip the \\*/
         lastptr ++;
         createcnt = 0;
-        while(lastptr) {
+        while (lastptr) {
             createcnt ++;
-            lastptr = strchr(lastptr,'\\');
-            if (lastptr == NULL) { 
+            lastptr = strchr(lastptr, '\\');
+            if (lastptr == NULL) {
                 if (createcnt <= 1) {
                     /*because it will like f:\ format ,so we should suppose this has*/
+                    ret = __get_volume_information(fulldir);
+                    if (ret < 0) {
+                        GETERRNO(ret);
+                        goto fail;
+                    }
                     goto succ;
                 }
                 partsize = (int)strlen(fulldir);
             } else {
-                partsize = (int)(lastptr - fulldir);    
+                partsize = (int)(lastptr - fulldir);
             }
-            
+
             if (partdir) {
                 free(partdir);
             }
@@ -689,11 +806,11 @@ get_full_again:
                 goto fail;
             }
 
-            memset(partdir,0,partsize+2);
+            memset(partdir, 0, partsize + 2);
             memcpy(partdir, fulldir, partsize);
             DEBUG_INFO("partdir [%s]", partdir);
             ret = __inner_create_dir(partdir);
-            if (ret <0) {
+            if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
             }
@@ -701,8 +818,8 @@ get_full_again:
                 created = 1;
             }
             if (lastptr != NULL) {
-                lastptr ++;    
-            }            
+                lastptr ++;
+            }
         }
     }  else {
         created = ret;
@@ -718,6 +835,10 @@ succ:
         free(fulldir);
     }
     fulldir = NULL;
+    if (newdir) {
+        free(newdir);
+    }
+    newdir = NULL;
     return created;
 fail:
     if (partdir) {
@@ -729,6 +850,10 @@ fail:
         free(fulldir);
     }
     fulldir = NULL;
+    if (newdir) {
+        free(newdir);
+    }
+    newdir = NULL;
     SETERRNO(ret);
     return ret;
 }
