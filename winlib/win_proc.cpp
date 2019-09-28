@@ -1125,6 +1125,8 @@ int __start_proc(pproc_handle_t pproc, int createflag, char* prog)
 
     if (createflag & PROC_NO_WINDOW) {
         dwflag |= CREATE_NO_WINDOW;
+        pstartinfo->dwFlags |= STARTF_USESHOWWINDOW;
+        pstartinfo->wShowWindow = SW_HIDE;
     }
 
     ret = AnsiToUnicode(pproc->m_cmdline, &wcmdline, &wcmdsize);
@@ -3021,7 +3023,9 @@ int start_cmdv_detach(int createflag, char* progv[])
     }
 
     retpid = GetProcessId(ppinfo->m_prochd);
+    /*now to close handle*/
     CloseHandle(ppinfo->m_prochd);
+    ppinfo->m_prochd = NULL;
     /*exited*/
     ppinfo->m_exited = 1;
     __free_proc_handle(&ppinfo);
@@ -3044,7 +3048,9 @@ int start_cmd_single_detach(int createflag,const char* prog)
     }
 
     retpid = GetProcessId(ppinfo->m_prochd);
+    /*now to close handle*/
     CloseHandle(ppinfo->m_prochd);
+    ppinfo->m_prochd = NULL;
     /*exited*/
     ppinfo->m_exited = 1;
     __free_proc_handle(&ppinfo);
@@ -3130,7 +3136,9 @@ int wts_start_cmdv_detach(int createflag, char* progv[])
     }
 
     retpid = GetProcessId(ppinfo->m_prochd);
+    /*now to close handle*/
     CloseHandle(ppinfo->m_prochd);
+    ppinfo->m_prochd = NULL;
     /*exited*/
     ppinfo->m_exited = 1;
     __free_proc_handle(&ppinfo);
@@ -3216,7 +3224,9 @@ int wts_start_cmd_single_detach(int createflag,const char* prog)
     }
 
     retpid = GetProcessId(ppinfo->m_prochd);
+    /*now to close handle*/
     CloseHandle(ppinfo->m_prochd);
+    ppinfo->m_prochd = NULL;
     /*exited*/
     ppinfo->m_exited = 1;
     __free_proc_handle(&ppinfo);

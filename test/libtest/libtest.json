@@ -6,6 +6,7 @@
     "errout|e<m_errout>" : null,
     "timeout|t<m_timeout>" : 0,
     "pipename|P<m_pipename>" : "\\\\.\\pipe\\tstsvr_pipe",
+    "hidewindow|H<m_hidewindow>" : false,
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },
@@ -178,6 +179,9 @@
         "$" : "+"
     },
     "unitoutf8<unitoutf8_handler>##char code ...##" : {
+        "$" : "+"
+    },
+    "startproc<startproc_handler>##args ... to start args##" : {
         "$" : "+"
     }
 }

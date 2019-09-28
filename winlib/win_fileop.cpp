@@ -857,3 +857,10 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int remove_directory(const char* dir)
+{
+    int ret = -ERROR_NOT_SUPPORTED;
+    SETERRNO(ret);
+    return ret;   
+}

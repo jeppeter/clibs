@@ -23,6 +23,7 @@ WINLIB_API int get_full_path(char* pinfile, char** ppfullpath, int *pfullsize);
 WINLIB_API int write_file_whole(char* outfile,char* poutbuf,int outsize);
 WINLIB_API int write_out_whole(int flag,char* poutbuf,int outsize);
 WINLIB_API int create_directory(const char* dir);
+WINLIB_API int remove_directory(const char* dir);
 
 #ifdef __cplusplus
 };

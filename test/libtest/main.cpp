@@ -48,6 +48,7 @@ typedef struct __args_options {
     int m_timeout;
     int m_bufsize;
     char* m_pipename;
+    int m_hidewindow;
 } args_options_t, *pargs_options_t;
 
 #pragma comment(lib,"user32.lib")
@@ -123,6 +124,7 @@ int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int wtsdetachrun_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int utf8touni_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int startproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -6482,6 +6484,39 @@ int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 out:
     UnicodeToUtf8(NULL, &putf8,&utf8size);
     __get_code(NULL, &pbuf,&bufsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int startproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int createflags=0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+    int ret;
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+    if (pargs->m_hidewindow) {
+        createflags |= PROC_NO_WINDOW;
+    }
+
+    ret = start_cmdv_detach(createflags,parsestate->leftargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "start [");
+        for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+            if (i > 0) {
+                fprintf(stderr, ",");
+            }
+            fprintf(stderr, "%s",parsestate->leftargs[i] );
+        }
+        fprintf(stderr, "] error[%d]\n", ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
     SETERRNO(ret);
     return ret;
 }
