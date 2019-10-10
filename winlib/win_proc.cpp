@@ -3769,7 +3769,6 @@ do{                                                                             
     }                                                                                             \
     _ptr = _ansiname;                                                                             \
     _plen = (int)strlen(_ansiname);                                                               \
-    DEBUG_INFO("[%d] %s", numhdl, _ansiname);                                                     \
     for (__i=0;__i<numproc;__i++) {                                                               \
         _matched = 1;                                                                             \
         _curlen=(int) strlen(ppnames[__i]);                                                       \
