@@ -62,6 +62,8 @@ WINLIB_API int wts_start_cmd_detach(int createflag,const char* prog,...);
 WINLIB_API int wts_start_cmdv_detach(int createflag,char* prog[]);
 WINLIB_API int wts_start_cmd_single_detach(int createflag,const char* prog);
 
+WINLIB_API int process_num(char** ppnames,int numproc, int* pfinded);
+
 
 WINLIB_API int is_wts_enabled(void);
 

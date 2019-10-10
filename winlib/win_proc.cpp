@@ -3749,3 +3749,143 @@ fail:
     __free_wts_token(&hd);
     return 0;
 }
+
+
+#define CHECK_PROC_RUN()                                                                          \
+do{                                                                                               \
+    int _curlen=0;                                                                                \
+    char* _ptr=NULL;                                                                              \
+    char* _cptr=NULL;                                                                             \
+    int _plen = 0;                                                                                \
+    int __i=0;                                                                                    \
+    char* _ansiname=NULL;                                                                         \
+    int _ansisize=0;                                                                              \
+    int _ret;                                                                                     \
+    int _matched;                                                                                 \
+    ret = TcharToAnsi(pproc->szExeFile,&_ansiname,&_ansisize);                                    \
+    if (ret < 0) {                                                                                \
+        GETERRNO(ret);                                                                            \
+        goto fail;                                                                                \
+    }                                                                                             \
+    _ptr = _ansiname;                                                                             \
+    _plen = (int)strlen(_ansiname);                                                               \
+    DEBUG_INFO("[%d] %s", numhdl, _ansiname);                                                     \
+    for (__i=0;__i<numproc;__i++) {                                                               \
+        _matched = 1;                                                                             \
+        _curlen=(int) strlen(ppnames[__i]);                                                       \
+        if (_plen >= _curlen) {                                                                   \
+            if (_plen > _curlen)  {                                                               \
+                /*check if the previous character is \\*/                                         \
+                _cptr = _ptr + (_plen - _curlen);                                                 \
+                _cptr --;                                                                         \
+                if (*_cptr != '\\') {                                                             \
+                    _matched = 0;                                                                 \
+                }                                                                                 \
+            }                                                                                     \
+            _cptr = _ptr + (_plen - _curlen);                                                     \
+            if (_matched){                                                                        \
+                _ret = _stricmp(_cptr,ppnames[__i]);                                              \
+                if (_ret != 0) {                                                                  \
+                    _matched = 0;                                                                 \
+                }                                                                                 \
+            }                                                                                     \
+        } else {                                                                                  \
+            _matched = 0;                                                                         \
+        }                                                                                         \
+        if (_matched){                                                                            \
+            DEBUG_INFO("[%d] [%s] matched [%s]", numhdl, _ansiname, ppnames[__i]);                \
+            pfinded[__i] ++;                                                                      \
+        }                                                                                         \
+    }                                                                                             \
+    TcharToAnsi(NULL,&_ansiname,&_ansisize);                                                      \
+}while(0)
+
+
+
+int process_num(char** ppnames,int numproc, int* pfinded)
+{
+    HANDLE hd=NULL;
+    int ret;
+    LPPROCESSENTRY32 pproc=NULL;
+    BOOL bret;
+    int numhdl=0;
+
+    if (ppnames == NULL || pfinded == NULL || numproc == 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+
+    hd = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hd == INVALID_HANDLE_VALUE) {
+        GETERRNO(ret);
+        ERROR_INFO("can not create process snapshot error[%d]", ret);
+        goto fail;
+    }
+
+    pproc = (LPPROCESSENTRY32) malloc(sizeof(*pproc));
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pproc) ,ret);
+        goto fail;
+    }
+    memset(pproc, 0, sizeof(*pproc));
+    pproc->dwSize = sizeof(*pproc);
+    memset(pfinded, 0 ,sizeof(pfinded[0]) * numproc);
+
+    bret = Process32First(hd,pproc);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_NO_MORE_FILES ) {
+            goto succ;
+        }
+        ERROR_INFO("get first process snapshot error[%d]", ret);
+        goto fail;
+    }
+
+    CHECK_PROC_RUN();
+    numhdl ++;
+    while(1) {
+        memset(pproc,0, sizeof(*pproc));
+        pproc->dwSize = sizeof(*pproc);
+        bret = Process32Next(hd,pproc);
+        if (!bret) {
+            GETERRNO(ret);
+            if (ret == -ERROR_NO_MORE_FILES) {
+                break;
+            }
+            ERROR_INFO("can not get proc snapshot at [%d] error[%d]", numhdl, ret);
+            goto fail;
+        }
+
+        CHECK_PROC_RUN();
+        numhdl ++;
+    }
+succ:
+    if (pproc) {
+        free(pproc);
+    }
+    pproc = NULL;
+
+    if (hd != NULL && hd != INVALID_HANDLE_VALUE) {
+        CloseHandle(hd);
+    }
+    hd = NULL;
+
+
+    return numhdl;
+fail:
+    if (pproc) {
+        free(pproc);
+    }
+    pproc = NULL;
+
+    if (hd != NULL && hd != INVALID_HANDLE_VALUE) {
+        CloseHandle(hd);
+    }
+    hd = NULL;
+
+    SETERRNO(ret);
+    return ret;
+}

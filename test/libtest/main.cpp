@@ -125,6 +125,7 @@ int wtsdetachrun_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int utf8touni_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int startproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int checkproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -6517,6 +6518,78 @@ int startproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
     ret = 0;
 out:
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int checkproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int numproc=0;
+    int ret;
+    char** ppnames=NULL;
+    int i;
+    int* pfinded=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    init_log_level(pargs);
+
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        numproc ++;
+    }
+
+    ppnames = (char**) malloc(sizeof(ppnames[0]) * numproc);
+    if (ppnames == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not alloc [%d] error[%d]", sizeof(ppnames[0]) * numproc, ret);
+        goto out;
+    }
+
+    pfinded = (int*) malloc(sizeof(pfinded[0]) * numproc);
+    if (pfinded == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not alloc [%d] error[%d]", sizeof(pfinded[0]) * numproc, ret);
+        goto out;
+    }
+
+    memset(pfinded, 0, sizeof(pfinded[0]) * numproc);
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        ppnames[i] = parsestate->leftargs[i];
+    }
+
+    ret = process_num(ppnames,numproc,pfinded);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "find proc [");
+        for (i=0;i<numproc;i++) {
+            if (i > 0) {
+                fprintf(stderr, ",");
+            }
+            fprintf(stderr, "%s", ppnames[i]);
+        }
+        fprintf(stderr, "] error [%d]\n", ret);
+        goto out;
+    }
+    for(i=0;i<numproc;i++) {
+        fprintf(stdout,"[%s]        run [%d]", ppnames[i], pfinded[i]);
+    }
+
+
+    ret = 0;
+out:
+    if (ppnames) {
+        free(ppnames);
+    }
+    ppnames = NULL;
+
+    if (pfinded) {
+        free(pfinded);
+    }
+    pfinded = NULL;
+
     SETERRNO(ret);
     return ret;
 }

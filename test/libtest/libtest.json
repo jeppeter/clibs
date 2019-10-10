@@ -183,5 +183,8 @@
     },
     "startproc<startproc_handler>##args ... to start args##" : {
         "$" : "+"
+    },
+    "checkproc<checkproc_handler>##procname ... to check process is running##" : {
+        "$" : "+"
     }
 }

@@ -5,6 +5,7 @@
 #include <win_uniansi.h>
 #include <win_envop.h>
 #include <win_strop.h>
+#include <win_types.h>
 
 #define TEMP_XSIZE      6
 
@@ -861,6 +862,7 @@ fail:
 int remove_directory(const char* dir)
 {
     int ret = -ERROR_NOT_SUPPORTED;
+    REFERENCE_ARG(dir);
     SETERRNO(ret);
     return ret;   
 }
