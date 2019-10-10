@@ -186,5 +186,8 @@
     },
     "checkproc<checkproc_handler>##procname ... to check process is running##" : {
         "$" : "+"
+    },
+    "svrcheckproc<svrcheckproc_handler>##procname ... to check process in the server mode##" : {
+        "$" : "+"
     }
 }

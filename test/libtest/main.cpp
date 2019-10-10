@@ -126,6 +126,7 @@ int utf8touni_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int startproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int checkproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svrcheckproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -6592,6 +6593,27 @@ out:
 
     SETERRNO(ret);
     return ret;
+}
+
+int svrcheckproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    init_log_level(pargs);
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    ret = __send_svr_pipe(PROCESS_NUM_CMD, parsestate, pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;    
 }
 
 

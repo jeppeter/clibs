@@ -477,6 +477,101 @@ fail:
     return ret;    
 }
 
+
+int get_process_num(HANDLE exitevt,ppipe_hdr_t phdr, int hdrlen)
+{
+    char* pcurptr = NULL;
+    int ret;
+    char** ppnames=NULL;
+    int numproc =0;
+    int * pfinded=NULL;
+    int leftlen=0;
+    int curlen = 0;
+    int i;
+
+    REFERENCE_ARG(exitevt);
+    REFERENCE_ARG(hdrlen);
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);
+    leftlen = (hdrlen - (int)sizeof(pipe_hdr_t));
+
+    while(leftlen > 1) {
+        curlen = (int)strlen(pcurptr);
+        numproc ++;
+        pcurptr += (curlen + 1);
+        leftlen -= (curlen + 1);
+    }
+
+    if (numproc == 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("no proc name specified");
+        goto fail;
+    }
+
+    ppnames = (char**) malloc(sizeof(ppnames[0]) *numproc);
+    if (ppnames == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not alloc [%d] error[%d]", sizeof(ppnames[0]) * numproc, ret);
+        goto fail;
+    }
+    memset(ppnames,0, sizeof(ppnames[0]) * numproc);
+
+    pfinded = (int*) malloc(sizeof(pfinded[0]) * numproc);
+    if (pfinded == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not alloc [%d] error[%d]", sizeof(pfinded[0]) * numproc, ret);
+        goto fail;
+    }
+    memset(pfinded, 0, sizeof(pfinded[0]) * numproc);
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);
+    leftlen = hdrlen - (int)sizeof(pipe_hdr_t);
+
+    i = 0;
+    while(leftlen > 1) {
+        curlen = (int)strlen(pcurptr);
+        ppnames[i] = pcurptr;
+        pcurptr += (curlen + 1);
+        leftlen -= (curlen + 1);
+        i ++;
+    }
+
+    ret = process_num(ppnames,numproc, pfinded);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    for (i=0;i<numproc;i++) {
+        DEBUG_INFO("[%d].[%s]=[%d]", i,ppnames[i], pfinded[i]);
+    }
+
+    if (ppnames) {
+        free(ppnames);
+    }
+    ppnames = NULL;
+    if (pfinded) {
+        free(pfinded);
+    }
+    pfinded = NULL;
+    numproc = 0;
+    return 0;
+fail:
+    if (ppnames) {
+        free(ppnames);
+    }
+    ppnames = NULL;
+    if (pfinded) {
+        free(pfinded);
+    }
+    pfinded = NULL;
+    numproc = 0;
+    SETERRNO(ret);
+    return ret;    
+}
+
 int run_powershell(HANDLE exitevt)
 {
     char* cmdline=NULL;
@@ -591,6 +686,14 @@ bind_pipe_again:
             }
         } else if (phdr->m_cmd == WTS_DETACH_RUN) {
             ret = run_wts_detach(exitevt,phdr,indatasize);
+            if (ret < 0) {
+                if (ret == -ERROR_CONTROL_C_EXIT) {
+                    break;
+                }
+                goto bind_pipe_again;
+            }
+        } else if (phdr->m_cmd == PROCESS_NUM_CMD) {
+            ret = get_process_num(exitevt,phdr,indatalen);
             if (ret < 0) {
                 if (ret == -ERROR_CONTROL_C_EXIT) {
                     break;
