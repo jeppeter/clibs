@@ -189,5 +189,8 @@
     },
     "svrcheckproc<svrcheckproc_handler>##procname ... to check process in the server mode##" : {
         "$" : "+"
+    },
+    "dbgcode<dbgcode_handler>##program args... to debug programs##" : {
+        
     }
 }

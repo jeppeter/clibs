@@ -127,6 +127,7 @@ int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int startproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int checkproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrcheckproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -140,6 +141,7 @@ int svrcheckproc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 #endif
 
 #include "args_options.cpp"
+
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
 do{                                                                               \
@@ -6648,3 +6650,5 @@ out:
     extargs_deinit();
     return ret;
 }
+
+#include "dbgcode.cpp"
