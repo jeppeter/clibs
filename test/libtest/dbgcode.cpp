@@ -146,6 +146,55 @@ public:
     }
 };
 
+class OutputCallback : public IDebugOutputCallbacks
+{
+public:
+	OutputCallback(){}
+	virtual ~OutputCallback(){}
+    HRESULT STDMETHODCALLTYPE QueryInterface(const IID& InterfaceId, PVOID* Interface)
+    {
+    	if (InterfaceId == IID_IUnknown){
+    		REFERENCE_ARG(Interface);	
+    	}
+        return E_NOINTERFACE;
+    }
+
+    ULONG	STDMETHODCALLTYPE AddRef() { return 1; }
+    ULONG	STDMETHODCALLTYPE Release() { return 0; }
+	HRESULT Output(ULONG mask,PCSTR text)
+	{
+		fprintf(stdout,"Output[0x%lx]%s", mask,text);
+		return S_OK;
+	}
+};
+
+class InputCallback : public IDebugInputCallbacks
+{
+public:
+	InputCallback() {}
+	virtual ~InputCallback(){}
+    HRESULT STDMETHODCALLTYPE QueryInterface(const IID& InterfaceId, PVOID* Interface)
+    {
+    	if (InterfaceId == IID_IUnknown){
+    		REFERENCE_ARG(Interface);	
+    	}
+        return E_NOINTERFACE;
+    }
+
+    ULONG	STDMETHODCALLTYPE AddRef() { return 1; }
+    ULONG	STDMETHODCALLTYPE Release() { return 0; }
+	HRESULT EndInput()	
+	{
+		DEBUG_INFO("EndInput");
+		return S_OK;
+	}
+	HRESULT StartInput(ULONG bufsize)
+	{
+		DEBUG_INFO("StartInput bufsize[0x%lx]", bufsize);
+		return S_OK;
+	}
+};
+
 
 int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -164,6 +213,10 @@ int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     int readsize=256;
     char* pptr=NULL;
     int readlen;
+    InputCallback* inputcallback=NULL;
+    OutputCallback* outputcallback=NULL;
+    int setinput=0,setoutput=0;
+    ULONG outmask=0;
 
 
     REFERENCE_ARG(argc);
@@ -215,10 +268,46 @@ int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     hr = pclient->SetEventCallbacks(pevtcallback);
     if (hr != S_OK) {
         ret = GET_HR_ERROR(hr);
-        ERROR_INFO("can not query interface callback error[%d] [0x%lx]", ret, hr);
+        ERROR_INFO("can not set event callback error[%d] [0x%lx]", ret, hr);
         goto out;
     }
     setevt = 1;
+
+    inputcallback= new InputCallback();
+    hr = pclient->SetInputCallbacks(inputcallback);
+    if (hr != S_OK) {
+    	ret = GET_HR_ERROR(hr);
+    	ERROR_INFO("can not set input callback error[%d] [0x%lx]", ret, hr);
+    	goto out;
+    }
+    setinput = 1;
+
+    outputcallback = new OutputCallback();
+    hr = pclient->SetOutputCallbacks(outputcallback);
+    if (hr != S_OK) {
+    	ret = GET_HR_ERROR(hr);
+    	ERROR_INFO("can not set output callback error[%d] [0x%lx]", ret , hr);
+    	goto out;
+    }
+    setoutput = 1;
+
+    outmask = DEBUG_OUTPUT_NORMAL | 
+    	DEBUG_OUTPUT_ERROR |
+    	DEBUG_OUTPUT_WARNING |
+    	DEBUG_OUTPUT_VERBOSE | 
+    	DEBUG_OUTPUT_PROMPT |
+    	DEBUG_OUTPUT_PROMPT_REGISTERS |
+    	DEBUG_OUTPUT_EXTENSION_WARNING |
+    	DEBUG_OUTPUT_DEBUGGEE |
+    	DEBUG_OUTPUT_DEBUGGEE_PROMPT |
+    	DEBUG_OUTPUT_SYMBOLS |
+    	DEBUG_OUTPUT_STATUS;
+    hr = pclient->SetOutputMask(outmask);
+    if (hr != S_OK) {
+    	ret = GET_HR_ERROR(hr);
+    	ERROR_INFO("can not set output mask error[%d] [0x%lx]", ret, hr);
+    	goto out;
+    }
 
     while(1){
 	    hr = pctrl->WaitForEvent(0, INFINITE);
@@ -259,7 +348,7 @@ int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     		continue;
     	}
 
-    	hr = pctrl->Execute(DEBUG_OUTCTL_LOG_ONLY,readbuf,DEBUG_EXECUTE_ECHO);
+    	hr = pctrl->Execute(DEBUG_OUTCTL_IGNORE,readbuf,DEBUG_EXECUTE_NOT_LOGGED);
     	if (hr != S_OK) {
     		ret = GET_HR_ERROR(hr);
     		ERROR_INFO("execute [%s] error[%d] [0x%lx]", readbuf, ret, hr);
@@ -270,6 +359,25 @@ int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
     ret = 0;
 out:
+	if (setoutput) {
+		pclient->SetOutputCallbacks(NULL);
+	}
+	setoutput = 0;
+	if (outputcallback) {
+		delete outputcallback;
+	}
+	outputcallback = NULL;
+
+	if (setinput) {
+		pclient->SetInputCallbacks(NULL);
+	}
+	setinput = 0;
+
+	if (inputcallback) {
+		delete inputcallback;
+	}
+	inputcallback = NULL;
+
 	if (setevt) {
 		pclient->SetEventCallbacks(NULL);
 	}
