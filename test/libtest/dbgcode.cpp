@@ -326,6 +326,18 @@ int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     }
 
     while(1) {
+        hr = pctrl->GetExecutionStatus(&outmask);
+        if (hr != S_OK) {
+            ret = GET_HR_ERROR(hr);
+            ERROR_INFO("GetExecutionStatus error[%d] [0x%lx]", ret ,hr);
+            goto out;
+        }
+        DEBUG_INFO("before status [0x%lx]", outmask);
+        if (outmask != DEBUG_STATUS_BREAK) {
+            SleepEx(500,TRUE);
+            continue;
+        }
+
     	fprintf(stdout,"dbg>");
     	fflush(stdout);
     	pptr = fgets(readbuf,readsize,stdin);
@@ -347,6 +359,14 @@ int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     		fflush(stdout);
     		continue;
     	}
+
+        hr = pctrl->GetExecutionStatus(&outmask);
+        if (hr != S_OK) {
+            ret = GET_HR_ERROR(hr);
+            ERROR_INFO("GetExecutionStatus error[%d] [0x%lx]", ret ,hr);
+            goto out;
+        }
+        DEBUG_INFO("after status [0x%lx]", outmask);
 
     	hr = pctrl->Execute(DEBUG_OUTCTL_IGNORE,readbuf,DEBUG_EXECUTE_NOT_LOGGED);
     	if (hr != S_OK) {
