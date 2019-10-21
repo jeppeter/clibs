@@ -15,10 +15,13 @@
 
 class EventCallbacks : public IDebugEventCallbacks
 {
+private:
+	int m_started;
+
 public:
 	EventCallbacks()
 	{
-
+		m_started = 0;
 	}
 	virtual ~EventCallbacks()
 	{
@@ -72,6 +75,7 @@ public:
     {
     	DEBUG_INFO("CreateThread hdl[0x%llx] dataoff[0x%llx] startoff[0x%llx]",
     		hdl, dataoff, startoff);
+    	this->m_started = 1;
     	return DEBUG_STATUS_BREAK;
     }
 
@@ -135,6 +139,11 @@ public:
     	DEBUG_INFO("UnloadModule imgname[%s] baseoff[0x%llx]", imgname, baseoff);
     	return DEBUG_STATUS_BREAK;
     }
+
+    int is_started()
+    {
+    	return this->m_started;
+    }
 };
 
 
@@ -151,6 +160,10 @@ int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     EventCallbacks* pevtcallback=NULL;
     int setevt = 0;
     int cnt=0;
+    char readbuf[256];
+    int readsize=256;
+    char* pptr=NULL;
+    int readlen;
 
 
     REFERENCE_ARG(argc);
@@ -215,8 +228,43 @@ int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 	        goto out;
 	    }
 
+	    if (pevtcallback->is_started()){
+	    	break;
+	    }
+
 	    DEBUG_INFO("WaitForEvent [%d] succ",cnt);
 	    cnt ++;
+    }
+
+    while(1) {
+    	fprintf(stdout,"dbg>");
+    	fflush(stdout);
+    	pptr = fgets(readbuf,readsize,stdin);
+    	if (pptr == NULL) {
+    		break;
+    	}
+
+    	readlen = (int)strlen(readbuf);
+    	while(readlen > 0  ) {
+    		if (readbuf[(readlen - 1)] != '\r' &&
+    			readbuf[(readlen - 1)] != '\n') {
+    			break;
+    		}
+    		readbuf[(readlen-1)] = 0x0;
+    		readlen --;
+    	}
+    	if (readlen == 0) {
+    		fprintf(stdout,"\n");
+    		fflush(stdout);
+    		continue;
+    	}
+
+    	hr = pctrl->Execute(DEBUG_OUTCTL_LOG_ONLY,readbuf,DEBUG_EXECUTE_ECHO);
+    	if (hr != S_OK) {
+    		ret = GET_HR_ERROR(hr);
+    		ERROR_INFO("execute [%s] error[%d] [0x%lx]", readbuf, ret, hr);
+    		goto out;
+    	}
     }
 
 
