@@ -629,136 +629,88 @@ fail:
     return NULL;
 }
 
-#define LEAST_UNIQ_NUM    8
 
 int __get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
 {
-    TCHAR* tmpdirbuf = NULL;
-    size_t tmpdirsize = 0, tmpdirlen;
-    TCHAR* ptprefix = NULL;
-    int prefixsize = 0;
-    TCHAR* tmpfilebuf = NULL;
-    size_t tmpfilesize = 0, tmpfilelen;
-
-    int ret, nlen;
-    DWORD dret;
-    UINT uniq, uret;
-    TCHAR* prealname = NULL;
-    TCHAR* pcmpname = NULL;
-
-
+    char* pwholepath=0;
+    int wholesize=0;
+    char* pcurptr;
+    int retlen=0;
+    char* prettmp=NULL;
+    int retsize=0;
+    int ret;
     if (prefix == NULL) {
-        if (pptmp && *pptmp && psize) {
-            TcharToAnsi(NULL, pptmp, psize);
+        if (pptmp && *pptmp) {
+            free(*pptmp);
+            *pptmp = NULL;
+        }
+        if (psize) {
+            *psize = 0;
         }
         return 0;
     }
 
-    ret = AnsiToTchar(prefix, &ptprefix, &prefixsize);
+    if (pptmp == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    prettmp = *pptmp;
+    retsize = *psize;
+
+    ret = mktempfile_safe(prefix,&pwholepath,&wholesize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    tmpdirsize = 1024 * sizeof(TCHAR);
-    tmpfilesize = 1024 * sizeof(TCHAR);
-try_again:
-    if (tmpdirbuf != NULL) {
-        free(tmpdirbuf);
-    }
-    tmpdirbuf = NULL;
-    tmpdirbuf = (TCHAR*) malloc(tmpdirsize);
-    if (tmpdirbuf == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc %d error[%d]", tmpdirsize, ret);
-        goto fail;
-    }
-    memset(tmpdirbuf, 0 , tmpdirsize);
-    dret = GetTempPath((DWORD)(tmpdirsize / sizeof(TCHAR)), tmpdirbuf);
-    if (dret == 0) {
-        GETERRNO(ret);
-        ERROR_INFO("get temp path error[%d]", ret);
-        goto fail;
-    } else if (dret >= (tmpdirsize / sizeof(TCHAR))) {
-        tmpdirsize <<= 1;
-        goto try_again;
+    pcurptr = pwholepath;
+    pcurptr += strlen(pwholepath);
+    pcurptr -- ;
+
+    while(pcurptr != pwholepath) {
+        if (*pcurptr == '\\') {
+            pcurptr ++;
+            break;
+        }
+        pcurptr --;
     }
 
-    if (tmpfilebuf != NULL) {
-        free(tmpfilebuf);
-    }
-    tmpfilebuf = NULL;
-    tmpfilebuf = (TCHAR*) malloc(tmpfilesize);
-    if (tmpfilebuf == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("alloc %d error[%d]", tmpfilesize , ret);
-        goto fail;
-    }
-    tmpdirlen = _tcslen(tmpdirbuf);
-    if (tmpfilesize < ((tmpdirlen + LEAST_UNIQ_NUM + strlen(prefix) + 1) * sizeof(TCHAR))) {
-        tmpfilesize <<= 1;
-        goto try_again;
-    }
-    memset(tmpfilebuf, 0 , tmpfilesize);
-    //uniq = (UINT)(LEAST_UNIQ_NUM + strlen(prefix));
-    uniq = LEAST_UNIQ_NUM;
-    uret = GetTempFileName(tmpdirbuf, ptprefix, uniq, tmpfilebuf);
-    if (uret == 0) {
-        GETERRNO(ret);
-        ERROR_INFO("get temp file name error[%s]", ret);
-        goto fail;
+    retlen = (int)strlen(pcurptr);
+    if (prettmp == NULL || retsize < (retlen + 1)) {
+        if (retsize < (retlen + 1)) {
+            retsize = retlen + 1;
+        }
+        prettmp = (char*) malloc(retsize);
+        if (prettmp == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
     }
 
-    prealname = tmpfilebuf;
-    pcmpname = tmpdirbuf;
-    while (*prealname == *pcmpname) {
-        prealname ++;
-        pcmpname ++;
+    memcpy(prettmp,pcurptr, (retlen + 1));
+    if (*pptmp && *pptmp != prettmp) {
+        free(*pptmp);
     }
-
-    while ( *prealname == __TEXT('\\')) {
-        prealname ++;
-    }
-
-    tmpdirlen = _tcslen(tmpdirbuf);
-    tmpfilelen = _tcslen(tmpfilebuf);
-    DEBUG_BUFFER_FMT(tmpdirbuf, (int)((tmpdirlen + 1) * sizeof(TCHAR)), NULL);
-    DEBUG_BUFFER_FMT(tmpfilebuf, (int)((tmpfilelen + 1) * sizeof(TCHAR)), NULL);
-
-    DEBUG_INFO("tmpfilebuf %p prealname %p", tmpfilebuf, prealname);
-
-    ret = TcharToAnsi(prealname, pptmp, psize);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-    nlen = ret;
-    if (tmpdirbuf != NULL) {
-        free(tmpdirbuf);
-    }
-    tmpdirbuf = NULL;
-    tmpdirsize = 0;
-    if (tmpfilebuf != NULL) {
-        free(tmpfilebuf);
-    }
-    tmpfilebuf = NULL;
-    tmpfilesize = 0;
-    AnsiToTchar(NULL, &ptprefix, &prefixsize);
-    return nlen;
+    *pptmp = prettmp;
+    *psize = retsize;
+    mktempfile_safe(NULL,&pwholepath,&wholesize);
+    return retlen;
 fail:
-    if (tmpdirbuf != NULL) {
-        free(tmpdirbuf);
+    if (prettmp && prettmp != *pptmp) {
+        free(prettmp);
     }
-    tmpdirbuf = NULL;
-    tmpdirsize = 0;
-    if (tmpfilebuf != NULL) {
-        free(tmpfilebuf);
-    }
-    tmpfilebuf = NULL;
-    tmpfilesize = 0;
-    AnsiToTchar(NULL, &ptprefix, &prefixsize);
+    prettmp = NULL;
+
+    mktempfile_safe(NULL,&pwholepath,&wholesize);
     SETERRNO(ret);
     return ret;
+}
+
+int get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
+{
+    return __get_temp_pipe_name(prefix,pptmp,psize);
 }
 
 typedef struct __proc_handle {
