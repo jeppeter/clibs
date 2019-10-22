@@ -629,7 +629,7 @@ fail:
     return NULL;
 }
 
-#define LEAST_UNIQ_NUM    50
+#define LEAST_UNIQ_NUM    8
 
 int __get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
 {
