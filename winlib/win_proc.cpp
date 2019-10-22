@@ -695,14 +695,13 @@ try_again:
         goto fail;
     }
     tmpdirlen = _tcslen(tmpdirbuf);
-    if (tmpfilesize < ((tmpdirlen + LEAST_UNIQ_NUM + strlen(prefix)) * sizeof(TCHAR))) {
-        tmpfilesize = ((tmpdirlen + LEAST_UNIQ_NUM + strlen(prefix)) * sizeof(TCHAR));
+    if (tmpfilesize < ((tmpdirlen + LEAST_UNIQ_NUM + strlen(prefix) + 1) * sizeof(TCHAR))) {
+        tmpfilesize <<= 1;
         goto try_again;
     }
     memset(tmpfilebuf, 0 , tmpfilesize);
     //uniq = (UINT)(LEAST_UNIQ_NUM + strlen(prefix));
-    uniq = 0;
-
+    uniq = LEAST_UNIQ_NUM;
     uret = GetTempFileName(tmpdirbuf, ptprefix, uniq, tmpfilebuf);
     if (uret == 0) {
         GETERRNO(ret);
