@@ -2,10 +2,21 @@
 
 #ifdef _M_X64
 
+
+#pragma warning(disable:4820)
+#pragma warning(disable:4365)
+#pragma warning(disable:4191)
+#pragma warning(disable:4917)
+
 #include <Windows.h>
 #include <dbgeng.h>
 #include <atlcomcli.h>
 
+
+#pragma warning(default:4917)
+#pragma warning(default:4191)
+#pragma warning(default:4365)
+#pragma warning(default:4820)
 
 #pragma comment(lib,"Ole32.lib")
 #pragma comment(lib,"dbgeng.lib")
@@ -17,11 +28,13 @@ class EventCallbacks : public IDebugEventCallbacks
 {
 private:
 	int m_started;
+    int m_dummy;
 
 public:
 	EventCallbacks()
 	{
 		m_started = 0;
+        m_dummy = 0;
 	}
 	virtual ~EventCallbacks()
 	{

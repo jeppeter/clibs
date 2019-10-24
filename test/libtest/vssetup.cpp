@@ -1,3 +1,7 @@
+
+#pragma warning(disable:4820)
+#pragma warning(disable:4668)
+
 #include <win_types.h>
 #include <win_err.h>
 #include <win_uniansi.h>
@@ -6,6 +10,9 @@
 
 #include "vssetup.h"
 #include "Setup.Configuration.h"
+
+#pragma warning(default:4668)
+#pragma warning(default:4820)
 
 
 #pragma comment(lib,"Ole32.lib")

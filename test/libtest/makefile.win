@@ -71,7 +71,7 @@ INC_LDFLAGS = "$(DYNAMICDIR)\extargslib.lib" "$(DYNAMICDIR)\winlib.lib" "$(DYNAM
 !ENDIF
 
 INC_CFLAGS = /I"$(CURDIR)\..\proto" /I"$(CURDIR)\..\proto_win" /I"$(TOPDIR)\common\extargslib" /I"$(TOPDIR)\winlib" /I"$(TOPDIR)\common\jsonlib" /I"$(TOPDIR)\common"
-COM_CFLAGS = /Wall /wd"4820" /wd"4668" /wd"4127" /wd"4510" /wd"4512" /wd"4610" /wd"4710" /wd"5045" /wd"4530" /wd"4577"
+COM_CFLAGS = /Wall /wd"4710"
 REL_CFLAGS = 
 DBG_CFLAGS = /Zi /Od 
 

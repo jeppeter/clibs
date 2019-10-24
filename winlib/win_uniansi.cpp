@@ -1,4 +1,7 @@
 
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
 
 #include <win_uniansi.h>
 #include <Windows.h>
@@ -6,7 +9,9 @@
 #include <win_output_debug.h>
 #include <win_err.h>
 
-#pragma warning(disable:4996)
+#pragma warning(default:4820)
+#pragma warning(default:4668)
+
 
 int UnicodeToAnsi(wchar_t* pWideChar, char** ppChar, int*pCharSize)
 {
@@ -207,17 +212,17 @@ int Utf8ToAnsi(const char *pUtf8, char** ppchars, int*pcharsize)
     unilen = MultiByteToWideChar(CP_UTF8, 0, pUtf8, len, NULL, 0);
     if ((unisize <= (int)(unilen * sizeof(wchar_t)) ) || punicode == NULL) {
         if (unisize <= (int)(unilen * sizeof(wchar_t))) {
-            unisize = (unilen + 1) * sizeof(wchar_t);
+            unisize = (int)((unilen + 1) * sizeof(wchar_t));
         }
-        punicode = (wchar_t*)malloc(unisize);
+        punicode = (wchar_t*)malloc((size_t)unisize);
         if (punicode == NULL) {
             GETERRNO(ret);
             goto fail;
         }
     }
-    memset(punicode , 0, unisize);
+    memset(punicode , 0, (size_t)unisize);
 
-    unilen = MultiByteToWideChar(CP_UTF8, 0, pUtf8, len, punicode, (unisize / sizeof(wchar_t)));
+    unilen = MultiByteToWideChar(CP_UTF8, 0, pUtf8, len, punicode, (int)(unisize / sizeof(wchar_t)));
     if (unilen < 0 || unilen >= (int)(unisize / sizeof(wchar_t))) {
         GETERRNO(ret);
         goto fail;
@@ -229,13 +234,13 @@ int Utf8ToAnsi(const char *pUtf8, char** ppchars, int*pcharsize)
         if (retsize <= needlen) {
             retsize = needlen + 1;
         }
-        pretchars = (char*)malloc(retsize);
+        pretchars = (char*)malloc((size_t)retsize);
         if (pretchars == NULL) {
             GETERRNO(ret);
             goto fail;
         }
     }
-    memset(pretchars, 0, retsize);
+    memset(pretchars, 0, (size_t)retsize);
 
     retlen = WideCharToMultiByte(CP_ACP, 0, punicode, unilen, pretchars, retsize, NULL, NULL);
     if (retlen != needlen) {
@@ -306,9 +311,9 @@ int AnsiToUtf8(const char* pchars, char** ppUtf8, int *pUtf8size)
     unilen = MultiByteToWideChar(CP_ACP, 0, pchars, -1, NULL, 0);
     if (unisize <= (int)(unilen*sizeof(wchar_t)) || punicode == NULL) {
         if (unisize <= (int)(unilen* sizeof(wchar_t))) {
-            unisize = (unilen + 1) * sizeof(wchar_t);
+            unisize = (int)((unilen + 1) * sizeof(wchar_t));
         }
-        punicode = (wchar_t*)malloc(unisize);
+        punicode = (wchar_t*)malloc((size_t)unisize);
         if (punicode == NULL) {
             GETERRNO(ret);
             goto fail;

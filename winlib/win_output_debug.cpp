@@ -1,7 +1,12 @@
+#pragma warning(disable:4820)
+#pragma warning(disable:4668)
 
 #include <win_output_debug.h>
 #include <win_uniansi.h>
 #include <stdio.h>
+
+#pragma warning(default:4668)
+#pragma warning(default:4820)
 
 static int st_output_loglvl = BASE_LOG_DEFAULT;
 static CRITICAL_SECTION st_outputcs;
@@ -38,7 +43,7 @@ void InnerDebug(char* pFmtStr)
     int len;
     BOOL bret;
     len = (int) strlen(pFmtStr) + 1;
-    pWide = (wchar_t*)malloc((len + 1) * 2);
+    pWide = (wchar_t*)malloc((size_t)((len + 1) * 2));
     if (pWide == NULL) {
         return ;
     }
@@ -75,7 +80,7 @@ int __output_hd_flush(HANDLE hd,char* pFmtStr,int len)
     DWORD cbret;
     int ret;
 
-    bret = WriteFile(hd,pFmtStr,len,&cbret,NULL);
+    bret = WriteFile(hd,pFmtStr,(DWORD)len,&cbret,NULL);
     if (!bret) {
         GETERRNO(ret);
         goto fail;

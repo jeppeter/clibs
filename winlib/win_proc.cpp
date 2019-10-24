@@ -2303,7 +2303,6 @@ fail:
 
 int __wts_inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout)
 {
-    int inlen = 0;
     char* pretout = NULL;
     int outsize = 0, outlen = 0;
     char* preterr = NULL;
@@ -2315,10 +2314,11 @@ int __wts_inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, ch
     uint64_t sticks = 0, cticks = 0;
     DWORD waittime;
     HANDLE hd;
-    int pending;
-    int inwait = 0, outwait = 0, errwait = 0;
     int ret;
-    int curlen;
+    insize = insize;
+    if (pin) {
+        pin = pin;
+    }
 
     if (ppout != NULL) {
         pretout = *ppout;

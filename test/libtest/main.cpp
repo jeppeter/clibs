@@ -1,8 +1,20 @@
+
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+#pragma warning(disable:4577)
+
+#pragma warning(disable:4623)
+#pragma warning(disable:4626)
+#pragma warning(disable:5027)
+#include <extargs.h>
+#pragma warning(default:4623)
+#pragma warning(default:4626)
+#pragma warning(default:5027)
+
 #include <win_fileop.h>
 #include <win_output_debug.h>
 #include <win_args.h>
 #include <win_strop.h>
-#include <extargs.h>
 #include <win_err.h>
 #include <win_proc.h>
 #include <win_window.h>
@@ -23,31 +35,38 @@
 #include <win_user.h>
 #include <win_namedpipe.h>
 
-#include <jvalue.h>
 
+#include <jvalue.h>
 
 #include <proto_api.h>
 #include <proto_win.h>
 #include <Lm.h>
 
+#pragma warning(disable:4530)
 #include <vector>
+#pragma warning(default:4530)
 
 #include <sddl.h>
 #include <aclapi.h>
 
 #include "vssetup.h"
 
+#pragma warning(default:4577)
+#pragma warning(default:4668)
+#pragma warning(default:4820)
+
+
 #define  MIN_SID_SIZE          32
 
 typedef struct __args_options {
-    int m_verbose;
     char* m_classname;
     char* m_input;
     char* m_output;
     char* m_errout;
+    char* m_pipename;
+    int m_verbose;
     int m_timeout;
     int m_bufsize;
-    char* m_pipename;
     int m_hidewindow;
 } args_options_t, *pargs_options_t;
 
@@ -6618,6 +6637,7 @@ out:
     return ret;    
 }
 
+#include "dbgcode.cpp"
 
 int _tmain(int argc, TCHAR* argv[])
 {
@@ -6651,4 +6671,3 @@ out:
     return ret;
 }
 
-#include "dbgcode.cpp"

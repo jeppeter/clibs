@@ -6,6 +6,11 @@
 /*this for the WINLIB_API define*/
 #include <cmn_err.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 /**************************************************
 *
 *  to parse handle
@@ -140,9 +145,6 @@ typedef int extargs_priority_t;
 #undef __EXTARGS_WIN__
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #define  INIT_EXTARGS_OPTIONS(option)                        \
 static extargs_options_t option = {                          \

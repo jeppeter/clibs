@@ -3,10 +3,19 @@
 #include <win_output_debug.h>
 #include <win_uniansi.h>
 #include <win_priv.h>
+#include <win_fileop.h>
 
 #include <Windows.h>
+#define _NO_CVCONST_H
+#pragma warning(disable:4091)
+#pragma warning(disable:4191)
+#pragma warning(disable:4917)
+#include <dbghelp.h>
 #include <dbgeng.h>
 #include <atlcomcli.h>
+#pragma warning(default:4091)
+#pragma warning(default:4191)
+#pragma warning(default:4917)
 
 #ifdef  _M_X64
 
@@ -351,6 +360,7 @@ private:
 
 #pragma comment(lib,"Ole32.lib")
 #pragma comment(lib,"dbgeng.lib")
+#pragma comment(lib,"dbghelp.lib")
 
 typedef struct __win_debug_t {
 #if WIN_DBG_CHECK
@@ -965,3 +975,183 @@ fail:
 }
 
 #endif /* _M_X64*/
+
+
+uint64_t __get_dbg_file_size(const char* file)
+{
+    void* pfile = NULL;
+    uint64_t filesize = 0;
+    int ret = -1;
+
+    pfile  = open_file(file, READ_MODE);
+    if (pfile == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    filesize = get_file_size(pfile);
+    GETERRNO_DIRECT(ret);
+    if (filesize == MAX_UINT64 && ret != 0) {
+        goto fail;
+    }
+
+    close_file(&pfile);
+    SETERRNO(0);
+    return filesize;
+fail:
+    close_file(&pfile);
+    SETERRNO(ret);
+    return MAX_UINT64;
+}
+
+
+#define GET_TYPE(tagtype,masktype)  \
+do\
+{\
+    if (pSymInfo->Tag == tagtype){\
+        pcurinfo->m_type |= masktype;\
+    }\
+}while(0)
+
+
+BOOL CALLBACK SymEnumSymbolsProcFill(PSYMBOL_INFO pSymInfo,ULONG SymbolSize,PVOID UserContext)
+{
+    pdebug_symbol_info_t psyminfo= (pdebug_symbol_info_t) UserContext;
+    int idx=psyminfo->m_num;
+    psym_info_t pcurinfo;
+    SymbolSize = SymbolSize;
+
+    if (psyminfo->m_size <= psyminfo->m_num) {
+        psyminfo->m_needsize += 1;
+        return TRUE;
+    }
+
+    pcurinfo = &(psyminfo->m_syminfo[idx]);
+    //DEBUG_INFO("[%d] name %s",idx,pSymInfo->Name);
+    strncpy((char*)pcurinfo->m_name,pSymInfo->Name,sizeof(pcurinfo->m_name));
+    pcurinfo->m_name[sizeof(pcurinfo->m_name)-1] = 0;
+    pcurinfo->m_idx = pSymInfo->Index;
+    pcurinfo->m_address = pSymInfo->Address;
+    pcurinfo->m_type = 0;
+    GET_TYPE(SymTagNull,SYMINFO_NULL);
+    GET_TYPE(SymTagExe,SYMINFO_EXE);
+    GET_TYPE(SymTagCompiland,SYMINFO_COMPILAND);
+    GET_TYPE(SymTagCompilandDetails,SYMINFO_COMPILANDDETAILS);
+    GET_TYPE(SymTagCompilandEnv,SYMINFO_COMPILANDENV);
+    GET_TYPE(SymTagFunction,SYMINFO_FUNCTION);
+    GET_TYPE(SymTagBlock,SYMINFO_BLOCK);
+    GET_TYPE(SymTagData,SYMINFO_DATA);
+    GET_TYPE(SymTagAnnotation,SYMINFO_ANNOTATION);
+    GET_TYPE(SymTagLabel,SYMINFO_LABEL);
+    GET_TYPE(SymTagPublicSymbol,SYMINFO_PUBLICSYMBOL);
+    GET_TYPE(SymTagUDT,SYMINFO_UDT);
+    GET_TYPE(SymTagEnum,SYMINFO_ENUM);
+    GET_TYPE(SymTagFunctionType,SYMINFO_FUNCTIONTYPE);
+    GET_TYPE(SymTagPointerType,SYMINFO_POINTERTYPE);
+    GET_TYPE(SymTagArrayType,SYMINFO_ARRAYTYPE);
+    GET_TYPE(SymTagBaseType,SYMINFO_BASETYPE);
+    GET_TYPE(SymTagTypedef,SYMINFO_TYPEDEF);
+    GET_TYPE(SymTagBaseClass,SYMINFO_BASECLASS);
+    GET_TYPE(SymTagFriend,SYMINFO_FRIEND);
+    GET_TYPE(SymTagFunctionArgType,SYMINFO_FUNCTIONARGTYPE);
+    GET_TYPE(SymTagFuncDebugStart,SYMINFO_FUNCDEBUGSTART);
+    GET_TYPE(SymTagFuncDebugEnd,SYMINFO_FUNCDEBUGEND);
+    GET_TYPE(SymTagUsingNamespace,SYMINFO_USINGNAMESPACE);
+    GET_TYPE(SymTagVTableShape,SYMINFO_VTABLESHAPE);
+    GET_TYPE(SymTagVTable,SYMINFO_VTABLE);
+    GET_TYPE(SymTagCustom,SYMINFO_CUSTOM);
+    GET_TYPE(SymTagThunk,SYMINFO_THUNK);
+    GET_TYPE(SymTagCustomType,SYMINFO_CUSTOMTYPE);
+    GET_TYPE(SymTagManagedType,SYMINFO_MANAGEDTYPE);
+    GET_TYPE(SymTagDimension,SYMINFO_DIMENSION);
+    psyminfo->m_num ++;
+    psyminfo->m_needsize ++;
+    return TRUE;
+}
+
+
+
+int enum_symbol_pdb(const char* pdbfile,const char* searchmask,addr_t loadaddr, 
+    pdebug_symbol_info_t psyminfo,int maxsize)
+{
+    int ret, res;
+    int inited = 0, loaded = 0;
+    BOOL bret;
+    uint64_t filesize = 0;
+    uint64_t modbase = 0;
+    bret = ::SymInitialize(GetCurrentProcess(), NULL, FALSE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("can not SymInitialize (%d)", ret);
+        goto fail;
+    }
+
+    filesize = __get_dbg_file_size(pdbfile);
+    GETERRNO_DIRECT(ret);
+    if (filesize == MAX_UINT64 && ret == 0) {
+        goto fail;
+    }
+
+    modbase = ::SymLoadModule64(GetCurrentProcess(), NULL,
+                                pdbfile, NULL, loadaddr, (DWORD)filesize);
+    if (modbase == 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not load %s module ret(%d)", pdbfile, ret);
+        goto fail;
+    }
+    loaded = 1;
+
+    
+    psyminfo->m_size = maxsize;
+    psyminfo->m_num = 0;
+    psyminfo->m_needsize = 0;
+    bret = ::SymEnumSymbols(GetCurrentProcess(), modbase, searchmask, SymEnumSymbolsProcFill, psyminfo);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("enum (%s) error(%d)", pdbfile, ret);
+        goto fail;
+    }
+
+    if (psyminfo->m_size < psyminfo->m_needsize) {
+        ret = -ERROR_MORE_DATA;
+        goto fail;
+    }
+
+    bret =::SymUnloadModule64(GetCurrentProcess(), modbase);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("unload (%s) error(%d)", pdbfile, ret);
+        goto fail;
+    }
+    loaded = 0;
+    modbase = 0;
+
+    bret = ::SymCleanup(GetCurrentProcess());
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("cleanup error(%d)", ret);
+        goto fail;
+    }
+    inited = 0;
+    return sizeof(*psyminfo) + (psyminfo->m_num - 1) * sizeof(psyminfo->m_syminfo[0]);
+fail:
+    if (loaded) {
+        bret = ::SymUnloadModule64(GetCurrentProcess(), modbase);
+        if (!bret) {
+            GETERRNO(res);
+            ERROR_INFO("unload module %s error(%d)", pdbfile, res);
+        }
+    }
+    loaded = 0;
+    modbase = 0;
+
+    if (inited) {
+        bret = ::SymCleanup(GetCurrentProcess());
+        if (!bret) {
+            GETERRNO(res);
+            ERROR_INFO("cleanup error(%d)", res);
+        }
+    }
+    inited = 0;
+    SETERRNO(-ret);
+    return ret;
+}

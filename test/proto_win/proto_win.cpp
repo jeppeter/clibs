@@ -1,9 +1,16 @@
+
+#pragma warning(disable:4820)
+#pragma warning(disable:4668)
+
 #include <proto_win.h>
 #include <proto_api.h>
 #include <win_uniansi.h>
 #include <win_err.h>
 #include <win_time.h>
 #include <win_strop.h>
+
+#pragma warning(default:4668)
+#pragma warning(default:4820)
 
 
 #define  PIPE_BUFSIZE  4096
@@ -197,12 +204,24 @@ OVERLAPPED* alloc_overlap(const char* fmt, ...)
 {
     OVERLAPPED* pov = NULL;
     int ret;
+    va_list ap=NULL;
+    char* fmtstr=NULL;
+    int strsize=0;
+    if (fmt) {
+        va_start(ap,fmt);
+        ret = vsnprintf_safe(&fmtstr,&strsize,fmt,ap);
+    } else {
+        ret = snprintf_safe(&fmtstr,&strsize,"anonymouse");
+    }
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
-    DEBUG_INFO("alloc size %zd", sizeof(*pov));
     pov = (OVERLAPPED*)malloc(sizeof(*pov));
     if (pov == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("alloc size [%d] error[%d]\n", sizeof(*pov), ret);
+        ERROR_INFO("[%s]alloc size [%d] error[%d]\n", fmtstr, sizeof(*pov), ret);
         goto fail;
     }
 
@@ -211,14 +230,16 @@ OVERLAPPED* alloc_overlap(const char* fmt, ...)
     pov->hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (pov->hEvent == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("create event error[%d]\n", ret);
+        ERROR_INFO("[%s]create event error[%d]\n", fmtstr, ret);
         goto fail;
     }
 
-    DEBUG_INFO("alloc %p", pov);
+    DEBUG_INFO("[%s]alloc %p", fmtstr, pov);
+    snprintf_safe(&fmtstr,&strsize,NULL);
     return pov;
 fail:
     free_overlap(&pov);
+    snprintf_safe(&fmtstr,&strsize,NULL);
     SETERRNO(ret);
     return NULL;
 }

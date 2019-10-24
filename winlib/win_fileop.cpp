@@ -909,7 +909,7 @@ int copy_file_force(const char* srcfile,const char* dstfile)
 fail:
     AnsiToTchar(NULL,&pSF,&ssize);
     AnsiToTchar(NULL,&pDF,&dsize);
-    SETERRNO(-ret);
+    SETERRNO(ret);
     return ret;
 }
 
@@ -937,7 +937,7 @@ pfile_obj_t __init_file(const char* file)
     return pfile;
 fail:
     close_file((void**)&pfile);
-    SETERRNO(-ret);
+    SETERRNO(ret);
     return NULL;
 }
 
@@ -1013,7 +1013,7 @@ void*  open_file(const char* file,int mode)
     return pfile;
 fail:
     close_file((void**)&pfile);
-    SETERRNO(-ret);
+    SETERRNO(ret);
     return NULL;
 }
 
@@ -1039,7 +1039,7 @@ int __seek_file(pfile_obj_t pfile,uint64_t off)
 
     return 0;
 fail:
-    SETERRNO(-ret);
+    SETERRNO(ret);
     return ret;
 }
 
@@ -1088,7 +1088,7 @@ int read_file(void* pobj,uint64_t off,void* pbuf,uint32_t bufsize)
 
     return bufsize;
 fail:
-    SETERRNO(-ret);
+    SETERRNO(ret);
     return ret;
 }
 
@@ -1137,7 +1137,7 @@ int write_file(void* pobj,uint64_t off,void* pbuf,uint32_t bufsize)
 
     return bufsize;
 fail:
-    SETERRNO(-ret);
+    SETERRNO(ret);
     return ret;
 }
 
@@ -1161,7 +1161,7 @@ uint64_t get_file_size(void* pobj)
     SETERRNO(0);
     return size.QuadPart;
 fail:
-    SETERRNO(-ret);
+    SETERRNO(ret);
     return MAX_UINT64;
 }
 
@@ -1186,7 +1186,7 @@ int ioctl_file(void* pobj,uint32_t ctrlcode,void* pinbuf,int insize,void* poutbu
 
     return nret;
 fail:
-    SETERRNO(-ret);
+    SETERRNO(ret);
     return ret;
 }
 
