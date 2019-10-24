@@ -6,6 +6,11 @@
 
 #pragma comment(lib,"Advapi32.lib")
 
+#if _MSC_VER >= 1910
+#pragma warning(push)
+#pragma warning(disable:5045)
+#endif
+
 void __close_scm(SC_HANDLE* pschd)
 {
     BOOL bret;
@@ -197,7 +202,7 @@ int __get_service_current_state(const char* name)
         goto fail;
     }
 
-    state = ssp.dwCurrentState;
+    state = (int) ssp.dwCurrentState;
 
     __open_handle(NULL, &schd, &shsv, GENERIC_READ, GENERIC_READ);
     return state;
@@ -312,7 +317,7 @@ int __inner_get_config(SC_HANDLE shsv , QUERY_SERVICE_CONFIGW** ppconfigw, int *
     retsize = *psize;
 
 try_again:
-    bret = QueryServiceConfigW(shsv, pretconfig, retsize, &needed);
+    bret = QueryServiceConfigW(shsv, pretconfig, (DWORD)retsize, &needed);
     if (!bret) {
         GETERRNO(ret);
         if (ret != -ERROR_INSUFFICIENT_BUFFER) {
@@ -325,11 +330,11 @@ try_again:
         }
         pretconfig = NULL;
         if (retsize < (int)needed) {
-            retsize = needed ;
+            retsize = (int)needed ;
         } else {
             retsize <<= 1;
         }
-        pretconfig = (QUERY_SERVICE_CONFIGW*) malloc(retsize);
+        pretconfig = (QUERY_SERVICE_CONFIGW*) malloc((size_t)retsize);
         if (pretconfig == NULL) {
             GETERRNO(ret);
             ERROR_INFO("alloc %d error[%d]", retsize, ret);
@@ -397,7 +402,7 @@ int __get_service_start_mode(const char* name)
         goto fail;
     }
 
-    state = pconfigw->dwStartType;
+    state =(int) pconfigw->dwStartType;
 
     __inner_get_config(NULL, &pconfigw, &size);
     __open_handle(NULL, &schd, &shsv, GENERIC_READ, GENERIC_READ);
@@ -489,8 +494,8 @@ int config_service_start_mode(const char* name, int startmode)
     }
 
     if (pconfigw->dwStartType != (DWORD) mode) {
-        pconfigw->dwStartType = mode;
-        ret =  __inner_set_config_start_mode(shsv, mode);
+        pconfigw->dwStartType = (DWORD)mode;
+        ret =  __inner_set_config_start_mode(shsv, (DWORD)mode);
         if (ret < 0) {
             GETERRNO(ret);
             ERROR_INFO("[%s] set [%d] error[%d]", name, startmode, ret);
@@ -512,8 +517,9 @@ fail:
 typedef struct __svc_depends {
     char* m_svcname;
     ENUM_SERVICE_STATUSA* m_depends;
-    int m_depcnt;
     struct __svc_depends** m_subdepends;
+    int m_depcnt;
+    int m_reserv1;
 } svc_depends_t,*psvc_depends_t;
 
 
@@ -861,6 +867,8 @@ fail:
     return ret;
 }
 
+#pragma warning(push)
+#pragma warning(disable:4717)
 
 int __start_service_dep(SC_HANDLE sch,psvc_depends_t pdep,int mills)
 {
@@ -889,6 +897,7 @@ int __start_service_dep(SC_HANDLE sch,psvc_depends_t pdep,int mills)
     return retcnt;
 }
 
+#pragma warning(pop)
 
 
 int start_service(const char* name, int mills)
@@ -942,7 +951,7 @@ int start_service(const char* name, int mills)
             if (ret > 100) {
                 ret = 100;
             }
-            SleepEx(ret, TRUE);
+            SleepEx((DWORD)ret, TRUE);
         }
     }
 
@@ -988,7 +997,7 @@ int start_service(const char* name, int mills)
             if (ret > 100) {
                 ret = 100;
             }
-            SleepEx(ret, TRUE);
+            SleepEx((DWORD)ret, TRUE);
         }
     } else {
         ret = -ERROR_INTERNAL_ERROR;
@@ -1337,3 +1346,7 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+#if _MSC_VER >= 1910
+#pragma warning(pop)
+#endif

@@ -191,6 +191,9 @@
         "$" : "+"
     },
     "dbgcode<dbgcode_handler>##program args... to debug programs##" : {
-        
+        "$" : "*"
+    },
+    "version<version_handler>##show compile version##"  : {
+        "$" : 0
     }
 }

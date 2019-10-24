@@ -1,16 +1,28 @@
-#pragma warning(disable:4668)
-#pragma warning(disable:4820)
-#pragma warning(disable:4530)
-#pragma warning(disable:4577)
 
 #include <win_regex.h>
 #include <win_err.h>
+
+
+#pragma warning(push)
+
+#pragma warning(disable:4820)
+#pragma warning(disable:4530)
+
+#if _MSC_VER >= 1910
+#pragma warning(disable:4625)
+#pragma warning(disable:4626)
+#pragma warning(disable:5027)
+#pragma warning(disable:5026)
+#pragma warning(disable:4774)
+#pragma warning(disable:4514)
+#pragma warning(disable:4577)
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
 #include <regex>
 
-#pragma warning(default:4577)
-#pragma warning(default:4530)
-#pragma warning(default:4820)
-#pragma warning(default:4668)
+#pragma warning(pop)
 
 #define __REGEX_DEBUG__   1
 

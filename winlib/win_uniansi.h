@@ -1,8 +1,6 @@
 #ifndef __WIN_UNI_ANSI_H__
 #define __WIN_UNI_ANSI_H__
 
-#include <Windows.h>
-
 #undef __WINLIB_INNER_INCLUDE__
 #define __WINLIB_INNER_INCLUDE__
 #include <win_inner.h>

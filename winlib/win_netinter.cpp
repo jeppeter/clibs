@@ -1,3 +1,5 @@
+#pragma warning(push)
+
 #pragma warning(disable:4668)
 #pragma warning(disable:4820)
 #pragma warning(disable:4365)
@@ -14,13 +16,17 @@
 #include <win_uniansi.h>
 #include <win_types.h>
 
-#pragma warning(default:4574)
-#pragma warning(default:4365)
-#pragma warning(default:4820)
-#pragma warning(default:4668)
+#pragma warning(pop)
 
 #pragma comment(lib,"Ws2_32.lib")
 #pragma comment(lib,"Iphlpapi.lib")
+
+
+#if _MSC_VER >= 1910
+#pragma warning(push)
+/*disable Spectre warnings*/
+#pragma warning(disable:5045)
+#endif
 
 int __fill_addr(char* pbuf, int bufsize, struct sockaddr *psockaddr, const char *fmt, ...)
 {
@@ -518,3 +524,7 @@ fail:
     pinfo = pinfo;
     return 0;
 }
+
+#if _MSC_VER >= 1910
+#pragma warning(pop)
+#endif

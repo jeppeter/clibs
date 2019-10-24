@@ -43,7 +43,7 @@ int b64e_size(unsigned int in_size)
 int b64d_size(unsigned int in_size)
 {
 
-    return ((3 * in_size) / 4);
+    return (int)((3 * in_size) / 4);
 }
 
 
@@ -65,7 +65,7 @@ int encode_base64(unsigned char* pbuffer, int insize, char* pencbuf, int outsize
     int ret;
     char* out = pencbuf;
 
-    if (outsize < b64e_size(insize)) {
+    if (outsize < b64e_size((unsigned int)insize)) {
         ret = -ERROR_INSUFFICIENT_BUFFER;
         SETERRNO(ret);
         return ret;

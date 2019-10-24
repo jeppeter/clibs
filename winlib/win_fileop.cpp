@@ -1,19 +1,25 @@
 
-#pragma warning(disable:4668)
-#pragma warning(disable:4820)
-
-
 #include <win_fileop.h>
 #include <win_err.h>
 #include <win_output_debug.h>
-#include <io.h>
 #include <win_uniansi.h>
 #include <win_envop.h>
 #include <win_strop.h>
 #include <win_types.h>
 
-#pragma warning(default:4820)
-#pragma warning(default:4668)
+#pragma warning(push)
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
+#if _MSC_VER >= 1910
+#pragma warning(disable:4514)
+#endif
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <io.h>
+
+#pragma warning(pop)
 
 #define TEMP_XSIZE      6
 

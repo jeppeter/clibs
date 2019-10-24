@@ -11,8 +11,6 @@ extern "C" {
 #undef __WINLIB_INNER_INCLUDE__
 
 
-#include <Windows.h>
-
 #define  SVC_START_ON_UNKNOWN         0
 #define  SVC_START_ON_BOOT            1
 #define  SVC_START_ON_SYSTEM          2

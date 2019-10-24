@@ -7,8 +7,6 @@
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
-#include <Windows.h>
-
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,20 +1,26 @@
-#pragma warning(disable:4668)
-#pragma warning(disable:4820)
 
 #include <win_envop.h>
 #include <win_err.h>
 #include <win_uniansi.h>
+
+#pragma warning(push)
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
 #include <psapi.h>
 
-#pragma warning(default:4820)
-#pragma warning(default:4668)
+#pragma warning(pop)
 
-
+#pragma warning(push)
 #pragma warning(disable:4820)
 #pragma warning(disable:4365)
+
+#if _MSC_VER >= 1910
+#pragma warning(disable:4514)
+#endif
+
 #include <wdbgexts.h>
-#pragma warning(default:4365)
-#pragma warning(default:4820)
+#pragma warning(pop)
 
 
 #pragma comment(lib, "shlwapi.lib")

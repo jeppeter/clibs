@@ -1,4 +1,4 @@
-
+#pragma warning(push)
 #pragma warning(disable:4668)
 #pragma warning(disable:4820)
 
@@ -11,8 +11,13 @@
 #include <win_output_debug.h>
 #include <win_strop.h>
 
-#pragma warning(default:4820)
-#pragma warning(default:4668)
+#pragma warning(pop)
+
+#if _MSC_VER >= 1910
+#pragma warning(push)
+/*disable Spectre warnings*/
+#pragma warning(disable:5045)
+#endif
 
 
 void free_args(char*** pppargs)
@@ -406,3 +411,7 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+#if _MSC_VER >= 1910
+#pragma warning(pop)
+#endif

@@ -1,7 +1,15 @@
 #ifndef __WIN_TYPES_H__
 #define __WIN_TYPES_H__
 
-#include <windows.h>
+#pragma warning(push)
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+#pragma warning(disable:4530)
+#pragma warning(disable:4577)
+
+#include <Windows.h>
+
+#pragma warning(pop)
 
 typedef UINT8         uint8_t;
 typedef UINT16        uint16_t;

@@ -1,3 +1,9 @@
+#pragma warning(push)
+
+#if _MSC_VER >= 1910
+#pragma warning(disable:4514)
+#endif
+
 #pragma warning(disable:4820)
 #pragma warning(disable:4668)
 
@@ -5,8 +11,13 @@
 #include <win_uniansi.h>
 #include <stdio.h>
 
-#pragma warning(default:4668)
-#pragma warning(default:4820)
+#pragma warning(pop)
+
+#if _MSC_VER >= 1910
+#pragma warning(push)
+/*disable Spectre warnings*/
+#pragma warning(disable:5045)
+#endif
 
 static int st_output_loglvl = BASE_LOG_DEFAULT;
 static CRITICAL_SECTION st_outputcs;
@@ -543,3 +554,7 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+#if _MSC_VER >= 1910
+#pragma warning(pop)
+#endif

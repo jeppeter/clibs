@@ -1,8 +1,4 @@
 
-#pragma warning(disable:4668)
-#pragma warning(disable:4820)
-
-#include <tchar.h>
 #include <win_proc.h>
 #include <win_fileop.h>
 #include <win_err.h>
@@ -10,16 +6,30 @@
 #include <win_strop.h>
 #include <win_time.h>
 #include <win_priv.h>
+
+#pragma warning(push)
+
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
+#include <tchar.h>
 #include <tlhelp32.h>
 #include <userenv.h>
 #include <wtsapi32.h>
+#include <stdio.h>
 
-#pragma warning(default:4820)
-#pragma warning(default:4668)
+#pragma warning(pop)
 
 #pragma comment(lib,"Shell32.lib")
 #pragma comment(lib,"Userenv.lib")
 #pragma comment(lib,"Wtsapi32.lib")
+
+#if _MSC_VER >= 1910
+#pragma warning(push)
+/*disable Spectre warnings*/
+#pragma warning(disable:5045)
+#endif
+
 
 #define pid_wmic_cmd_fmt "WMIC /OUTPUT:%s process where \"ProcessId=%d\" get CommandLine,ProcessId"
 
@@ -3848,3 +3858,7 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+#if _MSC_VER >= 1910
+#pragma warning(pop)
+#endif

@@ -1,15 +1,20 @@
 
+
+#pragma warning(push)
+
 #pragma warning(disable:4668)
 #pragma warning(disable:4820)
 #pragma warning(disable:4577)
+
+
+
+#pragma warning(push)
 
 #pragma warning(disable:4623)
 #pragma warning(disable:4626)
 #pragma warning(disable:5027)
 #include <extargs.h>
-#pragma warning(default:4623)
-#pragma warning(default:4626)
-#pragma warning(default:5027)
+#pragma warning(pop)
 
 #include <win_fileop.h>
 #include <win_output_debug.h>
@@ -42,18 +47,23 @@
 #include <proto_win.h>
 #include <Lm.h>
 
+#pragma warning(push)
 #pragma warning(disable:4530)
 #include <vector>
-#pragma warning(default:4530)
+#pragma warning(pop)
 
 #include <sddl.h>
 #include <aclapi.h>
 
 #include "vssetup.h"
 
-#pragma warning(default:4577)
-#pragma warning(default:4668)
-#pragma warning(default:4820)
+#pragma warning(pop)
+
+#if _MSC_VER >= 1910
+#pragma warning(push)
+/*disable Spectre warnings*/
+#pragma warning(disable:5045)
+#endif
 
 
 #define  MIN_SID_SIZE          32
@@ -147,6 +157,7 @@ int startproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int checkproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrcheckproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -6637,6 +6648,15 @@ out:
     return ret;    
 }
 
+int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(parsestate);
+    REFERENCE_ARG(popt);
+    printf("%s version 1.0.1 compiled at [%s %s] cl version[%d]\n",argv[0], __DATE__,__TIME__,_MSC_VER);
+    return 0;
+}
+
 #include "dbgcode.cpp"
 
 int _tmain(int argc, TCHAR* argv[])
@@ -6671,3 +6691,6 @@ out:
     return ret;
 }
 
+#if _MSC_VER >= 1910
+#pragma warning(pop)
+#endif

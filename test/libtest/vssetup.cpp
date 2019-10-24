@@ -1,4 +1,6 @@
 
+#pragma warning(push)
+
 #pragma warning(disable:4820)
 #pragma warning(disable:4668)
 
@@ -11,9 +13,7 @@
 #include "vssetup.h"
 #include "Setup.Configuration.h"
 
-#pragma warning(default:4668)
-#pragma warning(default:4820)
-
+#pragma warning(pop)
 
 #pragma comment(lib,"Ole32.lib")
 #pragma comment(lib,"OleAut32.lib")

@@ -10,6 +10,7 @@
 
 typedef struct _regop_t {
     uint32_t m_magic;
+    uint32_t m_reserv1;
     HKEY m_reghdl;
 } regop_t, *pregop_t;
 
@@ -112,7 +113,7 @@ int __query_key_value(pregop_t pregop, const char* path, LPDWORD lptype, LPBYTE 
         goto fail;
     }
 
-    retdatasize = datasize;
+    retdatasize = (DWORD)datasize;
     lret = RegQueryValueEx(pregop->m_reghdl, ptpath, NULL, lptype, pdata, &retdatasize);
     if (lret != ERROR_SUCCESS) {
         GETLRET(ret, lret);
@@ -123,7 +124,7 @@ int __query_key_value(pregop_t pregop, const char* path, LPDWORD lptype, LPBYTE 
     }
 
     AnsiToTchar(NULL, &ptpath, &tpathsize);
-    return retdatasize;
+    return (int)retdatasize;
 fail:
     AnsiToTchar(NULL, &ptpath, &tpathsize);
     SETERRNO(-ret);
@@ -142,7 +143,7 @@ int __set_key_value(pregop_t pregop, const char* path, DWORD regtype,void* pdata
 		goto fail;
 	}
 
-	lret = RegSetValueEx(pregop->m_reghdl,ptpath,0,regtype,(const BYTE*)pdata,datasize);
+	lret = RegSetValueEx(pregop->m_reghdl,ptpath,0,regtype,(const BYTE*)pdata,(DWORD)datasize);
 	if (lret != ERROR_SUCCESS) {
 		GETLRET(ret,lret);
 		ERROR_INFO("set [%s] value error[%d]", path,ret);
@@ -194,7 +195,7 @@ try_again:
         free(ptval);
     }
     ptval = NULL;
-    ptval = (TCHAR*)malloc(tvalsize);
+    ptval = (TCHAR*)malloc((size_t)tvalsize);
     if (ptval == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not alloc(%d) error(%d)", tvalsize, ret);
@@ -221,7 +222,7 @@ try_again:
         if (retvalsize < nret) {
             retvalsize = nret;
         }
-        pretval = (char*)malloc(retvalsize);
+        pretval = (char*)malloc((size_t)retvalsize);
         if (pretval == NULL) {
             GETERRNO(ret);
             ERROR_INFO("can not alloc(%d) error(%d)", retvalsize, ret);
@@ -229,7 +230,7 @@ try_again:
         }
     }
 
-    strncpy(pretval, pansival, nret);
+    strncpy_s(pretval, (size_t)nret, pansival, (size_t)nret);
     if (*ppretval && *ppretval != pretval) {
         free(*ppretval);
     }
@@ -297,7 +298,7 @@ try_again:
         free(ptval);
     }
     ptval = NULL;
-    ptval = malloc(tvalsize);
+    ptval = malloc((size_t)tvalsize);
     if (ptval == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not alloc(%d) error(%d)", tvalsize, ret);
@@ -327,14 +328,14 @@ try_again:
         }
         pretval = NULL;
         retsize = nret;
-        pretval = malloc(nret);
+        pretval = malloc((size_t)nret);
         if (pretval == NULL) {
             GETERRNO(ret);
             ERROR_INFO("alloc %d error[%d]", nret, ret);
             goto fail;
         }
     }
-    memcpy(pretval, ptval, nret);
+    memcpy(pretval, ptval, (size_t)nret);
 
     if (*ppdata && *ppdata != pretval) {
         free(*ppdata);
@@ -401,7 +402,7 @@ int set_hklm_string(void* pregop1, const char* path, char* valstr)
     }
 
     vallen = (int)_tcslen(ptval);
-    ret = __set_key_value(pregop,path, REG_EXPAND_SZ,ptval, (vallen + 1) * sizeof(TCHAR));
+    ret = __set_key_value(pregop,path, REG_EXPAND_SZ,ptval, (int)((vallen + 1) * sizeof(TCHAR)));
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;

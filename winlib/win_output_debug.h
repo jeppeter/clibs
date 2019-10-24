@@ -1,8 +1,8 @@
 #ifndef  __WIN_OUTPUT_DEBUG_H__
 #define  __WIN_OUTPUT_DEBUG_H__
 
-#include <stdio.h>
-#include <stdlib.h>
+//#include <stdio.h>
+//#include <stdlib.h>
 #include <win_err.h>
 
 #define  BASE_LOG_FATAL        0
@@ -36,6 +36,7 @@ typedef struct __output_debug_cfg {
 	char** m_ppoutcreatefile; /*end with NULL*/
 	char** m_ppoutappendfile; /*end with NULL*/
 	int m_disableflag; /*disable console*/
+	int m_reserv1;
 } output_debug_cfg_t, *poutput_debug_cfg_t;
 
 WINLIB_API void DebugOutString(int loglvl,const char* file,int lineno,const char* fmt,...);

@@ -5,17 +5,25 @@
 #include <win_priv.h>
 #include <win_fileop.h>
 
-#include <Windows.h>
-#define _NO_CVCONST_H
+#pragma warning(push)
 #pragma warning(disable:4091)
 #pragma warning(disable:4191)
 #pragma warning(disable:4917)
+#pragma warning(disable:4820)
+#pragma warning(disable:4365)
+
+#if _MSC_VER >= 1910
+#pragma warning(disable:4668)
+#pragma warning(disable:4514)
+#pragma warning(disable:4577)
+#endif
+
+#define _NO_CVCONST_H
 #include <dbghelp.h>
 #include <dbgeng.h>
 #include <atlcomcli.h>
-#pragma warning(default:4091)
-#pragma warning(default:4191)
-#pragma warning(default:4917)
+
+#pragma warning(pop)
 
 #ifdef  _M_X64
 
@@ -101,17 +109,17 @@ int windbgcallBackOutput::add_text(PCWSTR text, char** ppbuf, int *psize, int* p
         if (wlen >= retsize) {
             retsize = wlen + 1;
         }
-        pretbuf = (char*)malloc(retsize);
+        pretbuf = (char*)malloc((size_t)retsize);
         if (pretbuf == NULL) {
             GETERRNO(ret);
             goto fail;
         }
-        memset(pretbuf, 0 , retsize);
+        memset(pretbuf, 0 , (size_t)retsize);
         if (retlen > 0) {
-            memcpy(pretbuf, *ppbuf, retlen);
+            memcpy(pretbuf, *ppbuf, (size_t)retlen);
         }
     }
-    memcpy(&(pretbuf[retlen]), pansi, ansilen);
+    memcpy(&(pretbuf[retlen]), pansi, (size_t)ansilen);
     retlen += ansilen;
 
     if (*ppbuf && *ppbuf != pretbuf) {
@@ -146,11 +154,11 @@ int windbgcallBackOutput::get_text(char* pbuf, int bufsize, char* psrc, int* ple
     if (psrc != NULL && *plen != 0) {
         if (*plen <= bufsize) {
             ret = *plen;
-            memcpy(pbuf, psrc, ret);
+            memcpy(pbuf, psrc, (size_t)ret);
             *plen = 0;
         } else {
             ret = bufsize;
-            memcpy(pbuf, psrc, bufsize);
+            memcpy(pbuf, psrc, (size_t)bufsize);
             for (i = bufsize, j = 0; i < *plen; i++, j++) {
                 psrc[j] = psrc[i];
             }
@@ -168,7 +176,7 @@ HRESULT windbgcallBackOutput::Output(ULONG mask, PCWSTR text)
     ret = this->add_text(text, &(this->m_infobuffer), &(this->m_infosize), &(this->m_infolen));
 
     if (ret < 0) {
-        hr = 0x80000000 | GetLastError();
+        hr = (HRESULT)(0x80000000 | GetLastError());
     }
     return hr;
 }
@@ -365,6 +373,7 @@ private:
 typedef struct __win_debug_t {
 #if WIN_DBG_CHECK
     uint32_t m_magic;
+    uint32_t m_reserv1;
 #endif
     windbgcallBackOutput*             m_outputcallback;
     windbgEventCallback*              m_evtcallback;
@@ -412,7 +421,7 @@ int __stop_process(pwin_debug_t pdbg)
         return 0;
     }
 
-    hproc = OpenProcess(PROCESS_TERMINATE , TRUE, pdbg->m_procid);
+    hproc = OpenProcess(PROCESS_TERMINATE , TRUE, (DWORD)pdbg->m_procid);
     if (hproc == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not open process %d error[%d]", pdbg->m_procid, ret);
@@ -664,6 +673,7 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
     ULONG pid;
     HRESULT hr;
     BOOL bret;
+    DWORD dret;
     int enbled=0;
     int validhd=0;
     pwin_debug_t pdbg = (pwin_debug_t) pclient;
@@ -750,8 +760,8 @@ int windbg_start_process_single(void* pclient, char* cmd, int flags)
     disable_debug_priv();
     enbled = 0;
     DEBUG_INFO("procid %d", pdbg->m_procid);
-    bret = ResumeThread(infoproc.hThread);
-    if (!bret) {
+    dret = ResumeThread(infoproc.hThread);
+    if (dret == (DWORD)-1) {
         GETERRNO(ret);
         ERROR_INFO("resume thread error[%d]", ret);
         goto fail;
@@ -923,13 +933,13 @@ int windbg_get_out(void* pclient,int flags, char** ppout, int *psize)
         if (retsize < MIN_BUF_SIZE) {
             retsize = MIN_BUF_SIZE;
         }
-        pretout = (char*) malloc(retsize);
+        pretout = (char*) malloc((size_t)retsize);
         if (pretout == NULL) {
             GETERRNO(ret);
             ERROR_INFO("alloc [%d] error[%d]", retsize, ret);
             goto fail;
         }
-        memset(pretout, 0 ,retsize);
+        memset(pretout, 0 , (size_t)retsize);
     }
 
 try_again:
@@ -941,15 +951,15 @@ try_again:
     outlen += ret;
     if (outlen == retsize) {
         retsize <<= 1;
-        ptmpout = (char*) malloc(retsize);
+        ptmpout = (char*) malloc((size_t)retsize);
         if (ptmpout == NULL) {
             GETERRNO(ret);
             ERROR_INFO("alloc [%d] error[%d]", retsize, ret);
             goto fail;
         }
-        memset(ptmpout, 0, retsize);
+        memset(ptmpout, 0, (size_t)retsize);
         if (outlen > 0) {
-            memcpy(ptmpout, pretout, outlen);
+            memcpy(ptmpout, pretout, (size_t)outlen);
         }
         if (pretout && pretout != *ppout) {
             free(pretout);
@@ -1027,7 +1037,7 @@ BOOL CALLBACK SymEnumSymbolsProcFill(PSYMBOL_INFO pSymInfo,ULONG SymbolSize,PVOI
 
     pcurinfo = &(psyminfo->m_syminfo[idx]);
     //DEBUG_INFO("[%d] name %s",idx,pSymInfo->Name);
-    strncpy((char*)pcurinfo->m_name,pSymInfo->Name,sizeof(pcurinfo->m_name));
+    strncpy_s((char*)pcurinfo->m_name,sizeof(pcurinfo->m_name),pSymInfo->Name,sizeof(pcurinfo->m_name));
     pcurinfo->m_name[sizeof(pcurinfo->m_name)-1] = 0;
     pcurinfo->m_idx = pSymInfo->Index;
     pcurinfo->m_address = pSymInfo->Address;
@@ -1132,7 +1142,7 @@ int enum_symbol_pdb(const char* pdbfile,const char* searchmask,addr_t loadaddr,
         goto fail;
     }
     inited = 0;
-    return sizeof(*psyminfo) + (psyminfo->m_num - 1) * sizeof(psyminfo->m_syminfo[0]);
+    return (int)(sizeof(*psyminfo) + (psyminfo->m_num - 1) * sizeof(psyminfo->m_syminfo[0]));
 fail:
     if (loaded) {
         bret = ::SymUnloadModule64(GetCurrentProcess(), modbase);

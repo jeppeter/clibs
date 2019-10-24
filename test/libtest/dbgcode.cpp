@@ -2,21 +2,23 @@
 
 #ifdef _M_X64
 
+#pragma warning(push)
 
 #pragma warning(disable:4820)
 #pragma warning(disable:4365)
 #pragma warning(disable:4191)
 #pragma warning(disable:4917)
 
+#if _MSC_VER >= 1910
+#pragma warning(disable:4514)
+#endif
+
 #include <Windows.h>
 #include <dbgeng.h>
 #include <atlcomcli.h>
 
+#pragma warning(pop)
 
-#pragma warning(default:4917)
-#pragma warning(default:4191)
-#pragma warning(default:4365)
-#pragma warning(default:4820)
 
 #pragma comment(lib,"Ole32.lib")
 #pragma comment(lib,"dbgeng.lib")
