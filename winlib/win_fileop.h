@@ -6,12 +6,20 @@
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
+#include <win_types.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define  STDOUT_FILE_FLAG         1
 #define  STDERR_FILE_FLAG         2
+
+
+#define FNAME_SIZE         512
+#define READ_MODE          1
+#define WRITE_MODE         2
+#define RDWR_MODE          (READ_MODE | WRITE_MODE)
 
 
 WINLIB_API int mktempfile_safe(char* inputtemplate,char**ppoutput,int* bufsize);
@@ -24,6 +32,15 @@ WINLIB_API int write_file_whole(char* outfile,char* poutbuf,int outsize);
 WINLIB_API int write_out_whole(int flag,char* poutbuf,int outsize);
 WINLIB_API int create_directory(const char* dir);
 WINLIB_API int remove_directory(const char* dir);
+WINLIB_API void* open_file(const char* file,int mode);
+WINLIB_API int copy_file_force(const char* srcfile,const char* dstfile);
+WINLIB_API int read_file(void* pfile,uint64_t off,void* pbuf,uint32_t bufsize);
+WINLIB_API int write_file(void* pfile,uint64_t off,void* pbuf,uint32_t bufsize);
+WINLIB_API void close_file(void** ppfile);
+WINLIB_API uint64_t get_file_size(void* pfile);
+WINLIB_API int ioctl_file(void* pfile,uint32_t ctrlcode,void* pinbuf,int insize,void* poutbuf,int outsize);
+WINLIB_API HANDLE get_file_handle(void* pfile);
+
 
 #ifdef __cplusplus
 };

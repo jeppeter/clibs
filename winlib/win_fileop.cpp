@@ -317,6 +317,7 @@ fail:
     SETERRNO(-ret);
     return ret;
 }
+
 int delete_file(const char* infile)
 {
     int ret;
@@ -865,4 +866,336 @@ int remove_directory(const char* dir)
     REFERENCE_ARG(dir);
     SETERRNO(ret);
     return ret;   
+}
+
+#define  FILE_OP_MAGIC 0x44319099
+
+typedef struct _file_obj{
+    uint32_t m_magic;
+    HANDLE m_hFile;
+    char m_ansifile[FNAME_SIZE];
+    TCHAR *m_pfname;
+    int m_fnamesize;
+}file_obj_t,*pfile_obj_t;
+
+
+int copy_file_force(const char* srcfile,const char* dstfile)
+{
+    TCHAR *pSF=NULL,*pDF=NULL;
+    int ssize=0,dsize=0;
+    int ret;
+    BOOL bret;
+
+    ret = AnsiToTchar(srcfile,&pSF,&ssize);
+    if (ret < 0){
+        goto fail;
+    }
+
+    ret = AnsiToTchar(dstfile,&pDF,&dsize);
+    if (ret < 0){
+        goto fail;
+    }
+
+    bret = CopyFile(pSF,pDF,FALSE);
+    if (!bret){
+        GETERRNO(ret);
+        ERROR_INFO("can not copy (%s->%s) error(%d)",srcfile,dstfile,ret);
+        goto fail;
+    }
+
+    AnsiToTchar(NULL,&pSF,&ssize);
+    AnsiToTchar(NULL,&pDF,&dsize);
+    return 0;
+fail:
+    AnsiToTchar(NULL,&pSF,&ssize);
+    AnsiToTchar(NULL,&pDF,&dsize);
+    SETERRNO(-ret);
+    return ret;
+}
+
+
+pfile_obj_t __init_file(const char* file)
+{
+    int ret;
+    pfile_obj_t pfile=NULL;
+
+    pfile = (pfile_obj_t)malloc(sizeof(*pfile));
+    if (pfile == NULL){
+        GETERRNO(ret);
+        ERROR_INFO("can not alloc(%d) error(%d)",sizeof(*pfile),ret);
+        goto fail;
+    }
+    memset(pfile,0,sizeof(*pfile));
+    pfile->m_magic = FILE_OP_MAGIC;
+    pfile->m_hFile = INVALID_HANDLE_VALUE;
+    strncpy_s(pfile->m_ansifile,sizeof(pfile->m_ansifile),file,sizeof(pfile->m_ansifile));
+    ret = AnsiToTchar(file,&(pfile->m_pfname),&pfile->m_fnamesize);
+    if (ret < 0){
+        goto fail;
+    }
+
+    return pfile;
+fail:
+    close_file((void**)&pfile);
+    SETERRNO(-ret);
+    return NULL;
+}
+
+void close_file(void **ppobj)
+{
+    int ret;
+    BOOL bret;
+    pfile_obj_t pfile;
+    if (ppobj == NULL){
+        return;
+    }
+
+    pfile = (pfile_obj_t)*ppobj;
+
+    if (pfile == NULL){
+        return ;
+    }
+
+    if (pfile->m_magic != FILE_OP_MAGIC){
+        ERROR_INFO("not valid 0x%p object",pfile);
+    }
+    if (pfile->m_hFile != INVALID_HANDLE_VALUE){
+        bret = CloseHandle(pfile->m_hFile);
+        if (!bret){
+            GETERRNO(ret);
+            ERROR_INFO("close (%s) error(%d)",pfile->m_ansifile,ret);
+        }
+    }
+    pfile->m_hFile = INVALID_HANDLE_VALUE;
+    AnsiToTchar(NULL,&(pfile->m_pfname),&(pfile->m_fnamesize));
+    memset(pfile->m_ansifile,0,sizeof(pfile->m_ansifile));
+    free(pfile);
+    *ppobj = NULL;
+    return ;
+}
+
+void*  open_file(const char* file,int mode)
+{
+    pfile_obj_t pfile=NULL;
+    int ret;
+    DWORD accmode=0,sharemode=0,createmode=0,attrmode=0;
+
+    pfile = __init_file(file);
+    if (pfile == NULL){
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (mode & READ_MODE){
+        accmode |= GENERIC_READ;
+        sharemode |= FILE_SHARE_READ;
+    }
+
+    if (mode & WRITE_MODE){
+        accmode |= GENERIC_WRITE;
+        sharemode |= FILE_SHARE_WRITE;
+    }
+
+    if ( (mode & WRITE_MODE)==0){
+        createmode = OPEN_EXISTING;
+        attrmode = FILE_ATTRIBUTE_READONLY;
+    }else {
+        createmode = OPEN_ALWAYS;
+        attrmode = FILE_ATTRIBUTE_NORMAL;
+    }
+
+    pfile->m_hFile = CreateFile(pfile->m_pfname,accmode,sharemode,NULL,createmode,attrmode,NULL);
+    if (pfile->m_hFile == INVALID_HANDLE_VALUE){
+        GETERRNO(ret);
+        ERROR_INFO("can not open(%s) mode(%d) error(%d)",file,mode,ret);
+        goto fail;
+    }
+    return pfile;
+fail:
+    close_file((void**)&pfile);
+    SETERRNO(-ret);
+    return NULL;
+}
+
+int __seek_file(pfile_obj_t pfile,uint64_t off)
+{
+    BOOL bret;
+    int ret;
+    LARGE_INTEGER movpos,retpos;
+    movpos.QuadPart = off;
+    ASSERT_IF(pfile && pfile->m_hFile != INVALID_HANDLE_VALUE);
+    bret = SetFilePointerEx(pfile->m_hFile,movpos,&retpos,FILE_BEGIN);
+    if (!bret){
+        GETERRNO(ret);
+        ERROR_INFO("move (%s) to (0x%llx:%lld) error(%d)",pfile->m_ansifile,off,off,ret);
+        goto fail;
+    }
+
+    if (movpos.QuadPart != retpos.QuadPart){
+        ret = -ERROR_INVALID_DATA;
+        ERROR_INFO("move (%s) to (0x%llx:%lld) retpos (0x%llx:%lld)",pfile->m_ansifile,off,off,retpos.QuadPart,retpos.QuadPart);
+        goto fail;
+    }
+
+    return 0;
+fail:
+    SETERRNO(-ret);
+    return ret;
+}
+
+int read_file(void* pobj,uint64_t off,void* pbuf,uint32_t bufsize)
+{
+    int ret;
+    pfile_obj_t pfile = (pfile_obj_t)pobj;
+    void *pcurptr=pbuf;
+    addr_t curaddr;
+    uint32_t leftsize=bufsize;
+    BOOL bret;
+    DWORD retsize;
+    if (pfile == NULL ||  pfile->m_magic != FILE_OP_MAGIC || pfile->m_hFile == INVALID_HANDLE_VALUE){
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    ret = __seek_file(pfile,off);
+    if (ret < 0){
+        goto fail;
+    }
+
+    while(leftsize > 0){
+        bret = ReadFile(pfile->m_hFile,pcurptr,leftsize,&retsize,NULL);
+        if (!bret){
+            GETERRNO(ret);
+            if (ret == -ERROR_IO_PENDING){
+                continue;
+            }
+            ERROR_INFO("can not read (%s) at (0x%llx:%lld) with size(%d) leftsize(%d) error(%d)",pfile->m_ansifile,off,off,bufsize,leftsize,ret);
+            goto fail;
+        }
+
+        if (retsize == 0){
+            ret = -ERROR_HANDLE_EOF;
+            ERROR_INFO("(%s) eof",pfile->m_ansifile);
+            goto fail;
+        }
+
+        curaddr = (addr_t)pcurptr;
+        curaddr += retsize;
+        pcurptr = (void*)curaddr;
+        leftsize -= retsize;
+    }
+
+
+    return bufsize;
+fail:
+    SETERRNO(-ret);
+    return ret;
+}
+
+int write_file(void* pobj,uint64_t off,void* pbuf,uint32_t bufsize)
+{
+    int ret;
+    pfile_obj_t pfile = (pfile_obj_t)pobj;
+    void *pcurptr=pbuf;
+    addr_t curaddr;
+    uint32_t leftsize=bufsize;
+    BOOL bret;
+    DWORD retsize;
+    if (pfile == NULL ||  pfile->m_magic != FILE_OP_MAGIC || pfile->m_hFile == INVALID_HANDLE_VALUE){
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    ret = __seek_file(pfile,off);
+    if (ret < 0){
+        goto fail;
+    }
+
+    while(leftsize > 0){
+        bret = WriteFile(pfile->m_hFile,pcurptr,leftsize,&retsize,NULL);
+        if (!bret){
+            GETERRNO(ret);
+            if (ret == -ERROR_IO_PENDING){
+                continue;
+            }
+            ERROR_INFO("can not write (%s) at (0x%llx:%lld) with size(%d) leftsize(%d) error(%d)",pfile->m_ansifile,off,off,bufsize,leftsize,ret);
+            goto fail;
+        }
+
+        if (retsize == 0){
+            ret = -ERROR_HANDLE_EOF;
+            ERROR_INFO("(%s) eof",pfile->m_ansifile);
+            goto fail;
+        }
+
+        curaddr = (addr_t)pcurptr;
+        curaddr += retsize;
+        pcurptr = (void*)curaddr;
+        leftsize -= retsize;
+    }
+
+
+    return bufsize;
+fail:
+    SETERRNO(-ret);
+    return ret;
+}
+
+uint64_t get_file_size(void* pobj)
+{
+    LARGE_INTEGER size;
+    pfile_obj_t pfile = (pfile_obj_t) pobj;
+    BOOL bret;
+    int ret;
+    if (pfile == NULL || pfile->m_magic != FILE_OP_MAGIC || pfile->m_hFile == INVALID_HANDLE_VALUE){
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(-ret);
+        return ret;
+    }
+    bret = GetFileSizeEx(pfile->m_hFile,&size);
+    if (!bret){
+        GETERRNO(ret);
+        ERROR_INFO("can not get (%s) size error(%d)",pfile->m_ansifile,ret);
+        goto fail;
+    }
+    SETERRNO(0);
+    return size.QuadPart;
+fail:
+    SETERRNO(-ret);
+    return MAX_UINT64;
+}
+
+int ioctl_file(void* pobj,uint32_t ctrlcode,void* pinbuf,int insize,void* poutbuf,int outsize)
+{
+    int ret,nret;
+    BOOL bret;
+    DWORD dret;
+    pfile_obj_t pfile = (pfile_obj_t)pobj;
+    if (pfile == NULL || pfile->m_magic != FILE_OP_MAGIC || pfile->m_hFile == INVALID_HANDLE_VALUE){
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    bret = DeviceIoControl(pfile->m_hFile,ctrlcode,pinbuf,insize,poutbuf,outsize,&dret,NULL);
+    if (!bret){
+        GETERRNO(ret);
+        ERROR_INFO("can not ioctrl %s file error(%d)",pfile->m_ansifile,ret);
+        goto fail;
+    }
+    nret = dret;
+
+    return nret;
+fail:
+    SETERRNO(-ret);
+    return ret;
+}
+
+HANDLE get_file_handle(void* pobj)
+{
+    pfile_obj_t pfile = (pfile_obj_t)pobj;
+
+    if (pfile == NULL || pfile->m_magic != FILE_OP_MAGIC){
+        return INVALID_HANDLE_VALUE;
+    }
+    return pfile->m_hFile;
 }
