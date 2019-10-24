@@ -1,6 +1,10 @@
 #include <win_base64.h>
 #include <win_err.h>
 
+#if _MSC_VER >= 1910
+#pragma warning(push)
+#pragma warning(disable:5045)
+#endif
 
 unsigned char b64_chr[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
@@ -63,7 +67,7 @@ int encode_base64(unsigned char* pbuffer, int insize, char* pencbuf, int outsize
 {
     unsigned int i = 0, j = 0, k = 0, s[3];
     int ret;
-    char* out = pencbuf;
+    unsigned char* out = (unsigned char*)pencbuf;
 
     if (outsize < b64e_size((unsigned int)insize)) {
         ret = -ERROR_INSUFFICIENT_BUFFER;
@@ -97,7 +101,7 @@ int encode_base64(unsigned char* pbuffer, int insize, char* pencbuf, int outsize
 
     out[k] = '\0';
 
-    return k;
+    return (int)k;
 }
 
 
@@ -116,14 +120,14 @@ int decode_base64(char* pencbuf, int insize, unsigned char* pbuffer, int outsize
     unsigned int i = 0, j = 0, k = 0, s[4];
     int ret;
     unsigned char* out = pbuffer;
-    if (outsize < b64d_size(insize)) {
+    if (outsize < b64d_size((unsigned int)insize)) {
         ret = -ERROR_INSUFFICIENT_BUFFER;
         SETERRNO(ret);
         return ret;
     }
 
     for (i = 0; i < (unsigned int)insize; i++) {
-        s[j++] = b64_int(*(pencbuf + i));
+        s[j++] = b64_int((unsigned int)(*(pencbuf + i)));
         if (j == 4) {
             out[k + 0] = ((s[0] & 255) << 2) + ((s[1] & 0x30) >> 4);
             if (s[2] != 64) {
@@ -140,7 +144,7 @@ int decode_base64(char* pencbuf, int insize, unsigned char* pbuffer, int outsize
         }
     }
 
-    return k;
+    return (int)k;
 }
 
 int base64_splite_line(char* pencbuf, int inlen, int linelen, char**ppencline, int *poutsize)
@@ -184,14 +188,14 @@ int base64_splite_line(char* pencbuf, int inlen, int linelen, char**ppencline, i
             retsize = retlen;
         }
         DEBUG_INFO("retsize [%d]", retsize);
-        pretline = (char*)malloc(retsize);
+        pretline = (char*)malloc((size_t)retsize);
         if (pretline == NULL) {
             GETERRNO(ret);
             goto fail;
         }
     }
 
-    memset(pretline, 0, retsize);
+    memset(pretline, 0, (size_t)retsize);
     outlen = 0;
     for (i = 0; i < inlen; i++) {
     	pretline[outlen] = pencbuf[i];
@@ -255,13 +259,13 @@ int base64_compact_line(char* pencbuf, int enclen, char** ppencnoline, int* pout
         if (retsize < (enclen + 1)) {
             retsize = enclen + 1;
         }
-        pretenc = (char*)malloc(retsize);
+        pretenc = (char*)malloc((size_t)retsize);
         if (pretenc == NULL) {
             GETERRNO(ret);
             goto fail;
         }
     }
-    memset(pretenc , 0, retsize);
+    memset(pretenc , 0, (size_t)retsize);
     outlen = 0;
     for (i = 0; i < enclen; i++) {
         if (pencbuf[i] != '\r' && pencbuf[i] != '\n') {
@@ -285,3 +289,7 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+#if _MSC_VER >= 1910
+#pragma warning(pop)
+#endif
