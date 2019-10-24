@@ -45,7 +45,7 @@ WINLIB_API void DebugBufferFmt(int loglvl,const char* file,int lineno,unsigned c
 WINLIB_API void ConsoleBufferFmt(int loglvl,const char* file,int lineno,unsigned char* pBuffer,int buflen,const char* fmt,...);
 WINLIB_API int  InitOutput(int loglvl);
 WINLIB_API int  InitOutputEx(int loglvl,poutput_debug_cfg_t pcfg);
-WINLIB_API void FiniOutput();
+WINLIB_API void FiniOutput(void);
 WINLIB_API int error_out(const char* fmt, ...);
 WINLIB_API void FileBufferFmt(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...);
 
