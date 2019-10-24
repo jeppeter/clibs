@@ -1,3 +1,7 @@
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+#pragma warning(disable:4365)
+#pragma warning(disable:4574)
 
 #include <WinSock2.h>
 #include <WS2tcpip.h>
@@ -10,7 +14,11 @@
 #include <win_uniansi.h>
 #include <win_types.h>
 
-#pragma warning(disable:4996)
+#pragma warning(default:4574)
+#pragma warning(default:4365)
+#pragma warning(default:4820)
+#pragma warning(default:4668)
+
 #pragma comment(lib,"Ws2_32.lib")
 #pragma comment(lib,"Iphlpapi.lib")
 
@@ -67,7 +75,7 @@ get_ip4_addr_again:
         if (ret < 0) {
             goto fail;
         }
-        strncpy(pbuf, pcipaddr, (size_t)bufsize);
+        strncpy_s(pbuf, (size_t)bufsize, pcipaddr, (size_t)bufsize);
     } else if (psockaddr->sa_family == AF_INET6) {
 get_ip6_addr_again:
         psock6addr = (struct sockaddr_in6*) psockaddr;
@@ -99,7 +107,7 @@ get_ip6_addr_again:
         if (ret < 0) {
             goto fail;
         }
-        strncpy(pbuf, pcipaddr, (size_t)bufsize);
+        strncpy_s(pbuf, (size_t)bufsize,pcipaddr, (size_t)bufsize);
     } else {
         memset(pbuf, 0, (size_t)bufsize);
     }
@@ -306,7 +314,7 @@ fill_again:
                 if (ret < 0) {
                     goto fail;
                 }
-                if (stricmp(pansibuf, pfilter) == 0) {
+                if (_stricmp(pansibuf, pfilter) == 0) {
                     isok = 1;
                 }
 
@@ -317,13 +325,13 @@ fill_again:
             if (curidx >= retinfos || pRetInfo == NULL) {
                 goto alloc_infos;
             }
-            strncpy(pRetInfo[curidx].m_adaptername, pcuraddr->AdapterName, sizeof(pRetInfo[curidx].m_adaptername));
+            strncpy_s(pRetInfo[curidx].m_adaptername, sizeof(pRetInfo[curidx].m_adaptername), pcuraddr->AdapterName, sizeof(pRetInfo[curidx].m_adaptername));
             if (pcuraddr->FriendlyName) {
                 ret = UnicodeToAnsi(pcuraddr->FriendlyName, &pansibuf, &ansisize);
                 if (ret < 0) {
                     goto fail;
                 }
-                strncpy(pRetInfo[curidx].m_adapternickname, pansibuf, sizeof(pRetInfo[curidx].m_adapternickname));
+                strncpy_s(pRetInfo[curidx].m_adapternickname, sizeof(pRetInfo[curidx].m_adapternickname),pansibuf, sizeof(pRetInfo[curidx].m_adapternickname));
             }
 
             memset(pRetInfo[curidx].m_adaptermac, 0, sizeof(pRetInfo[curidx].m_adaptermac));
@@ -342,7 +350,7 @@ fill_again:
                 }
             }
 
-            strncpy(pRetInfo[curidx].m_adaptermac, pformatbuf, sizeof(pRetInfo[curidx].m_adaptermac));
+            strncpy_s(pRetInfo[curidx].m_adaptermac,  sizeof(pRetInfo[curidx].m_adaptermac),pformatbuf, sizeof(pRetInfo[curidx].m_adaptermac));
             pRetInfo[curidx].m_mtu = (int)pcuraddr->Mtu;
             if (pcuraddr->FirstUnicastAddress) {
                 PIP_ADAPTER_UNICAST_ADDRESS pcuruni = pcuraddr->FirstUnicastAddress;

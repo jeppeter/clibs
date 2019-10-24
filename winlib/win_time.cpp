@@ -1,5 +1,11 @@
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
 #include <win_time.h>
 #include <Windows.h>
+
+#pragma warning(default:4820)
+#pragma warning(default:4668)
 
 #define  MAX_TICK_COUNT  (0xffffffffffffffffULL)
 
@@ -33,6 +39,6 @@ int need_wait_times(uint64_t sticks, uint64_t eticks, int timeout)
 
 int sleep_mill(int mills)
 {
-	Sleep(mills);
+	Sleep((DWORD)mills);
 	return 0;
 }

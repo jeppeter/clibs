@@ -1,4 +1,7 @@
 
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
 #include <win_args.h>
 #include <win_uniansi.h>
 #include <stdlib.h>
@@ -7,6 +10,10 @@
 #include <win_err.h>
 #include <win_output_debug.h>
 #include <win_strop.h>
+
+#pragma warning(default:4820)
+#pragma warning(default:4668)
+
 
 void free_args(char*** pppargs)
 {
@@ -175,15 +182,15 @@ do{                                                                             
         if (cpysize == 0) {                                                                       \
             cpysize = 4;                                                                          \
         }                                                                                         \
-        ptmpcopy = (char*)malloc(cpysize);                                                        \
+        ptmpcopy = (char*)malloc((size_t)cpysize);                                                \
         if (ptmpcopy == NULL) {                                                                   \
             GETERRNO(ret);                                                                        \
             ERROR_INFO("malloc [%d] error[%d]", cpysize, ret);                                    \
             goto fail;                                                                            \
         }                                                                                         \
-        memset(ptmpcopy,0,cpysize);                                                               \
+        memset(ptmpcopy,0,(size_t)cpysize);                                                       \
         if (cpylen > 0) {                                                                         \
-            memcpy(ptmpcopy, copystr, cpylen);                                                    \
+            memcpy(ptmpcopy, copystr, (size_t)cpylen);                                            \
         }                                                                                         \
         if (copystr != NULL && copystr != *pcopyback) {                                           \
             free(copystr);                                                                        \
@@ -327,7 +334,7 @@ int split_argv(char* pcmd,char***pppargv, int* pargc)
 
         pstartptr = pcurpatr;
         if (pcopystr) {
-            memset(pcopystr,0, cpysize);
+            memset(pcopystr,0, (size_t)cpysize);
         }
         ret = __find_quote_string(pstartptr,&pendstr,&pcopystr,&cpysize,isquoted);
         if (ret < 0) {
@@ -357,7 +364,7 @@ int split_argv(char* pcmd,char***pppargv, int* pargc)
             ppargv = pptmpargv;
             pptmpargv = NULL;
         }
-        ppargv[cnt] = strdup(pcopystr);
+        ppargv[cnt] = _strdup(pcopystr);
         if (ppargv[cnt] == NULL)  {
             GETERRNO(ret);
             ERROR_INFO("strdup [%s] error[%d]", pcopystr, ret);

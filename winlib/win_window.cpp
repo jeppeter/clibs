@@ -1,6 +1,12 @@
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
 #include <win_window.h>
 #include <win_err.h>
 #include <win_uniansi.h>
+
+#pragma warning(default:4820)
+#pragma warning(default:4668)
 
 #pragma comment(lib,"User32.lib")
 
@@ -64,10 +70,11 @@ out:
 
 typedef struct __win_class {
 	char* m_classname;
+	HWND *m_phwnd;
 	int m_pid;
 	int m_hwndsize;
 	int m_hwndnum;
-	HWND *m_phwnd;
+	int m_reserv1;
 } win_class_t,*pwin_class_t;
 
 

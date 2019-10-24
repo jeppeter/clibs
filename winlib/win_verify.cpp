@@ -1,3 +1,6 @@
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
 #include <win_verify.h>
 #include <win_err.h>
 #include <win_output_debug.h>
@@ -5,6 +8,9 @@
 #include <wincrypt.h>
 #include <Softpub.h>
 #include <win_uniansi.h>
+
+#pragma warning(default:4820)
+#pragma warning(default:4668)
 
 #pragma comment(lib,"Wintrust.lib")
 

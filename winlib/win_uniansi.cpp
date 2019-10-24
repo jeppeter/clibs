@@ -319,9 +319,9 @@ int AnsiToUtf8(const char* pchars, char** ppUtf8, int *pUtf8size)
             goto fail;
         }
     }
-    memset(punicode , 0, unisize);
+    memset(punicode , 0, (size_t)unisize);
 
-    unilen = MultiByteToWideChar(CP_ACP, 0, pchars, -1, punicode, (unisize / sizeof(wchar_t)));
+    unilen = MultiByteToWideChar(CP_ACP, 0, pchars, -1, punicode, (int)(unisize / sizeof(wchar_t)));
     if (unilen < 0 || unilen >= (int)(unisize/ sizeof(wchar_t))) {
         GETERRNO(ret);
         goto fail;
@@ -333,13 +333,13 @@ int AnsiToUtf8(const char* pchars, char** ppUtf8, int *pUtf8size)
         if (retsize <= needlen) {
             retsize = needlen + 1;
         }
-        pretutf8 = (char*)malloc(retsize);
+        pretutf8 = (char*)malloc((size_t)retsize);
         if (pretutf8 == NULL) {
             GETERRNO(ret);
             goto fail;
         }
     }
-    memset(pretutf8, 0, retsize);
+    memset(pretutf8, 0, (size_t)retsize);
 
     retlen = WideCharToMultiByte(CP_UTF8, 0, punicode, -1, pretutf8, retsize, NULL, NULL);
     if (retlen != needlen) {
@@ -411,16 +411,16 @@ int Utf8ToUnicode(const char* putf8, wchar_t** ppUni,int *punisize)
 
     utflen = (int)strlen(putf8);
     if (retsize < (int)((utflen +1)* sizeof(wchar_t))) {
-        retsize = ((utflen +1)* sizeof(wchar_t));
-        pretuni = (wchar_t*) malloc(retsize);
+        retsize = (int)((utflen +1)* sizeof(wchar_t));
+        pretuni = (wchar_t*) malloc((size_t)retsize);
         if (pretuni == NULL) {
             GETERRNO(ret);
             goto fail;
         }        
     }
 
-    ret = MultiByteToWideChar(CP_UTF8,0,putf8,-1,pretuni, ((retsize / sizeof(wchar_t)) -1));
-    retlen = (ret * sizeof(wchar_t));
+    ret = MultiByteToWideChar(CP_UTF8,0,putf8,-1,pretuni, (int)((retsize / sizeof(wchar_t)) -1));
+    retlen = (int)(ret * sizeof(wchar_t));
     if (*ppUni && *ppUni != pretuni) {
         free(*ppUni);
     }
@@ -466,7 +466,7 @@ int UnicodeToUtf8(const wchar_t* pUni, char** pputf8, int *putf8size)
     wlen = (int)wcslen(pUni);
     if (retsize < ((wlen  + 1)* 4 )) {
         retsize = (wlen + 1)  *4;
-        pretutf8 = (char*)malloc(retsize);
+        pretutf8 = (char*)malloc((size_t)retsize);
         if (pretutf8 == NULL) {
             GETERRNO(ret);
             goto fail;

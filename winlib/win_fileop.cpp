@@ -1,3 +1,8 @@
+
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
+
 #include <win_fileop.h>
 #include <win_err.h>
 #include <win_output_debug.h>
@@ -7,9 +12,10 @@
 #include <win_strop.h>
 #include <win_types.h>
 
-#define TEMP_XSIZE      6
+#pragma warning(default:4820)
+#pragma warning(default:4668)
 
-#pragma warning(disable:4996)
+#define TEMP_XSIZE      6
 
 int mktempfile_safe(char* inputtemplate, char**ppoutput, int* bufsize)
 {
@@ -69,11 +75,11 @@ int mktempfile_safe(char* inputtemplate, char**ppoutput, int* bufsize)
         }
     }
     memset(pretout, 0, (size_t)retlen);
-    strncpy(pretout, ptemppath, (size_t)templen);
-    strncat(pretout, "\\", (size_t)templen);
-    strncat(pretout, plastpart, (size_t)templen);
+    strncpy_s(pretout, (size_t)retlen, ptemppath, (size_t)templen);
+    strncat_s(pretout, (size_t)retlen, "\\", (size_t)templen);
+    strncat_s(pretout, (size_t)retlen,plastpart, (size_t)templen);
     for (i = 0; i < TEMP_XSIZE; i++) {
-        strncat(pretout, "X", (size_t)templen);
+        strncat_s(pretout, (size_t)retlen,"X", (size_t)templen);
     }
     sz = strlen(pretout) + 1;
     err = _mktemp_s(pretout, sz);
@@ -230,8 +236,8 @@ int read_file_encoded(char* infile, char** ppoutbuf, int *bufsize)
         goto fail;
     }
 
-    fp = fopen(infile, "rb");
-    if (fp == NULL) {
+    ret = fopen_s(&fp,infile,"rb");
+    if (ret != 0) {
         GETERRNO(ret);
         ERROR_INFO("can not open[%s] error[%d]", infile, ret);
         goto fail;
@@ -292,8 +298,8 @@ int read_file_whole(char* infile, char** ppoutbuf, int *bufsize)
         return ret;
     }
 
-    fp = fopen(infile, "rb");
-    if (fp == NULL) {
+    ret = fopen_s(&fp,infile,"rb");
+    if (ret != 0) {
         GETERRNO(ret);
         ERROR_INFO("can not open[%s] error[%d]", infile, ret);
         goto fail;
@@ -517,8 +523,8 @@ int write_file_whole(char* outfile, char* poutbuf, int outsize)
         goto fail;
     }
 
-    fp = fopen(outfile, "wb");
-    if (fp == NULL) {
+    ret = fopen_s(&fp,outfile,"wb");
+    if (ret != 0) {
         GETERRNO(ret);
         ERROR_INFO("open [%s] error[%d]", outfile, ret);
         goto fail;
@@ -639,7 +645,7 @@ try_again:
     }
     sysnamebuffer = NULL;
 
-    namebuf = (char*) malloc(namesize);
+    namebuf = (char*) malloc((size_t)namesize);
     if (namebuf == NULL) {
         GETERRNO(ret);
         goto fail;
@@ -651,7 +657,7 @@ try_again:
         goto fail;
     }
 
-    bret = GetVolumeInformationA(path,namebuf,namesize,&serialnum,&maxlength,&sysflag,sysnamebuffer,sysnamesize);
+    bret = GetVolumeInformationA(path,namebuf,(DWORD)namesize,&serialnum,&maxlength,&sysflag,sysnamebuffer,sysnamesize);
     if (!bret) {
         GETERRNO(ret);
         if (ret == -ERROR_MORE_DATA || ret == -ERROR_BAD_LENGTH) {
@@ -729,13 +735,13 @@ int create_directory(const char* dir)
     }
 
     dirsize = dirlen + 3;
-    newdir = (char*)malloc(dirsize);
+    newdir = (char*)malloc((size_t)dirsize);
     if (newdir == NULL) {
         GETERRNO(ret);
         goto fail;
     }
-    memset(newdir,0,dirsize);
-    memcpy(newdir, dir, dirlen);
+    memset(newdir,0,(size_t)dirsize);
+    memcpy(newdir, dir, (size_t)dirlen);
     if (dir[(dirlen - 1)] != '\\')  {
         /*to add last \ to the end*/
         newdir[dirlen] = '\\';
@@ -747,7 +753,7 @@ get_full_again:
         free(fulldir);
     }
     fulldir = NULL;
-    fulldir = (char*)malloc(fullsize);
+    fulldir = (char*)malloc((size_t)fullsize);
     if (fulldir == NULL) {
         GETERRNO(ret);
         goto fail;
@@ -760,7 +766,7 @@ get_full_again:
         goto fail;
     }
     if ((int)dret > fullsize) {
-        fullsize = dret << 1;
+        fullsize = (int)(dret << 1);
         goto get_full_again;
     }
     DEBUG_INFO("dret [%d]", dret);
@@ -802,14 +808,14 @@ get_full_again:
                 free(partdir);
             }
             partdir = NULL;
-            partdir = (char*)malloc(partsize + 2);
+            partdir = (char*)malloc((size_t)(partsize + 2));
             if (partdir == NULL) {
                 GETERRNO(ret);
                 goto fail;
             }
 
-            memset(partdir, 0, partsize + 2);
-            memcpy(partdir, fulldir, partsize);
+            memset(partdir, 0, (size_t)(partsize + 2));
+            memcpy(partdir, fulldir, (size_t)partsize);
             DEBUG_INFO("partdir [%s]", partdir);
             ret = __inner_create_dir(partdir);
             if (ret < 0) {
@@ -872,10 +878,10 @@ int remove_directory(const char* dir)
 
 typedef struct _file_obj{
     uint32_t m_magic;
+    int m_fnamesize;
     HANDLE m_hFile;
     char m_ansifile[FNAME_SIZE];
     TCHAR *m_pfname;
-    int m_fnamesize;
 }file_obj_t,*pfile_obj_t;
 
 
@@ -1022,7 +1028,7 @@ int __seek_file(pfile_obj_t pfile,uint64_t off)
     BOOL bret;
     int ret;
     LARGE_INTEGER movpos,retpos;
-    movpos.QuadPart = off;
+    movpos.QuadPart = (LONGLONG)off;
     ASSERT_IF(pfile && pfile->m_hFile != INVALID_HANDLE_VALUE);
     bret = SetFilePointerEx(pfile->m_hFile,movpos,&retpos,FILE_BEGIN);
     if (!bret){
@@ -1086,7 +1092,7 @@ int read_file(void* pobj,uint64_t off,void* pbuf,uint32_t bufsize)
     }
 
 
-    return bufsize;
+    return (int)bufsize;
 fail:
     SETERRNO(ret);
     return ret;
@@ -1135,7 +1141,7 @@ int write_file(void* pobj,uint64_t off,void* pbuf,uint32_t bufsize)
     }
 
 
-    return bufsize;
+    return (int)bufsize;
 fail:
     SETERRNO(ret);
     return ret;
@@ -1149,8 +1155,8 @@ uint64_t get_file_size(void* pobj)
     int ret;
     if (pfile == NULL || pfile->m_magic != FILE_OP_MAGIC || pfile->m_hFile == INVALID_HANDLE_VALUE){
         ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(-ret);
-        return ret;
+        SETERRNO(ret);
+        return MAX_UINT64;
     }
     bret = GetFileSizeEx(pfile->m_hFile,&size);
     if (!bret){
@@ -1159,7 +1165,7 @@ uint64_t get_file_size(void* pobj)
         goto fail;
     }
     SETERRNO(0);
-    return size.QuadPart;
+    return (uint64_t)size.QuadPart;
 fail:
     SETERRNO(ret);
     return MAX_UINT64;
@@ -1176,14 +1182,13 @@ int ioctl_file(void* pobj,uint32_t ctrlcode,void* pinbuf,int insize,void* poutbu
         goto fail;
     }
 
-    bret = DeviceIoControl(pfile->m_hFile,ctrlcode,pinbuf,insize,poutbuf,outsize,&dret,NULL);
+    bret = DeviceIoControl(pfile->m_hFile,ctrlcode,pinbuf,(DWORD)insize,poutbuf,(DWORD)outsize,&dret,NULL);
     if (!bret){
         GETERRNO(ret);
         ERROR_INFO("can not ioctrl %s file error(%d)",pfile->m_ansifile,ret);
         goto fail;
     }
-    nret = dret;
-
+    nret = (int)dret;
     return nret;
 fail:
     SETERRNO(ret);

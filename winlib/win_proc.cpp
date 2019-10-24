@@ -1,3 +1,7 @@
+
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
 #include <tchar.h>
 #include <win_proc.h>
 #include <win_fileop.h>
@@ -10,11 +14,12 @@
 #include <userenv.h>
 #include <wtsapi32.h>
 
+#pragma warning(default:4820)
+#pragma warning(default:4668)
+
 #pragma comment(lib,"Shell32.lib")
 #pragma comment(lib,"Userenv.lib")
 #pragma comment(lib,"Wtsapi32.lib")
-#pragma warning(disable:4996)
-#pragma warning(disable:4312)
 
 #define pid_wmic_cmd_fmt "WMIC /OUTPUT:%s process where \"ProcessId=%d\" get CommandLine,ProcessId"
 
@@ -84,7 +89,7 @@ int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
     }
 
     memset(pcmd, 0, (size_t)cmdlen);
-    ret = _snprintf(pcmd, (size_t)cmdlen, pid_wmic_cmd_fmt, tempfile, pid);
+    ret = _snprintf_s(pcmd, (size_t)cmdlen,(size_t)cmdlen, pid_wmic_cmd_fmt, tempfile, pid);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not snprintf error[%d]", ret);
@@ -233,7 +238,7 @@ try_again:
             ppretargv = NULL;
             goto try_again;
         }
-        strncpy(pcurptr, argv0, (size_t)(filllen - namelen));
+        strncpy_s(pcurptr,(size_t)(filllen - namelen), argv0, (size_t)(filllen - namelen));
         ppretargv[i] = pcurptr;
         pcurptr += curlen;
         namelen += curlen;
@@ -319,11 +324,12 @@ typedef struct __pipe_server {
     HANDLE m_pipesvr;
     HANDLE m_evt;
     HANDLE m_pipecli;
-    OVERLAPPED m_ov;
     char* m_pipename;
+    OVERLAPPED m_ov;
     int m_pipesize;
     int m_wr;
     int m_state;
+    int m_reserv1;
 } pipe_server_t, *ppipe_server_t;
 
 
@@ -682,14 +688,14 @@ int __get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
         if (retsize < (retlen + 1)) {
             retsize = retlen + 1;
         }
-        prettmp = (char*) malloc(retsize);
+        prettmp = (char*) malloc((size_t)retsize);
         if (prettmp == NULL) {
             GETERRNO(ret);
             goto fail;
         }
     }
 
-    memcpy(prettmp,pcurptr, (retlen + 1));
+    memcpy(prettmp,pcurptr, (size_t)(retlen + 1));
     if (*pptmp && *pptmp != prettmp) {
         free(*pptmp);
     }
@@ -716,6 +722,7 @@ int get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
 typedef struct __proc_handle {
 #ifdef __PROC_DEBUG__
     uint32_t m_magic;
+    uint32_t m_reserv1;
 #endif
     /*handle for event overlapped*/
     ppipe_server_t m_stdinpipe;
@@ -727,12 +734,12 @@ typedef struct __proc_handle {
     HANDLE m_stderrnull;
 
     HANDLE m_prochd;
-
-    int m_exited;
-    int m_exitcode;
-
     char* m_cmdline;
+
+    int m_exitcode;
     int m_cmdlinesize;
+    int m_exited;
+    int m_reserv2;
 } proc_handle_t, *pproc_handle_t;
 
 
@@ -1189,7 +1196,7 @@ int __get_wts_token(HANDLE* phtok)
     for (i=0;i<cnt;i++) {
         cursess = &(psessinfo[i]);
         if (cursess->State == WTSActive) {
-            sessid = cursess->SessionId;
+            sessid = (int)cursess->SessionId;
             break;
         }
     }
@@ -1202,7 +1209,7 @@ int __get_wts_token(HANDLE* phtok)
 
     DEBUG_INFO("active session %d", sessid);
 
-    bret = WTSQueryUserToken(sessid, &curtok);
+    bret = WTSQueryUserToken((ULONG)sessid, &curtok);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("can not query [%d] tok error[%d]", sessid, ret);
@@ -1930,7 +1937,7 @@ int __left_pipe_bytes(HANDLE hd)
         goto fail;
     }
 
-    return totalbytes;
+    return (int)totalbytes;
 fail:
     SETERRNO(ret);
     return ret;
@@ -2226,9 +2233,11 @@ int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char**
         if (waitnum > 0 ) {
             dret = WaitForMultipleObjectsEx((DWORD)waitnum, waithds, FALSE, waittime, FALSE);
             DEBUG_INFO("dret [%d]", dret);
-            if ((dret >= WAIT_OBJECT_0) && (dret < (WAIT_OBJECT_0 + waitnum))) {
+            if ((dret < (WAIT_OBJECT_0 + waitnum))) {
                 hd = waithds[(dret - WAIT_OBJECT_0)];
+#pragma warning(disable:4127)
                 STDIN_WAIT_HANDLE();
+#pragma warning(default:4127)
                 STDOUT_WAIT_HANDLE();
                 STDERR_WAIT_HANDLE();
 
@@ -2370,7 +2379,7 @@ int __wts_inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, ch
         if (waitnum > 0 ) {
             dret = WaitForMultipleObjectsEx((DWORD)waitnum, waithds, FALSE, waittime, FALSE);
             DEBUG_INFO("dret [%d]", dret);
-            if ((dret >= WAIT_OBJECT_0) && (dret < (WAIT_OBJECT_0 + waitnum))) {
+            if ((dret < (WAIT_OBJECT_0 + waitnum))) {
                 hd = waithds[(dret - WAIT_OBJECT_0)];
 
                 if (hevt != NULL && hevt != INVALID_HANDLE_VALUE && hd == hevt) {
@@ -2973,7 +2982,7 @@ int start_cmdv_detach(int createflag, char* progv[])
         goto fail;
     }
 
-    retpid = GetProcessId(ppinfo->m_prochd);
+    retpid = (int)GetProcessId(ppinfo->m_prochd);
     /*now to close handle*/
     CloseHandle(ppinfo->m_prochd);
     ppinfo->m_prochd = NULL;
@@ -2998,7 +3007,7 @@ int start_cmd_single_detach(int createflag,const char* prog)
         goto fail;
     }
 
-    retpid = GetProcessId(ppinfo->m_prochd);
+    retpid = (int)GetProcessId(ppinfo->m_prochd);
     /*now to close handle*/
     CloseHandle(ppinfo->m_prochd);
     ppinfo->m_prochd = NULL;
@@ -3086,7 +3095,7 @@ int wts_start_cmdv_detach(int createflag, char* progv[])
         goto fail;
     }
 
-    retpid = GetProcessId(ppinfo->m_prochd);
+    retpid = (int)GetProcessId(ppinfo->m_prochd);
     /*now to close handle*/
     CloseHandle(ppinfo->m_prochd);
     ppinfo->m_prochd = NULL;
@@ -3174,7 +3183,7 @@ int wts_start_cmd_single_detach(int createflag,const char* prog)
         goto fail;
     }
 
-    retpid = GetProcessId(ppinfo->m_prochd);
+    retpid = (int)GetProcessId(ppinfo->m_prochd);
     /*now to close handle*/
     CloseHandle(ppinfo->m_prochd);
     ppinfo->m_prochd = NULL;
@@ -3483,7 +3492,7 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
         CloseHandle(procinfo->hProcess);
     }
 
-    retpid = procinfo->dwProcessId;
+    retpid = (int)procinfo->dwProcessId;
 
 
     AnsiToTchar(NULL,&ptcmdline,&cmdsize);

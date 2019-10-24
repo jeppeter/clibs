@@ -1,3 +1,5 @@
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
 
 #include <win_strop.h>
 #include <stdarg.h>
@@ -7,7 +9,8 @@
 #include <win_types.h>
 #include <assert.h>
 
-#pragma warning(disable:4996)
+#pragma warning(default:4820)
+#pragma warning(default:4668)
 
 int find_endof_inbuf(void* pbuf, int bufsize)
 {

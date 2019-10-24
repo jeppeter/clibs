@@ -1,10 +1,22 @@
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
 #include <win_envop.h>
 #include <win_err.h>
 #include <win_uniansi.h>
-#include <wdbgexts.h>
 #include <psapi.h>
 
-#pragma warning(disable:4996)
+#pragma warning(default:4820)
+#pragma warning(default:4668)
+
+
+#pragma warning(disable:4820)
+#pragma warning(disable:4365)
+#include <wdbgexts.h>
+#pragma warning(default:4365)
+#pragma warning(default:4820)
+
+
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib,"Advapi32.lib")
 
@@ -15,6 +27,7 @@ int get_env_variable(char* envvar, char** ppenvval, int* pvalsize)
     int retsize = 0;
     int vallen = 0, ret = 0;
     size_t slen = 0;
+    size_t envnum = 0;
 
 
     if (envvar == NULL) {
@@ -37,11 +50,18 @@ int get_env_variable(char* envvar, char** ppenvval, int* pvalsize)
 
     pretval = *ppenvval;
     retsize = *pvalsize;
-    penv = getenv(envvar);
-    if (penv == NULL) {
+
+    ret = _dupenv_s(&penv,&envnum,envvar);
+    if (ret != 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (envnum == 0) {
         ret = -ERROR_NOT_FOUND;
         goto fail;
     }
+
     slen = strlen(penv) + 1;
     if ((int)slen > retsize || pretval == NULL) {
         retsize = (int)slen;
@@ -53,19 +73,30 @@ int get_env_variable(char* envvar, char** ppenvval, int* pvalsize)
         }
     }
 
-    strncpy(pretval, penv, (size_t)retsize);
+    strncpy_s(pretval, (size_t) retsize, penv, (size_t)retsize);
 
     if (*ppenvval && *ppenvval != pretval) {
         free(*ppenvval);
     }
     *ppenvval = pretval;
     *pvalsize = retsize;
+    if (penv) {
+        free(penv);
+    }
+    penv = NULL;
+
     return vallen;
 fail:
     if (pretval && pretval != *ppenvval) {
         free(pretval);
     }
     pretval = NULL;
+    if (penv) {
+        free(penv);
+    }
+    penv = NULL;
+
+
     SETERRNO(-ret);
     return ret;
 }
@@ -284,8 +315,8 @@ int set_codepage(int cp)
     return 0;
 fail:
     if (oldcp > 0)  {
-        SetConsoleCP(cp);
-        SetConsoleOutputCP(cp);
+        SetConsoleCP((UINT)cp);
+        SetConsoleOutputCP((UINT)cp);
     }
     oldcp = 0;
     SETERRNO(ret);
@@ -324,12 +355,12 @@ try_again:
     }
     memset(ptuser , 0 ,sizeof(*ptuser) * tusersize);
 
-    tuserlen = tusersize;
+    tuserlen = (DWORD)tusersize;
     bret = GetUserName(ptuser,&tuserlen);
     if (!bret) {
         GETERRNO(ret);
         if (ret == -ERROR_INSUFFICIENT_BUFFER) {
-            tusersize = tuserlen << 1;
+            tusersize = (int)(tuserlen << 1);
             goto try_again;
         }
         ERROR_INFO("get user name error[%d]" , ret);
@@ -391,7 +422,7 @@ try_again:
     }
     memset(ptpath, 0 ,sizeof(*ptpath) * tsize);
 
-    dret = GetModuleFileName(NULL,ptpath,tsize);
+    dret = GetModuleFileName(NULL,ptpath,(DWORD)tsize);
     if (dret == 0) {
         GETERRNO(ret);
         if (ret == -ERROR_INSUFFICIENT_BUFFER) {
@@ -464,7 +495,7 @@ get_wholeagain:
     }
     memset(ptpath, 0 ,sizeof(*ptpath) * tsize);
 
-    dret = GetModuleFileName(NULL,ptpath,tsize);
+    dret = GetModuleFileName(NULL,ptpath,(DWORD)tsize);
     if (dret == 0) {
         GETERRNO(ret);
         if (ret == -ERROR_INSUFFICIENT_BUFFER) {
@@ -503,15 +534,15 @@ get_wholeagain:
         if (retsize <= cpylen) {
             retsize = cpylen + 1;
         }
-        pretpath = (char*)malloc(retsize);
+        pretpath = (char*)malloc((size_t)retsize);
         if (pretpath == NULL) {
             GETERRNO(ret);
             ERROR_INFO("alloc %d error[%d]", retsize, ret);
             goto fail;
         }
     }
-    memset(pretpath, 0, retsize);
-    memcpy(pretpath, pathansi, cpylen);
+    memset(pretpath, 0, (size_t)retsize);
+    memcpy(pretpath, pathansi, (size_t)cpylen);
 
     if (*ppath && *ppath != pretpath) {
         free(*ppath);
@@ -554,7 +585,7 @@ int get_desktop_session(void)
         goto fail;
     }
     SETERRNO(0);
-    return dwsess;
+    return (int)dwsess;
 fail:
     SETERRNO(ret);
     return ret;
@@ -573,7 +604,7 @@ try_again:
         free(pBuf);
     }
     pBuf = NULL;
-    pBuf = (TCHAR*)malloc(bufsize);
+    pBuf = (TCHAR*)malloc((size_t)bufsize);
     if (pBuf == NULL){
         GETERRNO(ret);
         ERROR_INFO("can not alloc(%d) error(%d)",bufsize,ret);
