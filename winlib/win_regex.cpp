@@ -1,7 +1,16 @@
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+#pragma warning(disable:4530)
+#pragma warning(disable:4577)
+
 #include <win_regex.h>
 #include <win_err.h>
 #include <regex>
 
+#pragma warning(default:4577)
+#pragma warning(default:4530)
+#pragma warning(default:4820)
+#pragma warning(default:4668)
 
 #define __REGEX_DEBUG__   1
 
@@ -21,6 +30,7 @@
 typedef struct __regex_header {
 #ifdef __REGEX_DEBUG__
     uint32_t  m_magic;
+    uint32_t  m_reserv1;
 #endif /*__REGEX_DEBUG__*/
     std::regex* m_pregex;
 } regex_header_t, *pregex_header_t;
@@ -166,9 +176,9 @@ int regex_exec(void* preg1,const char* instr, int** ppstartpos, int **ppendpos, 
     	memset(pretendpos, 0, sizeof(int)*retsize);
 
     	for (i = 0 ;i< (int)cm.size();i++) {
-    		DEBUG_INFO("pos[%d] len[%d]", cm.position(i),cm.length(i));
-    		pretstartpos[i] = (int)cm.position(i);
-    		pretendpos[i] = (int)(cm.position(i) + cm.length(i));
+    		DEBUG_INFO("pos[%d] len[%d]", (int)cm.position((uint64_t)i),(int)cm.length((uint64_t)i));
+    		pretstartpos[i] = (int)cm.position((uint64_t)i);
+    		pretendpos[i] = (int)(cm.position((uint64_t)i) + cm.length((uint64_t)i));
     	}
     	retlen = (int)cm.size();
     }
