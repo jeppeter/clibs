@@ -15,6 +15,10 @@ extern "C" {
 #define  COMPUTER_NAME_NETBIOS      2
 #define  COMPUTER_NAME_PHYS         4
 
+#define   WIN32_ARCH    1
+#define   WIN64_ARCH    2
+
+
 #define  EN_US_CODEPAGE             437
 
 WINLIB_API int get_env_variable(char* envvar,char** ppenvval,int* pvalsize);
@@ -26,6 +30,8 @@ WINLIB_API int get_current_user(int freed,char** ppuser,int *psize);
 WINLIB_API int get_executable_wholepath(int freed,char** ppath, int *psize);
 WINLIB_API int get_executable_dirname(int freed,char** ppath, int *psize);
 WINLIB_API int get_desktop_session(void);
+
+WINLIB_API int win_arch_type();
 
 #ifdef __cplusplus
 };

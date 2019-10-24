@@ -559,3 +559,52 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int win_arch_type()
+{
+    UINT uret;
+    int ret=0;
+    int bufsize=0;
+    TCHAR* pBuf=NULL;
+
+    bufsize = 1024;
+try_again:
+    if (pBuf){
+        free(pBuf);
+    }
+    pBuf = NULL;
+    pBuf = (TCHAR*)malloc(bufsize);
+    if (pBuf == NULL){
+        GETERRNO(ret);
+        ERROR_INFO("can not alloc(%d) error(%d)",bufsize,ret);
+        goto fail;
+    }
+
+    uret = GetSystemWow64Directory(pBuf,bufsize / sizeof(TCHAR));
+    if (uret == 0){
+        GETERRNO(ret);
+        if (ret == -ERROR_CALL_NOT_IMPLEMENTED){
+            goto iswin32;
+        }else if (ret == -ERROR_INSUFFICIENT_BUFFER){
+            bufsize <<= 1;
+            goto try_again;
+        }
+        ERROR_INFO("can not call get wow directory error(%d)",ret);
+        goto fail;
+    }
+    if (pBuf){
+        free(pBuf);
+    }
+    bufsize = 0;
+    return WIN64_ARCH;
+iswin32:
+    if (pBuf){
+        free(pBuf);
+    }
+    bufsize = 0;
+    return WIN32_ARCH;  
+fail:
+    SETERRNO(-ret);
+    return ret;
+}
+
