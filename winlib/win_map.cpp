@@ -8,8 +8,8 @@ typedef struct __map_buffer_t {
     HANDLE m_hfile;
     HANDLE m_maphd;
     void* m_mapbuf;
-    uint64_t m_size;
     char* m_name;
+    uint64_t m_size;
 } map_buffer_t, *pmap_buffer_t;
 
 
@@ -195,7 +195,7 @@ int __map_memory_name(pmap_buffer_t pmap, int flag, int size)
     }
 
     if (pmap->m_maphd == NULL) {
-        pmap->m_maphd = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, prot, 0, size, ptname);
+        pmap->m_maphd = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, prot, 0, (DWORD)size, ptname);
     }
     if (pmap->m_maphd == NULL) {
         GETERRNO(ret);
@@ -224,7 +224,7 @@ pmap_buffer_t __alloc_map_buffer(char* name)
     }
     memset(pmap, 0, sizeof(*pmap));
     if (name != NULL) {
-        pmap->m_name = strdup(name);
+        pmap->m_name = _strdup(name);
         if (pmap->m_name == NULL) {
             GETERRNO(ret);
             goto fail;
@@ -267,7 +267,7 @@ int map_buffer(char* name, int flag, int size, void** ppmap)
         goto fail;
     }
 
-    pmap->m_size = size;
+    pmap->m_size = (uint64_t)size;
 
 
     *ppmap = pmap;
@@ -295,7 +295,7 @@ int write_buffer(void* pmap1, uint64_t offset, void* pbuf, int size)
     if ((offset + size) > pmap->m_size) {
         wsize = (int)(pmap->m_size - offset);
     }
-    memcpy(&(pinbuf[offset]), pbuf, wsize);
+    memcpy(&(pinbuf[offset]), pbuf, (size_t)wsize);
     return wsize;
 }
 
@@ -547,7 +547,7 @@ int read_buffer(void* pmap1, uint64_t offset, void* pbuf, int size)
     if ((offset + size) > pmap->m_size) {
         rsize = (int)(pmap->m_size - offset);
     }
-    memcpy( pbuf, &(poutbuf[offset]), rsize);
+    memcpy( pbuf, &(poutbuf[offset]), (size_t)rsize);
     return rsize;
 }
 

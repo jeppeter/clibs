@@ -71,7 +71,7 @@ int memory_set_mode(void* ptr, int memsize, int mode, int *porigmode)
     }
 
     __try {
-        bret = VirtualProtect(ptr, memsize, newprotect, &oldprotect);
+        bret = VirtualProtect(ptr, (size_t)memsize, newprotect, &oldprotect);
         DEBUG_INFO("");
         if (!bret) {
             GETERRNO(ret);
@@ -86,7 +86,7 @@ int memory_set_mode(void* ptr, int memsize, int mode, int *porigmode)
         goto fail;
     }
 
-    *porigmode = oldprotect;
+    *porigmode = (int)oldprotect;
     return 0;
 fail:
     SETERRNO(-ret);
@@ -96,7 +96,7 @@ fail:
 int memory_reset_mode(void* ptr, int memsize, int origmode)
 {
     DWORD oldprotect = 0;
-    DWORD newprotect = origmode;
+    DWORD newprotect = (DWORD)origmode;
     addr_t pstart = (addr_t)ptr;
     int ret;
     BOOL bret;
@@ -116,7 +116,7 @@ int memory_reset_mode(void* ptr, int memsize, int origmode)
         goto fail;
     }
 
-    bret = VirtualProtect(ptr, memsize, newprotect, &oldprotect);
+    bret = VirtualProtect(ptr, (size_t)memsize, newprotect, &oldprotect);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("can not reset 0x%p:0x%08x newprotect(0x%08x) error(%d)", ptr, memsize, newprotect, ret);

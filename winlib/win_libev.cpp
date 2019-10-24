@@ -3,14 +3,30 @@
 #include <win_libev.h>
 #include <win_output_debug.h>
 #include <win_err.h>
+
+#pragma warning(push)
+#pragma warning(disable:4820)
+#pragma warning(disable:4530)
+
+#if _MSC_VER >= 1910
+#pragma warning(disable:4514)
+#pragma warning(disable:4577)
+#endif
+
 #include <vector>
 
+#pragma warning(pop)
 
+
+#if _MSC_VER >= 1910
+#pragma warning(push)
+#pragma warning(disable:5045)
+#endif
 
 typedef struct __libev_win_ev{
     int m_exited;
-    HANDLE *m_pwaits;
     uint32_t m_waitsize;
+    HANDLE *m_pwaits;
     HANDLE m_htmevt;
     std::vector<HANDLE> *m_phandle_vec;
     std::vector<libev_evt_callback_t> *m_pfunc_vec;
@@ -97,7 +113,7 @@ int __libev_format_handles(plibev_win_ev_t pevmain,HANDLE pHandles[],uint32_t hd
         pHandles[1+i] = pevmain->m_phandle_vec->at(i);
     }
 
-    return (1+numevt);
+    return (int)(1+numevt);
 }
 
 int __libev_realloc_handles(plibev_win_ev_t pevmain)
@@ -134,7 +150,7 @@ int __libev_find_event(plibev_win_ev_t pevmain,HANDLE hevent)
     if (pevmain->m_phandle_vec) {
         for (i=0; i<pevmain->m_phandle_vec->size(); i++) {
             if (hevent == pevmain->m_phandle_vec->at(i)) {
-                ret = i;
+                ret = (int)i;
                 break;
             }
         }
@@ -160,9 +176,9 @@ int __libev_handle_event(plibev_win_ev_t pevmain,uint64_t curtick,int idx)
 
     findidx = __libev_find_event(pevmain,pevmain->m_pwaits[idx]);
     if (findidx >= 0) {
-        hevt = pevmain->m_phandle_vec->at(findidx);
-        callback = pevmain->m_pfunc_vec->at(findidx);
-        args = pevmain->m_pargs_vec->at(findidx);
+        hevt = pevmain->m_phandle_vec->at((const uint64_t)findidx);
+        callback = pevmain->m_pfunc_vec->at((const uint64_t)findidx);
+        args = pevmain->m_pargs_vec->at((const uint64_t)findidx);
         //DEBUG_INFO("call event 0x%x",hevt);
         callback(hevt,normal_event,pevmain,args);
         ret = 1;
@@ -216,7 +232,7 @@ int __libev_find_timer_func(plibev_win_ev_t pevmain,libev_evt_callback_t func,vo
         for (i =0; i<pevmain->m_ptimer_func_vec->size(); i++) {
             if (pevmain->m_ptimer_func_vec->at(i) == func) {
                 if (pevmain->m_ptimer_args_vec->at(i) == args) {
-                    ret = i;
+                    ret = (int)i;
                     break;
                 }
             }
@@ -273,9 +289,9 @@ int __libev_handle_event_abandon(plibev_win_ev_t pevmain,uint64_t curtick,int id
     ASSERT_IF(pevmain->m_pargs_vec->size() == pevmain->m_pargs_vec->size());
 
     if (pevmain->m_phandle_vec && (int)pevmain->m_phandle_vec->size() > idx) {
-        hevt = pevmain->m_phandle_vec->at(idx);
-        callback = pevmain->m_pfunc_vec->at(idx);
-        args = pevmain->m_pargs_vec->at(idx);
+        hevt = pevmain->m_phandle_vec->at((const uint64_t)idx);
+        callback = pevmain->m_pfunc_vec->at((const uint64_t)idx);
+        args = pevmain->m_pargs_vec->at((const uint64_t)idx);
         callback(hevt,abandon_event,pevmain,args);
         ret = 1;
     }
@@ -348,7 +364,7 @@ void __libev_debug_wait_handle(plibev_win_ev_t pevmain,int waitnum)
         DEBUG_INFO("wait[%d] = 0x%x",i,pevmain->m_pwaits[i]);
     }
     for (i=0; i<(int)pevmain->m_phandle_vec->size(); i++) {
-        DEBUG_INFO("handle[%d]=0x%x",i,pevmain->m_phandle_vec->at(i));
+        DEBUG_INFO("handle[%d]=0x%x",i,pevmain->m_phandle_vec->at((const uint64_t)i));
     }
     return ;
 }
@@ -373,14 +389,14 @@ int libev_winev_loop(void* pevmain1)
             realmills = evtmillsval;
         }
 
-        waitnum = __libev_format_handles(pevmain,pevmain->m_pwaits,pevmain->m_waitsize,curtick);
+        waitnum = (uint32_t)__libev_format_handles(pevmain,pevmain->m_pwaits,pevmain->m_waitsize,curtick);
 
         dret = WaitForMultipleObjectsEx(waitnum,pevmain->m_pwaits,FALSE,realmills,TRUE);
         curtick = __libev_get_tick_count();
         //DEBUG_INFO("wait ret %d",dret);
         //__debug_wait_handle(pevmain,waitnum);
         if ( dret >= (WAIT_OBJECT_0 +1)&& dret <= (WAIT_OBJECT_0 + waitnum - 1)) {
-            ret = __libev_handle_event(pevmain, curtick, (dret-WAIT_OBJECT_0));
+            ret = __libev_handle_event(pevmain, curtick, (int)(dret-WAIT_OBJECT_0));
         } else if (dret == WAIT_OBJECT_0) {
             ret = __libev_handle_timer(pevmain,curtick);
             ResetEvent(pevmain->m_htmevt);
@@ -394,7 +410,7 @@ int libev_winev_loop(void* pevmain1)
                 goto fail;
             }
         } else if (dret >= (WAIT_ABANDONED_0 + 1) && dret <= (WAIT_ABANDONED_0 + waitnum -1)) {
-            ret = __libev_handle_event_abandon(pevmain,curtick,(dret - WAIT_ABANDONED_0 - 1));
+            ret = __libev_handle_event_abandon(pevmain,curtick,(int)(dret - WAIT_ABANDONED_0 - 1));
         } else if (dret == WAIT_ABANDONED_0) {
             /*that is critical ,so we goto fail*/
             ret = -1;
@@ -642,3 +658,6 @@ void libev_break_winev_loop(void* pevmain1)
     return ;
 }
 
+#if _MSC_VER >= 1910
+#pragma warning(pop)
+#endif

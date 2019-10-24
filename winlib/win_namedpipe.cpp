@@ -8,20 +8,21 @@
 
 typedef struct __named_pipe {
     uint32_t m_magic;
-    char* m_name;
-    int m_servermode = 0;
-    HANDLE m_hpipe;
-    HANDLE m_connevt;
-    OVERLAPPED m_connov;
+    int m_servermode;
     int m_connpending;
-    HANDLE m_rdevt;
-    OVERLAPPED m_rdov;
     int m_rdpending;
     int m_rdleft;
-    HANDLE m_wrevt;
-    OVERLAPPED m_wrov;
     int m_wrpending;
     int m_wrleft;
+    int m_reserv1;
+    char* m_name;
+    HANDLE m_hpipe;
+    HANDLE m_connevt;
+    HANDLE m_rdevt;
+    HANDLE m_wrevt;
+    OVERLAPPED m_connov;
+    OVERLAPPED m_rdov;
+    OVERLAPPED m_wrov;
 } named_pipe_t, *pnamed_pipe_t;
 
 
@@ -139,7 +140,7 @@ pnamed_pipe_t __alloc_namedpipe(char* name, int servermode)
     memset(pnp, 0, sizeof(*pnp));
     pnp->m_magic = NAMED_PIPE_MAGIC;
 
-    pnp->m_name = strdup(name);
+    pnp->m_name = _strdup(name);
     if (pnp->m_name == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not strdup [%s] error[%d]", name, ret);
@@ -368,7 +369,7 @@ int read_namedpipe(void* pnp1, char* buffer, int bufsize)
     leftlen = bufsize;
     ptr = buffer;
     while (leftlen > 0)  {
-        bret = ReadFile(pnp->m_hpipe, ptr, leftlen, &cbread, &(pnp->m_rdov));
+        bret = ReadFile(pnp->m_hpipe, ptr, (DWORD)leftlen, &cbread, &(pnp->m_rdov));
         if (!bret) {
             GETERRNO(ret);
             if (ret == -ERROR_IO_PENDING) {
@@ -425,7 +426,7 @@ int write_namedpipe(void* pnp1, char* buffer, int bufsize)
     leftlen = bufsize;
     ptr = buffer;
     while (leftlen > 0)  {
-        bret = WriteFile(pnp->m_hpipe, ptr, leftlen, &cbwrite, &(pnp->m_wrov));
+        bret = WriteFile(pnp->m_hpipe, ptr, (DWORD)leftlen, &cbwrite, &(pnp->m_wrov));
         if (!bret) {
             GETERRNO(ret);
             if (ret == -ERROR_IO_PENDING) {

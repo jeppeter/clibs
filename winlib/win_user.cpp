@@ -1,7 +1,13 @@
 #include <win_user.h>
 #include <win_output_debug.h>
 #include <win_uniansi.h>
+
+#pragma warning(push)
+#pragma warning(disable:4820)
+
 #include <Lm.h>
+
+#pragma warning(pop)
 
 #pragma comment(lib, "netapi32.lib")
 
