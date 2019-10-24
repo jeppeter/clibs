@@ -30,3 +30,9 @@ int need_wait_times(uint64_t sticks, uint64_t eticks, int timeout)
 
 	return (int)(timeout - (eticks - sticks));
 }
+
+int sleep_mill(int mills)
+{
+	Sleep(mills);
+	return 0;
+}
