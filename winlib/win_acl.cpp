@@ -6,10 +6,15 @@
 #include <win_strop.h>
 #include <win_envop.h>
 
+#pragma warning(push)
+
+#pragma warning(disable:4820)
+
 #include <accctrl.h>
 #include <aclapi.h>
 #include <sddl.h>
 
+#pragma warning(pop)
 
 #define   WIN_ACL_MAGIC            0x3021211
 

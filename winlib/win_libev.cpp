@@ -7,11 +7,8 @@
 #pragma warning(push)
 #pragma warning(disable:4820)
 #pragma warning(disable:4530)
-
-#if _MSC_VER >= 1910
 #pragma warning(disable:4514)
 #pragma warning(disable:4577)
-#endif
 
 #include <vector>
 

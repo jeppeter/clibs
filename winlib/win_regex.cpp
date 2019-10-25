@@ -7,6 +7,8 @@
 
 #pragma warning(disable:4820)
 #pragma warning(disable:4530)
+#pragma warning(disable:4514)
+#pragma warning(disable:4577)
 
 #if _MSC_VER >= 1910
 #pragma warning(disable:4625)
@@ -14,8 +16,6 @@
 #pragma warning(disable:5027)
 #pragma warning(disable:5026)
 #pragma warning(disable:4774)
-#pragma warning(disable:4514)
-#pragma warning(disable:4577)
 #endif
 
 #include <stdio.h>

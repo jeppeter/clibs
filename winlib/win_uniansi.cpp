@@ -4,10 +4,7 @@
 #include <win_err.h>
 
 #pragma warning(push)
-
-#if _MSC_VER >= 1910
 #pragma warning(disable:4514)
-#endif
 
 #include <assert.h>
 

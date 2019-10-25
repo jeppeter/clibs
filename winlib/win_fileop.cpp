@@ -10,10 +10,7 @@
 #pragma warning(push)
 #pragma warning(disable:4668)
 #pragma warning(disable:4820)
-
-#if _MSC_VER >= 1910
 #pragma warning(disable:4514)
-#endif
 
 #include <stdlib.h>
 #include <stdio.h>

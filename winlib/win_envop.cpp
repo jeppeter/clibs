@@ -14,10 +14,7 @@
 #pragma warning(push)
 #pragma warning(disable:4820)
 #pragma warning(disable:4365)
-
-#if _MSC_VER >= 1910
 #pragma warning(disable:4514)
-#endif
 
 #include <wdbgexts.h>
 #pragma warning(pop)

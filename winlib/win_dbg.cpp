@@ -11,10 +11,10 @@
 #pragma warning(disable:4917)
 #pragma warning(disable:4820)
 #pragma warning(disable:4365)
+#pragma warning(disable:4514)
 
 #if _MSC_VER >= 1910
 #pragma warning(disable:4668)
-#pragma warning(disable:4514)
 #pragma warning(disable:4577)
 #endif
 

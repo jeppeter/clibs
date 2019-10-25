@@ -1,9 +1,6 @@
 #pragma warning(push)
 
-#if _MSC_VER >= 1910
 #pragma warning(disable:4514)
-#endif
-
 #pragma warning(disable:4820)
 #pragma warning(disable:4668)
 

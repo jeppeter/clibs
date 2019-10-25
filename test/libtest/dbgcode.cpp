@@ -8,10 +8,7 @@
 #pragma warning(disable:4365)
 #pragma warning(disable:4191)
 #pragma warning(disable:4917)
-
-#if _MSC_VER >= 1910
 #pragma warning(disable:4514)
-#endif
 
 #include <Windows.h>
 #include <dbgeng.h>
