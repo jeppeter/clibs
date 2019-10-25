@@ -63,7 +63,7 @@ WINLIB_CFLAGS = -DWINLIB_DLL_EXPORT /MT
 
 
 INC_CFLAGS = /I"$(TOPDIR)/winlib" /I"$(TOPDIR)/common" /I"$(TOPDIR)/common/jsonlib" $(WINLIB_CFLAGS)
-COM_CFLAGS = /Wall /wd"4710" /wd"4711" /wd"4255" /wd"4668" /wd"4996" /wd"4820"
+COM_CFLAGS = /Wall /wd"4711" /wd"4255" /wd"4710" /wd"4996"
 REL_CFLAGS = /O2
 DBG_CFLAGS = /ZI /Od
 
