@@ -54,7 +54,7 @@ int get_env_variable(char* envvar, char** ppenvval, int* pvalsize)
     pretval = *ppenvval;
     retsize = *pvalsize;
 
-    ret = _dupenv_s(&penv,&envnum,envvar);
+    ret = _dupenv_s(&penv, &envnum, envvar);
     if (ret != 0) {
         GETERRNO(ret);
         goto fail;
@@ -272,13 +272,13 @@ fail:
 
 int get_codepage(void)
 {
-    UINT cp=0;
+    UINT cp = 0;
     int ret = 0;
 
     cp = GetConsoleCP();
     if (cp == 0) {
         GETERRNO(ret);
-        ERROR_INFO("can not get cp error[%d]",ret);
+        ERROR_INFO("can not get cp error[%d]", ret);
         goto fail;
     }
 
@@ -292,7 +292,7 @@ int set_codepage(int cp)
 {
     BOOL bret;
     int ret;
-    int oldcp=0;
+    int oldcp = 0;
 
     oldcp = get_codepage();
     if (oldcp < 0) {
@@ -301,7 +301,7 @@ int set_codepage(int cp)
     }
 
     bret = SetConsoleCP((UINT)cp);
-    if (!bret){
+    if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("can not set [%d] error[%d]", cp, ret);
         goto fail;
@@ -326,17 +326,17 @@ fail:
     return ret;
 }
 
-int get_current_user(int freed,char** ppuser,int *psize)
+int get_current_user(int freed, char** ppuser, int *psize)
 {
-    TCHAR* ptuser=NULL;
-    int tusersize=0;
-    DWORD tuserlen=0;
+    TCHAR* ptuser = NULL;
+    int tusersize = 0;
+    DWORD tuserlen = 0;
     int ret;
     int retlen = 0;
     BOOL bret;
 
     if (freed) {
-        return TcharToAnsi(NULL,ppuser,psize);
+        return TcharToAnsi(NULL, ppuser, psize);
     }
     if (ppuser == NULL || psize == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
@@ -356,10 +356,10 @@ try_again:
         ERROR_INFO("alloc %d error[%d]", sizeof(*ptuser) * tusersize, ret);
         goto fail;
     }
-    memset(ptuser , 0 ,sizeof(*ptuser) * tusersize);
+    memset(ptuser , 0 , sizeof(*ptuser) * tusersize);
 
     tuserlen = (DWORD)tusersize;
-    bret = GetUserName(ptuser,&tuserlen);
+    bret = GetUserName(ptuser, &tuserlen);
     if (!bret) {
         GETERRNO(ret);
         if (ret == -ERROR_INSUFFICIENT_BUFFER) {
@@ -369,7 +369,7 @@ try_again:
         ERROR_INFO("get user name error[%d]" , ret);
         goto fail;
     }
-    ret = TcharToAnsi(ptuser,ppuser,psize);
+    ret = TcharToAnsi(ptuser, ppuser, psize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -393,19 +393,19 @@ fail:
 
 }
 
-int get_executable_wholepath(int freed,char** ppath, int *psize)
+int get_executable_wholepath(int freed, char** ppath, int *psize)
 {
-    TCHAR* ptpath=NULL;
-    int tsize=0;
-    int retlen=0;
-    DWORD dret=0;
+    TCHAR* ptpath = NULL;
+    int tsize = 0;
+    int retlen = 0;
+    DWORD dret = 0;
     int ret;
     if (freed) {
-        TcharToAnsi(NULL,ppath,psize);
+        TcharToAnsi(NULL, ppath, psize);
         return 0;
     }
 
-    if (ppath == NULL || psize==NULL) {
+    if (ppath == NULL || psize == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
         return ret;
@@ -423,9 +423,9 @@ try_again:
         ERROR_INFO("alloc [%d] error[%d]", sizeof(*ptpath)* tsize, ret);
         goto fail;
     }
-    memset(ptpath, 0 ,sizeof(*ptpath) * tsize);
+    memset(ptpath, 0 , sizeof(*ptpath) * tsize);
 
-    dret = GetModuleFileName(NULL,ptpath,(DWORD)tsize);
+    dret = GetModuleFileName(NULL, ptpath, (DWORD)tsize);
     if (dret == 0) {
         GETERRNO(ret);
         if (ret == -ERROR_INSUFFICIENT_BUFFER) {
@@ -439,7 +439,7 @@ try_again:
         goto try_again;
     }
 
-    ret = TcharToAnsi(ptpath,ppath,psize);
+    ret = TcharToAnsi(ptpath, ppath, psize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -461,16 +461,16 @@ fail:
     return ret;
 }
 
-int get_executable_dirname(int freed,char** ppath, int *psize)
+int get_executable_dirname(int freed, char** ppath, int *psize)
 {
     DWORD dret;
-    TCHAR* ptpath=NULL;
-    char* pathansi=NULL;
-    int tsize=0;
-    int apsize=0,aplen=0;
-    int cpylen=0;
-    int retsize=0;
-    char* pretpath=NULL;
+    TCHAR* ptpath = NULL;
+    char* pathansi = NULL;
+    int tsize = 0;
+    int apsize = 0, aplen = 0;
+    int cpylen = 0;
+    int retsize = 0;
+    char* pretpath = NULL;
     char* ptr;
     int ret;
     if (freed) {
@@ -484,7 +484,7 @@ int get_executable_dirname(int freed,char** ppath, int *psize)
         return 0;
     }
 
-    tsize= 32;
+    tsize = 32;
 get_wholeagain:
     if (ptpath) {
         free(ptpath);
@@ -496,9 +496,9 @@ get_wholeagain:
         ERROR_INFO("alloc [%d] error[%d]", sizeof(*ptpath)* tsize, ret);
         goto fail;
     }
-    memset(ptpath, 0 ,sizeof(*ptpath) * tsize);
+    memset(ptpath, 0 , sizeof(*ptpath) * tsize);
 
-    dret = GetModuleFileName(NULL,ptpath,(DWORD)tsize);
+    dret = GetModuleFileName(NULL, ptpath, (DWORD)tsize);
     if (dret == 0) {
         GETERRNO(ret);
         if (ret == -ERROR_INSUFFICIENT_BUFFER) {
@@ -513,7 +513,7 @@ get_wholeagain:
     }
 
 
-    ret = TcharToAnsi(ptpath,&pathansi,&apsize);
+    ret = TcharToAnsi(ptpath, &pathansi, &apsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -524,7 +524,7 @@ get_wholeagain:
     cpylen --;
     ptr --;
 
-    while(cpylen > 0 && *ptr != '\\') {
+    while (cpylen > 0 && *ptr != '\\') {
         cpylen --;
         ptr --;
     }
@@ -553,7 +553,7 @@ get_wholeagain:
     *ppath = pretpath;
     *psize = retsize;
 
-    TcharToAnsi(NULL,&pathansi,&apsize);
+    TcharToAnsi(NULL, &pathansi, &apsize);
     if (ptpath) {
         free(ptpath);
     }
@@ -567,7 +567,7 @@ fail:
     pretpath = NULL;
     retsize = 0;
 
-    TcharToAnsi(NULL,&pathansi,&apsize);
+    TcharToAnsi(NULL, &pathansi, &apsize);
     if (ptpath) {
         free(ptpath);
     }
@@ -597,48 +597,47 @@ fail:
 int win_arch_type()
 {
     UINT uret;
-    int ret=0;
-    int bufsize=0;
-    TCHAR* pBuf=NULL;
+    int ret = 0;
+    int bufsize = 0;
+    TCHAR* pBuf = NULL;
 
     bufsize = 1024;
 try_again:
-    if (pBuf){
+    if (pBuf) {
         free(pBuf);
     }
     pBuf = NULL;
     pBuf = (TCHAR*)malloc((size_t)bufsize);
-    if (pBuf == NULL){
+    if (pBuf == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("can not alloc(%d) error(%d)",bufsize,ret);
+        ERROR_INFO("can not alloc(%d) error(%d)", bufsize, ret);
         goto fail;
     }
 
-    uret = GetSystemWow64Directory(pBuf,bufsize / sizeof(TCHAR));
-    if (uret == 0){
+    uret = GetSystemWow64Directory(pBuf, bufsize / sizeof(TCHAR));
+    if (uret == 0) {
         GETERRNO(ret);
-        if (ret == -ERROR_CALL_NOT_IMPLEMENTED){
+        if (ret == -ERROR_CALL_NOT_IMPLEMENTED) {
             goto iswin32;
-        }else if (ret == -ERROR_INSUFFICIENT_BUFFER){
+        } else if (ret == -ERROR_INSUFFICIENT_BUFFER) {
             bufsize <<= 1;
             goto try_again;
         }
-        ERROR_INFO("can not call get wow directory error(%d)",ret);
+        ERROR_INFO("can not call get wow directory error(%d)", ret);
         goto fail;
     }
-    if (pBuf){
+    if (pBuf) {
         free(pBuf);
     }
     bufsize = 0;
     return WIN64_ARCH;
 iswin32:
-    if (pBuf){
+    if (pBuf) {
         free(pBuf);
     }
     bufsize = 0;
-    return WIN32_ARCH;  
+    return WIN32_ARCH;
 fail:
     SETERRNO(-ret);
     return ret;
 }
-

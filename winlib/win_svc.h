@@ -46,6 +46,7 @@ WINLIB_API void svc_close_mode();
 WINLIB_API int svc_start(char* svcname, LPSERVICE_MAIN_FUNCTION pProc);
 
 WINLIB_API int create_service(const char* name, const char* desc,const char* binpath, int startmode);
+WINLIB_API int create_driver(const char* name, const char* desc,const char* binpath, int startmode);
 WINLIB_API int delete_service(const char* name);
 
 

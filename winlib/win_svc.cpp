@@ -1163,8 +1163,7 @@ fail:
 
 }
 
-
-int create_service(const char* name, const char* desc, const char* binpath, int startmode)
+int __create_svc_inner(const char* name, const char* desc, const char* binpath, int startmode, DWORD svctype)
 {
     TCHAR* ptname = NULL;
     int tnamesize = 0;
@@ -1235,7 +1234,7 @@ int create_service(const char* name, const char* desc, const char* binpath, int 
     hservice = CreateService(sch,
                              ptname,
                              ptdesc, SERVICE_ALL_ACCESS,
-                             SERVICE_WIN32_OWN_PROCESS,
+                             svctype,
                              startdword,
                              SERVICE_ERROR_NORMAL,
                              ptbin,
@@ -1282,9 +1281,18 @@ fail:
     }
     sch = NULL;
     SETERRNO(ret);
-    return ret;
+    return ret;    
 }
 
+int create_service(const char* name, const char* desc, const char* binpath, int startmode)
+{
+    return __create_svc_inner(name,desc,binpath,startmode,SERVICE_WIN32_OWN_PROCESS);
+}
+
+int create_driver(const char* name, const char* desc,const char* binpath, int startmode)
+{
+    return __create_svc_inner(name,desc,binpath,startmode,SERVICE_KERNEL_DRIVER);
+}
 
 int delete_service(const char* name)
 {
@@ -1346,6 +1354,7 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
 
 #if _MSC_VER >= 1910
 #pragma warning(pop)

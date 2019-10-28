@@ -6,6 +6,8 @@
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
+#include <win_types.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -20,6 +22,8 @@ extern "C" {
 
 
 #define  EN_US_CODEPAGE             437
+
+#define  MAX_INFO_CLASS             0xffffffff
 
 WINLIB_API int get_env_variable(char* envvar,char** ppenvval,int* pvalsize);
 WINLIB_API int get_computer_name(int type, char** ppname,int *pnamesize);
