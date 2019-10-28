@@ -160,6 +160,7 @@ int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int mkdrv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int mksvc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int listmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -5423,7 +5424,7 @@ int npsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     HANDLE waithds[MAX_WAIT_NUM];
     DWORD dret;
     DWORD waitnum = 0;
-    int filesize=0;
+    int filesize = 0;
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
@@ -5912,7 +5913,7 @@ int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     char* ptmpreadbuf = NULL;
     DWORD dret;
     HANDLE curhd;
-    int filesize=0;
+    int filesize = 0;
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
@@ -6127,7 +6128,7 @@ dump_again:
                         rcvlen = needlen;
                         memcpy(&needlen, preadbuf, sizeof(uint32_t));
                         DEBUG_INFO("more [%d]", needlen);
-                        if (needlen == sizeof(uint32_t)) {                            
+                        if (needlen == sizeof(uint32_t)) {
                             goto dump_again;
                         }
 
@@ -6166,7 +6167,7 @@ dump_again:
             continue;
         } else {
             GETERRNO(ret);
-            ERROR_INFO("wait error [%d] [%d]", dret,ret);
+            ERROR_INFO("wait error [%d] [%d]", dret, ret);
             goto out;
         }
     }
@@ -6227,8 +6228,8 @@ static int format_pipe_data(jvalue* pj, char** ppsndbuf, int* psndsize)
     int strsize = 0;
     char* valstr = NULL;
     unsigned int valsize = 0;
-    int retlen=0;
-    char* pretbuf=NULL;
+    int retlen = 0;
+    char* pretbuf = NULL;
     unsigned int i;
 
 
@@ -6240,7 +6241,7 @@ static int format_pipe_data(jvalue* pj, char** ppsndbuf, int* psndsize)
     retlen = *psndsize;
     pretbuf = *ppsndbuf;
 
-    entries = jobject_entries(pj,&entriesizes);
+    entries = jobject_entries(pj, &entriesizes);
     if (entries == NULL) {
         ret = snprintf_safe(&pstr, &strsize, "");
         if (ret < 0) {
@@ -6286,17 +6287,17 @@ static int format_pipe_data(jvalue* pj, char** ppsndbuf, int* psndsize)
     sndlen = (int)(strlen(pstr) + sizeof(uint32_t));
     if (retlen < sndlen || pretbuf == NULL) {
         if (retlen < sndlen) {
-            retlen = sndlen;    
-        }        
+            retlen = sndlen;
+        }
         pretbuf = (char*) malloc((size_t)retlen);
         if (pretbuf == NULL) {
             GETERRNO(ret);
             goto fail;
         }
     }
-    memcpy(pretbuf, &sndlen,sizeof(uint32_t));
+    memcpy(pretbuf, &sndlen, sizeof(uint32_t));
     if (sndlen > sizeof(uint32_t)) {
-        memcpy(&(pretbuf[sizeof(uint32_t)]), pstr, (sndlen - sizeof(uint32_t)));    
+        memcpy(&(pretbuf[sizeof(uint32_t)]), pstr, (sndlen - sizeof(uint32_t)));
     }
 
     if (*ppsndbuf && *ppsndbuf != pretbuf) {
@@ -6305,7 +6306,7 @@ static int format_pipe_data(jvalue* pj, char** ppsndbuf, int* psndsize)
     *ppsndbuf = pretbuf;
     *psndsize = retlen;
 
-    snprintf_safe(&pstr,&strsize,NULL);
+    snprintf_safe(&pstr, &strsize, NULL);
     if (valstr) {
         free(valstr);
     }
@@ -6320,7 +6321,7 @@ fail:
     }
     pretbuf = NULL;
 
-    snprintf_safe(&pstr,&strsize,NULL);
+    snprintf_safe(&pstr, &strsize, NULL);
     if (valstr) {
         free(valstr);
     }
@@ -6335,14 +6336,14 @@ int pipedata_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 {
     int i;
     char* fname;
-    jvalue* pj=NULL;
-    char* filecon=NULL;
-    int filesize=0;
+    jvalue* pj = NULL;
+    char* filecon = NULL;
+    int filesize = 0;
     int ret;
     unsigned int size;
-    char* poutdata=NULL;
-    int outsize=0;
-    int outlen=0;
+    char* poutdata = NULL;
+    int outsize = 0;
+    int outlen = 0;
     pargs_options_t pargs = (pargs_options_t) popt;
 
 
@@ -6350,12 +6351,12 @@ int pipedata_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     REFERENCE_ARG(argv);
 
     init_log_level(pargs);
-    for(i=0;parsestate->leftargs && parsestate->leftargs[i] ;i++) {
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i] ; i++) {
         fname = parsestate->leftargs[i];
-        ret = read_file_whole(fname,&filecon,&filesize);
+        ret = read_file_whole(fname, &filecon, &filesize);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("read [%s] error[%d]", fname,ret);
+            ERROR_INFO("read [%s] error[%d]", fname, ret);
             goto out;
         }
 
@@ -6364,21 +6365,21 @@ int pipedata_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         }
         pj = NULL;
         size = 0;
-        pj = jvalue_read(filecon,&size);
+        pj = jvalue_read(filecon, &size);
         if (pj == NULL) {
             GETERRNO(ret);
             ERROR_INFO("[%s] not json file", fname);
             goto out;
         }
 
-        ret = format_pipe_data(pj,&poutdata,&outsize);
+        ret = format_pipe_data(pj, &poutdata, &outsize);
         if (ret < 0) {
             GETERRNO(ret);
             ERROR_INFO("format pipe [%s] error[%d]", fname, ret);
             goto out;
         }
         outlen = ret;
-        DEBUG_BUFFER_FMT(poutdata,outlen,"[%s] format data", fname);
+        DEBUG_BUFFER_FMT(poutdata, outlen, "[%s] format data", fname);
     }
 
     ret = 0;
@@ -6387,7 +6388,7 @@ out:
         jvalue_destroy(pj);
     }
     pj = NULL;
-    read_file_whole(NULL,&filecon,&filesize);
+    read_file_whole(NULL, &filecon, &filesize);
     SETERRNO(ret);
     return ret;
 }
@@ -6396,14 +6397,14 @@ out:
 int mkdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int i;
-    char* dirname=NULL;
+    char* dirname = NULL;
     int ret;
     pargs_options_t pargs = (pargs_options_t) popt;
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
     init_log_level(pargs);
-    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
         dirname = parsestate->leftargs[i];
         ret = create_directory(dirname);
         if (ret < 0) {
@@ -6460,7 +6461,7 @@ int utf8touni_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         goto out;
     }
     utf8len = ret;
-    ret = Utf8ToUnicode(putf8, &puni,&unisize);
+    ret = Utf8ToUnicode(putf8, &puni, &unisize);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr, "can not trans buffer [%d]\n", ret);
@@ -6471,10 +6472,10 @@ int utf8touni_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     fprintf(stdout, "utf8 buffer [%d]\n", utf8len);
     __debug_buf(stdout, putf8, utf8len);
     fprintf(stdout, "unicode buffer [%d]\n", unilen);
-    __debug_buf(stdout, (char*)puni,unilen);
+    __debug_buf(stdout, (char*)puni, unilen);
     ret = 0;
 out:
-    Utf8ToUnicode(NULL, &puni,&unisize);
+    Utf8ToUnicode(NULL, &puni, &unisize);
     __get_code(NULL, &putf8, &utf8size);
     SETERRNO(ret);
     return ret;
@@ -6484,8 +6485,8 @@ out:
 int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
-    char* pbuf=NULL;
-    int bufsize=0,buflen=0;
+    char* pbuf = NULL;
+    int bufsize = 0, buflen = 0;
     char* putf8 = NULL;
     int utf8size = 0;
     int utf8len = 0;
@@ -6504,7 +6505,7 @@ int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     buflen = ret;
     puni = (wchar_t*)pbuf;
 
-    ret = UnicodeToUtf8(puni,&putf8,&utf8size);
+    ret = UnicodeToUtf8(puni, &putf8, &utf8size);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr, "can not trans buffer [%d]\n", ret);
@@ -6515,18 +6516,18 @@ int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     fprintf(stdout, "unicode buffer [%d]\n", buflen);
     __debug_buf(stdout, pbuf, buflen);
     fprintf(stdout, "utf8 buffer [%d]\n", utf8len);
-    __debug_buf(stdout, putf8,utf8len);
+    __debug_buf(stdout, putf8, utf8len);
     ret = 0;
 out:
-    UnicodeToUtf8(NULL, &putf8,&utf8size);
-    __get_code(NULL, &pbuf,&bufsize);
+    UnicodeToUtf8(NULL, &putf8, &utf8size);
+    __get_code(NULL, &pbuf, &bufsize);
     SETERRNO(ret);
     return ret;
 }
 
 int startproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    int createflags=0;
+    int createflags = 0;
     pargs_options_t pargs = (pargs_options_t) popt;
     int i;
     int ret;
@@ -6537,15 +6538,15 @@ int startproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         createflags |= PROC_NO_WINDOW;
     }
 
-    ret = start_cmdv_detach(createflags,parsestate->leftargs);
+    ret = start_cmdv_detach(createflags, parsestate->leftargs);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr, "start [");
-        for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
             if (i > 0) {
                 fprintf(stderr, ",");
             }
-            fprintf(stderr, "%s",parsestate->leftargs[i] );
+            fprintf(stderr, "%s", parsestate->leftargs[i] );
         }
         fprintf(stderr, "] error[%d]\n", ret);
         goto out;
@@ -6560,11 +6561,11 @@ out:
 
 int checkproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    int numproc=0;
+    int numproc = 0;
     int ret;
-    char** ppnames=NULL;
+    char** ppnames = NULL;
     int i;
-    int* pfinded=NULL;
+    int* pfinded = NULL;
     pargs_options_t pargs = (pargs_options_t) popt;
 
     REFERENCE_ARG(argc);
@@ -6572,7 +6573,7 @@ int checkproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
     init_log_level(pargs);
 
-    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
         numproc ++;
     }
 
@@ -6591,15 +6592,15 @@ int checkproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
 
     memset(pfinded, 0, sizeof(pfinded[0]) * numproc);
-    for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
         ppnames[i] = parsestate->leftargs[i];
     }
 
-    ret = process_num(ppnames,numproc,pfinded);
+    ret = process_num(ppnames, numproc, pfinded);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr, "find proc [");
-        for (i=0;i<numproc;i++) {
+        for (i = 0; i < numproc; i++) {
             if (i > 0) {
                 fprintf(stderr, ",");
             }
@@ -6608,8 +6609,8 @@ int checkproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         fprintf(stderr, "] error [%d]\n", ret);
         goto out;
     }
-    for(i=0;i<numproc;i++) {
-        fprintf(stdout,"[%s]        run [%d]", ppnames[i], pfinded[i]);
+    for (i = 0; i < numproc; i++) {
+        fprintf(stdout, "[%s]        run [%d]", ppnames[i], pfinded[i]);
     }
 
 
@@ -6647,7 +6648,7 @@ int svrcheckproc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
     ret = 0;
 out:
     SETERRNO(ret);
-    return ret;    
+    return ret;
 }
 
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
@@ -6655,24 +6656,24 @@ int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     REFERENCE_ARG(argc);
     REFERENCE_ARG(parsestate);
     REFERENCE_ARG(popt);
-    printf("%s version 1.0.1 compiled at [%s %s] cl version[%d]\n",argv[0], __DATE__,__TIME__,_MSC_VER);
+    printf("%s version 1.0.1 compiled at [%s %s] cl version[%d]\n", argv[0], __DATE__, __TIME__, _MSC_VER);
     return 0;
 }
 
 int __mk_svc_handler(pextargs_state_t parsestate, pargs_options_t pargs, int drivemode)
 {
-    char* binpath=NULL;
-    char* svcname=NULL;
-    int svcnamesize=0;
-    int allocname=0;
-    char* desc=NULL;
-    int descsize=0;
-    int allocdesc=0;
-    int startmode=SVC_START_ON_DEMAND;
-    char* pstart=NULL;
-    int idx=0;
-    char* pcurptr=NULL;
-    char* lastptr=NULL;
+    char* binpath = NULL;
+    char* svcname = NULL;
+    int svcnamesize = 0;
+    int allocname = 0;
+    char* desc = NULL;
+    int descsize = 0;
+    int allocdesc = 0;
+    int startmode = SVC_START_ON_DEMAND;
+    char* pstart = NULL;
+    int idx = 0;
+    char* pcurptr = NULL;
+    char* lastptr = NULL;
     int ret;
 
     REFERENCE_ARG(pargs);
@@ -6684,19 +6685,19 @@ int __mk_svc_handler(pextargs_state_t parsestate, pargs_options_t pargs, int dri
         svcname = parsestate->leftargs[idx];
         idx ++;
     } else {
-        pcurptr = strrchr(binpath,'\\');
+        pcurptr = strrchr(binpath, '\\');
         if (pcurptr) {
             pcurptr ++;
         } else {
             pcurptr = binpath;
         }
-        ret = snprintf_safe(&svcname,&svcnamesize,"%s", pcurptr);
+        ret = snprintf_safe(&svcname, &svcnamesize, "%s", pcurptr);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
         }
         lastptr = svcname + strlen(svcname);
-        while(lastptr != svcname) {
+        while (lastptr != svcname) {
             if (*lastptr == '.') {
                 *lastptr = '\0';
                 break;
@@ -6710,7 +6711,7 @@ int __mk_svc_handler(pextargs_state_t parsestate, pargs_options_t pargs, int dri
         desc = parsestate->leftargs[idx];
         idx ++;
     } else {
-        ret = snprintf_safe(&desc,&descsize,"%s description", svcname);
+        ret = snprintf_safe(&desc, &descsize, "%s description", svcname);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
@@ -6721,15 +6722,15 @@ int __mk_svc_handler(pextargs_state_t parsestate, pargs_options_t pargs, int dri
     if (parsestate->leftargs[idx]) {
         pstart = parsestate->leftargs[idx];
         idx ++;
-        if (_stricmp(pstart,"demand") == 0) {
+        if (_stricmp(pstart, "demand") == 0) {
             startmode = SVC_START_ON_DEMAND;
-        } else if (_stricmp(pstart,"auto") == 0) {
+        } else if (_stricmp(pstart, "auto") == 0) {
             startmode = SVC_START_ON_AUTO;
-        } else if (_stricmp(pstart,"boot") == 0) {
+        } else if (_stricmp(pstart, "boot") == 0) {
             startmode = SVC_START_ON_BOOT;
-        } else if (_stricmp(pstart,"system") == 0) {
+        } else if (_stricmp(pstart, "system") == 0) {
             startmode = SVC_START_ON_SYSTEM;
-        } else if (_stricmp(pstart,"disable") == 0) {
+        } else if (_stricmp(pstart, "disable") == 0) {
             startmode = SVC_START_ON_DISABLED;
         } else {
             ret = -ERROR_INVALID_PARAMETER;
@@ -6739,29 +6740,29 @@ int __mk_svc_handler(pextargs_state_t parsestate, pargs_options_t pargs, int dri
     }
 
     if (drivemode) {
-        ret = create_driver(svcname,desc,binpath,startmode);
+        ret = create_driver(svcname, desc, binpath, startmode);
     } else {
-        ret = create_service(svcname,desc,binpath,startmode);
+        ret = create_service(svcname, desc, binpath, startmode);
     }
     if (ret < 0) {
         GETERRNO(ret);
-        ERROR_INFO("create %s [%s] [%s] [%s] mode[%d] error[%d]", drivemode ? "driver" : "service", 
-            svcname,desc,binpath,startmode, ret);
+        ERROR_INFO("create %s [%s] [%s] [%s] mode[%d] error[%d]", drivemode ? "driver" : "service",
+                   svcname, desc, binpath, startmode, ret);
         goto out;
     }
 
-    fprintf(stdout,"create %s [%s] [%s] [%s] mode[%d] succ\n", drivemode ? "driver" : "service", 
-            svcname,desc,binpath,startmode);
+    fprintf(stdout, "create %s [%s] [%s] [%s] mode[%d] succ\n", drivemode ? "driver" : "service",
+            svcname, desc, binpath, startmode);
     ret = 0;
 out:
     if (allocdesc) {
-        snprintf_safe(&desc,&descsize,NULL);
+        snprintf_safe(&desc, &descsize, NULL);
     }
     desc = NULL;
     descsize = 0;
     allocdesc = 0;
     if (allocname) {
-        snprintf_safe(&svcname,&svcnamesize,NULL);
+        snprintf_safe(&svcname, &svcnamesize, NULL);
     }
     svcname = NULL;
     svcnamesize = 0;
@@ -6778,7 +6779,7 @@ int mkdrv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
-    return __mk_svc_handler(parsestate,pargs,1);
+    return __mk_svc_handler(parsestate, pargs, 1);
 }
 int mksvc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -6787,7 +6788,93 @@ int mksvc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
-    return __mk_svc_handler(parsestate,pargs,0);
+    return __mk_svc_handler(parsestate, pargs, 0);
+}
+
+int listmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    int idx = 0;
+    int lastidx = 0;
+    int procid = 0;
+    char* modname = NULL;
+    int maxlen = 0;
+    int i;
+    pmod_info_t pinfo = NULL;
+    int infosize = 0;
+    int infolen = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    init_log_level(pargs);
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    GET_OPT_INT(procid, "procid");
+    if (parsestate->leftargs && parsestate->leftargs[idx]) {
+        lastidx = idx;
+        for (; parsestate->leftargs && parsestate->leftargs[lastidx]; lastidx ++ ) {
+            modname = parsestate->leftargs[lastidx];
+            ret = get_module_info(procid, modname, &pinfo, &infosize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not get [%d] mod[%s] error[%d]", procid, modname, ret);
+                goto out;
+            }
+            infolen = (int)(ret / sizeof(*pinfo));
+            for (i = 0; i < infolen; i++) {
+                if ((int)strlen(pinfo[i].m_modfullname) > maxlen) {
+                    maxlen = (int)strlen(pinfo[i].m_modfullname);
+                }
+            }
+        }
+        lastidx = idx;
+        fprintf(stdout, "%-*s %-*s %-*s      \n", maxlen, "name", 16,"addr",8,"size");
+        for (; parsestate->leftargs && parsestate->leftargs[lastidx]; lastidx ++ ) {
+            modname = parsestate->leftargs[lastidx];
+            ret = get_module_info(procid, modname, &pinfo, &infosize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not get [%d] mod[%s] error[%d]", procid, modname, ret);
+                goto out;
+            }
+            infolen = (int)(ret / sizeof(*pinfo));
+            for (i = 0; i < infolen; i++) {
+                fprintf(stdout, "%-*s %p %d\n", maxlen, pinfo[i].m_modfullname, pinfo[i].m_pimgbase,
+                        pinfo[i].m_modsize);
+            }
+        }
+    } else {
+        ret = get_module_info(procid, "", &pinfo, &infosize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not get [%d] mod[%s] error[%d]", procid, modname, ret);
+            goto out;
+        }
+        infolen = (int)(ret / sizeof(*pinfo));
+        DEBUG_INFO("infolen [%d]", infolen);
+        for (i = 0; i < infolen; i++) {
+            if ((int)strlen(pinfo[i].m_modfullname) > maxlen) {
+                maxlen = (int)strlen(pinfo[i].m_modfullname);
+            }
+        }
+        fprintf(stdout, "%-*s %-*s %-*s      \n", maxlen, "name", 16,"addr",8,"size");
+        ret = get_module_info(procid, "", &pinfo, &infosize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not get [%d] mod[%s] error[%d]", procid, modname, ret);
+            goto out;
+        }        
+        infolen = (int)(ret / sizeof(*pinfo));
+        DEBUG_INFO("infolen [%d]", infolen);
+        for (i = 0; i < infolen; i++) {
+            fprintf(stdout, "%-*s %p %d\n", maxlen, pinfo[i].m_modfullname, pinfo[i].m_pimgbase,
+                    pinfo[i].m_modsize);
+        }
+    }
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
 }
 
 

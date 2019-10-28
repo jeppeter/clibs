@@ -6,6 +6,7 @@
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
+#include <win_types.h>
 #include <stdarg.h>
 
 #ifdef __cplusplus
@@ -19,6 +20,13 @@ extern "C" {
 #define  PROC_STDOUT_NULL           0x10
 #define  PROC_STDERR_NULL           0x20
 #define  PROC_NO_WINDOW             0x100
+
+typedef struct __mod_info{
+	void* m_pimgbase;
+	char m_modfullname[MAX_PATH];
+	uint32_t m_modsize;
+} mod_info_t,*pmod_info_t;
+
 
 
 WINLIB_API int get_pid_argv(int pid, char*** pppargv, int *pargvsize);
@@ -63,6 +71,7 @@ WINLIB_API int wts_start_cmdv_detach(int createflag,char* prog[]);
 WINLIB_API int wts_start_cmd_single_detach(int createflag,const char* prog);
 
 WINLIB_API int process_num(char** ppnames,int numproc, int* pfinded);
+WINLIB_API int get_module_info(int procid,const char* pmodname,pmod_info_t *ppinfo,int *psize);
 
 
 WINLIB_API int is_wts_enabled(void);

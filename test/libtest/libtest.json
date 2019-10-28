@@ -201,5 +201,8 @@
     },
     "mksvc<mksvc_handler>##svcbin [svcname] [svcdesc] [svcstart]  to create service##"  :{
         "$" : "+"
+    },
+    "listmod<listmod_handler>##procid [modname]... list module information##" : {
+        "$" : "*"
     }
 }

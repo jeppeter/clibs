@@ -99,7 +99,7 @@ int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
     }
 
     memset(pcmd, 0, (size_t)cmdlen);
-    ret = _snprintf_s(pcmd, (size_t)cmdlen,(size_t)cmdlen, pid_wmic_cmd_fmt, tempfile, pid);
+    ret = _snprintf_s(pcmd, (size_t)cmdlen, (size_t)cmdlen, pid_wmic_cmd_fmt, tempfile, pid);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not snprintf error[%d]", ret);
@@ -248,7 +248,7 @@ try_again:
             ppretargv = NULL;
             goto try_again;
         }
-        strncpy_s(pcurptr,(size_t)(filllen - namelen), argv0, (size_t)(filllen - namelen));
+        strncpy_s(pcurptr, (size_t)(filllen - namelen), argv0, (size_t)(filllen - namelen));
         ppretargv[i] = pcurptr;
         pcurptr += curlen;
         namelen += curlen;
@@ -648,12 +648,12 @@ fail:
 
 int __get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
 {
-    char* pwholepath=0;
-    int wholesize=0;
+    char* pwholepath = 0;
+    int wholesize = 0;
     char* pcurptr;
-    int retlen=0;
-    char* prettmp=NULL;
-    int retsize=0;
+    int retlen = 0;
+    char* prettmp = NULL;
+    int retsize = 0;
     int ret;
     if (prefix == NULL) {
         if (pptmp && *pptmp) {
@@ -675,7 +675,7 @@ int __get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
     prettmp = *pptmp;
     retsize = *psize;
 
-    ret = mktempfile_safe(prefix,&pwholepath,&wholesize);
+    ret = mktempfile_safe(prefix, &pwholepath, &wholesize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -685,7 +685,7 @@ int __get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
     pcurptr += strlen(pwholepath);
     pcurptr -- ;
 
-    while(pcurptr != pwholepath) {
+    while (pcurptr != pwholepath) {
         if (*pcurptr == '\\') {
             pcurptr ++;
             break;
@@ -705,13 +705,13 @@ int __get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
         }
     }
 
-    memcpy(prettmp,pcurptr, (size_t)(retlen + 1));
+    memcpy(prettmp, pcurptr, (size_t)(retlen + 1));
     if (*pptmp && *pptmp != prettmp) {
         free(*pptmp);
     }
     *pptmp = prettmp;
     *psize = retsize;
-    mktempfile_safe(NULL,&pwholepath,&wholesize);
+    mktempfile_safe(NULL, &pwholepath, &wholesize);
     return retlen;
 fail:
     if (prettmp && prettmp != *pptmp) {
@@ -719,14 +719,14 @@ fail:
     }
     prettmp = NULL;
 
-    mktempfile_safe(NULL,&pwholepath,&wholesize);
+    mktempfile_safe(NULL, &pwholepath, &wholesize);
     SETERRNO(ret);
     return ret;
 }
 
 int get_temp_pipe_name(char* prefix, char** pptmp, int *psize)
 {
-    return __get_temp_pipe_name(prefix,pptmp,psize);
+    return __get_temp_pipe_name(prefix, pptmp, psize);
 }
 
 typedef struct __proc_handle {
@@ -1174,18 +1174,18 @@ void __free_wts_token(HANDLE *phtok)
         CloseHandle(*phtok);
         *phtok = NULL;
     }
-    return ; 
+    return ;
 }
 
 
 int __get_wts_token(HANDLE* phtok)
 {
-    HANDLE curtok=NULL;
-    HANDLE copytok=NULL;
+    HANDLE curtok = NULL;
+    HANDLE copytok = NULL;
     int ret;
-    PWTS_SESSION_INFO psessinfo=NULL;
-    PWTS_SESSION_INFO cursess=NULL;
-    DWORD cnt=0;
+    PWTS_SESSION_INFO psessinfo = NULL;
+    PWTS_SESSION_INFO cursess = NULL;
+    DWORD cnt = 0;
     BOOL bret;
     DWORD i;
     int sessid = -1;
@@ -1196,14 +1196,14 @@ int __get_wts_token(HANDLE* phtok)
         return ret;
     }
 
-    bret = WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE,0,1,&psessinfo,&cnt);
+    bret = WTSEnumerateSessions(WTS_CURRENT_SERVER_HANDLE, 0, 1, &psessinfo, &cnt);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("can not enum session error[%d]", ret);
         goto fail;
     }
 
-    for (i=0;i<cnt;i++) {
+    for (i = 0; i < cnt; i++) {
         cursess = &(psessinfo[i]);
         if (cursess->State == WTSActive) {
             sessid = (int)cursess->SessionId;
@@ -1226,8 +1226,8 @@ int __get_wts_token(HANDLE* phtok)
         goto fail;
     }
 
-    bret = DuplicateTokenEx(curtok,TOKEN_ASSIGN_PRIMARY | TOKEN_ALL_ACCESS | MAXIMUM_ALLOWED
-            ,0,SecurityImpersonation,TokenPrimary,&copytok);
+    bret = DuplicateTokenEx(curtok, TOKEN_ASSIGN_PRIMARY | TOKEN_ALL_ACCESS | MAXIMUM_ALLOWED
+                            , 0, SecurityImpersonation, TokenPrimary, &copytok);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("dup [%d] sess tok [0x%x] error[%d]", sessid, curtok, copytok);
@@ -1278,8 +1278,8 @@ int __start_proc_wts(pproc_handle_t pproc, int createflag, char* prog)
     int wcmdsize = 0;
     int res;
     int ret;
-    HANDLE husertok=NULL;
-    void* penvblock=NULL;
+    HANDLE husertok = NULL;
+    void* penvblock = NULL;
 
     ret = __get_wts_token(&husertok);
     if (ret < 0) {
@@ -1289,7 +1289,7 @@ int __start_proc_wts(pproc_handle_t pproc, int createflag, char* prog)
 
     DEBUG_INFO("husertok 0x%x", husertok);
 
-    bret = CreateEnvironmentBlock(&penvblock,husertok,FALSE);
+    bret = CreateEnvironmentBlock(&penvblock, husertok, FALSE);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("create environment block error[%d]", ret);
@@ -1379,7 +1379,7 @@ int __start_proc_wts(pproc_handle_t pproc, int createflag, char* prog)
 
 
     DEBUG_INFO("run cmd [%s]", pproc->m_cmdline);
-    bret = CreateProcessAsUserW(husertok, 
+    bret = CreateProcessAsUserW(husertok,
                                 NULL,
                                 wcmdline,
                                 /*process security attr*/
@@ -1392,8 +1392,8 @@ int __start_proc_wts(pproc_handle_t pproc, int createflag, char* prog)
                                 dwflag,
                                 penvblock,
                                 NULL,
-                                pstartinfo,pinfo);
-#if   0  
+                                pstartinfo, pinfo);
+#if   0
     bret = CreateProcessW(NULL, wcmdline,
                           NULL, NULL,
                           TRUE, dwflag,
@@ -3006,7 +3006,7 @@ fail:
     return ret;
 }
 
-int start_cmd_single_detach(int createflag,const char* prog)
+int start_cmd_single_detach(int createflag, const char* prog)
 {
     int retpid = 0;
     pproc_handle_t ppinfo = NULL;
@@ -3182,7 +3182,7 @@ fail:
     return ret;
 }
 
-int wts_start_cmd_single_detach(int createflag,const char* prog)
+int wts_start_cmd_single_detach(int createflag, const char* prog)
 {
     int retpid = 0;
     pproc_handle_t ppinfo = NULL;
@@ -3204,7 +3204,7 @@ int wts_start_cmd_single_detach(int createflag,const char* prog)
 fail:
     __free_proc_handle(&ppinfo);
     SETERRNO(ret);
-    return ret;    
+    return ret;
 }
 
 
@@ -3218,8 +3218,8 @@ int get_pids_by_name(const char* name, DWORD** ppids, int *psize)
     DWORD* ptmppids = NULL;
     int retsize = 0;
     BOOL bret;
-    TCHAR* ptname=NULL;
-    int namesize=0;
+    TCHAR* ptname = NULL;
+    int namesize = 0;
     if (name == NULL) {
         if (ppids && *ppids) {
             free(*ppids);
@@ -3266,7 +3266,7 @@ int get_pids_by_name(const char* name, DWORD** ppids, int *psize)
         goto fail;
     }
 
-    ret = AnsiToTchar(name, &ptname,&namesize);
+    ret = AnsiToTchar(name, &ptname, &namesize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -3314,7 +3314,7 @@ int get_pids_by_name(const char* name, DWORD** ppids, int *psize)
 
 succ:
 
-    AnsiToTchar(NULL,&ptname,&namesize);
+    AnsiToTchar(NULL, &ptname, &namesize);
 
     if (procentry != NULL) {
         free(procentry);
@@ -3334,7 +3334,7 @@ succ:
 
     return cnt;
 fail:
-    AnsiToTchar(NULL,&ptname,&namesize);
+    AnsiToTchar(NULL, &ptname, &namesize);
     if (procentry != NULL) {
         free(procentry);
     }
@@ -3360,26 +3360,26 @@ fail:
     return ret;
 }
 
-int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
+int __start_cmdv_session_detach(DWORD session, DWORD winlogonpid, char* cmdline)
 {
     int retpid = -1;
-    int ret,res;
+    int ret, res;
     STARTUPINFO* pstartinfo = NULL;
     PROCESS_INFORMATION* procinfo = NULL;
     TCHAR* ptdesktop = NULL;
     int tdesksize = 0;
     HANDLE hproc = INVALID_HANDLE_VALUE;
     HANDLE htoken = INVALID_HANDLE_VALUE;
-    HANDLE husertoken=INVALID_HANDLE_VALUE;
+    HANDLE husertoken = INVALID_HANDLE_VALUE;
     BOOL bret;
     DWORD getsessid;
-    PVOID penv=NULL;
-    TCHAR* ptcmdline=NULL;
-    int cmdsize=0;
+    PVOID penv = NULL;
+    TCHAR* ptcmdline = NULL;
+    int cmdsize = 0;
     DWORD createflag = 0;
     SECURITY_ATTRIBUTES      sa;
 
-    bret = ProcessIdToSessionId(winlogonpid,&getsessid);
+    bret = ProcessIdToSessionId(winlogonpid, &getsessid);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("can not get sessionid from [%d] error[%d]", (int) winlogonpid, ret);
@@ -3429,8 +3429,8 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
         goto fail;
     }
 
-    bret = OpenProcessToken(hproc, 
-                            //TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_ADJUST_SESSIONID | TOKEN_READ | TOKEN_WRITE, 
+    bret = OpenProcessToken(hproc,
+                            //TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY | TOKEN_DUPLICATE | TOKEN_ASSIGN_PRIMARY | TOKEN_ADJUST_SESSIONID | TOKEN_READ | TOKEN_WRITE,
                             //TOKEN_QUERY | TOKEN_DUPLICATE |  TOKEN_READ | TOKEN_ADJUST_PRIVILEGES,
                             TOKEN_DUPLICATE,
                             &htoken);
@@ -3440,11 +3440,11 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
         goto fail;
     }
 
-    memset(&sa, 0 ,sizeof(sa));
+    memset(&sa, 0 , sizeof(sa));
     sa.nLength = sizeof(sa);
 
     //bret = DuplicateTokenEx(htoken,MAXIMUM_ALLOWED,NULL,SecurityIdentification,TokenPrimary,&husertoken);
-    bret = DuplicateTokenEx(htoken,MAXIMUM_ALLOWED,&sa,SecurityIdentification,TokenPrimary,&husertoken);
+    bret = DuplicateTokenEx(htoken, MAXIMUM_ALLOWED, &sa, SecurityIdentification, TokenPrimary, &husertoken);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("can not duplicate token error [%d]", ret);
@@ -3463,7 +3463,7 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
         goto fail;
     }
 
-    bret = SetTokenInformation(husertoken,TokenSessionId,(void*)(&session),sizeof(DWORD));
+    bret = SetTokenInformation(husertoken, TokenSessionId, (void*)(&session), sizeof(DWORD));
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("set session id for duplicate token error[%d]", ret);
@@ -3471,7 +3471,7 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
     }
 
 
-    bret = CreateEnvironmentBlock(&penv,husertoken,TRUE);
+    bret = CreateEnvironmentBlock(&penv, husertoken, TRUE);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("create environment block error[%d]", ret);
@@ -3480,14 +3480,14 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
 
     createflag |= CREATE_UNICODE_ENVIRONMENT;
 
-    ret = AnsiToTchar(cmdline,&ptcmdline,&cmdsize);
+    ret = AnsiToTchar(cmdline, &ptcmdline, &cmdsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    bret = CreateProcessAsUser(husertoken,NULL,ptcmdline,
-            NULL,NULL,FALSE,createflag,penv,NULL,pstartinfo,procinfo);
+    bret = CreateProcessAsUser(husertoken, NULL, ptcmdline,
+                               NULL, NULL, FALSE, createflag, penv, NULL, pstartinfo, procinfo);
     if (!bret) {
         GETERRNO(ret);
         ERROR_INFO("create [%s] session [%d] error[%d]", cmdline, session, ret);
@@ -3505,7 +3505,7 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
     retpid = (int)procinfo->dwProcessId;
 
 
-    AnsiToTchar(NULL,&ptcmdline,&cmdsize);
+    AnsiToTchar(NULL, &ptcmdline, &cmdsize);
 
     if (penv) {
         bret = DestroyEnvironmentBlock(penv);
@@ -3546,7 +3546,7 @@ int __start_cmdv_session_detach(DWORD session,DWORD winlogonpid, char* cmdline)
 
     return retpid;
 fail:
-    AnsiToTchar(NULL,&ptcmdline,&cmdsize);
+    AnsiToTchar(NULL, &ptcmdline, &cmdsize);
 
     if (penv) {
         bret = DestroyEnvironmentBlock(penv);
@@ -3616,7 +3616,7 @@ int start_cmdv_session_detach(DWORD session, char* prog[])
 
     /*now we find the session*/
     for (i = 0; i < cnt; i++) {
-        ret = __start_cmdv_session_detach(session,ppids[i], cmdlines);
+        ret = __start_cmdv_session_detach(session, ppids[i], cmdlines);
         if (ret >= 0) {
             retpid = ret;
             break;
@@ -3705,10 +3705,10 @@ fail:
 
 int is_wts_enabled(void)
 {
-    HANDLE hd=NULL;
+    HANDLE hd = NULL;
     int ret;
 
-    ret=  __get_wts_token(&hd);
+    ret =  __get_wts_token(&hd);
     if (ret < 0) {
         goto fail;
     }
@@ -3771,13 +3771,13 @@ do{                                                                             
 
 
 
-int process_num(char** ppnames,int numproc, int* pfinded)
+int process_num(char** ppnames, int numproc, int* pfinded)
 {
-    HANDLE hd=NULL;
+    HANDLE hd = NULL;
     int ret;
-    LPPROCESSENTRY32 pproc=NULL;
+    LPPROCESSENTRY32 pproc = NULL;
     BOOL bret;
-    int numhdl=0;
+    int numhdl = 0;
 
     if (ppnames == NULL || pfinded == NULL || numproc == 0) {
         ret = -ERROR_INVALID_PARAMETER;
@@ -3796,14 +3796,14 @@ int process_num(char** ppnames,int numproc, int* pfinded)
     pproc = (LPPROCESSENTRY32) malloc(sizeof(*pproc));
     if (pproc == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pproc) ,ret);
+        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pproc) , ret);
         goto fail;
     }
     memset(pproc, 0, sizeof(*pproc));
     pproc->dwSize = sizeof(*pproc);
-    memset(pfinded, 0 ,sizeof(pfinded[0]) * numproc);
+    memset(pfinded, 0 , sizeof(pfinded[0]) * numproc);
 
-    bret = Process32First(hd,pproc);
+    bret = Process32First(hd, pproc);
     if (!bret) {
         GETERRNO(ret);
         if (ret == -ERROR_NO_MORE_FILES ) {
@@ -3815,10 +3815,10 @@ int process_num(char** ppnames,int numproc, int* pfinded)
 
     CHECK_PROC_RUN();
     numhdl ++;
-    while(1) {
-        memset(pproc,0, sizeof(*pproc));
+    while (1) {
+        memset(pproc, 0, sizeof(*pproc));
         pproc->dwSize = sizeof(*pproc);
-        bret = Process32Next(hd,pproc);
+        bret = Process32Next(hd, pproc);
         if (!bret) {
             GETERRNO(ret);
             if (ret == -ERROR_NO_MORE_FILES) {
@@ -3858,6 +3858,177 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+#define   MOD_INFO_HANDLE()                                                                       \
+do{                                                                                               \
+    ret = TcharToAnsi(pmod->szModule, &pmodname, &modsize);                                       \
+    if (ret < 0) {                                                                                \
+        GETERRNO(ret);                                                                            \
+        goto fail;                                                                                \
+    }                                                                                             \
+    DEBUG_INFO("[%d]modname [%s] base [%p] modsize[0x%x]", numhdl, pmodname,                      \
+               pmod->modBaseAddr, pmod->modBaseSize);                                             \
+    pcur = strrchr(pmodname, '\\');                                                               \
+    if (pcur) {                                                                                   \
+        pcur ++;                                                                                  \
+    } else {                                                                                      \
+        pcur = pmodname;                                                                          \
+    }                                                                                             \
+    DEBUG_INFO("name [%s] pcur [%s]", name, pcur);                                                \
+    if ( (int)strlen(name) == 0 || _stricmp(pcur, name) == 0) {                                   \
+        if (pretinfo == NULL || retsize < (int)((retlen + 1) * sizeof(*pretinfo))) {              \
+            if (retsize < (int)((retlen + 1) * sizeof(*pretinfo))) {                              \
+                retsize = (int)(((retlen + 1) << 1) * sizeof(*pretinfo));                         \
+            }                                                                                     \
+            ptmpinfo = (pmod_info_t) malloc((size_t)retsize);                                     \
+            if (ptmpinfo == NULL) {                                                               \
+                GETERRNO(ret);                                                                    \
+                goto fail;                                                                        \
+            }                                                                                     \
+            memset(ptmpinfo, 0, (size_t)retsize);                                                 \
+            if (retlen > 0) {                                                                     \
+                memcpy(ptmpinfo, pretinfo, (retlen * sizeof(*pretinfo)));                         \
+            }                                                                                     \
+            if (pretinfo && pretinfo != *ppinfo) {                                                \
+                free(pretinfo);                                                                   \
+            }                                                                                     \
+            pretinfo = ptmpinfo;                                                                  \
+            ptmpinfo = NULL;                                                                      \
+        }                                                                                         \
+        strncpy_s(pretinfo[retlen].m_modfullname, sizeof(pretinfo[retlen].m_modfullname),         \
+                  pmodname, sizeof(pretinfo[retlen].m_modfullname));                              \
+        pretinfo[retlen].m_pimgbase =  pmod->modBaseAddr;                                         \
+        pretinfo[retlen].m_modsize = pmod->modBaseSize;                                           \
+        retlen ++;                                                                                \
+        DEBUG_INFO("insert [%d]", retlen);                                                        \
+    }                                                                                             \
+    numhdl ++;                                                                                    \
+}while(0)
+
+int get_module_info(int procid, const char* name, pmod_info_t *ppinfo, int *psize)
+{
+    HANDLE hd = NULL;
+    int ret;
+    LPMODULEENTRY32  pmod = NULL;
+    char* pmodname = NULL;
+    int modsize = 0;
+    BOOL bret;
+    char* pcur;
+    int numhdl = 0;
+    pmod_info_t pretinfo = NULL, ptmpinfo = NULL;
+    int retsize = 0;
+    int retlen = 0;
+
+    if (name == NULL) {
+        if (ppinfo && *ppinfo) {
+            free(*ppinfo);
+            *ppinfo = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (ppinfo == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretinfo = *ppinfo;
+    retsize = *psize;
+
+    hd = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, (DWORD)procid);
+    if (hd == INVALID_HANDLE_VALUE) {
+        GETERRNO(ret);
+        ERROR_INFO("can not create process snapshot error[%d]", ret);
+        goto fail;
+    }
+
+    pmod = (LPMODULEENTRY32) malloc(sizeof(*pmod));
+    if (pmod == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pmod) , ret);
+        goto fail;
+    }
+    memset(pmod, 0, sizeof(*pmod));
+    pmod->dwSize = sizeof(*pmod);
+
+    bret = Module32First(hd, pmod);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_NO_MORE_FILES ) {
+            goto succ;
+        }
+        ERROR_INFO("get first module snapshot error[%d]", ret);
+        goto fail;
+    }
+
+    MOD_INFO_HANDLE();
+
+    while (1) {
+        memset(pmod, 0, sizeof(*pmod));
+        pmod->dwSize = sizeof(*pmod);
+        bret = Module32Next(hd, pmod);
+        if (!bret) {
+            GETERRNO(ret);
+            if (ret == -ERROR_NO_MORE_FILES) {
+                break;
+            }
+            ERROR_INFO("can not get proc snapshot at [%d] error[%d]", numhdl, ret);
+            goto fail;
+        }
+        MOD_INFO_HANDLE();
+    }
+succ:
+    if (ptmpinfo) {
+        free(ptmpinfo);
+    }
+    ptmpinfo = NULL;
+
+    TcharToAnsi(NULL, &pmodname, &modsize);
+    if (pmod) {
+        free(pmod);
+    }
+    pmod = NULL;
+
+    if (hd != NULL && hd != INVALID_HANDLE_VALUE) {
+        CloseHandle(hd);
+    }
+    hd = NULL;
+    if (*ppinfo && *ppinfo != pretinfo) {
+        free(*ppinfo);
+    }
+    *ppinfo = pretinfo;
+    *psize = retsize;
+
+    return (int)(retlen * sizeof(*pretinfo));
+fail:
+    if (ptmpinfo) {
+        free(ptmpinfo);
+    }
+    ptmpinfo = NULL;
+
+    if (pretinfo && pretinfo != *ppinfo) {
+        free(pretinfo);
+    }
+    pretinfo = NULL;
+
+    TcharToAnsi(NULL, &pmodname, &modsize);
+    if (pmod) {
+        free(pmod);
+    }
+    pmod = NULL;
+    if (hd != NULL && hd != INVALID_HANDLE_VALUE) {
+        CloseHandle(hd);
+    }
+    hd = NULL;
+
+    SETERRNO(ret);
+    return ret;
+}
+
 
 #if _MSC_VER >= 1910
 #pragma warning(pop)
