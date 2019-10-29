@@ -226,7 +226,7 @@ int mktemp_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     init_log_level(pargs);
     if (parsestate->leftargs != NULL) {
         for (i = 0; parsestate->leftargs[i] != NULL ; i++) {
-            ret = get_temp_pipe_name(parsestate->leftargs[i], &templstr, &templsize);
+            ret = mktempfile_safe(parsestate->leftargs[i], &templstr, &templsize);
             //ret = 0;
             if (ret < 0) {
                 fprintf(stderr, "can not parse [%s] error(%d)\n", parsestate->leftargs[i], ret);

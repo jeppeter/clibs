@@ -64,9 +64,11 @@ int mktempfile_safe(char* inputtemplate, char**ppoutput, int* bufsize)
         ERROR_INFO("can not get TEMP env error[%d]", ret);
         goto fail;
     }
-    templen = (int)strlen(plastpart) + 1;
+    /*to add \\ */
+    templen = (int)strlen(plastpart) + 2;
     templen += (int)strlen(ptemppath);
     templen += TEMP_XSIZE;
+    DEBUG_INFO(" ");
 
     if (templen > retlen || pretout == NULL) {
         retlen = templen;
@@ -78,11 +80,11 @@ int mktempfile_safe(char* inputtemplate, char**ppoutput, int* bufsize)
         }
     }
     memset(pretout, 0, (size_t)retlen);
-    strncpy_s(pretout, (size_t)retlen, ptemppath, (size_t)templen);
-    strncat_s(pretout, (size_t)retlen, "\\", (size_t)templen);
-    strncat_s(pretout, (size_t)retlen,plastpart, (size_t)templen);
+    strncpy_s(pretout, (size_t)templen, ptemppath, (size_t)templen);
+    strncat_s(pretout, (size_t)templen, "\\", (size_t)templen);
+    strncat_s(pretout, (size_t)templen,plastpart, (size_t)templen);
     for (i = 0; i < TEMP_XSIZE; i++) {
-        strncat_s(pretout, (size_t)retlen,"X", (size_t)templen);
+        strncat_s(pretout, (size_t)templen,"X", (size_t)templen);
     }
     sz = strlen(pretout) + 1;
     err = _mktemp_s(pretout, sz);
