@@ -343,7 +343,7 @@ static void print_jvalue(const jvalue *value, char **buf, unsigned int *bufsiz, 
     const juser *v = (const juser *) value;
     if (v->write) {
       char* tmp = util_malloc(MAX_VALUE_STRING_SIZE);
-      if (tmp != NULL) {
+      if (tmp) {
         unsigned int len = v->write(v->value, tmp, MAX_VALUE_STRING_SIZE);
         util_strexpand(buf, bufsiz, pos, tmp, len);
         util_free(tmp);        
