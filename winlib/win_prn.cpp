@@ -2,6 +2,8 @@
 #include <win_proc.h>
 #include <win_strop.h>
 #include <win_err.h>
+#include <win_fileop.h>
+#include <win_strop.h>
 
 #if _MSC_VER >= 1910
 #pragma warning(push)
@@ -167,6 +169,124 @@ fail:
 	return ret;
 }
 
+
+int add_share_printer(HANDLE hexitevt,char* name,char* remoteip,char* user,char* password)
+{
+	int ret;
+	char* filetemplate=NULL;
+	int templatesize=0;
+	char* tempfile=NULL;
+	int tempsize=0;
+	int added=1;
+	char* batscript=NULL;
+	int batsize=0;
+	int batlen=0;
+	char* cmpname=NULL;
+	int cmpsize=0;
+	pprinter_list_t pplist=NULL;
+	int prnsize=0,prnlen=0;
+	int fidx=0;
+	int i;
+	int exitcode=0;
+
+	ret = snprintf_safe(&cmpname,&cmpsize,"\\\\%s\\%s",remoteip,name);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+	ret = get_printer_list(0,hexitevt,&pplist,&prnsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	prnlen = ret;
+
+
+	fidx= -1;
+	for (i=0;i<prnlen;i++) {
+		if (_stricmp(cmpname,pplist[i].m_name) ==0) {
+			added=0;
+			DEBUG_INFO("already added [%s]",cmpname);
+			goto succ;
+		}
+	}
+
+	ret = snprintf_safe(&batscript,&batsize,"REM to connect use \nnet use \"\\\\%s\\ipc$\" /user:\"%s\" \"%s\"\nrundll32.exe printui.dll,PrintUIEntry /in /q /n \"\\\\%s\\%s\"",
+		remoteip,user ? user : "guest", password ? password : "",remoteip,name);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	batlen = ret;
+
+	ret = mktempfile_safe("addshareXXXXXX",&filetemplate,&templatesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("mktempfile error[%d]",ret);
+		goto fail;
+	}
+
+	ret = snprintf_safe(&tempfile,&tempsize,"%s.bat",filetemplate);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = write_file_whole(tempfile,batscript,batlen);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("write [%s] error[%d]", tempfile,ret);
+		goto fail;
+	}
+
+	run_cmd_event_output_single(hexitevt,NULL,0,NULL,0,NULL,0,&exitcode,0,tempfile);
+
+	/*we do not check for the return value or */
+	ret = get_printer_list(0,hexitevt,&pplist,&prnsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	prnlen = 0;
+	fidx = -1;
+	for (i= 0;i<prnlen;i++) {
+		if (_stricmp(pplist[i].m_name,cmpname) == 0) {
+			fidx = i;
+			break;
+		}
+	}
+
+	if (fidx < 0) {
+		ret = -ERROR_CANNOT_MAKE;
+		ERROR_INFO("can not make \\\\%s\\%s on user[%s] password[%s]", remoteip,name,user,password);
+		goto fail;
+	}
+
+succ:
+	get_printer_list(1,NULL,&pplist,&prnsize);
+	snprintf_safe(&cmpname,&cmpsize,NULL);
+	if (tempfile) {
+		delete_file(tempfile);
+	}
+	snprintf_safe(&tempfile,&tempsize,NULL);
+	mktempfile_safe(NULL,&filetemplate,&templatesize);
+	snprintf_safe(&batscript,&batsize,NULL);
+	return added;
+fail:
+	get_printer_list(1,NULL,&pplist,&prnsize);
+	snprintf_safe(&cmpname,&cmpsize,NULL);
+	if (tempfile) {
+		delete_file(tempfile);
+	}
+	snprintf_safe(&tempfile,&tempsize,NULL);
+	mktempfile_safe(NULL,&filetemplate,&templatesize);
+	snprintf_safe(&batscript,&batsize,NULL);
+	SETERRNO(ret);
+	return ret;
+}
+
 #if _MSC_VER >= 1910
 #pragma warning(pop)
-#endif
+#endif 

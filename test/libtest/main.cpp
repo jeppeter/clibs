@@ -163,6 +163,7 @@ int mkdrv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int mksvc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int listmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int addprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -6933,6 +6934,53 @@ int getprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 out:
     get_printer_list(1,NULL,&pprn,&prnsize);
     prnlen = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+int addprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* remoteip=NULL;
+    char* name=NULL;
+    char* user=NULL;
+    char* password=NULL;
+    int ret;
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int i=0;
+    init_log_level(pargs);
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        if (i==0) {
+            remoteip = parsestate->leftargs[i];
+        } else if (i == 1) {
+            name = parsestate->leftargs[i];
+        } else if (i == 2) {
+            user = parsestate->leftargs[i];
+        } else if (i == 3) {
+            password = parsestate->leftargs[i];
+        }
+    }
+
+    if (remoteip == NULL || name == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr,"need remoteip and name\n");
+        goto out;
+    }
+
+    ret = add_share_printer(NULL,remoteip,name,user,password);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not add [\\\\%s\\%s] with user[%s] password[%s] error[%d]\n",
+            remoteip,name,user ? user: "guest",password ? password : "",ret);
+        goto out;
+    }
+
+    fprintf(stdout,"add [\\\\%s\\%s] succ\n",remoteip,name);
+
+    ret = 0;
+out:
     SETERRNO(ret);
     return ret;
 }

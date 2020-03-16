@@ -207,5 +207,8 @@
     },
     "getprn<getprn_handler>" : {
         "$" : 0
+    },
+    "addprn<addprn_handler>## remoteip name [user] [password] to add printer ##" : {
+        "$" : "+"
     }
 }
