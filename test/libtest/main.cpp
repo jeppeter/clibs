@@ -164,6 +164,9 @@ int mksvc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int listmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int addprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int delprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int saveprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int restoreprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -6969,7 +6972,7 @@ int addprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         goto out;
     }
 
-    ret = add_share_printer(NULL,remoteip,name,user,password);
+    ret = add_share_printer(NULL,name,remoteip,user,password);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr,"can not add [\\\\%s\\%s] with user[%s] password[%s] error[%d]\n",
@@ -6979,6 +6982,86 @@ int addprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     fprintf(stdout,"add [\\\\%s\\%s] succ\n",remoteip,name);
 
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int delprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* remoteip=NULL;
+    char* name=NULL;
+    int ret;
+    pargs_options_t pargs= (pargs_options_t)popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    remoteip = parsestate->leftargs[0];
+    name = parsestate->leftargs[1];
+
+    ret = del_share_printer(NULL,remoteip,name);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not delete printer [%s].[%s] error[%d]",remoteip,name,ret);
+        goto out;
+    }
+
+    fprintf(stdout,"delete \\\\%s\\%s succ\n",remoteip,name);
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+
+}
+int saveprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char*exportfile=NULL;
+    int ret;
+    pargs_options_t pargs = (pargs_options_t)popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+    exportfile = parsestate->leftargs[0];
+
+    ret = save_printer_exportfile(NULL,exportfile);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("save printer configuration [%s] error[%d]",exportfile,ret);
+        goto out;
+    }
+
+    fprintf(stdout, "save printer configuration [%s] succ\n", exportfile);
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int restoreprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char*exportfile=NULL;
+    int ret;
+    pargs_options_t pargs = (pargs_options_t)popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    init_log_level(pargs);
+    exportfile = parsestate->leftargs[0];
+
+    ret = restore_printer_exportfile(NULL,exportfile);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("restore printer configuration [%s] error[%d]",exportfile,ret);
+        goto out;
+    }
+
+    fprintf(stdout, "restore printer configuration [%s] succ\n", exportfile);
     ret = 0;
 out:
     SETERRNO(ret);

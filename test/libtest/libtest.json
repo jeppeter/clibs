@@ -210,5 +210,14 @@
     },
     "addprn<addprn_handler>## remoteip name [user] [password] to add printer ##" : {
         "$" : "+"
+    },
+    "delprn<delprn_handler>## remoteip name to delete printer##" : {
+        "$" : 2
+    },
+    "saveprn<saveprn_handler>## exportfile to save printer configuration into exportfile##" : {
+        "$" : 1
+    },
+    "restoreprn<restoreprn_handler>## exportfile to restore printer configuration from exportfile##" : {
+        "$" : 1
     }
 }

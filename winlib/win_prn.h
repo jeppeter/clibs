@@ -22,9 +22,9 @@ typedef struct __printer_list {
 
 WINLIB_API int get_printer_list(int freed,HANDLE hexitevt,pprinter_list_t* ppret, int *psize);
 WINLIB_API int add_share_printer(HANDLE hexitevt,char* name,char* remoteip,char* user,char* password);
-WINLIB_API int del_share_printer(HANDLE hexitevt,char* name);
-WINLIB_API int save_printer_exportfile(char* exportfile);
-WINLIB_API int restore_printer_exportfile(char* exportfile);
+WINLIB_API int del_share_printer(HANDLE hexitevt,char* name,char* remoteip);
+WINLIB_API int save_printer_exportfile(HANDLE hexitevt,char* exportfile);
+WINLIB_API int restore_printer_exportfile(HANDLE hexitevt,char* exportfile);
 
 #ifdef __cplusplus
 };

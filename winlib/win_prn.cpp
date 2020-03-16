@@ -4,6 +4,7 @@
 #include <win_err.h>
 #include <win_fileop.h>
 #include <win_strop.h>
+#include <win_envop.h>
 
 #if _MSC_VER >= 1910
 #pragma warning(push)
@@ -213,7 +214,7 @@ int add_share_printer(HANDLE hexitevt,char* name,char* remoteip,char* user,char*
 		}
 	}
 
-	ret = snprintf_safe(&batscript,&batsize,"REM to connect use \nnet use \"\\\\%s\\ipc$\" /user:\"%s\" \"%s\"\nrundll32.exe printui.dll,PrintUIEntry /in /q /n \"\\\\%s\\%s\"",
+	ret = snprintf_safe(&batscript,&batsize,"net use \"\\\\%s\\ipc$\" /user:\"%s\" \"%s\"\nrundll32.exe printui.dll,PrintUIEntry /in /q /n \"\\\\%s\\%s\"",
 		remoteip,user ? user : "guest", password ? password : "",remoteip,name);
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -233,6 +234,7 @@ int add_share_printer(HANDLE hexitevt,char* name,char* remoteip,char* user,char*
 		GETERRNO(ret);
 		goto fail;
 	}
+	DEBUG_INFO("tempfile [%s]",tempfile);
 
 	ret = write_file_whole(tempfile,batscript,batlen);
 	if (ret < 0) {
@@ -286,6 +288,223 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int del_share_printer(HANDLE hexitevt,char* name,char* remoteip)
+{
+	int ret;
+	int prnsize=0,prnlen=0;
+	pprinter_list_t pprn=NULL;
+	int fidx=-1;
+	int removed=0;
+	char* cmpname=NULL;
+	int cmpsize=0;
+	char* cmd=NULL;
+	int cmdsize=0;
+	int cmdlen=0;
+	int exitcode=0;
+	char* tempfile=NULL;
+	int tempsize=0;
+	char* templatefile=NULL;
+	int templatesize=0;
+	int i;
+
+	ret = snprintf_safe(&cmpname,&cmpsize,"\\\\%s\\%s",remoteip,name);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_printer_list(0,hexitevt,&pprn,&prnsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	prnlen = ret;
+	for (i=0;i<prnlen;i++) {
+		if (_stricmp(pprn[i].m_name,cmpname) == 0) {
+			fidx = i;
+			break;
+		}
+	}
+
+	if (fidx < 0) {
+		goto succ;
+	}
+
+	ret = mktempfile_safe("delshareXXXXXXX",&templatefile,&templatesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = snprintf_safe(&tempfile,&tempsize,"%s.bat",templatefile);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	DEBUG_INFO("tempfile [%s]", tempfile);
+
+	ret = snprintf_safe(&cmd,&cmdsize,"rundll32.exe printui.dll,PrintUIEntry /dn /q /n \"\\\\%s\\%s\"",remoteip,name);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	cmdlen = ret;
+
+	ret = write_file_whole(tempfile,cmd,cmdlen);
+	if ( ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = run_cmd_event_output_single(hexitevt,NULL,0,NULL,0,NULL,0,&exitcode,0,tempfile);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_printer_list(0,hexitevt,&pprn,&prnsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	prnlen = ret;
+
+	fidx = -1;
+	for(i=0;i<prnlen;i++) {
+		if (_stricmp(pprn[i].m_name,cmpname) == 0) {
+			fidx = i;
+			break;
+		}
+	}
+
+	if (fidx >= 0) {
+		ret = -ERROR_FILE_EXISTS;
+		ERROR_INFO("can not remove [%s]", cmpname);
+		goto fail;
+	}
+	removed = 1;
+succ:
+	if (tempfile) {
+		delete_file(tempfile);
+	}
+	snprintf_safe(&cmd,&cmdsize,NULL);
+	snprintf_safe(&tempfile,&tempsize,NULL);
+	mktempfile_safe(NULL,&templatefile,&templatesize);
+	get_printer_list(1,NULL,&pprn,&prnsize);
+	snprintf_safe(&cmpname,&cmpsize,NULL);
+	return removed;
+fail:
+	if (tempfile) {
+		delete_file(tempfile);
+	}
+	snprintf_safe(&cmd,&cmdsize,NULL);
+	snprintf_safe(&tempfile,&tempsize,NULL);
+	mktempfile_safe(NULL,&templatefile,&templatesize);
+	get_printer_list(1,NULL,&pprn,&prnsize);
+	snprintf_safe(&cmpname,&cmpsize,NULL);
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int save_printer_exportfile(HANDLE hexitevt,char* exportfile)
+{
+	int cmdsize=0;
+	char* cmd=NULL;
+	int exitcode=0;
+	char* sysdir=NULL;
+	int syssize=0;
+	int ret;
+
+	ret = get_env_variable("windir",&sysdir,&syssize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = snprintf_safe(&cmd,&cmdsize,"%s\\System32\\Spool\\Tools\\PrintBRM.exe  -b  -f \"%s\"",
+		sysdir,exportfile);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = run_cmd_event_output_single(hexitevt,NULL,0,NULL,0,NULL,0,&exitcode,0,cmd);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (exitcode != 0) {
+		ret = -exitcode;
+		if (ret > 0) {
+			ret = -ret;
+		}
+		ERROR_INFO("run [%s] exitcode[%d]",cmd,exitcode);
+		goto fail;
+	}
+
+	snprintf_safe(&cmd,&cmdsize,NULL);
+	get_env_variable(NULL,&sysdir,&syssize);
+	return 0;
+fail:
+	snprintf_safe(&cmd,&cmdsize,NULL);
+	get_env_variable(NULL,&sysdir,&syssize);
+	SETERRNO(ret);
+	return ret;
+}
+
+int restore_printer_exportfile(HANDLE hexitevt,char* exportfile)
+{
+	int cmdsize=0;
+	char* cmd=NULL;
+	int exitcode=0;
+	char* sysdir=NULL;
+	int syssize=0;
+	int ret;
+
+	ret = get_env_variable("windir",&sysdir,&syssize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = snprintf_safe(&cmd,&cmdsize,"%s\\System32\\Spool\\Tools\\PrintBRM.exe -r -f \"%s\"",
+		sysdir,exportfile);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = run_cmd_event_output_single(hexitevt,NULL,0,NULL,0,NULL,0,&exitcode,0,cmd);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (exitcode != 0) {
+		ret = -exitcode;
+		if (ret > 0) {
+			ret = -ret;
+		}
+		ERROR_INFO("run [%s] exitcode[%d]",cmd,exitcode);
+		goto fail;
+	}
+
+	snprintf_safe(&cmd,&cmdsize,NULL);
+	get_env_variable(NULL,&sysdir,&syssize);
+	return 0;
+fail:
+	snprintf_safe(&cmd,&cmdsize,NULL);
+	get_env_variable(NULL,&sysdir,&syssize);
+	SETERRNO(ret);
+	return ret;
+}
+
 
 #if _MSC_VER >= 1910
 #pragma warning(pop)
