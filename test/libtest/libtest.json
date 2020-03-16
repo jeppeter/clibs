@@ -204,5 +204,8 @@
     },
     "listmod<listmod_handler>##procid [modname]... list module information##" : {
         "$" : "*"
+    },
+    "getprn<getprn_handler>" : {
+        "$" : 0
     }
 }

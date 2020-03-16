@@ -39,6 +39,7 @@
 #include <win_base64.h>
 #include <win_user.h>
 #include <win_namedpipe.h>
+#include <win_prn.h>
 
 
 #include <jvalue.h>
@@ -161,6 +162,7 @@ int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int mkdrv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int mksvc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int listmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -6877,6 +6879,63 @@ out:
     return ret;
 }
 
+
+int getprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    pprinter_list_t pprn=NULL;
+    int prnsize=0,prnlen=0;
+    int i;
+    size_t namelen=0,sharelen=0,iplen=0,typelen=0;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(parsestate);
+    init_log_level(pargs);
+
+    ret = get_printer_list(0,NULL,&pprn,&prnsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not get printer list [%d]", ret);
+        goto out;
+    }
+    prnlen = ret;
+
+    namelen = strlen("name") ;
+    iplen = strlen("ip");
+    typelen = strlen("type");
+    sharelen = strlen("share");
+
+    for(i=0;i < prnlen;i++) {
+        if (strlen(pprn[i].m_name) >= namelen) {
+            namelen = strlen(pprn[i].m_name) + 1;
+        }
+        if (strlen(pprn[i].m_sharename) >= sharelen) {
+            sharelen = strlen(pprn[i].m_sharename) + 1;
+        }
+
+        if (strlen(pprn[i].m_ip) >= iplen) {
+            iplen = strlen(pprn[i].m_ip) + 1;
+        }
+
+        if (strlen(pprn[i].m_type) >= typelen) {
+            typelen = strlen(pprn[i].m_type) + 1;
+        }
+    }
+
+    fprintf(stdout,"items %-*s %-*s %-*s %-*s\n",(int)namelen,"name",(int)typelen,"type",(int)sharelen,"share",(int)iplen,"ip");
+    for (i=0;i<prnlen;i++) {
+        fprintf(stdout, "%03d   %-*s %-*s %-*s %-*s\n",i,(int)namelen,pprn[i].m_name,(int)typelen,pprn[i].m_type,
+                (int)sharelen,pprn[i].m_sharename,(int)iplen,pprn[i].m_ip);
+    }
+    ret = 0;
+out:
+    get_printer_list(1,NULL,&pprn,&prnsize);
+    prnlen = 0;
+    SETERRNO(ret);
+    return ret;
+}
 
 #include "dbgcode.cpp"
 
