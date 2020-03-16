@@ -1804,8 +1804,10 @@ int get_proc_exit(void* proc, int *exitcode)
                 return 0;
             }
         }
-        GETERRNO(ret);
-        ERROR_INFO("get exit code error[%d]", ret);
+        GETERRNO_DIRECT(ret);
+        if (ret != 0) {
+            ERROR_INFO("get exit code error[%d]", ret);
+        }
         ret = -ERROR_ALREADY_EXISTS;
         SETERRNO(ret);
         return ret;

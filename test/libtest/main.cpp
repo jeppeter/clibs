@@ -7002,7 +7002,7 @@ int delprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     remoteip = parsestate->leftargs[0];
     name = parsestate->leftargs[1];
 
-    ret = del_share_printer(NULL,remoteip,name);
+    ret = del_share_printer(NULL,name,remoteip);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not delete printer [%s].[%s] error[%d]",remoteip,name,ret);

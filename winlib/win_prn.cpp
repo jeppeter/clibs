@@ -174,14 +174,9 @@ fail:
 int add_share_printer(HANDLE hexitevt,char* name,char* remoteip,char* user,char* password)
 {
 	int ret;
-	char* filetemplate=NULL;
-	int templatesize=0;
-	char* tempfile=NULL;
-	int tempsize=0;
 	int added=1;
 	char* batscript=NULL;
 	int batsize=0;
-	int batlen=0;
 	char* cmpname=NULL;
 	int cmpsize=0;
 	pprinter_list_t pplist=NULL;
@@ -214,36 +209,32 @@ int add_share_printer(HANDLE hexitevt,char* name,char* remoteip,char* user,char*
 		}
 	}
 
-	ret = snprintf_safe(&batscript,&batsize,"net use \"\\\\%s\\ipc$\" /user:\"%s\" \"%s\"\nrundll32.exe printui.dll,PrintUIEntry /in /q /n \"\\\\%s\\%s\"",
-		remoteip,user ? user : "guest", password ? password : "",remoteip,name);
+	ret = snprintf_safe(&batscript,&batsize,"net use \"\\\\%s\\ipc$\" /user:\"%s\" \"%s\"", remoteip,user ? user : "guest",
+		password ? password : "");
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
-	batlen = ret;
 
-	ret = mktempfile_safe("addshareXXXXXX",&filetemplate,&templatesize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		ERROR_INFO("mktempfile error[%d]",ret);
-		goto fail;
-	}
-
-	ret = snprintf_safe(&tempfile,&tempsize,"%s.bat",filetemplate);
+	ret = run_cmd_event_output_single(hexitevt,NULL,0,NULL,0,NULL,0,&exitcode,0,batscript);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
-	DEBUG_INFO("tempfile [%s]",tempfile);
 
-	ret = write_file_whole(tempfile,batscript,batlen);
+	ret = snprintf_safe(&batscript,&batsize,"rundll32.exe printui.dll,PrintUIEntry /in /q /n \"\\\\%s\\%s\"", remoteip,name);
 	if (ret < 0) {
 		GETERRNO(ret);
-		ERROR_INFO("write [%s] error[%d]", tempfile,ret);
 		goto fail;
 	}
 
-	run_cmd_event_output_single(hexitevt,NULL,0,NULL,0,NULL,0,&exitcode,0,tempfile);
+	ret = run_cmd_event_output_single(hexitevt,NULL,0,NULL,0,NULL,0,&exitcode,0,batscript);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
 
 	/*we do not check for the return value or */
 	ret = get_printer_list(0,hexitevt,&pplist,&prnsize);
@@ -251,11 +242,13 @@ int add_share_printer(HANDLE hexitevt,char* name,char* remoteip,char* user,char*
 		GETERRNO(ret);
 		goto fail;
 	}
-	prnlen = 0;
+	prnlen = ret;
 	fidx = -1;
 	for (i= 0;i<prnlen;i++) {
+		DEBUG_INFO("[%d].m_name[%s] cmpname[%s]", i, pplist[i].m_name,cmpname);
 		if (_stricmp(pplist[i].m_name,cmpname) == 0) {
 			fidx = i;
+			DEBUG_INFO("match [%d]",i);
 			break;
 		}
 	}
@@ -269,21 +262,11 @@ int add_share_printer(HANDLE hexitevt,char* name,char* remoteip,char* user,char*
 succ:
 	get_printer_list(1,NULL,&pplist,&prnsize);
 	snprintf_safe(&cmpname,&cmpsize,NULL);
-	if (tempfile) {
-		delete_file(tempfile);
-	}
-	snprintf_safe(&tempfile,&tempsize,NULL);
-	mktempfile_safe(NULL,&filetemplate,&templatesize);
 	snprintf_safe(&batscript,&batsize,NULL);
 	return added;
 fail:
 	get_printer_list(1,NULL,&pplist,&prnsize);
 	snprintf_safe(&cmpname,&cmpsize,NULL);
-	if (tempfile) {
-		delete_file(tempfile);
-	}
-	snprintf_safe(&tempfile,&tempsize,NULL);
-	mktempfile_safe(NULL,&filetemplate,&templatesize);
 	snprintf_safe(&batscript,&batsize,NULL);
 	SETERRNO(ret);
 	return ret;
@@ -300,12 +283,7 @@ int del_share_printer(HANDLE hexitevt,char* name,char* remoteip)
 	int cmpsize=0;
 	char* cmd=NULL;
 	int cmdsize=0;
-	int cmdlen=0;
 	int exitcode=0;
-	char* tempfile=NULL;
-	int tempsize=0;
-	char* templatefile=NULL;
-	int templatesize=0;
 	int i;
 
 	ret = snprintf_safe(&cmpname,&cmpsize,"\\\\%s\\%s",remoteip,name);
@@ -313,6 +291,7 @@ int del_share_printer(HANDLE hexitevt,char* name,char* remoteip)
 		GETERRNO(ret);
 		goto fail;
 	}
+	DEBUG_INFO("cmpname [%s]", cmpname);
 
 	ret = get_printer_list(0,hexitevt,&pprn,&prnsize);
 	if (ret < 0) {
@@ -321,9 +300,12 @@ int del_share_printer(HANDLE hexitevt,char* name,char* remoteip)
 	}
 
 	prnlen = ret;
+	fidx = -1;
 	for (i=0;i<prnlen;i++) {
+		DEBUG_INFO("[%d].m_name [%s] cmpname[%s]",i,pprn[i].m_name,cmpname);
 		if (_stricmp(pprn[i].m_name,cmpname) == 0) {
 			fidx = i;
+			DEBUG_INFO("match [%d]",i);
 			break;
 		}
 	}
@@ -332,34 +314,13 @@ int del_share_printer(HANDLE hexitevt,char* name,char* remoteip)
 		goto succ;
 	}
 
-	ret = mktempfile_safe("delshareXXXXXXX",&templatefile,&templatesize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	ret = snprintf_safe(&tempfile,&tempsize,"%s.bat",templatefile);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	DEBUG_INFO("tempfile [%s]", tempfile);
-
 	ret = snprintf_safe(&cmd,&cmdsize,"rundll32.exe printui.dll,PrintUIEntry /dn /q /n \"\\\\%s\\%s\"",remoteip,name);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
-	cmdlen = ret;
 
-	ret = write_file_whole(tempfile,cmd,cmdlen);
-	if ( ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	ret = run_cmd_event_output_single(hexitevt,NULL,0,NULL,0,NULL,0,&exitcode,0,tempfile);
+	ret = run_cmd_event_output_single(hexitevt,NULL,0,NULL,0,NULL,0,&exitcode,0,cmd);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -375,8 +336,10 @@ int del_share_printer(HANDLE hexitevt,char* name,char* remoteip)
 
 	fidx = -1;
 	for(i=0;i<prnlen;i++) {
+		DEBUG_INFO("[%d].m_name [%s] cmpname[%s]",i,pprn[i].m_name,cmpname);
 		if (_stricmp(pprn[i].m_name,cmpname) == 0) {
 			fidx = i;
+			DEBUG_INFO("match [%d]",i);
 			break;
 		}
 	}
@@ -388,22 +351,12 @@ int del_share_printer(HANDLE hexitevt,char* name,char* remoteip)
 	}
 	removed = 1;
 succ:
-	if (tempfile) {
-		delete_file(tempfile);
-	}
 	snprintf_safe(&cmd,&cmdsize,NULL);
-	snprintf_safe(&tempfile,&tempsize,NULL);
-	mktempfile_safe(NULL,&templatefile,&templatesize);
 	get_printer_list(1,NULL,&pprn,&prnsize);
 	snprintf_safe(&cmpname,&cmpsize,NULL);
 	return removed;
 fail:
-	if (tempfile) {
-		delete_file(tempfile);
-	}
 	snprintf_safe(&cmd,&cmdsize,NULL);
-	snprintf_safe(&tempfile,&tempsize,NULL);
-	mktempfile_safe(NULL,&templatefile,&templatesize);
 	get_printer_list(1,NULL,&pprn,&prnsize);
 	snprintf_safe(&cmpname,&cmpsize,NULL);
 	SETERRNO(ret);
