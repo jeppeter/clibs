@@ -1421,21 +1421,19 @@ int __enumerate_dir_inner(char* basedir,char* curdir,int idx,enum_callback_t cal
     int conted=1;
     int ret;
 
-    DEBUG_INFO("basedir [%s] curdir[%s] idx[%d]", basedir,curdir,idx);
     ret = __list_all_subitems(basedir,curdir,&pitems,&itemsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
     itemlen = ret;
-    DEBUG_INFO("[%s] items [%d]",curdir,itemlen);
+
     for (i=0;i< itemlen;i++) {
         if (strcmp(pitems[i].m_name,".") == 0 || 
             strcmp(pitems[i].m_name,"..") == 0) {
             continue;
         }
         if (callback != NULL) {
-            DEBUG_INFO("basedir[%s] curdir[%s] [%d].name [%s]", basedir,curdir,i,pitems[i].m_name);
             ret = callback(basedir,curdir,pitems[i].m_name,arg);
             if (ret == 0) {
                 conted = 0;

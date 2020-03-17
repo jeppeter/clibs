@@ -13,19 +13,104 @@
 #pragma warning(disable:5045)
 #endif
 
-int __get_prnmngr_vbs(char* partname,char** pppath,int *pathsize)
+typedef struct __find_path {
+	char* m_search;
+	char* m_findpath;
+	int m_findsize;
+	int m_res1;
+} find_path_t,*pfind_path_t;
+
+int __find_path(char* basedir,char* curdir,char* curpat,void* arg)
 {
-	if (partname == NULL) {
-		if (pppath && *pppath) {
-			free(*pppath);
-			*pppath = NULL;
-		}
-		if (pathsize) {
-			*pathsize= 0;
+	pfind_path_t pfind = (pfind_path_t) arg;
+	int ret;
+	REFERENCE_ARG(basedir);
+	if (_stricmp(pfind->m_search,curpat) == 0) {
+		ret = snprintf_safe(&(pfind->m_findpath),&(pfind->m_findsize),"%s\\%s",curdir,curpat);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
 		}
 		return 0;
 	}
-	return 0;
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int __find_vbs(char* partname,char** pppath,int *pathsize)
+{
+	find_path_t findpath={0};
+	int ret;
+	char* psysdir=NULL;
+	int syssize=0;	
+	int retlen=0;
+	char* basedir=NULL;
+	int basesize=0;
+	if (partname == NULL) {
+		snprintf_safe(pppath,pathsize,NULL);
+		return 0;
+	}
+
+	ret = get_env_variable("windir",&psysdir,&syssize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = snprintf_safe(&basedir,&basesize,"%s\\System32\\Printing_Admin_Scripts",psysdir);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	findpath.m_search = _strdup(partname);
+	if (findpath.m_search == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = enumerate_directory(basedir,__find_path,&findpath);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (findpath.m_findpath == NULL) {
+		ret = -ERROR_NOT_FOUND;
+		ERROR_INFO("not find [%s] in [%s]", partname,basedir);
+		goto fail;
+	}
+
+	ret = snprintf_safe(pppath,pathsize,"%s",findpath.m_findpath);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	retlen = ret;
+
+	snprintf_safe(&basedir,&basesize,NULL);
+	get_env_variable(NULL,&psysdir,&syssize);
+
+	if (findpath.m_search) {
+		free(findpath.m_search);
+	}
+	findpath.m_search = NULL;
+	snprintf_safe(&(findpath.m_findpath),&(findpath.m_findsize),NULL);
+	return retlen;
+fail:
+	snprintf_safe(&basedir,&basesize,NULL);
+	get_env_variable(NULL,&psysdir,&syssize);
+
+	if (findpath.m_search) {
+		free(findpath.m_search);
+	}
+	findpath.m_search = NULL;
+	snprintf_safe(&(findpath.m_findpath),&(findpath.m_findsize),NULL);
+	snprintf_safe(pppath,pathsize,NULL);
+	SETERRNO(ret);
+	return ret;
 }
 
 
@@ -200,6 +285,8 @@ int add_share_printer(HANDLE hexitevt,char* name,char* remoteip,char* user,char*
 	int fidx=0;
 	int i;
 	int exitcode=0;
+	char* vbsfile=NULL;
+	int vbssize=0;
 
 	ret = snprintf_safe(&cmpname,&cmpsize,"\\\\%s\\%s",remoteip,name);
 	if (ret < 0) {
@@ -225,8 +312,14 @@ int add_share_printer(HANDLE hexitevt,char* name,char* remoteip,char* user,char*
 		}
 	}
 
-	ret = snprintf_safe(&batscript,&batsize,"net use \"\\\\%s\\ipc$\" /user:\"%s\" \"%s\"", remoteip,user ? user : "guest",
-		password ? password : "");
+	ret = __find_vbs("prnmngr.vbs",&vbsfile,&vbssize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = snprintf_safe(&batscript,&batsize,"net use \"\\\\%s\\ipc$\" /usr:\"%s\" \"%s\" && cscript.exe %s -ac -p \"\\\\%s\\%s\"", 
+			remoteip,user,password, vbsfile,remoteip,name);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -237,19 +330,6 @@ int add_share_printer(HANDLE hexitevt,char* name,char* remoteip,char* user,char*
 		GETERRNO(ret);
 		goto fail;
 	}
-
-	ret = snprintf_safe(&batscript,&batsize,"rundll32.exe printui.dll,PrintUIEntry /in /q /n \"\\\\%s\\%s\"", remoteip,name);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	ret = run_cmd_event_output_single(hexitevt,NULL,0,NULL,0,NULL,0,&exitcode,0,batscript);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
 
 
 	/*we do not check for the return value or */
@@ -279,11 +359,13 @@ succ:
 	get_printer_list(1,NULL,&pplist,&prnsize);
 	snprintf_safe(&cmpname,&cmpsize,NULL);
 	snprintf_safe(&batscript,&batsize,NULL);
+	__find_vbs(NULL,&vbsfile,&vbssize);
 	return added;
 fail:
 	get_printer_list(1,NULL,&pplist,&prnsize);
 	snprintf_safe(&cmpname,&cmpsize,NULL);
 	snprintf_safe(&batscript,&batsize,NULL);
+	__find_vbs(NULL,&vbsfile,&vbssize);
 	SETERRNO(ret);
 	return ret;
 }
@@ -301,6 +383,8 @@ int del_share_printer(HANDLE hexitevt,char* name,char* remoteip)
 	int cmdsize=0;
 	int exitcode=0;
 	int i;
+	char* vbsfile=NULL;
+	int vbssize=0;
 
 	ret = snprintf_safe(&cmpname,&cmpsize,"\\\\%s\\%s",remoteip,name);
 	if (ret < 0) {
@@ -330,7 +414,13 @@ int del_share_printer(HANDLE hexitevt,char* name,char* remoteip)
 		goto succ;
 	}
 
-	ret = snprintf_safe(&cmd,&cmdsize,"rundll32.exe printui.dll,PrintUIEntry /dn /q /n \"\\\\%s\\%s\"",remoteip,name);
+	ret = __find_vbs("prnmngr.vbs",&vbsfile,&vbssize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = snprintf_safe(&cmd,&cmdsize,"cscript.exe %s -d -p \"\\\\%s\\%s\"",vbsfile,remoteip,name);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -370,11 +460,13 @@ succ:
 	snprintf_safe(&cmd,&cmdsize,NULL);
 	get_printer_list(1,NULL,&pprn,&prnsize);
 	snprintf_safe(&cmpname,&cmpsize,NULL);
+	__find_vbs(NULL,&vbsfile,&vbssize);
 	return removed;
 fail:
 	snprintf_safe(&cmd,&cmdsize,NULL);
 	get_printer_list(1,NULL,&pprn,&prnsize);
 	snprintf_safe(&cmpname,&cmpsize,NULL);
+	__find_vbs(NULL,&vbsfile,&vbssize);
 	SETERRNO(ret);
 	return ret;
 }

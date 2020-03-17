@@ -7206,7 +7206,6 @@ int __print_directory(char* basedir,char* curdir,char* curpat,void* arg)
         penum->m_depth = curdepth;
     }
 
-    DEBUG_INFO("[%s]depth [%d]",curdir, penum->m_depth);
     for(i=0;i<penum->m_depth;i++) {
         for (j=0;j<penum->m_indent;j++){
             fprintf(penum->m_fp," ");    
