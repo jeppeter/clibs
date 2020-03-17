@@ -1224,10 +1224,11 @@ typedef struct __file_sub_item {
     char* m_name;
 } file_sub_item_t,*pfile_sub_item_t;
 
+//        DEBUG_INFO("[%d][%s].attribute [0x%lx]", retlen,pfinddata->cFileName,                     
+//            pfinddata->dwFileAttributes);                                                        
+
 #define  ADD_SUB_ITEM(pfinddata)                                                                  \
     do{                                                                                           \
-        DEBUG_INFO("[%d][%s].attribute [0x%lx]", retlen,pfinddata->cFileName,                     \
-            pfinddata->dwFileAttributes);                                                         \
         if (pretitems == NULL || retlen >= retsize || retsize == 0) {                             \
             if (retsize == 0) {                                                                   \
                 retsize = 4;                                                                      \
@@ -1276,6 +1277,8 @@ int __list_all_subitems(char* basedir,char* curdir,pfile_sub_item_t *ppitems,int
     HANDLE hfd=INVALID_HANDLE_VALUE;
     size_t curlen;
     BOOL bret;
+    char* pat=NULL;
+    int patsize=0;
     if (basedir == NULL || curdir == NULL) {
         if (ppitems && *ppitems) {
             pretitems = *ppitems;
@@ -1323,16 +1326,23 @@ int __list_all_subitems(char* basedir,char* curdir,pfile_sub_item_t *ppitems,int
     }
     memset(pfinddata,0, sizeof(*pfinddata));
 
-    hfd = FindFirstFileA(curdir,pfinddata);
+    ret = snprintf_safe(&pat,&patsize,"%s\\*",curdir);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    hfd = FindFirstFileA(pat,pfinddata);
     if (hfd == INVALID_HANDLE_VALUE) {
         GETERRNO(ret);
-        ERROR_INFO("findfistfile [%s] error[%d]", curdir,ret);
+        ERROR_INFO("findfistfile [%s] error[%d]", pat,ret);
         goto fail;
     }
     
     ADD_SUB_ITEM(pfinddata);
 
     while(1) {
+        memset(pfinddata,0, sizeof(*pfinddata));
         bret = FindNextFileA(hfd,pfinddata);
         if (!bret) {
             GETERRNO(ret);
@@ -1349,6 +1359,13 @@ int __list_all_subitems(char* basedir,char* curdir,pfile_sub_item_t *ppitems,int
         free(pfinddata);
     }
     pfinddata = NULL;
+
+    if (hfd != INVALID_HANDLE_VALUE && hfd != NULL) {
+        FindClose(hfd);
+    }
+    hfd = INVALID_HANDLE_VALUE;
+
+    snprintf_safe(&pat,&patsize,NULL);
 
     if (ptmpitems) {
         free(ptmpitems);
@@ -1383,11 +1400,17 @@ fail:
         free(pretitems);
     }
     pretitems = NULL;
+
+    if (hfd != INVALID_HANDLE_VALUE && hfd != NULL) {
+        FindClose(hfd);
+    }
+    hfd = INVALID_HANDLE_VALUE;
+    snprintf_safe(&pat,&patsize,NULL);
     SETERRNO(ret);
     return ret;
 }
 
-int __enumerate_dir_inner(char* basedir,char* curdir,enum_callback_t callback,void* arg)
+int __enumerate_dir_inner(char* basedir,char* curdir,int idx,enum_callback_t callback,void* arg)
 {
     pfile_sub_item_t pitems=NULL;
     int itemsize=0;
@@ -1398,19 +1421,21 @@ int __enumerate_dir_inner(char* basedir,char* curdir,enum_callback_t callback,vo
     int conted=1;
     int ret;
 
+    DEBUG_INFO("basedir [%s] curdir[%s] idx[%d]", basedir,curdir,idx);
     ret = __list_all_subitems(basedir,curdir,&pitems,&itemsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-
     itemlen = ret;
+    DEBUG_INFO("[%s] items [%d]",curdir,itemlen);
     for (i=0;i< itemlen;i++) {
         if (strcmp(pitems[i].m_name,".") == 0 || 
             strcmp(pitems[i].m_name,"..") == 0) {
             continue;
         }
         if (callback != NULL) {
+            DEBUG_INFO("basedir[%s] curdir[%s] [%d].name [%s]", basedir,curdir,i,pitems[i].m_name);
             ret = callback(basedir,curdir,pitems[i].m_name,arg);
             if (ret == 0) {
                 conted = 0;
@@ -1426,7 +1451,7 @@ int __enumerate_dir_inner(char* basedir,char* curdir,enum_callback_t callback,vo
                 GETERRNO(ret);
                 goto fail;
             }
-            ret = __enumerate_dir_inner(basedir,pnextdir,callback,arg);
+            ret = __enumerate_dir_inner(basedir,pnextdir,(idx + 1),callback,arg);
             if (ret < 0) {
                 GETERRNO(ret);
                 goto fail;
@@ -1449,7 +1474,7 @@ fail:
 
 int enumerate_directory(char* basedir,enum_callback_t callback,void* arg)
 {    
-    return __enumerate_dir_inner(basedir,basedir,callback,arg);
+    return __enumerate_dir_inner(basedir,basedir,0,callback,arg);
 }
 
 #if _MSC_VER >= 1910

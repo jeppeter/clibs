@@ -7171,7 +7171,14 @@ typedef struct __enum_dir {
 
 int __print_directory(char* basedir,char* curdir,char* curpat,void* arg)
 {
-    int i;
+#if 0
+    REFERENCE_ARG(basedir);
+    REFERENCE_ARG(curdir);
+    REFERENCE_ARG(curpat);
+    REFERENCE_ARG(arg);
+    return 1;
+#else
+    int i,j;
     int curdepth=0;
     char* pcurptr=NULL;
     int ret;
@@ -7179,26 +7186,31 @@ int __print_directory(char* basedir,char* curdir,char* curpat,void* arg)
     penum_dir_t penum = (penum_dir_t) arg;
     if (penum->m_lastdir == NULL) {
         fprintf(penum->m_fp,"%s\n",basedir);
-        penum->m_depth = 1;        
+        penum->m_depth = 1;
     } else if (strcmp(penum->m_lastdir, curdir) != 0) {
         pcurptr = curdir + strlen(basedir);
         curdepth = 1;
         /*skip \ */
         pcurptr ++;
         while (1) {
-            if ( pcurptr == NULL|| *pcurptr == '\0') {
+            if ( pcurptr == NULL || *pcurptr == '\0') {
                 break;
             }
+            curdepth ++;
             pcurptr = strchr(pcurptr,'\\');
             if (pcurptr != NULL) {
-                curdepth ++;
+                /*skip the \\ */
+                pcurptr ++;
             }
         }
         penum->m_depth = curdepth;
     }
 
+    DEBUG_INFO("[%s]depth [%d]",curdir, penum->m_depth);
     for(i=0;i<penum->m_depth;i++) {
-        fprintf(penum->m_fp,"    ");
+        for (j=0;j<penum->m_indent;j++){
+            fprintf(penum->m_fp," ");    
+        }        
     }
     fprintf(penum->m_fp,"%s\n",curpat);
     if (penum->m_lastdir) {
@@ -7214,6 +7226,7 @@ int __print_directory(char* basedir,char* curdir,char* curpat,void* arg)
 fail:
     SETERRNO(ret);
     return ret;
+#endif
 }
 
 int enumdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
@@ -7223,11 +7236,23 @@ int enumdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     pargs_options_t pargs = (pargs_options_t) popt;
     char* basedir = NULL;
     int ret;
+    FILE* fp=stdout;
+
 
     memset(&enumdir,0,sizeof(enumdir));
     init_log_level(pargs);
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
+
+    if (pargs->m_output != NULL) {
+        ret = fopen_s(&fp,pargs->m_output,"w");
+        if (ret != 0) {
+            GETERRNO(ret);
+            ERROR_INFO("open %s error[%d]", pargs->m_output, ret);
+            goto out;
+        }
+    }
+
     for (i=0;parsestate->leftargs && parsestate->leftargs[i] ; i++) {
         basedir = parsestate->leftargs[i];
         if (enumdir.m_lastdir) {
@@ -7235,8 +7260,8 @@ int enumdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         }
         enumdir.m_lastdir = NULL;
         enumdir.m_depth = 0;
-        enumdir.m_depth = 4;
-        enumdir.m_fp = stdout;
+        enumdir.m_indent = 4;
+        enumdir.m_fp = fp;
 
         ret = enumerate_directory(basedir,__print_directory,&enumdir);
         if (ret < 0) {
@@ -7252,6 +7277,11 @@ out:
         free(enumdir.m_lastdir);
     }
     enumdir.m_lastdir = NULL;
+
+    if (fp != stdout && fp != NULL) {
+        fclose(fp);
+    }
+    fp = NULL;
     SETERRNO(ret);
     return ret;
 
