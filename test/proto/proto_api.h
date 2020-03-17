@@ -21,6 +21,10 @@ typedef struct __pipe_hdr_t {
 #define   CHG_USER_PASS                      0x1323
 #define   WTS_DETACH_RUN                     0x1324
 #define   PROCESS_NUM_CMD                    0x1325
+#define   ADDPRN_CMD                         0x1326
+#define   DELPRN_CMD                         0x1327
+#define   SAVEPRN_CMD                        0x1328
+#define   RESTOREPRN_CMD                     0x1329
 
 
 #ifdef __cplusplus

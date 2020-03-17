@@ -219,5 +219,17 @@
     },
     "restoreprn<restoreprn_handler>## exportfile to restore printer configuration from exportfile##" : {
         "$" : 1
+    },
+    "svraddprn<svraddprn_handler>## remoteip name user password to add printer ##" : {
+        "$" : 4
+    },
+    "svrdelprn<svrdelprn_handler>## remoteip name to delete printer##" : {
+        "$" : 2
+    },
+    "svrsaveprn<svrsaveprn_handler>## exportfile to save printer configuration into exportfile##" : {
+        "$" : 1
+    },
+    "svrrestoreprn<svrrestoreprn_handler>## exportfile to restore printer configuration from exportfile##" : {
+        "$" : 1
     }
 }

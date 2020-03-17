@@ -6,11 +6,15 @@
 #include <win_proc.h>
 #include <win_evt.h>
 #include <win_user.h>
+#include <win_prn.h>
+
 
 #include <tchar.h>
 #include <proto_api.h>
 #include <proto_win.h>
 
+#include <stdio.h>
+#include <stdlib.h>
 
 #define  TSTSVR_PIPE "\\\\.\\pipe\\tstsvr_pipe"
 #define  SVCNAME     "tstsvr"
@@ -603,6 +607,201 @@ fail:
 }
 
 
+int addprn_cmd(HANDLE exitevt,ppipe_hdr_t phdr, int hdrlen)
+{
+    char* pcurptr = NULL;
+    int i;
+    int cnt = 0;
+    int passlen = 0;
+    int curlen = 0;
+    int totallen = (int)(hdrlen - sizeof(pipe_hdr_t));
+    char* remoteip=NULL,*name=NULL,*user=NULL,*password=NULL;
+    int ret;
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);
+    cnt = 0;
+    for (passlen = 0, i = 0; passlen < (totallen - 1); i++) {
+        curlen = (int)(strlen(pcurptr) + 1);
+        switch(i) {
+        case 0:
+            remoteip = pcurptr;
+            break;
+        case 1:
+            name = pcurptr;
+            break;
+        case 2:
+            user = pcurptr;
+            break;
+        case 3:
+            password=pcurptr;
+            break;
+        }
+        passlen += curlen;
+        cnt ++;
+        pcurptr += curlen;
+    }
+
+    if (remoteip == NULL || name == NULL || user == NULL || password == NULL) {
+        ret = -ERROR_INVALID_PARAMETER ;
+        ERROR_INFO("no remoteip | name | user | password specified");
+        goto fail;
+    }
+
+    ret = add_share_printer(exitevt,name,remoteip,user,password);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("addprn [%s][%s][%s][%s] succ",remoteip,name,user,password);
+
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;    
+}
+
+
+int delprn_cmd(HANDLE exitevt,ppipe_hdr_t phdr, int hdrlen)
+{
+    char* pcurptr = NULL;
+    int i;
+    int cnt = 0;
+    int passlen = 0;
+    int curlen = 0;
+    int totallen = (int)(hdrlen - sizeof(pipe_hdr_t));
+    char* remoteip=NULL,*name=NULL;
+    int ret;
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);
+    cnt = 0;
+    for (passlen = 0, i = 0; passlen < (totallen - 1); i++) {
+        curlen = (int)(strlen(pcurptr) + 1);
+        switch(i) {
+        case 0:
+            remoteip = pcurptr;
+            break;
+        case 1:
+            name = pcurptr;
+            break;
+        }
+        passlen += curlen;
+        cnt ++;
+        pcurptr += curlen;
+    }
+
+    if (remoteip == NULL || name == NULL) {
+        ret = -ERROR_INVALID_PARAMETER ;
+        ERROR_INFO("no remoteip | name specified");
+        goto fail;
+    }
+
+    ret = del_share_printer(exitevt,name,remoteip);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("delprn [%s][%s] succ", remoteip,name);
+
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;    
+}
+
+
+int saveprn_cmd(HANDLE exitevt,ppipe_hdr_t phdr, int hdrlen)
+{
+    char* pcurptr = NULL;
+    int i;
+    int cnt = 0;
+    int passlen = 0;
+    int curlen = 0;
+    int totallen = (int)(hdrlen - sizeof(pipe_hdr_t));
+    char* exportfile=NULL;
+    int ret;
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);
+    cnt = 0;
+    for (passlen = 0, i = 0; passlen < (totallen - 1); i++) {
+        curlen = (int)(strlen(pcurptr) + 1);
+        switch(i) {
+        case 0:
+            exportfile = pcurptr;
+            break;
+        }
+        passlen += curlen;
+        cnt ++;
+        pcurptr += curlen;
+    }
+
+    if (exportfile) {
+        ret = -ERROR_INVALID_PARAMETER ;
+        ERROR_INFO("no exportfile specified");
+        goto fail;
+    }
+
+    ret = save_printer_exportfile(exitevt,exportfile);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("save printer exportfile [%s] succ", exportfile);
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;    
+}
+
+int restoreprn_cmd(HANDLE exitevt,ppipe_hdr_t phdr, int hdrlen)
+{
+    char* pcurptr = NULL;
+    int i;
+    int cnt = 0;
+    int passlen = 0;
+    int curlen = 0;
+    int totallen = (int)(hdrlen - sizeof(pipe_hdr_t));
+    char* exportfile=NULL;
+    int ret;
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);
+    cnt = 0;
+    for (passlen = 0, i = 0; passlen < (totallen - 1); i++) {
+        curlen = (int)(strlen(pcurptr) + 1);
+        switch(i) {
+        case 0:
+            exportfile = pcurptr;
+            break;
+        }
+        passlen += curlen;
+        cnt ++;
+        pcurptr += curlen;
+    }
+
+    if (exportfile) {
+        ret = -ERROR_INVALID_PARAMETER ;
+        ERROR_INFO("no exportfile specified");
+        goto fail;
+    }
+
+    ret = restore_printer_exportfile(exitevt,exportfile);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("restore printer exportfile [%s] succ", exportfile);
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;    
+}
 
 
 static DWORD st_EXITED_MODE = 0;
@@ -694,6 +893,38 @@ bind_pipe_again:
             }
         } else if (phdr->m_cmd == PROCESS_NUM_CMD) {
             ret = get_process_num(exitevt,phdr,indatalen);
+            if (ret < 0) {
+                if (ret == -ERROR_CONTROL_C_EXIT) {
+                    break;
+                }
+                goto bind_pipe_again;
+            }
+        } else if (phdr->m_cmd == ADDPRN_CMD) {
+            ret = addprn_cmd(exitevt,phdr,indatalen);
+            if (ret < 0) {
+                if (ret == -ERROR_CONTROL_C_EXIT) {
+                    break;
+                }
+                goto bind_pipe_again;
+            }
+        } else if (phdr->m_cmd == DELPRN_CMD) {
+            ret = delprn_cmd(exitevt,phdr,indatalen);
+            if (ret < 0) {
+                if (ret == -ERROR_CONTROL_C_EXIT) {
+                    break;
+                }
+                goto bind_pipe_again;
+            }
+        } else if (phdr->m_cmd == SAVEPRN_CMD) {
+            ret = saveprn_cmd(exitevt,phdr,indatalen);
+            if (ret < 0) {
+                if (ret == -ERROR_CONTROL_C_EXIT) {
+                    break;
+                }
+                goto bind_pipe_again;
+            }
+        } else if (phdr->m_cmd == RESTOREPRN_CMD) {
+            ret = restoreprn_cmd(exitevt,phdr,indatalen);
             if (ret < 0) {
                 if (ret == -ERROR_CONTROL_C_EXIT) {
                     break;

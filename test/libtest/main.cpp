@@ -167,6 +167,11 @@ int addprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int delprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int saveprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int restoreprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svraddprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svrdelprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svrsaveprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svrrestoreprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -7062,6 +7067,94 @@ int restoreprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     }
 
     fprintf(stdout, "restore printer configuration [%s] succ\n", exportfile);
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int svraddprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+
+    init_log_level(pargs);
+
+    ret = __send_svr_pipe(ADDPRN_CMD, parsestate, pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int svrdelprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+
+    init_log_level(pargs);
+
+    ret = __send_svr_pipe(DELPRN_CMD, parsestate, pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int svrsaveprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+
+    init_log_level(pargs);
+
+    ret = __send_svr_pipe(SAVEPRN_CMD, parsestate, pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int svrrestoreprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+
+    init_log_level(pargs);
+
+    ret = __send_svr_pipe(RESTOREPRN_CMD, parsestate, pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
     ret = 0;
 out:
     SETERRNO(ret);
