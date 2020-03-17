@@ -308,8 +308,9 @@ int run_cmd(HANDLE exitevt, ppipe_hdr_t phdr, int hdrlen)
     }
 
     DEBUG_INFO("cmd line [%s]", cmdline);
-    DEBUG_INFO("run exit [%d]" , exitcode);
 
+    DEBUG_BUFFER_FMT(pout,outsize,"runout [%d]", exitcode);
+    DEBUG_BUFFER_FMT(perr,errsize,"errout");
 
 
     wts_run_cmd_event_output_single(exitevt, NULL, 0, &pout, &outsize, &perr, &errsize, &exitcode, 0, NULL);
