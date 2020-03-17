@@ -1406,6 +1406,10 @@ int __enumerate_dir_inner(char* basedir,char* curdir,enum_callback_t callback,vo
 
     itemlen = ret;
     for (i=0;i< itemlen;i++) {
+        if (strcmp(pitems[i].m_name,".") == 0 || 
+            strcmp(pitems[i].m_name,"..") == 0) {
+            continue;
+        }
         if (callback != NULL) {
             ret = callback(basedir,curdir,pitems[i].m_name,arg);
             if (ret == 0) {

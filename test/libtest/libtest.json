@@ -231,5 +231,8 @@
     },
     "svrrestoreprn<svrrestoreprn_handler>## exportfile to restore printer configuration from exportfile##" : {
         "$" : 1
+    },
+    "enumdir<enumdir_handler>## dirs ... to enumerate ##"  : {
+        "$" : "+"
     }
 }
