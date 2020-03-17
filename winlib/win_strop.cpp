@@ -940,6 +940,7 @@ int split_lines(const char* str, char*** ppplines, int *psize)
                 goto fail;
             }
             memset(ppretlines[retlen], 0, cursize + 2);
+            DEBUG_INFO("[%d]cursize [%d]", retlen, cursize);
             if (cursize > 0) {
                 memcpy(ppretlines[retlen], plastptr, cursize);
             }
@@ -950,8 +951,7 @@ int split_lines(const char* str, char*** ppplines, int *psize)
                 if (mustchk) {
                     if (*pgetcurptr != '\r' &&
                             *pgetcurptr != '\0') {
-                        ret = -ERROR_INTERNAL_ERROR;
-                        goto fail;
+                        WARN_INFO("[%d][%d][%s][0x%02x]",retlen,(int)(pgetcurptr - ppretlines[retlen]),ppretlines[retlen],(unsigned char)*pgetcurptr);
                     }
                 } else if (*pgetcurptr == '\r') {
                     *pgetcurptr = '\0';
@@ -1009,10 +1009,8 @@ int split_lines(const char* str, char*** ppplines, int *psize)
         if (mustchk) {
             if (*pgetcurptr != '\r' &&
                     *pgetcurptr != '\0') {
-                ret = -ERROR_INTERNAL_ERROR;
-                goto fail;
+                WARN_INFO("[%d][%d][%s][0x%02x]",retlen,(int)(pgetcurptr - ppretlines[retlen]),ppretlines[retlen],(unsigned char)*pgetcurptr);
             }
-
         } else if (*pgetcurptr == '\r') {
             *pgetcurptr = '\0';
             mustchk = 1;

@@ -5,6 +5,7 @@
 #include <win_fileop.h>
 #include <win_strop.h>
 #include <win_envop.h>
+#include <win_regex.h>
 
 #if _MSC_VER >= 1910
 #pragma warning(push)
@@ -363,12 +364,107 @@ fail:
 	return ret;
 }
 
+int __printbrm_call(HANDLE hexitevt,const char* cmd)
+{
+	int exitcode=0;
+	int ret;
+	char* output=NULL;
+	int outsize=0;
+	char** pplines=NULL;
+	int linesize=0,linelen=0;
+	int i;
+	void* chpregex=NULL;
+	void* pregex=NULL;
+	int* pstartpos=NULL,*pendpos=NULL;
+	int possize=0;
+	/*chinese ^发生以下错误:*/
+	const char* cherroroccur = "^\xb7\xa2\xc9\xfa\xd2\xd4\xcf\xc2\xb4\xed\xce\xf3:";
+
+	ret = run_cmd_event_output_single(hexitevt,NULL,0,&output,&outsize,NULL,0,&exitcode,0,(char*)cmd);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO(" ");
+		goto fail;
+	}
+
+	if (exitcode != 0) {
+		ret = -exitcode;
+		if (ret > 0) {
+			ret = -ret;
+		}
+		ERROR_INFO("run [%s] exitcode[%d]",cmd,exitcode);
+		goto fail;
+	}
+
+	ret = split_lines(output,&pplines,&linesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("output ++++++++++++\n%s\n----------------\nerror[%d]", output,ret);
+		goto fail;
+	}
+	linelen = ret;
+
+	ret = regex_compile("^the following error occurred:",REGEX_IGNORE_CASE,&pregex);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO(" ");
+		goto fail;
+	}
+
+	ret = regex_compile(cherroroccur,REGEX_IGNORE_CASE,&chpregex);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO(" ");
+		goto fail;
+	}
+
+
+	for (i=0;i<linelen;i++) {
+		DEBUG_INFO("[%d][%s]",i,pplines[i]);
+		ret = regex_exec(pregex,pplines[i],&pstartpos,&pendpos,&possize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO(" ");
+			goto fail;
+		} else if (ret > 0){
+			ret = -ERROR_INTERNAL_ERROR;
+			ERROR_INFO("[%d] [%s] matches error code", i,pplines[i]);
+			goto fail;
+		}
+
+		ret = regex_exec(chpregex,pplines[i],&pstartpos,&pendpos,&possize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO(" ");
+			goto fail;
+		} else if (ret > 0) {
+			ret = -ERROR_INVALID_PARAMETER;
+			ERROR_INFO("[%d] [%s] matches error code chinese", i, pplines[i]);
+			goto fail;
+		}
+	}
+
+	regex_exec(NULL,NULL,&pstartpos,&pendpos,&possize);
+	regex_compile(NULL,0,&chpregex);
+	regex_compile(NULL,0,&pregex);
+	split_lines(NULL,&pplines,&linesize);
+	run_cmd_event_output_single(NULL,NULL,0,&output,&outsize,NULL,0,&exitcode,0,NULL);
+	return 0;
+fail:
+	regex_exec(NULL,NULL,&pstartpos,&pendpos,&possize);
+	regex_compile(NULL,0,&chpregex);
+	regex_compile(NULL,0,&pregex);
+	split_lines(NULL,&pplines,&linesize);
+	run_cmd_event_output_single(NULL,NULL,0,&output,&outsize,NULL,0,&exitcode,0,NULL);
+	SETERRNO(ret);
+	return ret;	
+}
+
 
 int save_printer_exportfile(HANDLE hexitevt,char* exportfile)
 {
 	int cmdsize=0;
 	char* cmd=NULL;
-	int exitcode=0;
 	char* sysdir=NULL;
 	int syssize=0;
 	int ret;
@@ -379,25 +475,16 @@ int save_printer_exportfile(HANDLE hexitevt,char* exportfile)
 		goto fail;
 	}
 
-	ret = snprintf_safe(&cmd,&cmdsize,"%s\\System32\\Spool\\Tools\\PrintBRM.exe  -b  -f \"%s\"",
+	ret = snprintf_safe(&cmd,&cmdsize,"%s\\System32\\Spool\\Tools\\PrintBRM.exe -b -f %s",
 		sysdir,exportfile);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = run_cmd_event_output_single(hexitevt,NULL,0,NULL,0,NULL,0,&exitcode,0,cmd);
+	ret= __printbrm_call(hexitevt,cmd);
 	if (ret < 0) {
 		GETERRNO(ret);
-		goto fail;
-	}
-
-	if (exitcode != 0) {
-		ret = -exitcode;
-		if (ret > 0) {
-			ret = -ret;
-		}
-		ERROR_INFO("run [%s] exitcode[%d]",cmd,exitcode);
 		goto fail;
 	}
 
@@ -415,7 +502,6 @@ int restore_printer_exportfile(HANDLE hexitevt,char* exportfile)
 {
 	int cmdsize=0;
 	char* cmd=NULL;
-	int exitcode=0;
 	char* sysdir=NULL;
 	int syssize=0;
 	int ret;
@@ -426,27 +512,19 @@ int restore_printer_exportfile(HANDLE hexitevt,char* exportfile)
 		goto fail;
 	}
 
-	ret = snprintf_safe(&cmd,&cmdsize,"%s\\System32\\Spool\\Tools\\PrintBRM.exe -r -f \"%s\"",
+	ret = snprintf_safe(&cmd,&cmdsize,"%s\\System32\\Spool\\Tools\\PrintBRM.exe -r -f %s",
 		sysdir,exportfile);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = run_cmd_event_output_single(hexitevt,NULL,0,NULL,0,NULL,0,&exitcode,0,cmd);
+	ret= __printbrm_call(hexitevt,cmd);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	if (exitcode != 0) {
-		ret = -exitcode;
-		if (ret > 0) {
-			ret = -ret;
-		}
-		ERROR_INFO("run [%s] exitcode[%d]",cmd,exitcode);
-		goto fail;
-	}
 
 	snprintf_safe(&cmd,&cmdsize,NULL);
 	get_env_variable(NULL,&sysdir,&syssize);

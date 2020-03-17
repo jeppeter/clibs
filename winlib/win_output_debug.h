@@ -73,7 +73,12 @@ WINLIB_API void FileBufferFmt(int loglvl, const char* file, int lineno, unsigned
 		__INNER_FILE_OUTPUT(BASE_LOG_ERROR,fmt,__VA_ARGS__);\
 	}while(0)
 
-
+#define WARN_INFO(fmt,...)   \
+	do { \
+		__INNER_BACKGROUND_OUTPUT(BASE_LOG_WARN,fmt,__VA_ARGS__);\
+		__INNER_CONSOLE_OUTPUTU(BASE_LOG_WARN,fmt,__VA_ARGS__);\
+		__INNER_FILE_OUTPUT(BASE_LOG_WARN,fmt,__VA_ARGS__);\
+	} while(0)
 
 
 
