@@ -13,6 +13,21 @@
 #pragma warning(disable:5045)
 #endif
 
+int __get_prnmngr_vbs(char* partname,char** pppath,int *pathsize)
+{
+	if (partname == NULL) {
+		if (pppath && *pppath) {
+			free(*pppath);
+			*pppath = NULL;
+		}
+		if (pathsize) {
+			*pathsize= 0;
+		}
+		return 0;
+	}
+	return 0;
+}
+
 
 int get_printer_list(int freed,HANDLE hexitevt,pprinter_list_t* ppret, int *psize)
 {

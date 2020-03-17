@@ -41,6 +41,8 @@ WINLIB_API uint64_t get_file_size(void* pfile);
 WINLIB_API int ioctl_file(void* pfile,uint32_t ctrlcode,void* pinbuf,int insize,void* poutbuf,int outsize);
 WINLIB_API HANDLE get_file_handle(void* pfile);
 
+typedef int (*enum_callback_t)(char* basedir,char* curdir,char *curpat,void* arg);
+WINLIB_API int enumerate_directory(char* basedir,enum_callback_t callback,void* arg);
 
 #ifdef __cplusplus
 };

@@ -18,6 +18,13 @@
 
 #pragma warning(pop)
 
+#if _MSC_VER >= 1910
+#pragma warning(push)
+/*disable Spectre warnings*/
+#pragma warning(disable:5045)
+#endif
+
+
 #define TEMP_XSIZE      6
 
 int mktempfile_safe(char* inputtemplate, char**ppoutput, int* bufsize)
@@ -1209,3 +1216,238 @@ HANDLE get_file_handle(void* pobj)
     }
     return pfile->m_hFile;
 }
+
+
+typedef struct __file_sub_item {
+    DWORD m_attr;
+    DWORD m_res1;
+    char* m_name;
+} file_sub_item_t,*pfile_sub_item_t;
+
+#define  ADD_SUB_ITEM(pfinddata)                                                                  \
+    do{                                                                                           \
+        DEBUG_INFO("[%d][%s].attribute [0x%lx]", retlen,pfinddata->cFileName,                     \
+            pfinddata->dwFileAttributes);                                                         \
+        if (pretitems == NULL || retlen >= retsize || retsize == 0) {                             \
+            if (retsize == 0) {                                                                   \
+                retsize = 4;                                                                      \
+            } else {                                                                              \
+                retsize <<= 1;                                                                    \
+            }                                                                                     \
+            ptmpitems = (pfile_sub_item_t)malloc(sizeof(*ptmpitems) * retsize);                   \
+            if (ptmpitems == NULL) {                                                              \
+                GETERRNO(ret);                                                                    \
+                ERROR_INFO("alloc [%ld] error[%d]", sizeof(*ptmpitems) * retsize, ret);           \
+                goto fail;                                                                        \
+            }                                                                                     \
+            memset(ptmpitems, 0 ,sizeof(*ptmpitems) * retsize);                                   \
+            if (retlen > 0) {                                                                     \
+                memcpy(ptmpitems,pretitems, sizeof(*ptmpitems) * retlen);                         \
+            }                                                                                     \
+            if (pretitems && pretitems != *ppitems) {                                             \
+                free(pretitems);                                                                  \
+            }                                                                                     \
+            pretitems = ptmpitems;                                                                \
+            ptmpitems = NULL;                                                                     \
+        }                                                                                         \
+        pretitems[retlen].m_attr = pfinddata->dwFileAttributes;                                   \
+        ASSERT_IF(pretitems[retlen].m_name == NULL);                                              \
+        curlen = strlen(pfinddata->cFileName) + 1;                                                \
+        pretitems[retlen].m_name = (char*)malloc(curlen);                                         \
+        if (pretitems[retlen].m_name == NULL) {                                                   \
+            GETERRNO(ret);                                                                        \
+            ERROR_INFO("alloc fname[%d] error[%d]", curlen, ret);                                 \
+            goto fail;                                                                            \
+        }                                                                                         \
+        memcpy(pretitems[retlen].m_name, pfinddata->cFileName,curlen);                            \
+        retlen ++;                                                                                \
+    }while(0)
+
+
+int __list_all_subitems(char* basedir,char* curdir,pfile_sub_item_t *ppitems,int *pitemsize)
+{
+    int i;
+    int ret;
+    pfile_sub_item_t pretitems=NULL;
+    pfile_sub_item_t ptmpitems=NULL;
+    int retsize=0;
+    int retlen =0;
+    WIN32_FIND_DATAA* pfinddata=NULL;
+    HANDLE hfd=INVALID_HANDLE_VALUE;
+    size_t curlen;
+    BOOL bret;
+    if (basedir == NULL || curdir == NULL) {
+        if (ppitems && *ppitems) {
+            pretitems = *ppitems;
+            if (pitemsize) {
+                for(i=0;i<*pitemsize;i++) {
+                    if (pretitems[i].m_name) {
+                        free(pretitems[i].m_name);
+                        pretitems[i].m_name = NULL;
+                    }
+                    pretitems[i].m_attr = 0;
+                }
+            }
+            free(*ppitems);
+            *ppitems = NULL;
+        }
+        if (pitemsize) {
+            *pitemsize = 0;
+        }
+        return 0;
+    }
+
+    if (ppitems == NULL || pitemsize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretitems = *ppitems;
+    retsize = *pitemsize;
+
+    /*first to remove the items*/
+    if (pretitems && retsize > 0) {
+        for(i=0;i<retsize;i++) {
+            if (pretitems[i].m_name) {
+                free(pretitems[i].m_name);
+                pretitems[i].m_name = NULL;
+            }
+        }
+    }
+
+    pfinddata = (WIN32_FIND_DATAA*)malloc(sizeof(*pfinddata));
+    if (pfinddata == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(pfinddata,0, sizeof(*pfinddata));
+
+    hfd = FindFirstFileA(curdir,pfinddata);
+    if (hfd == INVALID_HANDLE_VALUE) {
+        GETERRNO(ret);
+        ERROR_INFO("findfistfile [%s] error[%d]", curdir,ret);
+        goto fail;
+    }
+    
+    ADD_SUB_ITEM(pfinddata);
+
+    while(1) {
+        bret = FindNextFileA(hfd,pfinddata);
+        if (!bret) {
+            GETERRNO(ret);
+            if (ret == -ERROR_NO_MORE_FILES) {
+                break;
+            }
+            ERROR_INFO("[%s]find [%d] error[%d]",curdir,  retlen,ret);
+            goto fail;
+        }
+        ADD_SUB_ITEM(pfinddata);
+    }
+
+    if (pfinddata) {
+        free(pfinddata);
+    }
+    pfinddata = NULL;
+
+    if (ptmpitems) {
+        free(ptmpitems);
+    }
+    ptmpitems = NULL;
+    if (*ppitems && *ppitems != pretitems) {
+        free(*ppitems);
+    }
+    *ppitems = pretitems;
+    *pitemsize = retsize;
+    return retlen;
+fail:
+    if (pfinddata) {
+        free(pfinddata);
+    }
+    pfinddata = NULL;
+
+    if (ptmpitems) {
+        free(ptmpitems);
+    }
+    ptmpitems = NULL;
+
+    if (pretitems) {
+        for(i=0;i<retsize;i++) {
+            if (pretitems[i].m_name) {
+                free(pretitems[i].m_name);
+                pretitems[i].m_name = NULL;
+            }
+        }
+    }
+    if (pretitems && pretitems != *ppitems) {
+        free(pretitems);
+    }
+    pretitems = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int __enumerate_dir_inner(char* basedir,char* curdir,enum_callback_t callback,void* arg)
+{
+    pfile_sub_item_t pitems=NULL;
+    int itemsize=0;
+    int itemlen=0;
+    int i;
+    char* pnextdir=NULL;
+    int nextsize=0;
+    int conted=1;
+    int ret;
+
+    ret = __list_all_subitems(basedir,curdir,&pitems,&itemsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    itemlen = ret;
+    for (i=0;i< itemlen;i++) {
+        if (callback != NULL) {
+            ret = callback(basedir,curdir,pitems[i].m_name,arg);
+            if (ret == 0) {
+                conted = 0;
+                break;
+            } else if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+        }
+        if (pitems[i].m_attr & FILE_ATTRIBUTE_DIRECTORY) {
+            ret = snprintf_safe(&pnextdir,&nextsize,"%s\\%s",curdir,pitems[i].m_name);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            ret = __enumerate_dir_inner(basedir,pnextdir,callback,arg);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            } else if (ret == 0) {
+                /*not continued*/
+                conted = 0;
+                break;
+            }
+        }
+    }
+
+    snprintf_safe(&pnextdir,&nextsize,NULL);
+    __list_all_subitems(NULL,NULL,&pitems,&itemsize);
+    return conted;
+fail:
+    snprintf_safe(&pnextdir,&nextsize,NULL);
+    __list_all_subitems(NULL,NULL,&pitems,&itemsize);
+    return ret;
+}
+
+int enumerate_directory(char* basedir,enum_callback_t callback,void* arg)
+{    
+    return __enumerate_dir_inner(basedir,basedir,callback,arg);
+}
+
+#if _MSC_VER >= 1910
+#pragma warning(pop)
+#endif
