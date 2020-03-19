@@ -234,5 +234,8 @@
     },
     "enumdir<enumdir_handler>## dirs ... to enumerate ##"  : {
         "$" : "+"
+    },
+    "md5sum<md5sum_handler>## file ... to calculate files##" : {
+        "$" : "+"
     }
 }

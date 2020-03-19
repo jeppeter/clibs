@@ -43,6 +43,7 @@
 
 
 #include <jvalue.h>
+#include <md5.h>
 
 #include <proto_api.h>
 #include <proto_win.h>
@@ -172,6 +173,7 @@ int svrdelprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int svrsaveprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrrestoreprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int enumdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int md5sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -7283,7 +7285,70 @@ out:
     fp = NULL;
     SETERRNO(ret);
     return ret;
+}
 
+int format_md5_digest(pmd5_state_t p,char* fmt,int size)
+{
+    char* pcur=fmt;
+    int leftlen = size;
+    int ret;
+    int i;
+    unsigned char* pc;
+
+    for (i=0;i<4;i++) {
+        pc = (unsigned char*)&(p->state[i]);
+        ret = snprintf(pcur,(size_t)leftlen,"%02x%02x%02x%02x",pc[0],pc[1],pc[2],pc[3]);
+        if (ret < 0 || ret >= (leftlen - 1)) {
+            return -1;
+        }
+        pcur += ret;
+        leftlen -= ret;
+    }
+    return 0;
+
+}
+
+int md5sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* pbuf=NULL;
+    int bufsize=0,buflen=0;
+    md5_state_t s,*ps=NULL;
+    pargs_options_t pargs= (pargs_options_t) popt;
+    char* fname;
+    char digest[64];
+    unsigned char bufdig[64];
+    int i;
+    int ret;
+
+    init_log_level(pargs);
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        fname = parsestate->leftargs[i];
+        ret = read_file_whole(fname,&pbuf,&bufsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("read [%s] error[%d]",fname, ret);
+            goto out;
+        }
+        buflen = ret;
+        init_md5_state(&s);
+        ps = md5sum((unsigned char*)pbuf,(unsigned int)buflen,bufdig,&s);
+        if (ps == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("[%s] md5sum error",fname);
+            goto out;
+        }
+        format_md5_digest(&s,digest,sizeof(digest));
+        fprintf(stdout,"%s => %s\n",fname,digest);
+    }
+
+    ret = 0;
+out:
+    read_file_whole(NULL,&pbuf,&bufsize);
+    SETERRNO(ret);
+    return ret;
 }
 
 #include "dbgcode.cpp"

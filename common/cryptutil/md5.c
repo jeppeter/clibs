@@ -266,10 +266,11 @@ pmd5_state_t md5sum(unsigned char* p, unsigned int len, unsigned char* digest, p
 		s->state[3] += d;
 	}
 
+	__md5_encode(digest, s->state, 16);
+
 	/* return result */
-	if(done){
-		__md5_encode(digest, s->state, 16);
-		return NULL;
-	}
-	return s;
+	//if(done){
+		return s;
+	//}
+	//return NULL;
 }
