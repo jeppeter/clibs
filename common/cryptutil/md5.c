@@ -58,7 +58,9 @@ typedef struct __md5_table
 	unsigned int	sin;	/* integer part of 4294967296 times abs(sin(i)) */
 	unsigned char	x;	    /* index into data block */
 	unsigned char	rot;	/* amount to rotate left by */
-}md5_table_t,*pmd5_table_t;
+	unsigned char   res1;
+	unsigned char   res2;
+} md5_table_t,*pmd5_table_t;
 
 md5_table_t st_md5tab[] =
 {
@@ -146,10 +148,10 @@ void __md5_encode(unsigned char* output, unsigned int* input, unsigned int len)
 
 	for(e = output + len; output < e;) {
 		x = *input++;
-		*output++ = x;
-		*output++ = x >> 8;
-		*output++ = x >> 16;
-		*output++ = x >> 24;
+		*output++ = (unsigned char)x;
+		*output++ = (unsigned char)(x >> 8);
+		*output++ = (unsigned char)(x >> 16);
+		*output++ = (unsigned char)(x >> 24);
 	}
 }
 

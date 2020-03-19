@@ -1,6 +1,8 @@
 #ifndef __MD5_H_F959FF2A39A35DAEA96B82BC1E0F818C__
 #define __MD5_H_F959FF2A39A35DAEA96B82BC1E0F818C__
 
+#include <cmn_err.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus*/

@@ -62,7 +62,7 @@ WINLIB_CFLAGS = -DWINLIB_DLL_EXPORT /MT
 
 
 
-INC_CFLAGS = /I"$(TOPDIR)/common" /I"$(TOPDIR)/common/cryptutil" $(WINLIB_CFLAGS)
+INC_CFLAGS = /I"$(TOPDIR)/winlib" /I"$(TOPDIR)/common" /I"$(TOPDIR)/common/cryptutil" $(WINLIB_CFLAGS)
 COM_CFLAGS = /Wall /wd"4711" /wd"4255" /wd"4710" /wd"4996"
 REL_CFLAGS = /O2
 DBG_CFLAGS = /ZI /Od

@@ -27,8 +27,8 @@ all:dynamic
 
 dynamic:lxtest
 
-lxtest:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -lextargs -ljson -luxlib,"LINK    $@")
+lxtest:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -lextargs -ljson -luxlib -lcryptutil,"LINK    $@")
 
 ${DYNAMICDIR}/libuxlib.so:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"GEN     libuxlib.so")
@@ -39,6 +39,9 @@ ${DYNAMICDIR}/libextargs.so:
 ${DYNAMICDIR}/libjson.so:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/jsonlib all,"GEN     libjson.so")
 
+${DYNAMICDIR}/libcryptutil.so:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/cryptutil all,"GEN     libcryptutil.so")
+
 else
 
 all:static
@@ -46,8 +49,8 @@ all:static
 static:lxtest_static
 
 
-lxtest_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -lextargs -ljson -luxlib,"LINK    $@")
+lxtest_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -lextargs -ljson -luxlib -lcryptutil,"LINK    $@")
 
 
 ${STATICDIR}/libuxlib.a:
@@ -58,6 +61,10 @@ ${STATICDIR}/libextargs.a:
 
 ${STATICDIR}/libjson.a:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/jsonlib all,"GEN     libjson.a")
+
+${STATICDIR}/libcryptutil.a:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/cryptutil all,"GEN     libcryptutil.a")
+
 
 endif
 
@@ -82,7 +89,11 @@ clean_json:
 clean_uxlib:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib clean,"CLEAN   uxlib")
 
-clean:clean_extargslib clean_uxlib clean_json
+clean_cryptutil:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/cryptutil clean,"CLEAN   cryptutil")
+
+
+clean:clean_extargslib clean_uxlib clean_json clean_cryptutil
 	$(call call_exec,${RM} -f lxtest lxtest_static, "RM      lxtest")
 	$(call call_exec,${RM} -f args_options.cpp,"RM      args_options.cpp")
 	$(call call_exec,${RM} -f ${LXTEST_OFILES}, "RM      *.o")
