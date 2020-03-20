@@ -68,7 +68,7 @@ WINLIB_VALUE=0
 INC_LDFLAGS = "$(DYNAMICDIR)\extargslib.lib" "$(DYNAMICDIR)\winlib.lib" "$(DYNAMICDIR)\json.lib" Advapi32.lib
 !ENDIF
 
-INC_CFLAGS = /I"$(TOPDIR)\common\extargslib" /I"$(TOPDIR)\winlib" /I"$(TOPDIR)\common" /I"$(TOPDIR)\common\jsonlib"
+INC_CFLAGS = /I"$(TOPDIR)\common\extargslib" /I"$(TOPDIR)\winlib" /I"$(TOPDIR)\common" /I"$(TOPDIR)\common\jsonlib" /I"$(TOPDIR)\common\cryptutil"
 COM_CFLAGS = /Wall /wd"4820" /wd"4668" /wd"4127" /wd"4510" /wd"4512" /wd"4610"
 REL_CFLAGS = 
 DBG_CFLAGS = /Zi /Od 
@@ -87,19 +87,19 @@ all:lsrunas.exe
 
 !IFDEF STATICLIB
 !IF $(STATICLIB) != 0
-lsrunas.exe:$(OBJECTS) $(STATICDIR)\extargslib.lib $(STATICDIR)\winlib.lib $(STATICDIR)\json.lib
+lsrunas.exe:$(OBJECTS) $(STATICDIR)\extargslib.lib $(STATICDIR)\winlib.lib $(STATICDIR)\json.lib $(STATICDIR)\cryptutil.lib
 	$(QUIETCMD) echo "call static $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@  $(LDFLAGS)  $(OBJECTS)
 	$(QUIETCMD)echo "use static lib"
 !ELSE
-lsrunas.exe:$(OBJECTS)  $(DYNAMICDIR)\extargslib.dll $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll
+lsrunas.exe:$(OBJECTS)  $(DYNAMICDIR)\extargslib.dll $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMICDIR)\cryptutil.dll
 	$(QUIETCMD) echo "call dynamic $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
 	$(QUIETCMD)echo "use dynamic lib"
 !ENDIF	
 
 !ELSE
-lsrunas.exe:$(OBJECTS)  $(DYNAMICDIR)\extargslib.dll $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll
+lsrunas.exe:$(OBJECTS)  $(DYNAMICDIR)\extargslib.dll $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMICDIR)\cryptutil.dll
 	$(QUIETCMD) echo "call dynamic $(OBJECTS)"
 	$(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
 	$(QUIETCMD)echo "use dynamic lib"
@@ -130,6 +130,9 @@ $(DYNAMICDIR)\winlib.dll:
 $(DYNAMICDIR)\json.dll:
 	$(QUIETCMD)cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)"
 
+$(DYNAMICDIR)\cryptutil.dll:
+	$(QUIETCMD)cd $(TOPDIR)\common\cryptutil && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)"
+
 
 $(STATICDIR)\extargslib.lib:
 	$(QUIETCMD)cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)"
@@ -140,13 +143,20 @@ $(STATICDIR)\winlib.lib:
 $(STATICDIR)\json.lib:
 	$(QUIETCMD)cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)"
 
+$(STATICDIR)\cryptutil.lib:
+	$(QUIETCMD)cd $(TOPDIR)\common\cryptutil && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)"
+
+clean_cryptutil:
+	$(QUIETCMD)cd $(TOPDIR)\common\cryptutil && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd "$(CURDIR)"
+
+
 clean_winlib:
 	$(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd "$(CURDIR)"
 
 clean_json:clean_winlib
 	$(QUIETCMD)cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd "$(CURDIR)"
 
-clean_extargslib: clean_json
+clean_extargslib: clean_json clean_cryptutil
 	$(QUIETCMD)cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd "$(CURDIR)"
 
 clean:clean_extargslib
