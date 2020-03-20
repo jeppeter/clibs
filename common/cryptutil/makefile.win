@@ -17,8 +17,8 @@ TARGET=cryptutil
 STATICLIB_FILE = $(TARGET).lib
 SHAREDLIB_FILE = $(TARGET).dll
 
-HEADERS = md5.h
-SOURCES = md5.c
+HEADERS = crypt_md5.h
+SOURCES = crypt_md5.c
 OBJECTS = $(SOURCES:.c=.obj)
 
 !IFDEF UNICODE_MODE

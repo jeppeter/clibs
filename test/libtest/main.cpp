@@ -43,7 +43,7 @@
 
 
 #include <jvalue.h>
-#include <md5.h>
+#include <crypt_md5.h>
 
 #include <proto_api.h>
 #include <proto_win.h>

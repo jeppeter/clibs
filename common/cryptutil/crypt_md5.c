@@ -1,5 +1,5 @@
 
-#include <md5.h>
+#include <crypt_md5.h>
 /*
  *  rfc1321 requires that I include this.  The code is new.  The constants
  *  all come from the rfc (hence the copyright).  We trade a table for the
