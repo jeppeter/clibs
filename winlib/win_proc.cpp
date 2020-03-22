@@ -1189,6 +1189,7 @@ int __get_wts_token(HANDLE* phtok)
     BOOL bret;
     DWORD i;
     int sessid = -1;
+    int enabled = 0;
 
     if (phtok == NULL || *phtok != NULL) {
         ret = -ERROR_INVALID_PARAMETER;
@@ -1219,6 +1220,13 @@ int __get_wts_token(HANDLE* phtok)
 
     DEBUG_INFO("active session %d", sessid);
 
+    ret = enable_tcb_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enabled = 1;
+
     bret = WTSQueryUserToken((ULONG)sessid, &curtok);
     if (!bret) {
         GETERRNO(ret);
@@ -1244,6 +1252,11 @@ int __get_wts_token(HANDLE* phtok)
     WTSFreeMemory(psessinfo);
     psessinfo = NULL;
     cnt = 0;
+    if (enabled) {
+        disable_tcb_priv();
+    }
+    enabled = 0;
+
     return 0;
 fail:
     if (copytok) {
@@ -1261,6 +1274,11 @@ fail:
     }
     psessinfo = NULL;
     cnt = 0;
+
+    if (enabled) {
+        disable_tcb_priv();
+    }
+    enabled = 0;
     SETERRNO(ret);
     return ret;
 }
