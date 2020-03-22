@@ -7,6 +7,7 @@
     "timeout|t<m_timeout>" : 0,
     "pipename|P<m_pipename>" : "\\\\.\\pipe\\tstsvr_pipe",
     "hidewindow|H<m_hidewindow>" : false,
+    "privenable|E<m_privenable>" : false,
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },
@@ -237,5 +238,8 @@
     },
     "md5sum<md5sum_handler>## file ... to calculate files##" : {
         "$" : "+"
+    },
+    "checkpriv<checkpriv_handler>## priv ... to check priviledge ##" : {
+        "$" : "*"
     }
 }
