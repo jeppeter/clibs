@@ -177,6 +177,7 @@ int svrrestoreprn_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 int enumdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int md5sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int checkpriv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int iswts_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -7502,6 +7503,22 @@ int checkpriv_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 out:
     SETERRNO(ret);
     return ret;
+}
+
+int iswts_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(parsestate);
+
+    init_log_level(pargs);
+
+    fprintf(stdout,"wts [%s]\n", is_wts_enabled() > 0 ? "enabled" : "disabled");
+
+    return 0;
+
 }
 
 #include "dbgcode.cpp"

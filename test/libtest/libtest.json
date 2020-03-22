@@ -241,5 +241,8 @@
     },
     "checkpriv<checkpriv_handler>## priv ... to check priviledge ##" : {
         "$" : "*"
+    },
+    "iswts<iswts_handler>##to test wts handler ##" : {
+        "$" : 0
     }
 }
