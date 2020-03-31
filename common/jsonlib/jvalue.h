@@ -386,6 +386,18 @@ WINLIB_API jvalue *jvalue_read(const char *json, unsigned int *size);
 WINLIB_API char *jvalue_write(const jvalue *value, unsigned int *size);
 
 /**
+ * @brief Converts the jvalue object into a JSON string in utf-8 mode.
+ * @details
+ * The returned string must be freed by free().
+ * @todo allows to set a max size to write
+ * @param value the jvalue object
+ * @param size the number of the characters to be written
+ * @return a string in JSON format
+ */
+WINLIB_API char *jvalue_write_utf8(const jvalue *value, unsigned int *size);
+
+
+/**
  * @brief Converts the jvalue object into a JSON string with indentation
  * @details
  * For indentation, tabs are used.  Internally, the jvalue is written

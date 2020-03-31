@@ -178,6 +178,8 @@ int enumdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int md5sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int checkpriv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int iswts_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+
 
 
 #define PIPE_NONE                0
@@ -7519,6 +7521,16 @@ int iswts_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 
     return 0;
 
+}
+
+int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    jvalue* mainpj= NULL;
+    jvalue* filepj = NULL;
+    jentry* pentries=NULL;
+    unsigned int entrysize=0;
 }
 
 #include "dbgcode.cpp"

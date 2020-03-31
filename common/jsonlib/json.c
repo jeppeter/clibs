@@ -301,6 +301,7 @@ static void print_jarray(const jarray *array, char **buf, unsigned int *bufsiz, 
   util_strexpand(buf, bufsiz, pos, "]", 1);
 }
 
+
 /**
  * Prints the jvalue object into JSON
  */
@@ -363,6 +364,8 @@ static void print_jvalue(const jvalue *value, char **buf, unsigned int *bufsiz, 
   }
 }
 
+
+
 /**
  * Prints the jentry object into JSON
  */
@@ -379,6 +382,8 @@ static void print_jentry(const jentry *object, char **buf, unsigned int *bufsiz,
   print_jvalue(object->value, buf, bufsiz, pos);
   util_free(tmp);
 }
+
+
 
 /**
  * Prints the jvalue (a list of jentry) object into JSON
@@ -402,6 +407,7 @@ static void print_jobject(const jobject *table, char **buf, unsigned int *bufsiz
   util_free(objects);
 }
 
+
 char *jvalue_write(const jvalue *value, unsigned int *return_size)
 {
   unsigned int pos;
@@ -416,6 +422,145 @@ char *jvalue_write(const jvalue *value, unsigned int *return_size)
   if (return_size) *return_size = pos;
   return buf;
 }
+
+/******************************************************
+* these are the utf-8 mode function
+******************************************************/
+
+static void print_jvalue_utf8(const jvalue *value, char **buf, unsigned int *bufsiz, unsigned int *pos);
+
+/**
+ * Prints the jentry object into JSON
+ */
+static void print_jentry_utf8(const jentry *object, char **buf, unsigned int *bufsiz, unsigned int *pos)
+{
+  char *s = 0;
+  unsigned int length;
+  if (object == 0) return;
+  /* escape the key string */
+  s = object->key;
+  length = util_strlen(s);
+  util_strexpand(buf, bufsiz, pos, "\"", 1);
+  util_strexpand(buf, bufsiz, pos, s, length);
+  util_strexpand(buf, bufsiz, pos, "\":", 2);
+  print_jvalue_utf8(object->value, buf, bufsiz, pos);
+}
+
+/**
+ * Prints the jarray object into JSON
+ */
+static void print_jarray_utf8(const jarray *array, char **buf, unsigned int *bufsiz, unsigned int *pos)
+{
+  unsigned int i;
+  if (array == 0) return;
+  util_strexpand(buf, bufsiz, pos, "[", 1);
+  for (i = 0; i < jarray_size((const jvalue *) array); i++) {
+    if (i != 0) util_strexpand(buf, bufsiz, pos, ",", 1);
+    print_jvalue_utf8(jarray_get((const jvalue *) array, i, 0), buf, bufsiz, pos);
+  }
+  util_strexpand(buf, bufsiz, pos, "]", 1);
+}
+
+
+/**
+ * Prints the jvalue (a list of jentry) object into JSON
+ */
+static void print_jobject_utf8(const jobject *table, char **buf, unsigned int *bufsiz, unsigned int *pos)
+{
+  unsigned int size, i;
+  jentry **objects;
+  if (table == 0) return;
+  /* get the whole items */
+  objects = jobject_entries((const jvalue *) table, &size);
+  /* opening left bracket */
+  util_strexpand(buf, bufsiz, pos, "{", 1);
+  for (i = 0; i < size; i++) {
+    jentry *object = objects[i];
+    /* comma separator between objects */
+    if (i != 0) util_strexpand(buf, bufsiz, pos, ",", 1);
+    print_jentry_utf8(object, buf, bufsiz, pos);
+  }
+  util_strexpand(buf, bufsiz, pos, "}", 1);
+  util_free(objects);
+}
+
+
+/**
+ * Prints the jvalue object into JSON
+ */
+static void print_jvalue_utf8(const jvalue *value, char **buf, unsigned int *bufsiz, unsigned int *pos)
+{
+  if (value == 0) return;
+  if (value->type == JNULL) {
+    util_strexpand(buf, bufsiz, pos, "null", 4);
+  } else if (value->type == JSTRING) {
+    const jstring *v = (const jstring *) value;
+    char *s = (char *) v->value;
+    if (s && *s) {
+      unsigned int len = util_strlen(s);
+      util_strexpand(buf, bufsiz, pos, "\"", 1);
+      util_strexpand(buf, bufsiz, pos, s, len);
+      util_strexpand(buf, bufsiz, pos, "\"", 1);
+    } else {
+      util_strexpand(buf, bufsiz, pos, "\"\"", 2);
+    }
+  } else if (value->type == JINT) {
+    const jint *v = (const jint *) value;
+    char tmp[MAX_VALUE_NUMBER_SIZE] = {0};
+    int len = util_inttostr(tmp, sizeof(tmp), v->value);
+    util_strexpand(buf, bufsiz, pos, tmp, (unsigned int) len);
+  } else if (value->type == JINT64) {
+    const jint64 *v = (const jint64 *) value;
+    char tmp[MAX_VALUE_NUMBER_SIZE] = {0};
+    int len = util_inttostr(tmp, sizeof(tmp), v->value);
+    util_strexpand(buf, bufsiz, pos, tmp, (unsigned int) len);
+  } else if (value->type == JBOOL) {
+    const jbool *v = (const jbool *) value;
+    if (v->value) {
+      util_strexpand(buf, bufsiz, pos, "true", 4);
+    } else {
+      util_strexpand(buf, bufsiz, pos, "false", 5);
+    }
+  } else if (value->type == JUSER) {
+    const juser *v = (const juser *) value;
+    if (v->write) {
+      char* tmp = util_malloc(MAX_VALUE_STRING_SIZE);
+      if (tmp) {
+        unsigned int len = v->write(v->value, tmp, MAX_VALUE_STRING_SIZE);
+        util_strexpand(buf, bufsiz, pos, tmp, len);
+        util_free(tmp);        
+      }
+    } else {
+      util_strexpand(buf, bufsiz, pos, "null", 4);
+    }
+  } else if (value->type == JREAL) {
+    const jreal *v = (const jreal *) value;
+    char tmp[MAX_VALUE_NUMBER_SIZE] = {0};
+    int len = util_realtostr(tmp, sizeof(tmp), v->value);
+    util_strexpand(buf, bufsiz, pos, tmp, (unsigned int) len);
+  } else if (value->type == JOBJECT) {
+    print_jobject_utf8((const jobject *) value, buf, bufsiz, pos);
+  } else if (value->type == JARRAY) {
+    print_jarray_utf8((const jarray *) value, buf, bufsiz, pos);
+  }
+}
+
+
+char *jvalue_write_utf8(const jvalue *value, unsigned int *return_size)
+{
+  unsigned int pos;
+  unsigned int size;
+  char *buf;
+  if (value == 0) return 0;
+  /* initial buf size, buf will grow */
+  size = 0;
+  buf = 0;
+  pos = 0;
+  print_jvalue_utf8(value, &buf, &size, &pos);
+  if (return_size) *return_size = pos;
+  return buf;
+}
+
 
 /******************************************************************************/
 /* writing pretty */

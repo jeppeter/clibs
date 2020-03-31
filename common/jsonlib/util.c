@@ -321,3 +321,15 @@ void util_printf(int loglvl,const char* file,int lineno,const char* fmt,...)
   }
   return;
 }
+
+int util_strlen(const char* str)
+{
+  char* ptr = (char*)str;
+  int retlen = 0;
+  while (ptr && *ptr) {
+    ptr ++;
+    retlen ++;
+  }
+
+  return retlen;
+}

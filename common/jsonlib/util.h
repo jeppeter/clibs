@@ -124,6 +124,8 @@ extern int util_realcompare(double a, double b);
 extern void util_qsort(void *base, unsigned int nel, unsigned int width,
                        int (*compar)(const void *, const void *));
 
+extern int util_strlen(const char* str);
+
 /**
  * @brief Strnlen wrapper.
  */

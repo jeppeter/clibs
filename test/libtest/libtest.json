@@ -244,5 +244,8 @@
     },
     "iswts<iswts_handler>##to test wts handler ##" : {
         "$" : 0
+    },
+    "utf8json<utf8json_handler>## jsonfile ... to parse json into json string utf-8 ##" : {
+        "$" : "+"
     }
 }
