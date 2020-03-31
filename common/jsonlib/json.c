@@ -427,12 +427,12 @@ char *jvalue_write(const jvalue *value, unsigned int *return_size)
 * these are the utf-8 mode function
 ******************************************************/
 
-static void print_jvalue_utf8(const jvalue *value, char **buf, unsigned int *bufsiz, unsigned int *pos);
+static void print_jvalue_raw(const jvalue *value, char **buf, unsigned int *bufsiz, unsigned int *pos);
 
 /**
  * Prints the jentry object into JSON
  */
-static void print_jentry_utf8(const jentry *object, char **buf, unsigned int *bufsiz, unsigned int *pos)
+static void print_jentry_raw(const jentry *object, char **buf, unsigned int *bufsiz, unsigned int *pos)
 {
   char *s = 0;
   unsigned int length;
@@ -443,20 +443,20 @@ static void print_jentry_utf8(const jentry *object, char **buf, unsigned int *bu
   util_strexpand(buf, bufsiz, pos, "\"", 1);
   util_strexpand(buf, bufsiz, pos, s, length);
   util_strexpand(buf, bufsiz, pos, "\":", 2);
-  print_jvalue_utf8(object->value, buf, bufsiz, pos);
+  print_jvalue_raw(object->value, buf, bufsiz, pos);
 }
 
 /**
  * Prints the jarray object into JSON
  */
-static void print_jarray_utf8(const jarray *array, char **buf, unsigned int *bufsiz, unsigned int *pos)
+static void print_jarray_raw(const jarray *array, char **buf, unsigned int *bufsiz, unsigned int *pos)
 {
   unsigned int i;
   if (array == 0) return;
   util_strexpand(buf, bufsiz, pos, "[", 1);
   for (i = 0; i < jarray_size((const jvalue *) array); i++) {
     if (i != 0) util_strexpand(buf, bufsiz, pos, ",", 1);
-    print_jvalue_utf8(jarray_get((const jvalue *) array, i, 0), buf, bufsiz, pos);
+    print_jvalue_raw(jarray_get((const jvalue *) array, i, 0), buf, bufsiz, pos);
   }
   util_strexpand(buf, bufsiz, pos, "]", 1);
 }
@@ -465,7 +465,7 @@ static void print_jarray_utf8(const jarray *array, char **buf, unsigned int *buf
 /**
  * Prints the jvalue (a list of jentry) object into JSON
  */
-static void print_jobject_utf8(const jobject *table, char **buf, unsigned int *bufsiz, unsigned int *pos)
+static void print_jobject_raw(const jobject *table, char **buf, unsigned int *bufsiz, unsigned int *pos)
 {
   unsigned int size, i;
   jentry **objects;
@@ -478,7 +478,7 @@ static void print_jobject_utf8(const jobject *table, char **buf, unsigned int *b
     jentry *object = objects[i];
     /* comma separator between objects */
     if (i != 0) util_strexpand(buf, bufsiz, pos, ",", 1);
-    print_jentry_utf8(object, buf, bufsiz, pos);
+    print_jentry_raw(object, buf, bufsiz, pos);
   }
   util_strexpand(buf, bufsiz, pos, "}", 1);
   util_free(objects);
@@ -488,7 +488,7 @@ static void print_jobject_utf8(const jobject *table, char **buf, unsigned int *b
 /**
  * Prints the jvalue object into JSON
  */
-static void print_jvalue_utf8(const jvalue *value, char **buf, unsigned int *bufsiz, unsigned int *pos)
+static void print_jvalue_raw(const jvalue *value, char **buf, unsigned int *bufsiz, unsigned int *pos)
 {
   if (value == 0) return;
   if (value->type == JNULL) {
@@ -539,14 +539,14 @@ static void print_jvalue_utf8(const jvalue *value, char **buf, unsigned int *buf
     int len = util_realtostr(tmp, sizeof(tmp), v->value);
     util_strexpand(buf, bufsiz, pos, tmp, (unsigned int) len);
   } else if (value->type == JOBJECT) {
-    print_jobject_utf8((const jobject *) value, buf, bufsiz, pos);
+    print_jobject_raw((const jobject *) value, buf, bufsiz, pos);
   } else if (value->type == JARRAY) {
-    print_jarray_utf8((const jarray *) value, buf, bufsiz, pos);
+    print_jarray_raw((const jarray *) value, buf, bufsiz, pos);
   }
 }
 
 
-char *jvalue_write_utf8(const jvalue *value, unsigned int *return_size)
+char *jvalue_write_raw(const jvalue *value, unsigned int *return_size)
 {
   unsigned int pos;
   unsigned int size;
@@ -556,7 +556,7 @@ char *jvalue_write_utf8(const jvalue *value, unsigned int *return_size)
   size = 0;
   buf = 0;
   pos = 0;
-  print_jvalue_utf8(value, &buf, &size, &pos);
+  print_jvalue_raw(value, &buf, &size, &pos);
   if (return_size) *return_size = pos;
   return buf;
 }

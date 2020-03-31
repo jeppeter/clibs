@@ -7529,8 +7529,134 @@ int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     pargs_options_t pargs = (pargs_options_t) popt;
     jvalue* mainpj= NULL;
     jvalue* filepj = NULL;
-    jentry* pentries=NULL;
+    jentry** entries=NULL;
+    jentry* curentry = NULL;
+    const char* key=NULL;
+    jvalue* value=NULL;
+    jvalue* insertval=NULL;
+    jvalue* replval=NULL;
     unsigned int entrysize=0;
+    char* filebuf=NULL;
+    int filesize=0;
+    int filelen=0;
+    char* fname = NULL;
+    unsigned int rdlen=0;
+    char* poutbuf=NULL;
+    unsigned int outbufsize=0;
+    int i;
+    unsigned int j;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    init_log_level(pargs);
+
+    mainpj = jobject_create();
+    if (mainpj == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create object error");
+        goto out;
+    }
+
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i] ; i++) {
+        fname = parsestate->leftargs[i];
+        ret = read_file_whole(fname,&filebuf,&filesize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+
+        filelen = ret;
+        rdlen = 0;
+        filepj = jvalue_read(filebuf,&rdlen);
+        if (filepj == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("parse [%s] error[%d]", fname, ret);
+            goto out;
+        }
+        if ((int)rdlen > filelen) {
+            ret = -ERROR_INVALID_PARAMETER;
+            ERROR_INFO("[%s] overread", fname);
+            goto out;
+        }
+
+        entries = jobject_entries(filepj,&entrysize);
+        if (entries == NULL) {
+            DEBUG_INFO("entries 0");
+            goto next;
+        }
+
+        for(j=0;j<entrysize;j++) {
+            curentry = entries[j];
+            key = curentry->key;
+            value = curentry->value;
+
+            insertval = jvalue_clone(value);
+            if (insertval == NULL) {
+                GETERRNO(ret);
+                ERROR_INFO("clone[%s] value error[%d]",key,ret);
+                goto out;
+            }
+
+            replval = jobject_put(mainpj,key,insertval,&ret);
+            if (ret != 0) {
+                GETERRNO(ret);
+                ERROR_INFO("put value [%s] error[%d]", key, ret);
+                goto out;
+            }
+            if (replval != NULL) {
+                DEBUG_INFO("replace [%s]" ,key);
+                jvalue_destroy(replval);
+                replval = NULL;
+            }
+            insertval = NULL;
+        }
+
+    next:
+        jentries_destroy(&entries);
+        if (filepj) {
+            jvalue_destroy(filepj);
+        }
+        filepj = NULL;
+        read_file_whole(NULL,&filebuf,&filesize);
+        filelen  = 0;
+    }
+
+    /*now to jvalue_write_raw*/
+    poutbuf = jvalue_write_raw(mainpj,&outbufsize);
+    if (poutbuf == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not write mainpj [%d]", ret);
+        goto out;
+    }
+
+    __debug_buf(stdout,poutbuf,(int)outbufsize);
+
+    ret = 0;
+out:
+    if (poutbuf) {
+        free(poutbuf);
+    }
+    poutbuf = NULL;
+    outbufsize = 0;
+    if (insertval) {
+        jvalue_destroy(insertval);
+    }
+    insertval = NULL;
+
+    jentries_destroy(&entries);
+    read_file_whole(NULL,&filebuf,&filesize);
+    filelen = 0;
+    if (filepj) {
+        jvalue_destroy(filepj);
+    }
+    filepj = NULL;
+    if (mainpj) {
+        jvalue_destroy(mainpj);
+    }
+    mainpj = NULL;
+    SETERRNO(ret);
+    return ret;
 }
 
 #include "dbgcode.cpp"
