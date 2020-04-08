@@ -417,3 +417,42 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int set_hklm_sz(void* pregop1, const char* path, char* valstr)
+{
+    TCHAR* ptval=NULL;
+    int valsize=0;
+    int vallen=0;
+    int ret;
+    int nret;
+    pregop_t pregop = (pregop_t) pregop1;
+
+    if (pregop == NULL  || pregop->m_magic != REG_OP_MAGIC || path == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+
+    ret = AnsiToTchar(valstr,&ptval,&valsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    vallen = (int)_tcslen(ptval);
+    ret = __set_key_value(pregop,path, REG_SZ,ptval, (int)((vallen + 1) * sizeof(TCHAR)));
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    nret = ret;
+
+
+    AnsiToTchar(NULL,&ptval,&valsize);
+    return nret;
+fail:
+    AnsiToTchar(NULL,&ptval,&valsize);
+    SETERRNO(ret);
+    return ret;
+}
