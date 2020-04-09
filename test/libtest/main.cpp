@@ -179,7 +179,7 @@ int md5sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int checkpriv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int iswts_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-
+int termproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -7655,6 +7655,34 @@ out:
         jvalue_destroy(mainpj);
     }
     mainpj = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int termproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    int pid=-1;
+    int idx;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    init_log_level(pargs);
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    for (idx = 0; parsestate->leftargs && parsestate->leftargs[idx];idx++) {
+        pid = atoi(parsestate->leftargs[idx]);
+        ret = kill_process(pid);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not kill [%d] error[%d]", pid,ret);
+            goto out;
+        }
+        fprintf(stdout,"[%d]kill [%d] succ\n", idx,pid);
+    }
+
+    ret = 0;
+out:
     SETERRNO(ret);
     return ret;
 }

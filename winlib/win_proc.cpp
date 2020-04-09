@@ -4049,6 +4049,49 @@ fail:
     return ret;
 }
 
+int kill_process(int pid)
+{
+    HANDLE hproc=NULL;
+    int ret;
+    BOOL bret;
+    DWORD exitcode=0;
+
+    hproc = OpenProcess(PROCESS_TERMINATE ,TRUE,(DWORD)pid);
+    if (hproc == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not open [%d] error[%d]", pid, ret);
+        goto fail;
+    }
+    while(1) {
+        bret = GetExitCodeProcess(hproc,&exitcode);
+        if (bret) {
+            break;
+        }
+        GETERRNO(ret);
+        DEBUG_INFO("[%d] error [%d]", pid, ret);
+        bret = TerminateProcess(hproc,5);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("can not terminate [%d] error[%d]",pid,ret);
+            goto fail;
+        }
+        SleepEx(1,TRUE);
+    }
+
+    if (hproc != NULL) {
+        CloseHandle(hproc);
+    }
+    hproc = NULL;
+    return 0;
+fail:
+    if (hproc != NULL) {
+        CloseHandle(hproc);
+    }
+    hproc = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
 
 #if _MSC_VER >= 1910
 #pragma warning(pop)

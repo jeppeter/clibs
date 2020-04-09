@@ -247,5 +247,8 @@
     },
     "utf8json<utf8json_handler>## jsonfile ... to parse json into json string utf-8 ##" : {
         "$" : "+"
+    },
+    "termproc<termproc_handler>## pids ... to terminate pids ##" : {
+        "$" : "+"
     }
 }
