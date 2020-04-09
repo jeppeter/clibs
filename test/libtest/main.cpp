@@ -180,6 +180,7 @@ int checkpriv_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int iswts_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int termproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int listproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -7683,6 +7684,48 @@ int termproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
     ret = 0;
 out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int listproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    const char* procname=NULL;
+    int idx;
+    int j;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int* pids=NULL;
+    int retlen=0;
+    int retsize=0;
+    init_log_level(pargs);
+
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    for (idx = 0; parsestate->leftargs && parsestate->leftargs[idx];idx++) {
+        procname = parsestate->leftargs[idx];
+        ret = list_proc(procname,&pids,&retsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not get [%s] error[%d]", procname,ret);
+            goto out;
+        }
+        retlen = ret;
+        fprintf(stdout,"get [%s] [%d]",procname, retlen);
+        for (j=0;j<retlen;j++) {
+            if ((j % 5) == 0) {
+                fprintf(stdout,"\n%05d:", j);
+            }
+            fprintf(stdout," %08d", pids[j]);
+        }
+        fprintf(stdout,"\n");
+    }
+
+    ret = 0;
+out:
+    list_proc(NULL,&pids,&retsize);
     SETERRNO(ret);
     return ret;
 }

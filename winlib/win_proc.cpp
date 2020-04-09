@@ -4092,6 +4092,163 @@ fail:
     return ret;
 }
 
+#define  CHECK_PROC_PID()                                                                         \
+  do{                                                                                             \
+    char* _ansiname=NULL;                                                                         \
+    int _ansisize=0;                                                                              \
+    ret = TcharToAnsi(pproc->szExeFile,&_ansiname,&_ansisize);                                    \
+    if (ret < 0) {                                                                                \
+        GETERRNO(ret);                                                                            \
+        goto fail;                                                                                \
+    }                                                                                             \
+    if (_stricmp(_ansiname,procname) == 0) {                                                      \
+        if (retsize <= retlen || pretpids == NULL) {                                              \
+            if (retsize <= retlen) {                                                              \
+                retsize <<= 1;                                                                    \
+            }                                                                                     \
+            if (retsize == 0) {                                                                   \
+                retsize = 4;                                                                      \
+            }                                                                                     \
+            ptmppids = (int*)malloc(retsize * sizeof(*ptmppids));                                 \
+            if (ptmppids == NULL) {                                                               \
+                GETERRNO(ret);                                                                    \
+                goto fail;                                                                        \
+            }                                                                                     \
+            memset(ptmppids, 0, sizeof(*ptmppids)* retsize);                                      \
+            if (retlen > 0) {                                                                     \
+                memcpy(ptmppids,pretpids,retlen * sizeof(*ptmppids));                             \
+            }                                                                                     \
+            if (pretpids && pretpids != *pppids) {                                                \
+                free(pretpids);                                                                   \
+            }                                                                                     \
+            pretpids = ptmppids;                                                                  \
+            ptmppids = NULL;                                                                      \
+        }                                                                                         \
+        pretpids[retlen] = (int)pproc->th32ProcessID;                                             \
+        retlen ++;                                                                                \
+    }                                                                                             \
+    TcharToAnsi(NULL,&_ansiname,&_ansisize);                                                      \
+  }while(0)
+
+int list_proc(const char* procname, int** pppids,int *psize)
+{
+    HANDLE hd = NULL;
+    int ret;
+    LPPROCESSENTRY32 pproc = NULL;
+    BOOL bret;
+    int numhdl = 0;
+    int* pretpids = NULL;
+    int* ptmppids=NULL;
+    int retsize=0;
+    int retlen = 0;
+
+    if (procname == NULL) {
+        if (pppids && *pppids)  {
+            free(*pppids);
+            *pppids = NULL;
+        }
+
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (pppids == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretpids = *pppids;
+    retsize = *psize;
+
+
+    hd = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hd == INVALID_HANDLE_VALUE) {
+        GETERRNO(ret);
+        ERROR_INFO("can not create process snapshot error[%d]", ret);
+        goto fail;
+    }
+
+    pproc = (LPPROCESSENTRY32) malloc(sizeof(*pproc));
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("alloc [%d] error[%d]", sizeof(*pproc) , ret);
+        goto fail;
+    }
+    memset(pproc, 0, sizeof(*pproc));
+    pproc->dwSize = sizeof(*pproc);
+
+    bret = Process32First(hd, pproc);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret == -ERROR_NO_MORE_FILES ) {
+            goto succ;
+        }
+        ERROR_INFO("get first process snapshot error[%d]", ret);
+        goto fail;
+    }
+
+    CHECK_PROC_PID();
+
+    while (1) {
+        memset(pproc, 0, sizeof(*pproc));
+        pproc->dwSize = sizeof(*pproc);
+        bret = Process32Next(hd, pproc);
+        if (!bret) {
+            GETERRNO(ret);
+            if (ret == -ERROR_NO_MORE_FILES) {
+                break;
+            }
+            ERROR_INFO("can not get proc snapshot at [%d] error[%d]", numhdl, ret);
+            goto fail;
+        }
+
+        CHECK_PROC_PID();
+    }
+succ:
+    if (pproc) {
+        free(pproc);
+    }
+    pproc = NULL;
+
+    if (hd != NULL && hd != INVALID_HANDLE_VALUE) {
+        CloseHandle(hd);
+    }
+    hd = NULL;
+
+    if (*pppids && *pppids != pretpids) {
+        free(*pppids);
+    }
+    *pppids = pretpids;
+    *psize = retsize;
+    return retlen;
+fail:
+    if (pproc) {
+        free(pproc);
+    }
+    pproc = NULL;
+
+    if (hd != NULL && hd != INVALID_HANDLE_VALUE) {
+        CloseHandle(hd);
+    }
+    hd = NULL;
+
+    if (ptmppids) {
+        free(ptmppids);
+    }
+    ptmppids = NULL;
+
+    if (pretpids && pretpids != *pppids) {
+        free(pretpids);
+    }
+    pretpids = NULL;
+    retsize = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
 
 #if _MSC_VER >= 1910
 #pragma warning(pop)

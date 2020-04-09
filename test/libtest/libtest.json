@@ -250,5 +250,8 @@
     },
     "termproc<termproc_handler>## pids ... to terminate pids ##" : {
         "$" : "+"
+    },
+    "listproc<listproc_handler>## procname ... to list process name pids##" : {
+        "$" : "+"
     }
 }
