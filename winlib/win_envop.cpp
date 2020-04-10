@@ -641,3 +641,35 @@ fail:
     SETERRNO(-ret);
     return ret;
 }
+
+
+int user_password_ok(const char* user, const char* password)
+{
+    BOOL bret;
+    int ret=0;
+    HANDLE hd=NULL;
+    DWORD logontype[] = {LOGON32_LOGON_INTERACTIVE,LOGON32_LOGON_BATCH};
+    int i;
+    int succ=0;
+
+    for (i=0;i<(sizeof(logontype) / sizeof(logontype[0])); i ++) {
+        bret = LogonUserA(user,NULL,password,logontype[i],LOGON32_PROVIDER_DEFAULT,&hd);
+        if (bret) {
+            succ = 1;
+            break;
+        }
+    }
+
+    if (succ == 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    CloseHandle(hd);
+    hd = NULL;
+
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;
+}

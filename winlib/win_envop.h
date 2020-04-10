@@ -34,6 +34,7 @@ WINLIB_API int get_current_user(int freed,char** ppuser,int *psize);
 WINLIB_API int get_executable_wholepath(int freed,char** ppath, int *psize);
 WINLIB_API int get_executable_dirname(int freed,char** ppath, int *psize);
 WINLIB_API int get_desktop_session(void);
+WINLIB_API int user_password_ok(const char* user, const char* password);
 
 WINLIB_API int win_arch_type();
 

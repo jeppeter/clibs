@@ -253,5 +253,8 @@
     },
     "listproc<listproc_handler>## procname ... to list process name pids##" : {
         "$" : "+"
+    },
+    "okpassword<okpassword_handler>## user password to test user password##" : {
+        "$" : 2
     }
 }

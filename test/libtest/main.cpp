@@ -181,6 +181,7 @@ int iswts_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int termproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int listproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int okpassword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -7726,6 +7727,34 @@ int listproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     ret = 0;
 out:
     list_proc(NULL,&pids,&retsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int okpassword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* user=NULL;
+    char* password=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    init_log_level(pargs);
+
+    user = parsestate->leftargs[0];
+    password = parsestate->leftargs[1];
+
+    ret = user_password_ok(user,password);
+    if (ret < 0) {
+        fprintf(stderr, "logon [%s:%s] error[%d]\n",user,password,ret);
+        goto out;
+    }
+
+    fprintf(stdout,"logon [%s][%s] succ\n",user,password);
+    ret = 0;
+out:
     SETERRNO(ret);
     return ret;
 }
