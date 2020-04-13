@@ -658,6 +658,11 @@ int user_password_ok(const char* user, const char* password)
             succ = 1;
             break;
         }
+        GETERRNO(ret);
+        if ((password == NULL || strlen(password) == 0 ) && ret == -ERROR_ACCOUNT_RESTRICTION) {
+            succ = 1;
+            break;
+        }
     }
 
     if (succ == 0) {
