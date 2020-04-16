@@ -7319,7 +7319,7 @@ int md5sum_file(char* fname, uint64_t size,char* digest,int digsize)
 {
     void* pf = NULL;
     char* pbuf = NULL;
-    int bufsize = 0, buflen;
+    int bufsize = 0, buflen=0;
     uint64_t fsize = 0;
     int overed = 0;
     uint64_t cursize;
@@ -7364,7 +7364,7 @@ int md5sum_file(char* fname, uint64_t size,char* digest,int digsize)
         }
     }
 
-    if (overed == 0) {
+    if (overed == 0 || (buflen & 0x3f) == 0) {
         md5sum((unsigned char*)pbuf, (unsigned int)0, bufdig, &s);
     }
     
