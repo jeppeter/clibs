@@ -6850,7 +6850,7 @@ int listmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
             }
         }
         lastidx = idx;
-        fprintf(stdout, "%-*s %-*s %-*s      \n", maxlen, "name", 16,"addr",8,"size");
+        fprintf(stdout, "%-*s %-*s %-*s      \n", maxlen, "name", 16, "addr", 8, "size");
         for (; parsestate->leftargs && parsestate->leftargs[lastidx]; lastidx ++ ) {
             modname = parsestate->leftargs[lastidx];
             ret = get_module_info(procid, modname, &pinfo, &infosize);
@@ -6879,13 +6879,13 @@ int listmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
                 maxlen = (int)strlen(pinfo[i].m_modfullname);
             }
         }
-        fprintf(stdout, "%-*s %-*s %-*s      \n", maxlen, "name", 16,"addr",8,"size");
+        fprintf(stdout, "%-*s %-*s %-*s      \n", maxlen, "name", 16, "addr", 8, "size");
         ret = get_module_info(procid, "", &pinfo, &infosize);
         if (ret < 0) {
             GETERRNO(ret);
             ERROR_INFO("can not get [%d] mod[%s] error[%d]", procid, modname, ret);
             goto out;
-        }        
+        }
         infolen = (int)(ret / sizeof(*pinfo));
         DEBUG_INFO("infolen [%d]", infolen);
         for (i = 0; i < infolen; i++) {
@@ -6904,17 +6904,17 @@ int getprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 {
     pargs_options_t pargs = (pargs_options_t) popt;
     int ret;
-    pprinter_list_t pprn=NULL;
-    int prnsize=0,prnlen=0;
+    pprinter_list_t pprn = NULL;
+    int prnsize = 0, prnlen = 0;
     int i;
-    size_t namelen=0,sharelen=0,iplen=0,typelen=0;
+    size_t namelen = 0, sharelen = 0, iplen = 0, typelen = 0;
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
     REFERENCE_ARG(parsestate);
     init_log_level(pargs);
 
-    ret = get_printer_list(0,NULL,&pprn,&prnsize);
+    ret = get_printer_list(0, NULL, &pprn, &prnsize);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not get printer list [%d]", ret);
@@ -6927,7 +6927,7 @@ int getprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     typelen = strlen("type");
     sharelen = strlen("share");
 
-    for(i=0;i < prnlen;i++) {
+    for (i = 0; i < prnlen; i++) {
         if (strlen(pprn[i].m_name) >= namelen) {
             namelen = strlen(pprn[i].m_name) + 1;
         }
@@ -6944,14 +6944,14 @@ int getprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         }
     }
 
-    fprintf(stdout,"items %-*s %-*s %-*s %-*s\n",(int)namelen,"name",(int)typelen,"type",(int)sharelen,"share",(int)iplen,"ip");
-    for (i=0;i<prnlen;i++) {
-        fprintf(stdout, "%03d   %-*s %-*s %-*s %-*s\n",i,(int)namelen,pprn[i].m_name,(int)typelen,pprn[i].m_type,
-                (int)sharelen,pprn[i].m_sharename,(int)iplen,pprn[i].m_ip);
+    fprintf(stdout, "items %-*s %-*s %-*s %-*s\n", (int)namelen, "name", (int)typelen, "type", (int)sharelen, "share", (int)iplen, "ip");
+    for (i = 0; i < prnlen; i++) {
+        fprintf(stdout, "%03d   %-*s %-*s %-*s %-*s\n", i, (int)namelen, pprn[i].m_name, (int)typelen, pprn[i].m_type,
+                (int)sharelen, pprn[i].m_sharename, (int)iplen, pprn[i].m_ip);
     }
     ret = 0;
 out:
-    get_printer_list(1,NULL,&pprn,&prnsize);
+    get_printer_list(1, NULL, &pprn, &prnsize);
     prnlen = 0;
     SETERRNO(ret);
     return ret;
@@ -6959,19 +6959,19 @@ out:
 
 int addprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    char* remoteip=NULL;
-    char* name=NULL;
-    char* user=NULL;
-    char* password=NULL;
+    char* remoteip = NULL;
+    char* name = NULL;
+    char* user = NULL;
+    char* password = NULL;
     int ret;
     pargs_options_t pargs = (pargs_options_t)popt;
-    int i=0;
+    int i = 0;
     init_log_level(pargs);
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
 
-    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
-        if (i==0) {
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+        if (i == 0) {
             remoteip = parsestate->leftargs[i];
         } else if (i == 1) {
             name = parsestate->leftargs[i];
@@ -6984,19 +6984,19 @@ int addprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     if (remoteip == NULL || name == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
-        fprintf(stderr,"need remoteip and name\n");
+        fprintf(stderr, "need remoteip and name\n");
         goto out;
     }
 
-    ret = add_share_printer(NULL,name,remoteip,user,password);
+    ret = add_share_printer(NULL, name, remoteip, user, password);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr,"can not add [\\\\%s\\%s] with user[%s] password[%s] error[%d]\n",
-            remoteip,name,user ? user: "guest",password ? password : "",ret);
+        fprintf(stderr, "can not add [\\\\%s\\%s] with user[%s] password[%s] error[%d]\n",
+                remoteip, name, user ? user : "guest", password ? password : "", ret);
         goto out;
     }
 
-    fprintf(stdout,"add [\\\\%s\\%s] succ\n",remoteip,name);
+    fprintf(stdout, "add [\\\\%s\\%s] succ\n", remoteip, name);
 
     ret = 0;
 out:
@@ -7006,10 +7006,10 @@ out:
 
 int delprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    char* remoteip=NULL;
-    char* name=NULL;
+    char* remoteip = NULL;
+    char* name = NULL;
     int ret;
-    pargs_options_t pargs= (pargs_options_t)popt;
+    pargs_options_t pargs = (pargs_options_t)popt;
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
@@ -7018,14 +7018,14 @@ int delprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     remoteip = parsestate->leftargs[0];
     name = parsestate->leftargs[1];
 
-    ret = del_share_printer(NULL,name,remoteip);
+    ret = del_share_printer(NULL, name, remoteip);
     if (ret < 0) {
         GETERRNO(ret);
-        ERROR_INFO("can not delete printer [%s].[%s] error[%d]",remoteip,name,ret);
+        ERROR_INFO("can not delete printer [%s].[%s] error[%d]", remoteip, name, ret);
         goto out;
     }
 
-    fprintf(stdout,"delete \\\\%s\\%s succ\n",remoteip,name);
+    fprintf(stdout, "delete \\\\%s\\%s succ\n", remoteip, name);
     ret = 0;
 out:
     SETERRNO(ret);
@@ -7034,7 +7034,7 @@ out:
 }
 int saveprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    char*exportfile=NULL;
+    char*exportfile = NULL;
     int ret;
     pargs_options_t pargs = (pargs_options_t)popt;
 
@@ -7043,10 +7043,10 @@ int saveprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     init_log_level(pargs);
     exportfile = parsestate->leftargs[0];
 
-    ret = save_printer_exportfile(NULL,exportfile);
+    ret = save_printer_exportfile(NULL, exportfile);
     if (ret < 0) {
         GETERRNO(ret);
-        ERROR_INFO("save printer configuration [%s] error[%d]",exportfile,ret);
+        ERROR_INFO("save printer configuration [%s] error[%d]", exportfile, ret);
         goto out;
     }
 
@@ -7060,7 +7060,7 @@ out:
 
 int restoreprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    char*exportfile=NULL;
+    char*exportfile = NULL;
     int ret;
     pargs_options_t pargs = (pargs_options_t)popt;
 
@@ -7070,10 +7070,10 @@ int restoreprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     init_log_level(pargs);
     exportfile = parsestate->leftargs[0];
 
-    ret = restore_printer_exportfile(NULL,exportfile);
+    ret = restore_printer_exportfile(NULL, exportfile);
     if (ret < 0) {
         GETERRNO(ret);
-        ERROR_INFO("restore printer configuration [%s] error[%d]",exportfile,ret);
+        ERROR_INFO("restore printer configuration [%s] error[%d]", exportfile, ret);
         goto out;
     }
 
@@ -7177,9 +7177,9 @@ typedef struct __enum_dir {
     char* m_lastdir;
     int m_indent;
     int m_depth;
-} enum_dir_t,*penum_dir_t;
+} enum_dir_t, *penum_dir_t;
 
-int __print_directory(char* basedir,char* curdir,char* curpat,void* arg)
+int __print_directory(char* basedir, char* curdir, char* curpat, void* arg)
 {
 #if 0
     REFERENCE_ARG(basedir);
@@ -7188,14 +7188,14 @@ int __print_directory(char* basedir,char* curdir,char* curpat,void* arg)
     REFERENCE_ARG(arg);
     return 1;
 #else
-    int i,j;
-    int curdepth=0;
-    char* pcurptr=NULL;
+    int i, j;
+    int curdepth = 0;
+    char* pcurptr = NULL;
     int ret;
 
     penum_dir_t penum = (penum_dir_t) arg;
     if (penum->m_lastdir == NULL) {
-        fprintf(penum->m_fp,"%s\n",basedir);
+        fprintf(penum->m_fp, "%s\n", basedir);
         penum->m_depth = 1;
     } else if (strcmp(penum->m_lastdir, curdir) != 0) {
         pcurptr = curdir + strlen(basedir);
@@ -7207,7 +7207,7 @@ int __print_directory(char* basedir,char* curdir,char* curpat,void* arg)
                 break;
             }
             curdepth ++;
-            pcurptr = strchr(pcurptr,'\\');
+            pcurptr = strchr(pcurptr, '\\');
             if (pcurptr != NULL) {
                 /*skip the \\ */
                 pcurptr ++;
@@ -7216,12 +7216,12 @@ int __print_directory(char* basedir,char* curdir,char* curpat,void* arg)
         penum->m_depth = curdepth;
     }
 
-    for(i=0;i<penum->m_depth;i++) {
-        for (j=0;j<penum->m_indent;j++){
-            fprintf(penum->m_fp," ");    
-        }        
+    for (i = 0; i < penum->m_depth; i++) {
+        for (j = 0; j < penum->m_indent; j++) {
+            fprintf(penum->m_fp, " ");
+        }
     }
-    fprintf(penum->m_fp,"%s\n",curpat);
+    fprintf(penum->m_fp, "%s\n", curpat);
     if (penum->m_lastdir) {
         free(penum->m_lastdir);
     }
@@ -7245,16 +7245,16 @@ int enumdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     pargs_options_t pargs = (pargs_options_t) popt;
     char* basedir = NULL;
     int ret;
-    FILE* fp=stdout;
+    FILE* fp = stdout;
 
 
-    memset(&enumdir,0,sizeof(enumdir));
+    memset(&enumdir, 0, sizeof(enumdir));
     init_log_level(pargs);
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
 
     if (pargs->m_output != NULL) {
-        ret = fopen_s(&fp,pargs->m_output,"w");
+        ret = fopen_s(&fp, pargs->m_output, "w");
         if (ret != 0) {
             GETERRNO(ret);
             ERROR_INFO("open %s error[%d]", pargs->m_output, ret);
@@ -7262,7 +7262,7 @@ int enumdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         }
     }
 
-    for (i=0;parsestate->leftargs && parsestate->leftargs[i] ; i++) {
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i] ; i++) {
         basedir = parsestate->leftargs[i];
         if (enumdir.m_lastdir) {
             free(enumdir.m_lastdir);
@@ -7272,10 +7272,10 @@ int enumdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         enumdir.m_indent = 4;
         enumdir.m_fp = fp;
 
-        ret = enumerate_directory(basedir,__print_directory,&enumdir);
+        ret = enumerate_directory(basedir, __print_directory, &enumdir);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("enumerate directory [%s] error[%d]",basedir,ret);
+            ERROR_INFO("enumerate directory [%s] error[%d]", basedir, ret);
             goto out;
         }
     }
@@ -7295,17 +7295,17 @@ out:
     return ret;
 }
 
-int format_md5_digest(pmd5_state_t p,char* fmt,int size)
+int format_md5_digest(pmd5_state_t p, char* fmt, int size)
 {
-    char* pcur=fmt;
+    char* pcur = fmt;
     int leftlen = size;
     int ret;
     int i;
     unsigned char* pc;
 
-    for (i=0;i<4;i++) {
-        pc = (unsigned char*)&(p->state[i]);
-        ret = snprintf(pcur,(size_t)leftlen,"%02x%02x%02x%02x",pc[0],pc[1],pc[2],pc[3]);
+    for (i = 0; i < 4; i++) {
+        pc = (unsigned char*) & (p->state[i]);
+        ret = snprintf(pcur, (size_t)leftlen, "%02x%02x%02x%02x", pc[0], pc[1], pc[2], pc[3]);
         if (ret < 0 || ret >= (leftlen - 1)) {
             return -1;
         }
@@ -7313,48 +7313,103 @@ int format_md5_digest(pmd5_state_t p,char* fmt,int size)
         leftlen -= ret;
     }
     return 0;
+}
 
+int md5sum_file(char* fname, uint64_t size,char* digest,int digsize)
+{
+    void* pf = NULL;
+    char* pbuf = NULL;
+    int bufsize = 0, buflen;
+    uint64_t fsize = 0;
+    int overed = 0;
+    uint64_t cursize;
+    md5_state_t s;
+    unsigned char bufdig[70];
+    int ret;
+
+    bufsize = 1024 * 1024;
+    pbuf = (char*)malloc((size_t)bufsize);
+    if (pbuf == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    pf = open_file(fname, READ_MODE);
+    if (pf == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    fsize = get_file_size(pf);
+    cursize = 0;
+    init_md5_state(&s);
+    while (cursize < size || size == 0) {
+        buflen = bufsize;
+        if ((uint64_t)buflen > (fsize - cursize)) {
+            buflen = (int) (fsize - cursize);
+        }
+        DEBUG_BUFFER_FMT(pbuf, (buflen > 0x20 ? 0x20 : buflen), "[%s] at [0x%llx]", fname, cursize);
+        ret = read_file(pf, cursize, pbuf, (uint32_t)buflen);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+
+        md5sum((unsigned char*)pbuf, (unsigned int) buflen, bufdig, &s);
+        cursize += buflen;
+        if (cursize == fsize) {
+            overed = 1;
+            break;
+        }
+    }
+
+    if (overed == 0) {
+        md5sum((unsigned char*)pbuf, (unsigned int)0, bufdig, &s);
+    }
+    
+    format_md5_digest(&s, digest, digsize);
+
+    if (pbuf) {
+        free(pbuf);
+    }
+    close_file(&pf);
+
+    return overed;
+fail:
+    if (pbuf) {
+        free(pbuf);
+    }
+    close_file(&pf);
+    SETERRNO(ret);
+    return ret;
 }
 
 int md5sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    char* pbuf=NULL;
-    int bufsize=0,buflen=0;
-    md5_state_t s,*ps=NULL;
-    pargs_options_t pargs= (pargs_options_t) popt;
+    pargs_options_t pargs = (pargs_options_t) popt;
     char* fname;
     char digest[64];
-    unsigned char bufdig[64];
     int i;
     int ret;
+
 
     init_log_level(pargs);
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
 
-    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
         fname = parsestate->leftargs[i];
-        ret = read_file_whole(fname,&pbuf,&bufsize);
+        ret = md5sum_file(fname,0, digest, sizeof(digest));
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("read [%s] error[%d]",fname, ret);
+            ERROR_INFO("calc [%s] error[%d]", fname, ret);
             goto out;
         }
-        buflen = ret;
-        init_md5_state(&s);
-        ps = md5sum((unsigned char*)pbuf,(unsigned int)buflen,bufdig,&s);
-        if (ps == NULL) {
-            GETERRNO(ret);
-            ERROR_INFO("[%s] md5sum error",fname);
-            goto out;
-        }
-        format_md5_digest(&s,digest,sizeof(digest));
-        fprintf(stdout,"%s => %s\n",fname,digest);
+        fprintf(stdout, "[%s] => [%s]\n",fname, digest);
     }
-
     ret = 0;
 out:
-    read_file_whole(NULL,&pbuf,&bufsize);
     SETERRNO(ret);
     return ret;
 }
@@ -7369,44 +7424,44 @@ typedef struct __priv_funcs
     m_enable_priv_func_t m_enfunc;
     m_disable_priv_func_t m_disfunc;
     m_get_priv_func_t m_getfunc;
-} priv_funcs_t,*ppriv_funcs_t;
+} priv_funcs_t, *ppriv_funcs_t;
 
 
 static priv_funcs_t st_priv_funcs [] =
 {
-    {"security",enable_security_priv,disable_security_priv,is_security_priv},
+    {"security", enable_security_priv, disable_security_priv, is_security_priv},
     {"takeown", enable_takeown_priv, disable_takeown_priv, is_takeown_priv},
-    {"restore", enable_restore_priv,disable_restore_priv,is_restore_priv},
-    {"backup",enable_backup_priv,disable_backup_priv,is_backup_priv},
-    {"impersonate",enable_impersonate_priv,disable_impersonate_priv,is_impersonate_priv},
-    {"audit",enable_audit_priv,disable_audit_priv,is_audit_priv},
-    {"debug",enable_debug_priv,disable_debug_priv,is_debug_priv},
-    {"tcb", enable_tcb_priv,disable_tcb_priv,is_tcb_priv},
-    {NULL,NULL,NULL,NULL}
+    {"restore", enable_restore_priv, disable_restore_priv, is_restore_priv},
+    {"backup", enable_backup_priv, disable_backup_priv, is_backup_priv},
+    {"impersonate", enable_impersonate_priv, disable_impersonate_priv, is_impersonate_priv},
+    {"audit", enable_audit_priv, disable_audit_priv, is_audit_priv},
+    {"debug", enable_debug_priv, disable_debug_priv, is_debug_priv},
+    {"tcb", enable_tcb_priv, disable_tcb_priv, is_tcb_priv},
+    {NULL, NULL, NULL, NULL}
 };
 
-ppriv_funcs_t __find_priv_funcs(char* name,ppriv_funcs_t plast)
+ppriv_funcs_t __find_priv_funcs(char* name, ppriv_funcs_t plast)
 {
     int i;
     if (name == NULL) {
         if (plast == NULL) {
-            if (st_priv_funcs[0].m_name != NULL) {            
+            if (st_priv_funcs[0].m_name != NULL) {
                 return &(st_priv_funcs[0]);
             }
             return NULL;
         }
 
-        for (i=0;st_priv_funcs[i].m_name != NULL;i++) {
+        for (i = 0; st_priv_funcs[i].m_name != NULL; i++) {
             if (&(st_priv_funcs[i]) == plast) {
-                if (st_priv_funcs[(i+1)].m_name != NULL) {
-                    return &(st_priv_funcs[i+1]);
-                } 
+                if (st_priv_funcs[(i + 1)].m_name != NULL) {
+                    return &(st_priv_funcs[i + 1]);
+                }
             }
         }
         return NULL;
     }
 
-    for (i=0;st_priv_funcs[i].m_name;i++) {
+    for (i = 0; st_priv_funcs[i].m_name; i++) {
         if (_stricmp(st_priv_funcs[i].m_name, name) == 0) {
             return &(st_priv_funcs[i]);
         }
@@ -7414,17 +7469,17 @@ ppriv_funcs_t __find_priv_funcs(char* name,ppriv_funcs_t plast)
     return NULL;
 }
 
-int call_priv_func(ppriv_funcs_t privfunc,pargs_options_t pargs)
+int call_priv_func(ppriv_funcs_t privfunc, pargs_options_t pargs)
 {
     int ret;
     int val;
-    int enabled=0;
+    int enabled = 0;
 
     if (pargs->m_privenable) {
         ret = privfunc->m_enfunc();
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("enable [%s] error[%d]",privfunc->m_name, ret);
+            ERROR_INFO("enable [%s] error[%d]", privfunc->m_name, ret);
             goto fail;
         }
         enabled = 1;
@@ -7464,7 +7519,7 @@ int checkpriv_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 {
     int i;
     pargs_options_t pargs = (pargs_options_t)popt;
-    ppriv_funcs_t privfunc=NULL;
+    ppriv_funcs_t privfunc = NULL;
     int ret;
     char* privname;
 
@@ -7474,32 +7529,32 @@ int checkpriv_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
     if (parsestate->leftargs == NULL || parsestate->leftargs[0] == NULL) {
         privfunc = NULL;
-        while(1) {
-            privfunc = __find_priv_funcs(NULL,privfunc);
+        while (1) {
+            privfunc = __find_priv_funcs(NULL, privfunc);
             if (privfunc == NULL) {
                 break;
             }
-            ret = call_priv_func(privfunc,pargs);
+            ret = call_priv_func(privfunc, pargs);
             if (ret < 0) {
                 GETERRNO(ret);
                 goto out;
             }
-            fprintf(stdout,"[%s]=[%d]\n", privfunc->m_name, ret);
+            fprintf(stdout, "[%s]=[%d]\n", privfunc->m_name, ret);
         }
     }  else {
-        for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
             privname = parsestate->leftargs[i];
-            privfunc = __find_priv_funcs(privname,NULL);
+            privfunc = __find_priv_funcs(privname, NULL);
             if (privfunc == NULL) {
-                fprintf(stderr,"no [%s] found\n",privname);
+                fprintf(stderr, "no [%s] found\n", privname);
                 continue;
             }
-            ret = call_priv_func(privfunc,pargs);
+            ret = call_priv_func(privfunc, pargs);
             if (ret < 0) {
                 GETERRNO(ret);
                 goto out;
             }
-            fprintf(stdout,"[%s]=[%d]\n", privfunc->m_name, ret);
+            fprintf(stdout, "[%s]=[%d]\n", privfunc->m_name, ret);
         }
     }
 
@@ -7519,7 +7574,7 @@ int iswts_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 
     init_log_level(pargs);
 
-    fprintf(stdout,"wts [%s]\n", is_wts_enabled() > 0 ? "enabled" : "disabled");
+    fprintf(stdout, "wts [%s]\n", is_wts_enabled() > 0 ? "enabled" : "disabled");
 
     return 0;
 
@@ -7529,22 +7584,22 @@ int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 {
     int ret;
     pargs_options_t pargs = (pargs_options_t) popt;
-    jvalue* mainpj= NULL;
+    jvalue* mainpj = NULL;
     jvalue* filepj = NULL;
-    jentry** entries=NULL;
+    jentry** entries = NULL;
     jentry* curentry = NULL;
-    const char* key=NULL;
-    jvalue* value=NULL;
-    jvalue* insertval=NULL;
-    jvalue* replval=NULL;
-    unsigned int entrysize=0;
-    char* filebuf=NULL;
-    int filesize=0;
-    int filelen=0;
+    const char* key = NULL;
+    jvalue* value = NULL;
+    jvalue* insertval = NULL;
+    jvalue* replval = NULL;
+    unsigned int entrysize = 0;
+    char* filebuf = NULL;
+    int filesize = 0;
+    int filelen = 0;
     char* fname = NULL;
-    unsigned int rdlen=0;
-    char* poutbuf=NULL;
-    unsigned int outbufsize=0;
+    unsigned int rdlen = 0;
+    char* poutbuf = NULL;
+    unsigned int outbufsize = 0;
     int i;
     unsigned int j;
 
@@ -7560,9 +7615,9 @@ int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         goto out;
     }
 
-    for (i=0;parsestate->leftargs && parsestate->leftargs[i] ; i++) {
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i] ; i++) {
         fname = parsestate->leftargs[i];
-        ret = read_file_whole(fname,&filebuf,&filesize);
+        ret = read_file_whole(fname, &filebuf, &filesize);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
@@ -7570,7 +7625,7 @@ int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
         filelen = ret;
         rdlen = 0;
-        filepj = jvalue_read(filebuf,&rdlen);
+        filepj = jvalue_read(filebuf, &rdlen);
         if (filepj == NULL) {
             GETERRNO(ret);
             ERROR_INFO("parse [%s] error[%d]", fname, ret);
@@ -7582,13 +7637,13 @@ int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             goto out;
         }
 
-        entries = jobject_entries(filepj,&entrysize);
+        entries = jobject_entries(filepj, &entrysize);
         if (entries == NULL) {
             DEBUG_INFO("entries 0");
             goto next;
         }
 
-        for(j=0;j<entrysize;j++) {
+        for (j = 0; j < entrysize; j++) {
             curentry = entries[j];
             key = curentry->key;
             value = curentry->value;
@@ -7596,43 +7651,43 @@ int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             insertval = jvalue_clone(value);
             if (insertval == NULL) {
                 GETERRNO(ret);
-                ERROR_INFO("clone[%s] value error[%d]",key,ret);
+                ERROR_INFO("clone[%s] value error[%d]", key, ret);
                 goto out;
             }
 
-            replval = jobject_put(mainpj,key,insertval,&ret);
+            replval = jobject_put(mainpj, key, insertval, &ret);
             if (ret != 0) {
                 GETERRNO(ret);
                 ERROR_INFO("put value [%s] error[%d]", key, ret);
                 goto out;
             }
             if (replval != NULL) {
-                DEBUG_INFO("replace [%s]" ,key);
+                DEBUG_INFO("replace [%s]" , key);
                 jvalue_destroy(replval);
                 replval = NULL;
             }
             insertval = NULL;
         }
 
-    next:
+next:
         jentries_destroy(&entries);
         if (filepj) {
             jvalue_destroy(filepj);
         }
         filepj = NULL;
-        read_file_whole(NULL,&filebuf,&filesize);
+        read_file_whole(NULL, &filebuf, &filesize);
         filelen  = 0;
     }
 
     /*now to jvalue_write_raw*/
-    poutbuf = jvalue_write_raw(mainpj,&outbufsize);
+    poutbuf = jvalue_write_raw(mainpj, &outbufsize);
     if (poutbuf == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not write mainpj [%d]", ret);
         goto out;
     }
 
-    __debug_buf(stdout,poutbuf,(int)outbufsize);
+    __debug_buf(stdout, poutbuf, (int)outbufsize);
 
     ret = 0;
 out:
@@ -7647,7 +7702,7 @@ out:
     insertval = NULL;
 
     jentries_destroy(&entries);
-    read_file_whole(NULL,&filebuf,&filesize);
+    read_file_whole(NULL, &filebuf, &filesize);
     filelen = 0;
     if (filepj) {
         jvalue_destroy(filepj);
@@ -7664,7 +7719,7 @@ out:
 int termproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
-    int pid=-1;
+    int pid = -1;
     int idx;
     pargs_options_t pargs = (pargs_options_t) popt;
     init_log_level(pargs);
@@ -7672,15 +7727,15 @@ int termproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
 
-    for (idx = 0; parsestate->leftargs && parsestate->leftargs[idx];idx++) {
+    for (idx = 0; parsestate->leftargs && parsestate->leftargs[idx]; idx++) {
         pid = atoi(parsestate->leftargs[idx]);
         ret = kill_process(pid);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("can not kill [%d] error[%d]", pid,ret);
+            ERROR_INFO("can not kill [%d] error[%d]", pid, ret);
             goto out;
         }
-        fprintf(stdout,"[%d]kill [%d] succ\n", idx,pid);
+        fprintf(stdout, "[%d]kill [%d] succ\n", idx, pid);
     }
 
     ret = 0;
@@ -7692,49 +7747,49 @@ out:
 int listproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
-    const char* procname=NULL;
+    const char* procname = NULL;
     int idx;
     int j;
     pargs_options_t pargs = (pargs_options_t) popt;
-    int* pids=NULL;
-    int retlen=0;
-    int retsize=0;
+    int* pids = NULL;
+    int retlen = 0;
+    int retsize = 0;
     init_log_level(pargs);
 
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
 
-    for (idx = 0; parsestate->leftargs && parsestate->leftargs[idx];idx++) {
+    for (idx = 0; parsestate->leftargs && parsestate->leftargs[idx]; idx++) {
         procname = parsestate->leftargs[idx];
-        ret = list_proc(procname,&pids,&retsize);
+        ret = list_proc(procname, &pids, &retsize);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("can not get [%s] error[%d]", procname,ret);
+            ERROR_INFO("can not get [%s] error[%d]", procname, ret);
             goto out;
         }
         retlen = ret;
-        fprintf(stdout,"get [%s] [%d]",procname, retlen);
-        for (j=0;j<retlen;j++) {
+        fprintf(stdout, "get [%s] [%d]", procname, retlen);
+        for (j = 0; j < retlen; j++) {
             if ((j % 5) == 0) {
-                fprintf(stdout,"\n%05d:", j);
+                fprintf(stdout, "\n%05d:", j);
             }
-            fprintf(stdout," %08d", pids[j]);
+            fprintf(stdout, " %08d", pids[j]);
         }
-        fprintf(stdout,"\n");
+        fprintf(stdout, "\n");
     }
 
     ret = 0;
 out:
-    list_proc(NULL,&pids,&retsize);
+    list_proc(NULL, &pids, &retsize);
     SETERRNO(ret);
     return ret;
 }
 
 int okpassword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    char* user=NULL;
-    char* password=NULL;
+    char* user = NULL;
+    char* password = NULL;
     pargs_options_t pargs = (pargs_options_t) popt;
     int ret;
 
@@ -7746,13 +7801,13 @@ int okpassword_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     user = parsestate->leftargs[0];
     password = parsestate->leftargs[1];
 
-    ret = user_password_ok(user,password);
+    ret = user_password_ok(user, password);
     if (ret < 0) {
-        fprintf(stderr, "logon [%s:%s] error[%d]\n",user,password,ret);
+        fprintf(stderr, "logon [%s:%s] error[%d]\n", user, password, ret);
         goto out;
     }
 
-    fprintf(stdout,"logon [%s][%s] succ\n",user,password);
+    fprintf(stdout, "logon [%s][%s] succ\n", user, password);
     ret = 0;
 out:
     SETERRNO(ret);
