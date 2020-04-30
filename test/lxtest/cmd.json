@@ -10,10 +10,10 @@
         "$" : 0
     },
     "sleep<sleep_handler>" : {
-    	"$" : "+"
+        "$" : "+"
     },
     "run<run_handler>" : {
-    	"$" : "+"
+        "$" : "+"
     },
     "mntdir<mntdir_handler>" : {
         "$" : "+"
@@ -55,6 +55,12 @@
         "$" : 2
     },
     "readlines<readlines_handler>" : {
+        "$" : "+"
+    },
+    "exists<exists_handler>" : {
+        "$" : "+"
+    },
+    "md5<md5_handler>" : {
         "$" : "+"
     }
 }

@@ -11,7 +11,7 @@ include ../../baseop.mak
 LXTEST_SRCS= main.cpp
 LXTEST_OFILES=$(patsubst %.cpp,%.o,${LXTEST_SRCS})
 
-INCLUDE_CFLAGS= -I${TOPDIR}/uxlib -I${TOPDIR}/common -I${TOPDIR}/common/jsonlib -I${TOPDIR}/common/extargslib
+INCLUDE_CFLAGS= -I${TOPDIR}/uxlib -I${TOPDIR}/common -I${TOPDIR}/common/jsonlib -I${TOPDIR}/common/extargslib -I${TOPDIR}/common/cryptutil
 
 #$(info "SRCDIR ${SRCDIR} $(MAKEFILE_LIST)")
 ifeq (${STATICLIB},)

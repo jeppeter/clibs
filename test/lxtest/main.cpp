@@ -14,6 +14,8 @@
 #include <sys/eventfd.h>
 #include <ctype.h>
 
+#include <crypt_md5.h>
+
 typedef struct __args_options {
     int m_verbose;
     int m_timeout;
@@ -41,6 +43,8 @@ int cpfile_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int readoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int writeoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int readlines_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int exists_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int md5_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
 do{                                                                               \
@@ -1072,6 +1076,130 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int exists_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+    const char* fname;
+    init_log_verbose(pargs);
+
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        fname = parsestate->leftargs[i];
+        ret = is_path_exist(fname);
+        fprintf(stdout,"[%d][%s] %s\n",i,fname,ret > 0 ? "exist" : "not exist");
+    }
+    ret = 0;
+
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int format_md5_digest(pmd5_state_t p, char* fmt, int size)
+{
+    char* pcur = fmt;
+    int leftlen = size;
+    int ret;
+    int i;
+    unsigned char* pc;
+
+    for (i = 0; i < 4; i++) {
+        pc = (unsigned char*) & (p->state[i]);
+        ret = snprintf(pcur, (size_t)leftlen, "%02x%02x%02x%02x", pc[0], pc[1], pc[2], pc[3]);
+        if (ret < 0 || ret >= (leftlen - 1)) {
+            return -1;
+        }
+        pcur += ret;
+        leftlen -= ret;
+    }
+    return 0;
+}
+
+int md5sum_file(char* fname, uint64_t size,char* digest,int digsize)
+{
+    char* pbuf = NULL;
+    int bufsize = 0, buflen=0;
+    int overed = 0;
+    uint64_t cursize;
+    md5_state_t s;
+    unsigned char bufdig[70];
+    int ret;
+
+    bufsize = 1024 * 1024;
+    pbuf = (char*)malloc((size_t)bufsize);
+    if (pbuf == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    cursize = 0;
+    init_md5_state(&s);
+    while (1) {
+        buflen = bufsize;
+        ret = read_offset_file(fname,cursize,pbuf,buflen);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        DEBUG_BUFFER_FMT(pbuf, (buflen > 0x20 ? 0x20 : buflen), "[%s] at [0x%llx]", fname, cursize);
+        buflen = ret;
+        if (buflen > 0) {
+            md5sum((unsigned char*)pbuf, (unsigned int) buflen, bufdig, &s);    
+        }        
+        cursize += buflen;
+        if (buflen < bufsize) {
+            overed = 1;
+            break;
+        }
+    }
+
+    if ((buflen & 0x3f) == 0) {
+        md5sum((unsigned char*)pbuf, (unsigned int)0, bufdig, &s);
+    }
+    
+    format_md5_digest(&s, digest, digsize);
+
+    if (pbuf) {
+        free(pbuf);
+    }
+
+    return overed;
+fail:
+    if (pbuf) {
+        free(pbuf);
+    }
+    SETERRNO(ret);
+    return ret;
+}
+
+int md5_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* fname;
+    char digest[64];
+    int i;
+    int ret;
+
+    init_log_verbose(pargs);
+
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+        fname = parsestate->leftargs[i];
+        ret = md5sum_file(fname,0, digest, sizeof(digest));
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("calc [%s] error[%d]", fname, ret);
+            goto out;
+        }
+        fprintf(stdout, "[%s] => [%s]\n",fname, digest);
+    }
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
 
 int main(int argc, char* argv[])
 {

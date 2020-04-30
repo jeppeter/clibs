@@ -161,7 +161,7 @@ void __md5_encode(unsigned char* output, unsigned int* input, unsigned int len)
  */
 void __md5_decode(unsigned int *output, unsigned char*input, unsigned int len)
 {
-	byte *e;
+	unsigned char *e;
 
 	for(e = input+len; input < e; input += 4)
 		*output++ = input[0] | (input[1] << 8) |
@@ -195,7 +195,7 @@ void init_md5_state(pmd5_state_t s)
 pmd5_state_t md5sum(unsigned char* p, unsigned int len, unsigned char* digest, pmd5_state_t s)
 {
 	unsigned int a, b, c, d, tmp;
-	unsigned int i, done;
+	unsigned int i;
 	md5_table_t *t;
 	unsigned char* end;
 	unsigned int x[16];
@@ -204,8 +204,6 @@ pmd5_state_t md5sum(unsigned char* p, unsigned int len, unsigned char* digest, p
 
 	i = len & 0x3f;
 	if(i || len == 0){
-		done = 1;
-
 		/* pad the input, assume there's room */
 		if(i < 56)
 			i = 56 - i;
@@ -221,9 +219,8 @@ pmd5_state_t md5sum(unsigned char* p, unsigned int len, unsigned char* digest, p
 		x[0] = s->len<<3;
 		x[1] = s->len>>29;
 		__md5_encode(p+len, x, 8);
-	} else
-		done = 0;
-
+	} 
+	
 	for(end = p+len; p < end; p += 64){
 		a = s->state[0];
 		b = s->state[1];

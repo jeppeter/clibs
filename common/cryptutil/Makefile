@@ -12,7 +12,7 @@ SOURCES = crypt_md5.c
 OBJECTS = $(patsubst %.c,%.o,$(SOURCES))
 
 CFLAGS  = $(COMMON_CFLAGS)
-CFLAGS += -I${TOPDIR}/common -I${TOPDIR}/common/cryptutil -Wall
+CFLAGS += -I${TOPDIR}/common  -I${TOPDIR}/common/cryptutil -I${TOPDIR}/uxlib -Wall
 ifeq (${STATICLIB},)
 CFLAGS += -fPIC 
 endif
