@@ -78,6 +78,7 @@ int cp_file(char* srcfile, char* dstfile);
 *************************************/
 int mkdir_p(const char* dname, int mask);
 
+int is_path_exist(const char* path);
 #ifdef __cplusplus
 };
 #endif /* __cplusplus*/

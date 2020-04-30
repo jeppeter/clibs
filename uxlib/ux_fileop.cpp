@@ -1437,3 +1437,17 @@ fail:
     return ret;
 
 }
+
+int is_path_exist(const char* path)
+{
+     struct stat fs;
+     int ret;
+     int retval = 1;
+     ret = stat(path,&fs);
+     if (ret < 0) {
+         GETERRNO(ret);
+         DEBUG_INFO("[%s] [%d]", path, ret);
+         retval = 0;
+     }
+     return retval;
+}
