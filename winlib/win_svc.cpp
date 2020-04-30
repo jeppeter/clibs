@@ -1017,8 +1017,8 @@ fail:
 
 
 
-SERVICE_STATUS          glbl_svc_status;
-SERVICE_STATUS_HANDLE   glbl_svc_status_hd = NULL;
+static SERVICE_STATUS          glbl_svc_status;
+static SERVICE_STATUS_HANDLE   glbl_svc_status_hd = NULL;
 
 
 int  svc_init_mode(char* svcname, LPHANDLER_FUNCTION_EX pFunc, void* puserdata)
