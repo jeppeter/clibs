@@ -25,6 +25,7 @@ typedef struct __pipe_hdr_t {
 #define   DELPRN_CMD                         0x1327
 #define   SAVEPRN_CMD                        0x1328
 #define   RESTOREPRN_CMD                     0x1329
+#define   BACK_CMD_RUN                       0x132a
 
 
 #ifdef __cplusplus

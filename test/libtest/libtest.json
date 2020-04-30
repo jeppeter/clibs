@@ -256,5 +256,8 @@
     },
     "okpassword<okpassword_handler>## user password to test user password##" : {
         "$" : 2
+    },
+    "svrbackrun<svrbackrun_handler>## cmd ... to run command##" : {
+        "$" : "+"
     }
 }

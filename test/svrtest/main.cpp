@@ -807,6 +807,64 @@ fail:
     return ret;    
 }
 
+int back_run_cmd(HANDLE exitevt, ppipe_hdr_t phdr, int hdrlen)
+{
+    char* pcurptr = NULL;
+    int i;
+    int cnt = 0;
+    int passlen = 0;
+    int curlen = 0;
+    int totallen = (int)(hdrlen - sizeof(pipe_hdr_t));
+    char* pout = NULL, *perr = NULL;
+    int outsize = 0, errsize = 0;
+    int exitcode = 0;
+    int ret;
+    char* cmdline = NULL;
+    int cmdsize = 0;
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);
+    cnt = 0;
+    for (passlen = 0, i = 0; passlen < (totallen - 1); i++) {
+        curlen = (int)(strlen(pcurptr) + 1);
+        if (i > 0) {
+            ret = append_snprintf_safe(&cmdline, &cmdsize, " %s", pcurptr);
+        } else {
+            ret = snprintf_safe(&cmdline, &cmdsize, "%s", pcurptr);
+        }
+        passlen += curlen;
+        cnt ++;
+        pcurptr += curlen;
+    }
+
+
+    DEBUG_INFO("count %d [%s]", cnt, cmdline);
+
+    ret = run_cmd_event_output_single(exitevt, NULL, 0, &pout, &outsize, &perr, &errsize, &exitcode, 0, cmdline);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not run wts outputv error[%d]", ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("cmd line [%s]", cmdline);
+
+    DEBUG_BUFFER_FMT(pout,outsize,"runout [%d]", exitcode);
+    DEBUG_BUFFER_FMT(perr,errsize,"errout");
+
+
+    run_cmd_event_output_single(exitevt, NULL, 0, &pout, &outsize, &perr, &errsize, &exitcode, 0, NULL);
+
+    snprintf_safe(&cmdline, &cmdsize, NULL);
+    return 0;
+fail:
+    run_cmd_event_output_single(exitevt, NULL, 0, &pout, &outsize, &perr, &errsize, &exitcode, 0, NULL);
+    snprintf_safe(&cmdline, &cmdsize, NULL);
+    SETERRNO(ret);
+    return ret;
+}
+
+
 
 static DWORD st_EXITED_MODE = 0;
 
@@ -929,6 +987,14 @@ bind_pipe_again:
             }
         } else if (phdr->m_cmd == RESTOREPRN_CMD) {
             ret = restoreprn_cmd(exitevt,phdr,indatalen);
+            if (ret < 0) {
+                if (ret == -ERROR_CONTROL_C_EXIT) {
+                    break;
+                }
+                goto bind_pipe_again;
+            }
+        } else if (phdr->m_cmd == BACK_CMD_RUN) {
+            ret = back_run_cmd(exitevt,phdr,indatalen);
             if (ret < 0) {
                 if (ret == -ERROR_CONTROL_C_EXIT) {
                     break;

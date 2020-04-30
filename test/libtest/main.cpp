@@ -182,6 +182,7 @@ int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int termproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int listproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int okpassword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svrbackrun_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -7813,6 +7814,29 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int svrbackrun_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+
+    init_log_level(pargs);
+
+    ret = __send_svr_pipe(BACK_CMD_RUN, parsestate, pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
 
 #include "dbgcode.cpp"
 
