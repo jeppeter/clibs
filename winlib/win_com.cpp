@@ -2,6 +2,7 @@
 #include <win_com.h>
 #include <win_output_debug.h>
 
+#pragma comment(lib,"Ole32.lib")
 
 int initialize_com(void)
 {

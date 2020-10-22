@@ -1079,7 +1079,7 @@ BOOL CALLBACK SymEnumSymbolsProcFill(PSYMBOL_INFO pSymInfo,ULONG SymbolSize,PVOI
 }
 
 
-
+#ifdef _M_X64
 int enum_symbol_pdb(const char* pdbfile,const char* searchmask,addr_t loadaddr, 
     pdebug_symbol_info_t psyminfo,int maxsize)
 {
@@ -1165,3 +1165,5 @@ fail:
     SETERRNO(-ret);
     return ret;
 }
+
+#endif /* _M_X64 */
