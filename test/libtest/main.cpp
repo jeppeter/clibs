@@ -7986,9 +7986,38 @@ do{                                                                             
     }                                                                                             \
 }while(0)
 
+char* get_trustee_type(TRUSTEE_TYPE type)
+{
+    switch (type) {
+    case TRUSTEE_IS_UNKNOWN:
+        return "unknown";
+    case TRUSTEE_IS_USER:
+        return "user";
+    case TRUSTEE_IS_GROUP:
+        return "group";
+    case TRUSTEE_IS_DOMAIN:
+        return "domain";
+    case TRUSTEE_IS_ALIAS:
+        return "alias";
+    case TRUSTEE_IS_WELL_KNOWN_GROUP:
+        return "wellknowngroup";
+    case TRUSTEE_IS_DELETED:
+        return "deleted";
+    case TRUSTEE_IS_INVALID:
+        return "invalid";
+    case TRUSTEE_IS_COMPUTER:
+        return "computer";
+    }
+    return "not known";
+}
+
 void dump_trustee(FILE* fp , PTRUSTEE_A pcur, int tabs)
 {
     PTRUSTEE_A pnext = NULL;
+    LPSTR pstr = NULL;
+    BOOL bret;
+    OBJECTS_AND_SID* posid=NULL;
+    OBJECTS_AND_NAME_A* pnamea=NULL;
     OUTPUT_TABS(fp, tabs);
     fprintf(fp, "MultipleTrusteeOperation=0x%x[%d]\n", pcur->MultipleTrusteeOperation, pcur->MultipleTrusteeOperation);
     OUTPUT_TABS(fp, tabs);
@@ -7996,7 +8025,36 @@ void dump_trustee(FILE* fp , PTRUSTEE_A pcur, int tabs)
     OUTPUT_TABS(fp, tabs);
     fprintf(fp, "TrusteeType=0x%x[%d]\n", pcur->TrusteeType, pcur->TrusteeType);
     OUTPUT_TABS(fp, tabs);
-    fprintf(fp, "ptstrName=%s\n", pcur->ptstrName);
+    fprintf(fp, "[%s]", get_trustee_type(pcur->TrusteeType));
+    if (pcur->TrusteeForm == TRUSTEE_IS_SID) {
+        bret = ConvertSidToStringSidA((PSID)pcur->ptstrName, &pstr);
+        if (bret) {
+            fprintf(fp, "ptstrName=%s\n", pstr);
+            LocalFree(pstr);
+            pstr = NULL;
+        } else {
+            fprintf(fp, "ptstrName=notsucc\n");
+        }
+    } else if (pcur->TrusteeForm == TRUSTEE_IS_NAME) {
+        fprintf(fp,"ptstrName=%s\n", pcur->ptstrName);
+    } else if (pcur->TrusteeForm == TRUSTEE_BAD_FORM) {
+        fprintf(fp, "ptstrName=BadForm\n");
+    } else if (pcur->TrusteeForm == TRUSTEE_IS_OBJECTS_AND_SID) {
+        posid = (OBJECTS_AND_SID*) pcur->ptstrName;
+        bret = ConvertSidToStringSidA(posid->pSid,&pstr);
+        if (bret) {
+            fprintf(fp,"ptstrName=%s\n",pstr);
+            LocalFree(pstr);
+            pstr = NULL;
+        } else {
+            fprintf(fp,"ptstrName=notsucc\n");
+        }
+    } else if (pcur->TrusteeForm == TRUSTEE_IS_OBJECTS_AND_NAME) {
+        pnamea = (OBJECTS_AND_NAME_A*)pcur->ptstrName;
+        fprintf(fp,"ptstrName=%s:%s\n",pnamea->ObjectTypeName,pnamea->ptstrName);
+    } else {
+        fprintf(fp,"ptstrName=%d\n",pcur->TrusteeForm);
+    }
     pnext = pcur->pMultipleTrustee;
     if (pnext != NULL) {
         dump_trustee(fp, pnext, tabs + 1);
