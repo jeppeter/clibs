@@ -42,6 +42,7 @@
 #include <win_prn.h>
 
 
+
 #include <jvalue.h>
 #include <crypt_md5.h>
 
@@ -90,6 +91,9 @@ typedef struct __args_options {
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+
+
 int mktemp_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int readencode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int pidargv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
@@ -183,6 +187,7 @@ int termproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int listproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int okpassword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrbackrun_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -7316,11 +7321,11 @@ int format_md5_digest(pmd5_state_t p, char* fmt, int size)
     return 0;
 }
 
-int md5sum_file(char* fname, uint64_t size,char* digest,int digsize)
+int md5sum_file(char* fname, uint64_t size, char* digest, int digsize)
 {
     void* pf = NULL;
     char* pbuf = NULL;
-    int bufsize = 0, buflen=0;
+    int bufsize = 0, buflen = 0;
     uint64_t fsize = 0;
     int overed = 0;
     uint64_t cursize;
@@ -7368,7 +7373,7 @@ int md5sum_file(char* fname, uint64_t size,char* digest,int digsize)
     if (overed == 0 || (buflen & 0x3f) == 0) {
         md5sum((unsigned char*)pbuf, (unsigned int)0, bufdig, &s);
     }
-    
+
     format_md5_digest(&s, digest, digsize);
 
     if (pbuf) {
@@ -7401,13 +7406,13 @@ int md5sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
         fname = parsestate->leftargs[i];
-        ret = md5sum_file(fname,0, digest, sizeof(digest));
+        ret = md5sum_file(fname, 0, digest, sizeof(digest));
         if (ret < 0) {
             GETERRNO(ret);
             ERROR_INFO("calc [%s] error[%d]", fname, ret);
             goto out;
         }
-        fprintf(stdout, "[%s] => [%s]\n",fname, digest);
+        fprintf(stdout, "[%s] => [%s]\n", fname, digest);
     }
     ret = 0;
 out:
@@ -7835,6 +7840,314 @@ int svrbackrun_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 out:
     SETERRNO(ret);
     return ret;
+}
+
+
+int get_security_safe(HANDLE hproc, SECURITY_INFORMATION inform, PSECURITY_DESCRIPTOR* ppsec, int*psize)
+{
+    NTSTATUS status;
+    int ret;
+    int retlen = 0;
+    PSECURITY_DESCRIPTOR pretsec = NULL;
+    int retsize = 0;
+    ULONG retl = 0;
+
+    if (hproc == NULL) {
+        if (ppsec && *ppsec) {
+            free(*ppsec);
+            *ppsec = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+    if (ppsec == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretsec = *ppsec;
+    retsize = *psize;
+
+try_again:
+    status = NtQuerySecurityObjectFake(hproc, inform, pretsec, (ULONG)retsize, &retl);
+    if (status != NTSTATUS_SUCCESS) {
+        if (status != NTSTATUS_BUFFER_TOO_SMALL) {
+            GETERRNO(ret);
+            ERROR_INFO("get proc [%p] [0x%x] error[0x%lx][%d]", hproc, inform, status, ret);
+            goto fail;
+        }
+
+        if (pretsec != NULL && pretsec != *ppsec) {
+            free(pretsec);
+        }
+        pretsec = NULL;
+        retsize <<= 1;
+        if (retsize == 0) {
+            retsize = 32;
+        }
+        pretsec = (PSECURITY_DESCRIPTOR)malloc((size_t)retsize);
+        if (pretsec == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        memset(pretsec, 0, (size_t)retsize);
+        goto try_again;
+    }
+
+    retlen = (int)retl;
+
+    if (*ppsec && *ppsec != pretsec) {
+        free(*ppsec);
+    }
+    *ppsec = pretsec;
+    *psize = retsize;
+
+    return retlen;
+fail:
+    if (pretsec && pretsec != *ppsec) {
+        free(pretsec);
+    }
+    pretsec = NULL;
+    retsize = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+int get_security_string(PSECURITY_DESCRIPTOR psec,SECURITY_INFORMATION  inform,char** ppstr,int *psize)
+{
+    char* pretstr=NULL;
+    int retsize=0;
+    int retlen=0;
+    BOOL bret;
+    int ret;
+    if (psec == NULL){
+        if (ppstr && *ppstr) {
+            free(*ppstr);
+            *ppstr = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (ppstr == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    bret = ConvertSecurityDescriptorToStringSecurityDescriptorA(psec,SDDL_REVISION_1,
+        inform,&pretstr,(PULONG)&retsize);
+    if (!bret) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = retsize;
+    if (retsize > 0) {
+        if (*psize <= retsize) {
+            if (*ppstr) {
+                free(*ppstr);
+            }
+            *ppstr = NULL;
+            *psize = retsize + 1;
+            *ppstr = (char*)malloc((size_t)(*psize));
+            if ((*ppstr) == NULL) {
+                GETERRNO(ret);
+                goto fail;
+            }
+        }
+        memset(*ppstr, 0 , (size_t)(*psize));
+        memcpy(*ppstr, pretstr, (size_t)retsize);
+    }
+
+    if (pretstr) {
+        LocalFree(pretstr);
+    }
+    pretstr = NULL;
+    return retlen;
+fail:
+    if (pretstr) {
+        LocalFree(pretstr);
+    }
+    pretstr = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int dump_process_security(int pid)
+{
+    HANDLE hproc = NULL;
+    int ret,res;
+    PSECURITY_DESCRIPTOR pownersec = NULL, pgrpsec = NULL, psaclsec = NULL, pdaclsec = NULL;
+    int ownersize = 0, grpsize = 0, saclsize = 0, daclsize = 0;
+    char* pdesc=NULL;
+    int descsize=0;
+    int enabled = 0;
+
+    ret = enable_security_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not make enabled[%d]",ret);
+        goto fail;
+    }
+    enabled = 1;
+    DEBUG_INFO("enable security [%d]" ,enabled);
+
+    //hproc = OpenProcess(READ_CONTROL|ACCESS_SYSTEM_SECURITY,FALSE,(DWORD)pid);
+    hproc = OpenProcess(PROCESS_ALL_ACCESS,FALSE,(DWORD)pid);
+    if (hproc == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("open [%d] error[%d]", pid, ret);
+        goto fail;
+    }
+
+    ret = get_security_safe(hproc, OWNER_SECURITY_INFORMATION, &pownersec, &ownersize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get owner for [%d] error[%d]", pid, ret);
+        goto fail;
+    }
+
+    ret = get_security_safe(hproc, GROUP_SECURITY_INFORMATION, &pgrpsec, &grpsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get group for [%d] error[%d]", pid, ret);
+        goto fail;
+    }
+
+    /*ret = get_security_safe(hproc, SACL_SECURITY_INFORMATION, &psaclsec, &saclsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get sacl for [%d] error[%d]", pid, ret);
+        goto fail;
+    }*/
+
+    ret = get_security_safe(hproc, DACL_SECURITY_INFORMATION, &pdaclsec, &daclsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get dacl for [%d] error[%d]", pid, ret);
+        goto fail;
+    }
+
+    ret = get_security_string(pownersec,OWNER_SECURITY_INFORMATION,&pdesc,&descsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get owner string error[%d]", ret);
+        goto fail;
+    }
+    fprintf(stdout,"owner------------\n%s\n",pdesc);
+
+
+    ret = get_security_string(pgrpsec,GROUP_SECURITY_INFORMATION,&pdesc,&descsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get group string error[%d]", ret);
+        goto fail;
+    }
+    fprintf(stdout,"group------------\n%s\n",pdesc);
+
+
+    /*ret = get_security_string(psaclsec,SACL_SECURITY_INFORMATION,&pdesc,&descsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get sacl string error[%d]", ret);
+        goto fail;
+    }
+    fprintf(stdout,"sacl------------\n%s\n",pdesc);*/
+
+
+    ret = get_security_string(pdaclsec,DACL_SECURITY_INFORMATION,&pdesc,&descsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get dacl string error[%d]", ret);
+        goto fail;
+    }
+    fprintf(stdout,"dacl------------\n%s\n",pdesc);
+
+    get_security_string(NULL,DACL_SECURITY_INFORMATION,&pdesc,&descsize);
+
+    get_security_safe(NULL, DACL_SECURITY_INFORMATION, &pdaclsec,&daclsize);
+    get_security_safe(NULL, SACL_SECURITY_INFORMATION, &psaclsec,&saclsize);
+    get_security_safe(NULL, GROUP_SECURITY_INFORMATION, &pgrpsec,&grpsize);
+    get_security_safe(NULL, OWNER_SECURITY_INFORMATION, &pownersec, &ownersize);
+    if (hproc != NULL &&
+            hproc != INVALID_HANDLE_VALUE) {
+        CloseHandle(hproc);
+    }
+    hproc = NULL;
+
+    if (enabled) {
+        res = disable_security_priv();
+        if (res < 0) {
+            GETERRNO(res);
+            ERROR_INFO("disable priv error[%d]",res);
+        }
+    }
+    enabled = 0;
+
+    return 0;
+fail:
+    get_security_string(NULL,DACL_SECURITY_INFORMATION,&pdesc,&descsize);
+    get_security_safe(NULL, DACL_SECURITY_INFORMATION, &pdaclsec,&daclsize);
+    get_security_safe(NULL, SACL_SECURITY_INFORMATION, &psaclsec,&saclsize);
+    get_security_safe(NULL, GROUP_SECURITY_INFORMATION, &pgrpsec,&grpsize);
+    get_security_safe(NULL, OWNER_SECURITY_INFORMATION, &pownersec, &ownersize);
+    if (hproc != NULL &&
+            hproc != INVALID_HANDLE_VALUE) {
+        CloseHandle(hproc);
+    }
+    hproc = NULL;
+    if (enabled) {
+        res = disable_security_priv();
+        if (res < 0) {
+            GETERRNO(res);
+            ERROR_INFO("disable priv error[%d]" ,res);
+        }
+    }
+
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+    int pid;
+
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+    init_log_level(pargs);
+
+    ret = init_nt_funcs();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i] != NULL ; i ++) {
+        pid = atoi(parsestate->leftargs[i]);
+        ret = dump_process_security(pid);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+    ret = 0;
+out:
+    fini_nt_funcs();
+    SETERRNO(ret);
+    return ret;
+
 }
 
 

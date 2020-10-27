@@ -9,6 +9,7 @@
 #include <win_uniansi.h>
 
 #include <Objbase.h>
+#include <Windows.h>
 
 #include "vssetup.h"
 #include "Setup.Configuration.h"
@@ -388,3 +389,86 @@ fail:
 	return ret;
 }
 
+typedef NTSYSCALLAPI NTSTATUS  (NTAPI *NtSetSecurityObject_func_t)(HANDLE Handle,SECURITY_INFORMATION SecurityInformation,PSECURITY_DESCRIPTOR SecurityDescriptor);
+
+typedef NTSYSCALLAPI NTSTATUS  (NTAPI *NtQuerySecurityObject_func_t)( _In_ HANDLE Handle,    _In_ SECURITY_INFORMATION SecurityInformation, _Out_writes_bytes_opt_(Length) PSECURITY_DESCRIPTOR SecurityDescriptor,    _In_ ULONG Length,    _Out_ PULONG LengthNeeded);
+
+
+static NtSetSecurityObject_func_t NtSetSecurityObject_orig = NULL;
+static NtQuerySecurityObject_func_t NtQuerySecurityObject_orig = NULL;
+static HMODULE ntdll_hdl=NULL;
+
+int init_nt_funcs(void)
+{
+	int ret;
+	fini_nt_funcs();
+	ntdll_hdl = LoadLibraryA("ntdll.dll");
+	if (ntdll_hdl == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("load ntdll.dll error[%d]", ret);
+		goto fail;
+	}
+
+	NtSetSecurityObject_orig = (NtSetSecurityObject_func_t) GetProcAddress(ntdll_hdl,"NtSetSecurityObject");
+	if (NtSetSecurityObject_orig == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("failed NtSetSecurityObject error[%d]", ret);
+		goto fail;
+	}
+
+	NtQuerySecurityObject_orig = (NtQuerySecurityObject_func_t)GetProcAddress(ntdll_hdl,"NtQuerySecurityObject");
+	if (NtQuerySecurityObject_orig == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("failed NtQuerySecurityObject error[%d]", ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	fini_nt_funcs();
+	SETERRNO(ret);
+	return ret;
+}
+
+void fini_nt_funcs(void)
+{
+	NtSetSecurityObject_orig = NULL;
+	NtQuerySecurityObject_orig = NULL;
+	if (ntdll_hdl != NULL) {
+		FreeLibrary(ntdll_hdl);
+	}
+	ntdll_hdl = NULL;
+	return ;
+}
+
+
+NTSTATUS
+NTAPI
+NtSetSecurityObjectFake(
+    _In_ HANDLE Handle,
+    _In_ SECURITY_INFORMATION SecurityInformation,
+    _In_ PSECURITY_DESCRIPTOR SecurityDescriptor
+    )
+{
+	if (NtSetSecurityObject_orig == NULL) {
+		return NTSTATUS_FLT_NOT_INITIALIZED;
+	}
+	return NtSetSecurityObject_orig(Handle,SecurityInformation,SecurityDescriptor);
+}
+
+
+NTSTATUS
+NTAPI
+NtQuerySecurityObjectFake(
+    _In_ HANDLE Handle,
+    _In_ SECURITY_INFORMATION SecurityInformation,
+    _Out_writes_bytes_opt_(Length) PSECURITY_DESCRIPTOR SecurityDescriptor,
+    _In_ ULONG Length,
+    _Out_ PULONG LengthNeeded
+    )
+{
+	if (NtQuerySecurityObject_orig == NULL) {
+		return NTSTATUS_FLT_NOT_INITIALIZED;
+	}
+	return NtQuerySecurityObject_orig(Handle,SecurityInformation,SecurityDescriptor,Length,LengthNeeded);
+}

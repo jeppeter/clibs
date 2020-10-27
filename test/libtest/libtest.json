@@ -259,5 +259,8 @@
     },
     "svrbackrun<svrbackrun_handler>## cmd ... to run command##" : {
         "$" : "+"
+    },
+    "procsecget<procsecget_handler>##pids ... to get process security##" : {
+        "$" : "+"
     }
 }
