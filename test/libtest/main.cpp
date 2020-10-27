@@ -8060,7 +8060,7 @@ int get_sec_aces_safe(PACL pacl, PEXPLICIT_ACCESS_A* ppaces, ULONG* psize)
         ERROR_INFO("get ace error [%ld] [%d]", dret, ret);
         goto fail;
     }
-    ret = (int)*psize;
+    ret = (int) * psize;
     DEBUG_INFO("dump [%d]", ret);
 
     return ret;
@@ -8088,6 +8088,10 @@ int dump_process_security(int pid)
     PEXPLICIT_ACCESS_A paces = NULL;
     ULONG acesize = 0;
     int i;
+    PACL pacl = NULL;
+    BOOL bpresent = FALSE;
+    BOOL bdefault = FALSE;
+    BOOL bret;
 
     ret = enable_security_priv();
     if (ret < 0) {
@@ -8171,16 +8175,21 @@ int dump_process_security(int pid)
         }
         fprintf(stdout, "sacl------------\n%s\n", pdesc);
 
-        ret = get_sec_aces_safe(psaclsec->Sacl, &paces, &acesize);
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto fail;
+        bpresent = FALSE;
+        bdefault = FALSE;
+        bret = GetSecurityDescriptorSacl(psaclsec, &bpresent, &pacl, &bdefault);
+        if (bret && bpresent) {
+            ret = get_sec_aces_safe(pacl, &paces, &acesize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            for (i = 0; i < (int)acesize; i++) {
+                dump_aces(stdout, &(paces[i]), 1, "sacl [%d] ace", i);
+            }
+        } else {
+            fprintf(stdout, "no sacl\n");
         }
-
-        for (i = 0; i < (int)acesize; i++) {
-            dump_aces(stdout, &(paces[i]), 0, "sacl [%d] ace", i);
-        }
-
     }
 
 
@@ -8192,14 +8201,21 @@ int dump_process_security(int pid)
     }
     fprintf(stdout, "dacl------------\n%s\n", pdesc);
 
-    ret = get_sec_aces_safe(pdaclsec->Dacl, &paces, &acesize);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
 
-    for (i = 0; i < (int)acesize; i++) {
-        dump_aces(stdout, &(paces[i]), 0, "dacl [%d] ace", i);
+    bpresent = FALSE;
+    bdefault = FALSE;
+    bret = GetSecurityDescriptorDacl(pdaclsec, &bpresent, &pacl, &bdefault);
+    if (bret && bpresent) {
+        ret = get_sec_aces_safe(pacl, &paces, &acesize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        for (i = 0; i < (int)acesize; i++) {
+            dump_aces(stdout, &(paces[i]), 1, "dacl [%d] ace", i);
+        }
+    } else {
+        fprintf(stdout, "no dacl\n");
     }
 
 
