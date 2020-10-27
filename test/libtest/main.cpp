@@ -7843,12 +7843,12 @@ out:
 }
 
 
-int get_security_safe(HANDLE hproc, SECURITY_INFORMATION inform, PSECURITY_DESCRIPTOR* ppsec, int*psize)
+int get_security_safe(HANDLE hproc, SECURITY_INFORMATION inform, PISECURITY_DESCRIPTOR* ppsec, int*psize)
 {
     NTSTATUS status;
     int ret;
     int retlen = 0;
-    PSECURITY_DESCRIPTOR pretsec = NULL;
+    PISECURITY_DESCRIPTOR pretsec = NULL;
     int retsize = 0;
     ULONG retl = 0;
 
@@ -7888,7 +7888,7 @@ try_again:
         if (retsize == 0) {
             retsize = 32;
         }
-        pretsec = (PSECURITY_DESCRIPTOR)malloc((size_t)retsize);
+        pretsec = (PISECURITY_DESCRIPTOR)malloc((size_t)retsize);
         if (pretsec == NULL) {
             GETERRNO(ret);
             goto fail;
@@ -7916,14 +7916,14 @@ fail:
     return ret;
 }
 
-int get_security_string(PSECURITY_DESCRIPTOR psec,SECURITY_INFORMATION  inform,char** ppstr,int *psize)
+int get_security_string(PSECURITY_DESCRIPTOR psec, SECURITY_INFORMATION  inform, char** ppstr, int *psize)
 {
-    char* pretstr=NULL;
-    int retsize=0;
-    int retlen=0;
+    char* pretstr = NULL;
+    int retsize = 0;
+    int retlen = 0;
     BOOL bret;
     int ret;
-    if (psec == NULL){
+    if (psec == NULL) {
         if (ppstr && *ppstr) {
             free(*ppstr);
             *ppstr = NULL;
@@ -7940,8 +7940,8 @@ int get_security_string(PSECURITY_DESCRIPTOR psec,SECURITY_INFORMATION  inform,c
         return ret;
     }
 
-    bret = ConvertSecurityDescriptorToStringSecurityDescriptorA(psec,SDDL_REVISION_1,
-        inform,&pretstr,(PULONG)&retsize);
+    bret = ConvertSecurityDescriptorToStringSecurityDescriptorA(psec, SDDL_REVISION_1,
+            inform, &pretstr, (PULONG)&retsize);
     if (!bret) {
         GETERRNO(ret);
         goto fail;
@@ -7978,31 +7978,138 @@ fail:
     return ret;
 }
 
+#define OUTPUT_TABS(fp,tabs)                                                                      \
+do{                                                                                               \
+    int __i;                                                                                      \
+    for (__i=0;__i<tabs;__i++) {                                                                  \
+        fprintf(fp,"    ");                                                                       \
+    }                                                                                             \
+}while(0)
+
+void dump_trustee(FILE* fp , PTRUSTEE_A pcur, int tabs)
+{
+    PTRUSTEE_A pnext = NULL;
+    OUTPUT_TABS(fp, tabs);
+    fprintf(fp, "MultipleTrusteeOperation=0x%x[%d]\n", pcur->MultipleTrusteeOperation, pcur->MultipleTrusteeOperation);
+    OUTPUT_TABS(fp, tabs);
+    fprintf(fp, "TrusteeForm=0x%x[%d]\n", pcur->TrusteeForm, pcur->TrusteeForm);
+    OUTPUT_TABS(fp, tabs);
+    fprintf(fp, "TrusteeType=0x%x[%d]\n", pcur->TrusteeType, pcur->TrusteeType);
+    OUTPUT_TABS(fp, tabs);
+    fprintf(fp, "ptstrName=%s\n", pcur->ptstrName);
+    pnext = pcur->pMultipleTrustee;
+    if (pnext != NULL) {
+        dump_trustee(fp, pnext, tabs + 1);
+    } else {
+        OUTPUT_TABS(fp, tabs);
+        fprintf(fp, "pMultipleTrustee=NULL\n");
+    }
+    return;
+}
+
+void dump_aces(FILE* fp, PEXPLICIT_ACCESS_A pace, int tabs, const char* fmt, ...)
+{
+    PTRUSTEE_A pcur = NULL;
+
+    if (fmt != NULL) {
+        va_list ap;
+        va_start(ap, fmt);
+        vfprintf(fp, fmt, ap);
+        fprintf(fp, "\n");
+    }
+    OUTPUT_TABS(fp, tabs);
+    fprintf(fp, "grfAccessPermissions=0x%lx[%ld]\n", pace->grfAccessPermissions, pace->grfAccessPermissions);
+    OUTPUT_TABS(fp, tabs);
+    fprintf(fp, "grfAccessMode=0x%x[%d]\n", pace->grfAccessMode, pace->grfAccessMode);
+    OUTPUT_TABS(fp, tabs);
+    fprintf(fp, "grfInheritance=0x%lx[%ld]\n", pace->grfInheritance, pace->grfInheritance);
+    pcur = &(pace->Trustee);
+    dump_trustee(fp, pcur, tabs);
+    return;
+}
+
+int get_sec_aces_safe(PACL pacl, PEXPLICIT_ACCESS_A* ppaces, ULONG* psize)
+{
+    int ret;
+    DWORD dret;
+    if (pacl == NULL) {
+        if (ppaces && *ppaces) {
+            LocalFree(*ppaces);
+            *ppaces = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+    }
+
+    if (ppaces == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (*ppaces) {
+        LocalFree(*ppaces);
+        *ppaces = NULL;
+    }
+    *psize = 0;
+
+    dret = GetExplicitEntriesFromAclA(pacl, psize, ppaces);
+    if (dret != ERROR_SUCCESS) {
+        GETERRNO(ret);
+        ERROR_INFO("get ace error [%ld] [%d]", dret, ret);
+        goto fail;
+    }
+    ret = (int)*psize;
+    DEBUG_INFO("dump [%d]", ret);
+
+    return ret;
+
+fail:
+    if (*ppaces) {
+        LocalFree(*ppaces);
+        *ppaces = NULL;
+    }
+    *psize = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
 int dump_process_security(int pid)
 {
     HANDLE hproc = NULL;
-    int ret,res;
-    PSECURITY_DESCRIPTOR pownersec = NULL, pgrpsec = NULL, psaclsec = NULL, pdaclsec = NULL;
+    int ret, res;
+    PISECURITY_DESCRIPTOR pownersec = NULL, pgrpsec = NULL, psaclsec = NULL, pdaclsec = NULL;
     int ownersize = 0, grpsize = 0, saclsize = 0, daclsize = 0;
-    char* pdesc=NULL;
-    int descsize=0;
+    char* pdesc = NULL;
+    int descsize = 0;
     int enabled = 0;
+    int saclenabled = 0;
+    PEXPLICIT_ACCESS_A paces = NULL;
+    ULONG acesize = 0;
+    int i;
 
     ret = enable_security_priv();
     if (ret < 0) {
         GETERRNO(ret);
-        ERROR_INFO("can not make enabled[%d]",ret);
+        ERROR_INFO("can not make enabled[%d]", ret);
         goto fail;
     }
     enabled = 1;
-    DEBUG_INFO("enable security [%d]" ,enabled);
+    DEBUG_INFO("enable security [%d]" , enabled);
 
-    //hproc = OpenProcess(READ_CONTROL|ACCESS_SYSTEM_SECURITY,FALSE,(DWORD)pid);
-    hproc = OpenProcess(PROCESS_ALL_ACCESS,FALSE,(DWORD)pid);
+    hproc = OpenProcess(READ_CONTROL | ACCESS_SYSTEM_SECURITY, FALSE, (DWORD)pid);
+
+    //hproc = OpenProcess(PROCESS_ALL_ACCESS,FALSE,(DWORD)pid);
     if (hproc == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("open [%d] error[%d]", pid, ret);
-        goto fail;
+        hproc = OpenProcess(READ_CONTROL, FALSE, (DWORD)pid);
+        if (hproc == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("open [%d] error[%d]", pid, ret);
+            goto fail;
+        }
+    } else {
+        saclenabled = 1;
     }
 
     ret = get_security_safe(hproc, OWNER_SECURITY_INFORMATION, &pownersec, &ownersize);
@@ -8019,12 +8126,14 @@ int dump_process_security(int pid)
         goto fail;
     }
 
-    /*ret = get_security_safe(hproc, SACL_SECURITY_INFORMATION, &psaclsec, &saclsize);
-    if (ret < 0) {
-        GETERRNO(ret);
-        ERROR_INFO("get sacl for [%d] error[%d]", pid, ret);
-        goto fail;
-    }*/
+    if (saclenabled) {
+        ret = get_security_safe(hproc, SACL_SECURITY_INFORMATION, &psaclsec, &saclsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("get sacl for [%d] error[%d]", pid, ret);
+            goto fail;
+        }
+    }
 
     ret = get_security_safe(hproc, DACL_SECURITY_INFORMATION, &pdaclsec, &daclsize);
     if (ret < 0) {
@@ -8033,46 +8142,74 @@ int dump_process_security(int pid)
         goto fail;
     }
 
-    ret = get_security_string(pownersec,OWNER_SECURITY_INFORMATION,&pdesc,&descsize);
+    ret = get_security_string(pownersec, OWNER_SECURITY_INFORMATION, &pdesc, &descsize);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("get owner string error[%d]", ret);
         goto fail;
     }
-    fprintf(stdout,"owner------------\n%s\n",pdesc);
+    fprintf(stdout, "owner------------\n%s\n", pdesc);
 
 
-    ret = get_security_string(pgrpsec,GROUP_SECURITY_INFORMATION,&pdesc,&descsize);
+
+
+
+    ret = get_security_string(pgrpsec, GROUP_SECURITY_INFORMATION, &pdesc, &descsize);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("get group string error[%d]", ret);
         goto fail;
     }
-    fprintf(stdout,"group------------\n%s\n",pdesc);
+    fprintf(stdout, "group------------\n%s\n", pdesc);
 
+    if (saclenabled) {
+        ret = get_security_string(psaclsec, SACL_SECURITY_INFORMATION, &pdesc, &descsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("get sacl string error[%d]", ret);
+            goto fail;
+        }
+        fprintf(stdout, "sacl------------\n%s\n", pdesc);
 
-    /*ret = get_security_string(psaclsec,SACL_SECURITY_INFORMATION,&pdesc,&descsize);
-    if (ret < 0) {
-        GETERRNO(ret);
-        ERROR_INFO("get sacl string error[%d]", ret);
-        goto fail;
+        ret = get_sec_aces_safe(psaclsec->Sacl, &paces, &acesize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+
+        for (i = 0; i < (int)acesize; i++) {
+            dump_aces(stdout, &(paces[i]), 0, "sacl [%d] ace", i);
+        }
+
     }
-    fprintf(stdout,"sacl------------\n%s\n",pdesc);*/
 
 
-    ret = get_security_string(pdaclsec,DACL_SECURITY_INFORMATION,&pdesc,&descsize);
+    ret = get_security_string(pdaclsec, DACL_SECURITY_INFORMATION, &pdesc, &descsize);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("get dacl string error[%d]", ret);
         goto fail;
     }
-    fprintf(stdout,"dacl------------\n%s\n",pdesc);
+    fprintf(stdout, "dacl------------\n%s\n", pdesc);
 
-    get_security_string(NULL,DACL_SECURITY_INFORMATION,&pdesc,&descsize);
+    ret = get_sec_aces_safe(pdaclsec->Dacl, &paces, &acesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
-    get_security_safe(NULL, DACL_SECURITY_INFORMATION, &pdaclsec,&daclsize);
-    get_security_safe(NULL, SACL_SECURITY_INFORMATION, &psaclsec,&saclsize);
-    get_security_safe(NULL, GROUP_SECURITY_INFORMATION, &pgrpsec,&grpsize);
+    for (i = 0; i < (int)acesize; i++) {
+        dump_aces(stdout, &(paces[i]), 0, "dacl [%d] ace", i);
+    }
+
+
+    get_sec_aces_safe(NULL, &paces, &acesize);
+
+    get_security_string(NULL, DACL_SECURITY_INFORMATION, &pdesc, &descsize);
+
+    get_security_safe(NULL, DACL_SECURITY_INFORMATION, &pdaclsec, &daclsize);
+    get_security_safe(NULL, SACL_SECURITY_INFORMATION, &psaclsec, &saclsize);
+    get_security_safe(NULL, GROUP_SECURITY_INFORMATION, &pgrpsec, &grpsize);
     get_security_safe(NULL, OWNER_SECURITY_INFORMATION, &pownersec, &ownersize);
     if (hproc != NULL &&
             hproc != INVALID_HANDLE_VALUE) {
@@ -8084,17 +8221,18 @@ int dump_process_security(int pid)
         res = disable_security_priv();
         if (res < 0) {
             GETERRNO(res);
-            ERROR_INFO("disable priv error[%d]",res);
+            ERROR_INFO("disable priv error[%d]", res);
         }
     }
     enabled = 0;
 
     return 0;
 fail:
-    get_security_string(NULL,DACL_SECURITY_INFORMATION,&pdesc,&descsize);
-    get_security_safe(NULL, DACL_SECURITY_INFORMATION, &pdaclsec,&daclsize);
-    get_security_safe(NULL, SACL_SECURITY_INFORMATION, &psaclsec,&saclsize);
-    get_security_safe(NULL, GROUP_SECURITY_INFORMATION, &pgrpsec,&grpsize);
+    get_sec_aces_safe(NULL, &paces, &acesize);
+    get_security_string(NULL, DACL_SECURITY_INFORMATION, &pdesc, &descsize);
+    get_security_safe(NULL, DACL_SECURITY_INFORMATION, &pdaclsec, &daclsize);
+    get_security_safe(NULL, SACL_SECURITY_INFORMATION, &psaclsec, &saclsize);
+    get_security_safe(NULL, GROUP_SECURITY_INFORMATION, &pgrpsec, &grpsize);
     get_security_safe(NULL, OWNER_SECURITY_INFORMATION, &pownersec, &ownersize);
     if (hproc != NULL &&
             hproc != INVALID_HANDLE_VALUE) {
@@ -8105,7 +8243,7 @@ fail:
         res = disable_security_priv();
         if (res < 0) {
             GETERRNO(res);
-            ERROR_INFO("disable priv error[%d]" ,res);
+            ERROR_INFO("disable priv error[%d]" , res);
         }
     }
 
