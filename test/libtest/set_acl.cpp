@@ -8,6 +8,9 @@
 #include <win_priv.h>
 
 #include <aclapi.h>
+#include <Windows.h>
+#include <sddl.h>
+#include <accctrl.h>
 
 
 int get_security_safe(HANDLE hproc, SECURITY_INFORMATION inform, PSECURITY_DESCRIPTOR* ppsec, int*psize)
@@ -447,7 +450,7 @@ fail:
     return ret;
 }
 
-int dump_process_security(int pid)
+int dump_process_security(FILE* fp,int pid)
 {
     HANDLE hproc = NULL;
     int ret, res;
@@ -524,7 +527,7 @@ int dump_process_security(int pid)
         ERROR_INFO("get owner string error[%d]", ret);
         goto fail;
     }
-    fprintf(stdout, "owner------------\n%s\n", pdesc);
+    fprintf(fp, "owner------------\n%s\n", pdesc);
 
 
 
@@ -536,7 +539,7 @@ int dump_process_security(int pid)
         ERROR_INFO("get group string error[%d]", ret);
         goto fail;
     }
-    fprintf(stdout, "group------------\n%s\n", pdesc);
+    fprintf(fp, "group------------\n%s\n", pdesc);
 
     if (saclenabled) {
         ret = get_security_string(psaclsec, SACL_SECURITY_INFORMATION, &pdesc, &descsize);
@@ -545,7 +548,7 @@ int dump_process_security(int pid)
             ERROR_INFO("get sacl string error[%d]", ret);
             goto fail;
         }
-        fprintf(stdout, "sacl------------\n%s\n", pdesc);
+        fprintf(fp, "sacl------------\n%s\n", pdesc);
 
         bpresent = FALSE;
         bdefault = FALSE;
@@ -557,10 +560,10 @@ int dump_process_security(int pid)
                 goto fail;
             }
             for (i = 0; i < (int)acesize; i++) {
-                dump_aces(stdout, &(paces[i]), 1, "sacl [%d] ace", i);
+                dump_aces(fp, &(paces[i]), 1, "sacl [%d] ace", i);
             }
         } else {
-            fprintf(stdout, "no sacl\n");
+            fprintf(fp, "no sacl\n");
         }
     }
 
@@ -571,7 +574,7 @@ int dump_process_security(int pid)
         ERROR_INFO("get dacl string error[%d]", ret);
         goto fail;
     }
-    fprintf(stdout, "dacl------------\n%s\n", pdesc);
+    fprintf(fp, "dacl------------\n%s\n", pdesc);
 
 
     bpresent = FALSE;
@@ -584,10 +587,10 @@ int dump_process_security(int pid)
             goto fail;
         }
         for (i = 0; i < (int)acesize; i++) {
-            dump_aces(stdout, &(paces[i]), 1, "dacl [%d] ace", i);
+            dump_aces(fp, &(paces[i]), 1, "dacl [%d] ace", i);
         }
     } else {
-        fprintf(stdout, "no dacl\n");
+        fprintf(fp, "no dacl\n");
     }
 
 
@@ -746,7 +749,7 @@ int get_inherit_from_str(FILE* fp,char* inheritstr, DWORD *pinherit)
     return 0;
 }
 
-int proc_dacl_set(int pid,ACCESS_MASK mask, ACCESS_MODE mode,DWORD inherit,char* username)
+int __proc_dacl_set(int pid,ACCESS_MASK mask, ACCESS_MODE mode,DWORD inherit,char* username)
 {
     EXPLICIT_ACCESS_A ea;
     PSECURITY_DESCRIPTOR pdaclsec=NULL;
@@ -838,4 +841,35 @@ fail:
     hproc = NULL;
     SETERRNO(ret);
     return ret;
+}
+
+int proc_dacl_set(FILE* fp,int pid,char* maskstr,char* modestr, char* inheritstr, char* username)
+{
+    ACCESS_MASK mask;
+    ACCESS_MODE mode;
+    DWORD inherit;
+    int ret;
+
+    ret = get_mask_from_str(fp,maskstr,&mask);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = get_mode_from_str(fp,modestr,&mode);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret=  get_inherit_from_str(fp,inheritstr,&inherit);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    return __proc_dacl_set(pid,mask,mode,inherit,username);
+fail:
+    SETERRNO(ret);
+    return ret;
+
 }

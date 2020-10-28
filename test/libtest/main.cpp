@@ -7866,7 +7866,7 @@ int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 
     for (i = 0; parsestate->leftargs && parsestate->leftargs[i] != NULL ; i ++) {
         pid = atoi(parsestate->leftargs[i]);
-        ret = dump_process_security(pid);
+        ret = dump_process_security(stdout,pid);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
@@ -7885,9 +7885,9 @@ int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     int ret = 0;
     pargs_options_t pargs = (pargs_options_t) popt;
     int pid;
-    ACCESS_MASK mask;
-    ACCESS_MODE mode;
-    DWORD inherit;
+    char* maskstr;
+    char* modestr;
+    char* inheritstr;
     char* username=NULL;
 
 
@@ -7902,27 +7902,12 @@ int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     }
 
     pid = atoi(parsestate->leftargs[0]);
-    ret = get_mask_from_str(stderr,parsestate->leftargs[1], &mask);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto out;
-    }
-
-    ret = get_mode_from_str(stderr,parsestate->leftargs[2],&mode);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto out;
-    }
-
-    ret = get_inherit_from_str(stderr,parsestate->leftargs[3], &inherit);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto out;
-    }
-
+    maskstr = parsestate->leftargs[1];
+    modestr = parsestate->leftargs[2];
+    inheritstr = parsestate->leftargs[3];
     username = parsestate->leftargs[4];
 
-    ret = proc_dacl_set(pid,mask,mode,inherit,username);
+    ret = proc_dacl_set(stderr,pid,maskstr,modestr,inheritstr,username);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
