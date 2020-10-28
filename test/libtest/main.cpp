@@ -8016,8 +8016,8 @@ void dump_trustee(FILE* fp , PTRUSTEE_A pcur, int tabs)
     PTRUSTEE_A pnext = NULL;
     LPSTR pstr = NULL;
     BOOL bret;
-    OBJECTS_AND_SID* posid=NULL;
-    OBJECTS_AND_NAME_A* pnamea=NULL;
+    OBJECTS_AND_SID* posid = NULL;
+    OBJECTS_AND_NAME_A* pnamea = NULL;
     OUTPUT_TABS(fp, tabs);
     fprintf(fp, "MultipleTrusteeOperation=0x%x[%d]\n", pcur->MultipleTrusteeOperation, pcur->MultipleTrusteeOperation);
     OUTPUT_TABS(fp, tabs);
@@ -8036,24 +8036,24 @@ void dump_trustee(FILE* fp , PTRUSTEE_A pcur, int tabs)
             fprintf(fp, "ptstrName=notsucc\n");
         }
     } else if (pcur->TrusteeForm == TRUSTEE_IS_NAME) {
-        fprintf(fp,"ptstrName=%s\n", pcur->ptstrName);
+        fprintf(fp, "ptstrName=%s\n", pcur->ptstrName);
     } else if (pcur->TrusteeForm == TRUSTEE_BAD_FORM) {
         fprintf(fp, "ptstrName=BadForm\n");
     } else if (pcur->TrusteeForm == TRUSTEE_IS_OBJECTS_AND_SID) {
         posid = (OBJECTS_AND_SID*) pcur->ptstrName;
-        bret = ConvertSidToStringSidA(posid->pSid,&pstr);
+        bret = ConvertSidToStringSidA(posid->pSid, &pstr);
         if (bret) {
-            fprintf(fp,"ptstrName=%s\n",pstr);
+            fprintf(fp, "ptstrName=%s\n", pstr);
             LocalFree(pstr);
             pstr = NULL;
         } else {
-            fprintf(fp,"ptstrName=notsucc\n");
+            fprintf(fp, "ptstrName=notsucc\n");
         }
     } else if (pcur->TrusteeForm == TRUSTEE_IS_OBJECTS_AND_NAME) {
         pnamea = (OBJECTS_AND_NAME_A*)pcur->ptstrName;
-        fprintf(fp,"ptstrName=%s:%s\n",pnamea->ObjectTypeName,pnamea->ptstrName);
+        fprintf(fp, "ptstrName=%s:%s\n", pnamea->ObjectTypeName, pnamea->ptstrName);
     } else {
-        fprintf(fp,"ptstrName=%d\n",pcur->TrusteeForm);
+        fprintf(fp, "ptstrName=%d\n", pcur->TrusteeForm);
     }
     pnext = pcur->pMultipleTrustee;
     if (pnext != NULL) {
@@ -8064,6 +8064,122 @@ void dump_trustee(FILE* fp , PTRUSTEE_A pcur, int tabs)
     }
     return;
 }
+
+#define APPEND_MASK(val,str)                                                                      \
+do{                                                                                               \
+    if (ret>=0 && (mask  & val)) {                                                                \
+        if (ret > 0) {                                                                            \
+            ret = append_snprintf_safe(&st_permstr,&st_permsize,"|%s", str);                      \
+        } else {                                                                                  \
+            ret = append_snprintf_safe(&st_permstr,&st_permsize,"%s",str);                        \
+        }                                                                                         \
+    }                                                                                             \
+}while(0)
+
+
+char* get_access_permissions(ACCESS_MASK mask)
+{
+    static char* st_permstr = NULL;
+    static int st_permsize = 0;
+    int ret;
+
+    ret = snprintf_safe(&st_permstr, &st_permsize, "");
+
+    APPEND_MASK(PROCESS_TERMINATE, "terminate");
+    APPEND_MASK(PROCESS_CREATE_THREAD, "create thread");
+    APPEND_MASK(PROCESS_VM_OPERATION, "vm operation");
+    APPEND_MASK(PROCESS_VM_READ, "vm read");
+    APPEND_MASK(PROCESS_VM_WRITE, "vm write");
+    APPEND_MASK(PROCESS_DUP_HANDLE, "dup handle");
+    APPEND_MASK(PROCESS_CREATE_PROCESS, "create process");
+    APPEND_MASK(PROCESS_SET_QUOTA, "set quota");
+    APPEND_MASK(PROCESS_SET_INFORMATION, "set information");
+    APPEND_MASK(PROCESS_QUERY_INFORMATION, "query information");
+    APPEND_MASK(PROCESS_QUERY_LIMITED_INFORMATION, "query limited information");
+    APPEND_MASK(SYNCHRONIZE, "synchronize");
+    APPEND_MASK(READ_CONTROL, "read control");
+    APPEND_MASK(WRITE_DAC, "write dac");
+    APPEND_MASK(WRITE_OWNER, "write owner");
+    APPEND_MASK(DELETE, "delete");
+
+    return st_permstr;
+}
+
+
+char* get_access_mode(ACCESS_MODE mode)
+{
+    static char* st_modestr = NULL;
+    static int st_modesize = 0;
+    int ret;
+
+    ret = snprintf_safe(&st_modestr, &st_modesize, "");
+    if (ret >= 0 ) {
+        switch (mode) {
+        case NOT_USED_ACCESS:
+            ret = append_snprintf_safe(&st_modestr, &st_modesize, "not used access");
+            break;
+        case  GRANT_ACCESS:
+            ret = append_snprintf_safe(&st_modestr, &st_modesize, "grant");
+            break;
+        case SET_ACCESS:
+            ret = append_snprintf_safe(&st_modestr, &st_modesize, "set");
+            break;
+        case DENY_ACCESS:
+            ret = append_snprintf_safe(&st_modestr, &st_modesize, "deny");
+            break;
+        case REVOKE_ACCESS:
+            ret = append_snprintf_safe(&st_modestr, &st_modesize, "revoke");
+            break;
+        case SET_AUDIT_SUCCESS:
+            ret = append_snprintf_safe(&st_modestr, &st_modesize, "audit success");
+            break;
+        case SET_AUDIT_FAILURE:
+            ret = append_snprintf_safe(&st_modestr, &st_modesize, "audit failure");
+            break;
+        default:
+            ret = append_snprintf_safe(&st_modestr, &st_modesize, "unknown [%d]", mode);
+            break;
+        }
+    }
+    return st_modestr;
+}
+
+char* get_access_inherit(DWORD inherit)
+{
+    static char* st_inheritstr = NULL;
+    static int st_inheritsize = 0;
+    int ret;
+
+    ret = snprintf_safe(&st_inheritstr, &st_inheritsize, "");
+    if (ret >= 0 ) {
+        switch (inherit) {
+        case CONTAINER_INHERIT_ACE:
+            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "container inherit ace");
+            break;
+        case  INHERIT_NO_PROPAGATE:
+            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "inherit no propagate");
+            break;
+        case INHERIT_ONLY:
+            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "inherit only");
+            break;
+        case NO_INHERITANCE:
+            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "no inheritance");
+            break;
+        case OBJECT_INHERIT_ACE:
+            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "object inherit ace");
+            break;
+        case SUB_CONTAINERS_AND_OBJECTS_INHERIT:
+            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "sub containers and objects inherit");
+            break;
+        default:
+            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "unknown inherit [%d]", inherit);
+            break;
+        }
+    }
+    return st_inheritstr;
+}
+
+
 
 void dump_aces(FILE* fp, PEXPLICIT_ACCESS_A pace, int tabs, const char* fmt, ...)
 {
@@ -8076,11 +8192,11 @@ void dump_aces(FILE* fp, PEXPLICIT_ACCESS_A pace, int tabs, const char* fmt, ...
         fprintf(fp, "\n");
     }
     OUTPUT_TABS(fp, tabs);
-    fprintf(fp, "grfAccessPermissions=0x%lx[%ld]\n", pace->grfAccessPermissions, pace->grfAccessPermissions);
+    fprintf(fp, "grfAccessPermissions=%s[0x%lx]\n", get_access_permissions(pace->grfAccessPermissions), pace->grfAccessPermissions);
     OUTPUT_TABS(fp, tabs);
-    fprintf(fp, "grfAccessMode=0x%x[%d]\n", pace->grfAccessMode, pace->grfAccessMode);
+    fprintf(fp, "grfAccessMode=%s[0x%x]\n", get_access_mode(pace->grfAccessMode), pace->grfAccessMode);
     OUTPUT_TABS(fp, tabs);
-    fprintf(fp, "grfInheritance=0x%lx[%ld]\n", pace->grfInheritance, pace->grfInheritance);
+    fprintf(fp, "grfInheritance=%s[0x%lx]\n", get_access_inherit(pace->grfInheritance), pace->grfInheritance);
     pcur = &(pace->Trustee);
     dump_trustee(fp, pcur, tabs);
     return;
