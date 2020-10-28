@@ -7844,18 +7844,6 @@ out:
     return ret;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
 int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret = 0;
@@ -7938,6 +7926,9 @@ int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void
         GETERRNO(ret);
         goto out;
     }
+    fprintf(stdout, "set [%s] mask [%s] mode[%s] inherit [%s] user[%s] succ\n",
+    parsestate->leftargs[0],parsestate->leftargs[1],parsestate->leftargs[2],parsestate->leftargs[3],
+    parsestate->leftargs[4]);
     ret = 0;
 out:
     fini_nt_funcs();

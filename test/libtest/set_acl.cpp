@@ -824,8 +824,6 @@ int proc_dacl_set(int pid,ACCESS_MASK mask, ACCESS_MODE mode,DWORD inherit,char*
         CloseHandle(hproc);
     }
     hproc = NULL;
-
-
     return 0;
 fail:
     if (pnacl) {
