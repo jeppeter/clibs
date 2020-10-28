@@ -190,6 +190,7 @@ int okpassword_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int svrbackrun_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getprocwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -7932,6 +7933,49 @@ int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     ret = 0;
 out:
     fini_nt_funcs();
+    SETERRNO(ret);
+    return ret;
+}
+
+int getprocwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int ret;
+    HANDLE *phds=NULL;
+    int hdsize=0;
+    int hdlen=0;
+    int i;
+    int j;
+    int pid;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        pid = atoi(parsestate->leftargs[i]);
+        if (pid != 0) {
+            ret = get_window_from_pid(pid,&phds,&hdsize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto out;
+            }
+            hdlen = ret;
+            fprintf(stdout,"[%d] windows",pid);
+            for (j=0;j<hdlen;j++) {
+                if ((j%5) == 0){
+                    fprintf(stdout,"\n");
+                }
+                fprintf(stdout," %p",phds[j]);
+            }
+            fprintf(stdout,"\n");
+        }
+    }
+
+    ret=  0;
+out:
+    get_window_from_pid(0,&phds,&hdsize);
+    hdlen = 0;
     SETERRNO(ret);
     return ret;
 }

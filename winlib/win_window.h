@@ -15,6 +15,7 @@ typedef int (*win_enum_func_t)(HWND hwnd,void* param);
 
 WINLIB_API int get_win_handle(win_enum_func_t pcallback,void* param);
 WINLIB_API int get_win_handle_by_classname(const char* typeclass,int pid,HWND *ppwnd[],int *pwinsize);
+WINLIB_API int get_window_from_pid(int pid, HANDLE** pphdl,int *psize);
 
 #ifdef __cplusplus
 };

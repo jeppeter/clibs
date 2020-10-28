@@ -304,3 +304,178 @@ fail:
 	SETERRNO(-ret);
 	return ret;
 }
+
+typedef struct __get_proc_win {
+	HANDLE *m_phds;
+	int m_size;
+	int m_len;
+	int m_pid;
+	int m_error;
+} get_proc_win_t,*pget_proc_win_t;
+
+BOOL CALLBACK enum_win_proc(HWND hwnd,LPARAM ctx)
+{
+	pget_proc_win_t pwin = (pget_proc_win_t)ctx;
+	int ret;
+	DWORD getpid;
+	HANDLE* ptmp=NULL;
+	DWORD dret;
+	if (pwin->m_error) {
+		return FALSE;
+	}
+
+	dret = GetWindowThreadProcessId(hwnd,&getpid);
+	if (dret != 0) {
+		if ((int)getpid == pwin->m_pid) {
+			if (pwin->m_size <= pwin->m_len) {
+				pwin->m_size <<= 1;
+				if (pwin->m_size == 0) {
+					pwin->m_size = 4;
+				}
+
+				ptmp = (HANDLE*)malloc(sizeof(HANDLE) * pwin->m_size);
+				if (ptmp == NULL) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				memset(ptmp,0, pwin->m_size * sizeof(HANDLE));
+				if (pwin->m_len > 0) {
+					memcpy(ptmp, pwin->m_phds,pwin->m_len * sizeof(HANDLE));
+				}
+				if (pwin->m_phds) {
+					free(pwin->m_phds);
+				}
+				pwin->m_phds = ptmp;
+				ptmp = NULL;
+			}
+			pwin->m_phds[pwin->m_len] = hwnd;
+			pwin->m_len ++;
+		}
+	}
+
+	return TRUE;
+fail:
+	if (ptmp) {
+		free(ptmp);
+	}
+	ptmp = NULL;
+	pwin->m_error = ret;
+	SETERRNO(ret);
+	return FALSE;
+}
+
+void __free_pwin(pget_proc_win_t* ppwin)
+{
+	if (ppwin && *ppwin) {
+		pget_proc_win_t pwin = *ppwin;
+		if (pwin->m_phds) {
+			free(pwin->m_phds);
+		}
+		pwin->m_phds = NULL;
+		pwin->m_pid = 0;
+		pwin->m_len = 0;
+		pwin->m_size = 0;
+		free(pwin);
+		*ppwin = NULL;
+	}
+	return;
+}
+
+pget_proc_win_t __alloc_pwin(int pid)
+{
+	pget_proc_win_t pwin = NULL;
+	int ret;
+
+	pwin = (pget_proc_win_t)malloc(sizeof(*pwin));
+	if (pwin == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(pwin,0,sizeof(*pwin));
+	pwin->m_pid = pid;
+
+	return pwin;
+fail:
+	__free_pwin(&pwin);
+	SETERRNO(ret);
+	return NULL;
+}
+
+
+int get_window_from_pid(int pid, HANDLE** pphdl,int *psize)
+{
+	HANDLE* prethdl = NULL;
+	int retsize=0;
+	int ret;
+	int retlen = 0;
+	BOOL bret;
+	pget_proc_win_t pwin=NULL;
+	if (pid == 0) {
+		if (pphdl && *pphdl) {
+			free(*pphdl);
+			*pphdl = NULL;
+		}
+		if (psize) {
+			*psize = 0;
+		}
+	}
+
+	if (pphdl == NULL || psize == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+	prethdl = *pphdl;
+	retsize = *psize;
+
+	pwin = __alloc_pwin(pid);
+	if (pwin == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	bret = EnumWindows(enum_win_proc,(LPARAM)pwin);
+	if (!bret) {
+		GETERRNO(ret);
+		ERROR_INFO("can not enum error[%d]", ret);
+		goto fail;
+	}
+
+	if (pwin->m_error != 0) {
+		ret = pwin->m_error;
+		ERROR_INFO("enum error[%d]", ret);
+		goto fail;
+	}
+
+	if (pwin->m_len > retsize) {
+		retsize = pwin->m_len;
+		prethdl = (HANDLE*)malloc(sizeof(HANDLE) * retsize);
+		if (prethdl == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	retlen = pwin->m_len;
+	if (retlen > 0) {
+		memset(prethdl,0,sizeof(HANDLE)*retsize);
+		memcpy(prethdl,pwin->m_phds,sizeof(HANDLE)*retlen);
+	}
+
+	if (*pphdl && *pphdl != prethdl) {
+		free(*pphdl);
+	}
+	*pphdl = prethdl;
+	*psize = retsize;
+	__free_pwin(&pwin);
+	return retlen;
+fail:
+	if (prethdl && prethdl != *pphdl) {
+		free(prethdl);
+	}
+	prethdl = NULL;
+	retsize = 0;
+	__free_pwin(&pwin);
+	SETERRNO(ret);
+	return ret;
+}

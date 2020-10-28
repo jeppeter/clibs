@@ -265,5 +265,8 @@
     },
     "procsecset<procsecset_handler>##pid grant permision inherit username to set or revoke the dacl##" : {
         "$" : 5
+    },
+    "getprocwin<getprocwin_handler>##pid ... to get pid windows##" : {
+        "$" : "+"
     }
 }
