@@ -1,3 +1,6 @@
+#pragma warning(disable:4514)
+
+
 #include <win_prn.h>
 #include <win_proc.h>
 #include <win_strop.h>

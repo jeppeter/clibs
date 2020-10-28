@@ -59,7 +59,6 @@
 #include <aclapi.h>
 
 #include "vssetup.h"
-#include "set_acl.h"
 
 #pragma warning(pop)
 
@@ -7857,7 +7856,7 @@ int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     REFERENCE_ARG(argc);
     init_log_level(pargs);
 
-    ret = init_nt_funcs();
+    ret = init_nt_envop_funcs();
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
@@ -7875,7 +7874,7 @@ int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 
     ret = 0;
 out:
-    fini_nt_funcs();
+    fini_nt_envop_funcs();
     SETERRNO(ret);
     return ret;
 }
@@ -7895,7 +7894,7 @@ int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     REFERENCE_ARG(argc);
     init_log_level(pargs);
 
-    ret = init_nt_funcs();
+    ret = init_nt_envop_funcs();
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
@@ -7917,7 +7916,7 @@ int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     parsestate->leftargs[4]);
     ret = 0;
 out:
-    fini_nt_funcs();
+    fini_nt_envop_funcs();
     SETERRNO(ret);
     return ret;
 }
