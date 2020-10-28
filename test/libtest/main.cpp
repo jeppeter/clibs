@@ -8068,7 +8068,8 @@ void dump_trustee(FILE* fp , PTRUSTEE_A pcur, int tabs)
 #define APPEND_MASK(val,str)                                                                      \
 do{                                                                                               \
     if (ret>=0 && (mask  & val)) {                                                                \
-        if (ret > 0) {                                                                            \
+        int _rlen = (int)strlen(st_permstr);                                                      \
+        if (_rlen > 0) {                                                                          \
             ret = append_snprintf_safe(&st_permstr,&st_permsize,"|%s", str);                      \
         } else {                                                                                  \
             ret = append_snprintf_safe(&st_permstr,&st_permsize,"%s",str);                        \
@@ -8235,7 +8236,6 @@ int get_sec_aces_safe(PACL pacl, PEXPLICIT_ACCESS_A* ppaces, ULONG* psize)
         goto fail;
     }
     ret = (int) * psize;
-    DEBUG_INFO("dump [%d]", ret);
 
     return ret;
 
