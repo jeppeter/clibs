@@ -188,6 +188,7 @@ int listproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int okpassword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrbackrun_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -8065,17 +8066,32 @@ void dump_trustee(FILE* fp , PTRUSTEE_A pcur, int tabs)
     return;
 }
 
-#define APPEND_MASK(val,str)                                                                      \
-do{                                                                                               \
-    if (ret>=0 && (mask  & val)) {                                                                \
-        int _rlen = (int)strlen(st_permstr);                                                      \
-        if (_rlen > 0) {                                                                          \
-            ret = append_snprintf_safe(&st_permstr,&st_permsize,"|%s", str);                      \
-        } else {                                                                                  \
-            ret = append_snprintf_safe(&st_permstr,&st_permsize,"%s",str);                        \
-        }                                                                                         \
-    }                                                                                             \
-}while(0)
+typedef struct __access_mask_match {
+    char* m_maskstr;
+    ACCESS_MASK m_maskval;
+} access_mask_match_t, *paccess_mask_match_t;
+
+static access_mask_match_t st_accessmask[] = {
+    {"terminate", PROCESS_TERMINATE},
+    {"create_thread", PROCESS_CREATE_THREAD},
+    {"vm_operation", PROCESS_VM_OPERATION},
+    {"vm_read", PROCESS_VM_READ},
+    {"vm_write", PROCESS_VM_WRITE},
+    {"dup_handle", PROCESS_DUP_HANDLE},
+    {"create_process", PROCESS_CREATE_PROCESS},
+    {"set_quota", PROCESS_SET_QUOTA},
+    {"set_information", PROCESS_SET_INFORMATION},
+    {"query_information", PROCESS_QUERY_INFORMATION},
+    {"query_limited_information", PROCESS_QUERY_LIMITED_INFORMATION},
+    {"synchronize", SYNCHRONIZE},
+    {"read_control", READ_CONTROL},
+    {"write_dac", WRITE_DAC},
+    {"write_owner", WRITE_OWNER},
+    {"delete", DELETE},
+    {NULL, 0}
+};
+
+
 
 
 char* get_access_permissions(ACCESS_MASK mask)
@@ -8085,97 +8101,110 @@ char* get_access_permissions(ACCESS_MASK mask)
     int ret;
 
     ret = snprintf_safe(&st_permstr, &st_permsize, "");
+    for (i = 0; st_accessmask[i].m_maskstr != NULL; i++) {
+        if (ret >= 0) {
+            if (mask & st_accessmask[i].m_maskval) {
+                size_t rlen = strlen(st_permstr);
+                if (rlen > 0) {
+                    ret = append_snprintf_safe(&st_permstr, &st_permsize, "|%s", st_accessmask[i].m_maskstr);
+                } else {
+                    ret = append_snprintf_safe(&st_permstr, &st_permsize, "%s", st_accessmask[i].m_maskstr);
+                }
+            }
+        }
+    }
 
-    APPEND_MASK(PROCESS_TERMINATE, "terminate");
-    APPEND_MASK(PROCESS_CREATE_THREAD, "create thread");
-    APPEND_MASK(PROCESS_VM_OPERATION, "vm operation");
-    APPEND_MASK(PROCESS_VM_READ, "vm read");
-    APPEND_MASK(PROCESS_VM_WRITE, "vm write");
-    APPEND_MASK(PROCESS_DUP_HANDLE, "dup handle");
-    APPEND_MASK(PROCESS_CREATE_PROCESS, "create process");
-    APPEND_MASK(PROCESS_SET_QUOTA, "set quota");
-    APPEND_MASK(PROCESS_SET_INFORMATION, "set information");
-    APPEND_MASK(PROCESS_QUERY_INFORMATION, "query information");
-    APPEND_MASK(PROCESS_QUERY_LIMITED_INFORMATION, "query limited information");
-    APPEND_MASK(SYNCHRONIZE, "synchronize");
-    APPEND_MASK(READ_CONTROL, "read control");
-    APPEND_MASK(WRITE_DAC, "write dac");
-    APPEND_MASK(WRITE_OWNER, "write owner");
-    APPEND_MASK(DELETE, "delete");
-
+    if (st_permstr == NULL) {
+        return "error";
+    }
     return st_permstr;
 }
 
+typedef struct __access_mode_match {
+    char* m_modestr;
+    ACCESS_MODE m_modeval;
+} access_mode_match_t, *paccess_mode_match_t;
+
+static access_mode_match_t st_accessmode[] = {
+    {"not_used", NOT_USED_ACCESS},
+    {"grant", GRANT_ACCESS},
+    {"set", SET_ACCESS},
+    {"deny", DENY_ACCESS},
+    {"revoke", REVOKE_ACCESS},
+    {"audit_succ", SET_AUDIT_SUCCESS},
+    {"audit_fail", SET_AUDIT_FAILURE},
+    {NULL, NOT_USED_ACCESS}
+};
 
 char* get_access_mode(ACCESS_MODE mode)
 {
     static char* st_modestr = NULL;
     static int st_modesize = 0;
     int ret;
+    int valid = 0;
 
     ret = snprintf_safe(&st_modestr, &st_modesize, "");
-    if (ret >= 0 ) {
-        switch (mode) {
-        case NOT_USED_ACCESS:
-            ret = append_snprintf_safe(&st_modestr, &st_modesize, "not used access");
-            break;
-        case  GRANT_ACCESS:
-            ret = append_snprintf_safe(&st_modestr, &st_modesize, "grant");
-            break;
-        case SET_ACCESS:
-            ret = append_snprintf_safe(&st_modestr, &st_modesize, "set");
-            break;
-        case DENY_ACCESS:
-            ret = append_snprintf_safe(&st_modestr, &st_modesize, "deny");
-            break;
-        case REVOKE_ACCESS:
-            ret = append_snprintf_safe(&st_modestr, &st_modesize, "revoke");
-            break;
-        case SET_AUDIT_SUCCESS:
-            ret = append_snprintf_safe(&st_modestr, &st_modesize, "audit success");
-            break;
-        case SET_AUDIT_FAILURE:
-            ret = append_snprintf_safe(&st_modestr, &st_modesize, "audit failure");
-            break;
-        default:
-            ret = append_snprintf_safe(&st_modestr, &st_modesize, "unknown [%d]", mode);
+    for (i = 0; st_accessmode[i].m_modestr != NULL ; i++) {
+        if (st_accessmode[i].m_modeval == mode) {
+            ret = append_snprintf_safe(&st_modestr, &st_modesize, "%s", st_accessmode[i].m_modestr);
+            if (ret >= 0) {
+                valid = 1;
+            }
             break;
         }
     }
+
+    if (valid == 0) {
+        ret = append_snprintf_safe(&st_modestr, &st_modesize, "unknown mode[0x%lx]", mode);
+    }
+
+    if (st_modestr == NULL) {
+        return "error mode";
+    }
+
     return st_modestr;
 }
+
+typedef struct __access_inherit_match {
+    char* m_inheritstr;
+    DWORD m_inheritval;
+} access_inherit_match_t, *paccess_inherit_match_t;
+
+static access_inherit_match_t st_accessinherit[] = {
+    {"container_inherit_ace", CONTAINER_INHERIT_ACE},
+    {"inherit_no_propagate", INHERIT_NO_PROPAGATE},
+    {"inherit_only", INHERIT_ONLY},
+    {"no_inheritance", NO_INHERITANCE},
+    {"object_inherit_ace", OBJECT_INHERIT_ACE},
+    {"sub_containers_and_objects_inherit", SUB_CONTAINERS_AND_OBJECTS_INHERIT},
+    {NULL, NO_INHERITANCE}
+};
 
 char* get_access_inherit(DWORD inherit)
 {
     static char* st_inheritstr = NULL;
     static int st_inheritsize = 0;
     int ret;
+    int valid = 0;
+    int i;
 
     ret = snprintf_safe(&st_inheritstr, &st_inheritsize, "");
-    if (ret >= 0 ) {
-        switch (inherit) {
-        case CONTAINER_INHERIT_ACE:
-            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "container inherit ace");
-            break;
-        case  INHERIT_NO_PROPAGATE:
-            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "inherit no propagate");
-            break;
-        case INHERIT_ONLY:
-            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "inherit only");
-            break;
-        case NO_INHERITANCE:
-            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "no inheritance");
-            break;
-        case OBJECT_INHERIT_ACE:
-            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "object inherit ace");
-            break;
-        case SUB_CONTAINERS_AND_OBJECTS_INHERIT:
-            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "sub containers and objects inherit");
-            break;
-        default:
-            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "unknown inherit [%d]", inherit);
+    for (i = 0; st_accessinherit[i].m_inheritstr != NULL ; i ++) {
+        if (inherit == st_accessinherit[i].m_inheritval) {
+            ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "%s", st_accessinherit[i].m_inheritstr);
+            if (ret >= 0) {
+                valid = 1;
+            }
             break;
         }
+    }
+
+    if (valid == 0) {
+        ret = append_snprintf_safe(&st_inheritstr, &st_inheritsize, "unknown inherit [0x%lx]", inherit);
+    }
+
+    if (st_inheritstr == NULL) {
+        return "error inherit";
     }
     return st_inheritstr;
 }
@@ -8475,7 +8504,137 @@ out:
     fini_nt_funcs();
     SETERRNO(ret);
     return ret;
+}
 
+
+int get_mask_from_str(char* maskstr,ACCESS_MASK* pmask)
+{
+    ACCESS_MASK mask = 0;
+    char* pcurptr = NULL;
+    int valid;
+
+    pcurptr = maskstr;
+
+    while (*pcurptr != '\0') {
+        valid = 0;
+        for (i = 0; st_accessmask[i].m_maskstr != NULL; i++) {
+            size_t rlen = strlen(st_accessmask[i].m_maskstr);
+            if (_strnicmp(pcurptr, st_accessmask[i].m_maskstr, rlen) == 0) {
+                mask |= st_accessmask[i].m_maskval;
+                valid = 1;
+                pcurptr += rlen;
+                if (*pcurptr == '|') {
+                    pcurptr ++;
+                }
+                break;
+            }
+        }
+        if (valid == 0) {
+            fprintf(stderr, "not valid [%s] valid [", pcurptr);
+            for (i = 0; st_accessmask[i].m_maskstr != NULL; i++) {
+                if (i > 0) {
+                    fprintf(stderr,"|");
+                }
+                fprintf(stderr,"%s", st_accessmask[i].m_maskstr);
+            }
+            fprintf(stderr, "]\n");
+            return -1;
+        }
+    }
+    *pmask = mask;
+    return 0;
+}
+
+int get_mode_from_str(char* modestr, ACCESS_MODE* pmode)
+{
+    ACCESS_MODE mode = 0;
+    int i;
+    int valid = 0;
+
+    for (i = 0; i < st_accessmode[i].m_modestr != NULL; i++) {
+        if (_stricmp(modestr, st_accessmode[i].m_modestr) == 0) {
+            mode = st_accessmode[i].m_modeval;
+            valid = 1;
+            break;
+        }
+    }
+
+    if (valid == 0) {
+        fprintf(stderr, "not valid mode [%s] valid are[", modestr);
+        for (i = 0; st_accessmode[i].m_modestr; i++) {
+            if (i > 0) {
+                fprintf(stderr, "|");
+            }
+            fprintf(stderr, "%s", st_accessmode[i].m_modestr);
+        }
+        fprintf(stderr, "]\n");
+        return -1;
+    }
+    *pmode = mode;
+    return 0;
+}
+
+int get_inherit_from_str(char* inheritstr, DWORD *pinherit)
+{
+    DWORD inherit = 0;
+    int i;
+    int valid = 0;
+
+    for (i = 0; i < st_accessinherit[i].m_inheritstr != NULL; i++) {
+        if (_stricmp(inheritstr, st_accessmode[i].m_inheritstr) == 0) {
+            inherit = st_accessinherit[i].m_inheritval;
+            valid = 1;
+            break;
+        }
+    }
+
+    if (valid == 0) {
+        fprintf(stderr, "not valid [%s] valid are[", inheritstr);
+        for (i = 0; st_accessinherit[i].m_inheritstr; i++) {
+            if (i > 0) {
+                fprintf(stderr, "|");
+            }
+            fprintf(stderr, "%s", st_accessinherit[i].m_inheritstr);
+        }
+        fprintf(stderr, "]\n");
+        return -1;
+    }
+    *pinherit = inherit;
+    return 0;
+}
+
+
+int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+    int pid;
+    ACCESS_MASK perm;
+    ACCESS_MODE grant;
+    TRUSTEE_A trustee;
+
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+    init_log_level(pargs);
+
+    ret = init_nt_funcs();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    pid = atoi(parsestate->leftargs[0]);
+
+
+
+
+    ret = 0;
+out:
+    fini_nt_funcs();
+    SETERRNO(ret);
+    return ret;
 }
 
 

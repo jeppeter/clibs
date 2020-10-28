@@ -262,5 +262,8 @@
     },
     "procsecget<procsecget_handler>##pids ... to get process security##" : {
         "$" : "+"
+    },
+    "procsecset<procsecset_handler>##pid grant username permision to set or revoke##" : {
+        "$" : 4
     }
 }
