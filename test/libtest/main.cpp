@@ -7866,7 +7866,7 @@ int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 
     for (i = 0; parsestate->leftargs && parsestate->leftargs[i] != NULL ; i ++) {
         pid = atoi(parsestate->leftargs[i]);
-        ret = dump_process_security(stdout,pid);
+        ret = dump_process_security(NULL,pid);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
@@ -7907,7 +7907,7 @@ int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     inheritstr = parsestate->leftargs[3];
     username = parsestate->leftargs[4];
 
-    ret = proc_dacl_set(stderr,pid,maskstr,modestr,inheritstr,username);
+    ret = proc_dacl_set(NULL,pid,maskstr,modestr,inheritstr,username);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
