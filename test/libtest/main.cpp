@@ -190,6 +190,7 @@ int svrbackrun_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getprocwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int getenvval_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -7960,6 +7961,44 @@ int getprocwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 out:
     get_window_from_pid(0,&phds,&hdsize);
     hdlen = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+int getenvval_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* varname=NULL;
+    char* valstr=NULL;
+    size_t valsize=0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        varname = parsestate->leftargs[i];
+        ret = _dupenv_s(&valstr,&valsize,varname);
+        if (ret == 0) {
+            fprintf(stdout,"[%s]=[%s]\n",varname,valstr);
+        } else {
+            fprintf(stdout,"[%s] not set\n",varname);
+        }
+
+        if (valstr) {
+            free(valstr);
+        }
+        valstr = NULL;
+        valsize = 0;
+    }
+
+    ret = 0;
+    if (valstr) {
+        free(valstr);
+    }
+    valstr = NULL;
+    valsize = 0;
     SETERRNO(ret);
     return ret;
 }

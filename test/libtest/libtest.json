@@ -268,5 +268,8 @@
     },
     "getprocwin<getprocwin_handler>##pid ... to get pid windows##" : {
         "$" : "+"
+    },
+    "getenvval<getenvval_handler>##envvar ... to get environment variable value##" : {
+        "$" : "+"
     }
 }
