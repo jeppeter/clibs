@@ -271,5 +271,8 @@
     },
     "getenvval<getenvval_handler>##envvar ... to get environment variable value##" : {
         "$" : "+"
+    },
+    "enumwintext<enumwintext_handler>##desktopname  to enum desktop windows##" : {
+        "$" : 1
     }
 }

@@ -191,6 +191,7 @@ int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getprocwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getenvval_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int enumwintext_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -8025,6 +8026,62 @@ BOOL CALLBACK enum_windows_desktop(HWND hwnd,LPARAM lparam)
     return TRUE;
 }
 
+BOOL CALLBACK enum_win_text(HWND hwnd,LPARAM lparam)
+{
+    int ret;
+    char wintext[50];
+    REFERENCE_ARG(lparam);
+    ret = GetWindowTextA(hwnd,wintext,50);
+    if (ret != 0) {
+        DEBUG_INFO("[%p]=[%s]", hwnd,wintext);
+    }
+    return TRUE;
+}
+
+int enumwintext_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    HDESK hdesk=NULL;
+    TCHAR* ptdesk=NULL;
+    int tdesksize=0;
+    char* deskname=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    BOOL bret;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+    deskname = parsestate->leftargs[0];
+    ret = AnsiToTchar(deskname,&ptdesk,&tdesksize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    hdesk = OpenDesktop(ptdesk,0,FALSE,DESKTOP_READOBJECTS | DESKTOP_ENUMERATE);
+    if (hdesk == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("could not open [%s] error[%d]", deskname, ret);
+        goto out;
+    }
+
+    bret = EnumDesktopWindows(hdesk,enum_win_text,NULL);
+    if (!bret){
+        GETERRNO(ret);
+        ERROR_INFO("could not enum win [%d]", ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    if(hdesk != NULL) {
+        CloseDesktop(hdesk);
+    }
+    hdesk = NULL;
+    AnsiToTchar(NULL,&ptdesk,&tdesksize);
+    SETERRNO(ret);
+    return ret;
+}
 
 #include "dbgcode.cpp"
 
