@@ -7866,7 +7866,7 @@ int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 
     for (i = 0; parsestate->leftargs && parsestate->leftargs[i] != NULL ; i ++) {
         pid = atoi(parsestate->leftargs[i]);
-        ret = dump_process_security(NULL,pid);
+        ret = dump_process_security(stdout,pid);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
@@ -8001,6 +8001,28 @@ int getenvval_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     valsize = 0;
     SETERRNO(ret);
     return ret;
+}
+
+BOOL CALLBACK enum_windows_desktop(HWND hwnd,LPARAM lparam)
+{
+    char wintext[50];
+    DWORD pid;
+    DWORD dret;
+    int ret;
+
+    REFERENCE_ARG(lparam);
+
+    dret = GetWindowThreadProcessId(hwnd,&pid);
+    if (dret != 0) {
+        DEBUG_INFO("[%p]=pid[%d]", hwnd,pid);
+    }
+    
+    ret = GetWindowTextA(hwnd,wintext,50);
+    if (ret != 0) {
+        DEBUG_INFO("[%p]=[%s]",hwnd,wintext);
+    }
+
+    return TRUE;
 }
 
 

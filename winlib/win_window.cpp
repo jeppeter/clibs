@@ -479,3 +479,56 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+
+int get_window_text(HWND hd, char** pptext,int *psize)
+{
+	TCHAR* ptname=NULL;
+	int tnamesize=0;
+	int retlen=0;
+	int ret;
+
+	if (hd == NULL) {
+		return TcharToAnsi(NULL,pptext,psize);
+	}
+
+	tnamesize = 2;
+
+//try_again:
+	if (ptname) {
+		free(ptname);
+	}
+	ptname = NULL;
+	ptname = (TCHAR*) malloc(sizeof(TCHAR) * tnamesize);
+	if (ptname == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = GetWindowText(hd,ptname,tnamesize);
+	if (ret == 0) {
+		GETERRNO(ret);
+		ERROR_INFO("get [%p] text error[%d]", hd ,ret);
+		goto fail;
+	}
+
+	ret = TcharToAnsi(ptname,pptext,psize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	retlen = ret;
+
+	if (ptname) {
+		free(ptname);
+	}
+	ptname = NULL;
+	return retlen;
+fail:
+	if (ptname) {
+		free(ptname);
+	}
+	ptname = NULL;
+	SETERRNO(ret);
+	return ret;
+}
