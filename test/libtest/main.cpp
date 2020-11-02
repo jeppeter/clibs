@@ -8072,6 +8072,7 @@ int enumwintext_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
         goto out;
     }
 
+    fprintf(stdout,"enum [%s] succ\n",deskname);
     ret = 0;
 out:
     if(hdesk != NULL) {
