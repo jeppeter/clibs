@@ -12,6 +12,7 @@ typedef struct __protect_monitor {
 	DWORD m_peerpid;
 	int m_exited;
 	int m_exitcode;
+	int m_dummy;
 } protect_monitor_t, *pprotect_monitor_t;
 
 
@@ -60,18 +61,140 @@ void __free_protect_monitor(pprotect_monitor_t *ppmon)
 	return;
 }
 
+void protect_error_exit(int exitcode,const char* fmt,...)
+{
+	va_list ap;
+	char* str=NULL;
+	int strsize=0;
+	int ret;
+	if (fmt != NULL) {
+		va_start(ap,fmt);
+		ret = vsnprintf_safe(&str,&strsize,fmt,ap);
+		if (ret >= 0) {
+			ERROR_INFO("%s",str);
+		}
+		vsnprintf_safe(&str,&strsize,NULL,ap);
+	}
+	exit(exitcode);
+	return;
+}
+
+void normalize_name(char* str)
+{
+	char* pcurptr = str;
+
+	while(*pcurptr != '\0') {
+		if (*pcurptr >= '0' && 
+			*pcurptr <= '9') {
+			pcurptr ++;
+		} else if (*pcurptr >= 'a' &&
+			*pcurptr <= 'z') {
+			pcurptr ++;
+		} else if (*pcurptr >= 'A' &&
+			*pcurptr <= 'Z') {
+			/*to lower case*/
+			*pcurptr -= 'A';
+			*pcurptr += 'a';
+			pcurptr ++;
+		} else {
+			*pcurptr = '_';
+			pcurptr ++;
+		}
+	}
+	return;
+}
+
+int protect_doing(HANDLE exitevt,char* curcmdline,char* peercmdline,DWORD peerpid)
+{
+	char* exepath=NULL;
+	int exesize=0;
+	int ret;
+	char* mysemname=NULL;
+	int mysemsize=0;
+	char* peersemname = NULL;
+	int peersemsize=0;
+	char* mymuxname= NULL;
+	int mymuxsize=0;
+	char* peermuxname=  NULL;
+	int peermuxsize=0;
+
+
+	REFERENCE_ARG(peerpid);
+	REFERENCE_ARG(exitevt);
+
+	ret = get_executable_wholepath(0,&exepath,&exesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = snprintf_safe(&mysemname,&mysemsize,"%s%s_sem",exepath,curcmdline);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	normalize_name(mysemname);
+
+	ret = snprintf_safe(&peersemname,&peersemsize,"%s%s_sem",exepath,peercmdline);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	normalize_name(peersemname);
+
+	ret = snprintf_safe(&mymuxname,&mymuxsize,"%s%s_mux",exepath,curcmdline);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	normalize_name(mymuxname);
+
+	ret = snprintf_safe(&peermuxname,&peermuxsize,"%s%s_mux",exepath,peercmdline);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+
+
+
+
+
+	ret = 0;
+	while(1){
+		ret ++;
+		SleepEx(10,TRUE);
+	}
+
+
+	ret = 0;
+fail:
+	get_executable_wholepath(1,&exepath,&exesize);
+	SETERRNO(ret);
+	return ret;
+}
+
 DWORD CALLBACK monitor_thread(LPVOID lparam)
 {
 	int ret = 0;
 	pprotect_monitor_t pmon = (pprotect_monitor_t) lparam;
 
-
+	if (pmon) {
+		goto fail;
+	}
 	ret = 0;
-out:
+//out:
 	pmon->m_exitcode = ret;
 	SetEvent(pmon->m_exitnotifyevt);
 	pmon->m_exited = 1;
-	return ret;
+	return (DWORD)ret;
+fail:
+	protect_error_exit(ret,"error on protect [%d]", ret);
+	pmon->m_exitcode = ret;
+	SetEvent(pmon->m_exitnotifyevt);
+	pmon->m_exited = 1;
+	return (DWORD)ret;
 }
 
 pprotect_monitor_t __alloc_protect_monitor(char* curcmdline, char* peercmdline, DWORD peerpid)
@@ -139,12 +262,18 @@ fail:
 }
 
 
+
+
 void* start_protect_monitor(char* curcmdline, char* peercmdline, DWORD peerpid, int mode)
 {
 	pprotect_monitor_t pmon=NULL;
 
 	if (mode == MONITOR_MODE) {
-		
+		if (peerpid == 0) {
+			exit(4);
+		}
+
+
 	} else {
 		pmon = __alloc_protect_monitor(curcmdline,peercmdline,peerpid);
 	}
@@ -156,8 +285,10 @@ int protectkill_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 {
 	pargs_options_t pargs = (pargs_options_t) popt;
 	int ret;
-	int idx
 	int cntargc = 0;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
 
 	init_log_level(pargs);
 
@@ -166,13 +297,11 @@ int protectkill_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 	}
 
 	if (cntargc == 0) {
-
+		ret = 1;		
 	}
 
-
-
 	ret = 0;
-out:
+//out:
 	SETERRNO(ret);
 	return ret;
 }
