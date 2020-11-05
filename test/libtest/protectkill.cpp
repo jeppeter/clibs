@@ -104,19 +104,57 @@ void normalize_name(char* str)
 	return;
 }
 
-int protect_doing(HANDLE exitevt,char* curcmdline,char* peercmdline,DWORD peerpid)
+int __start_peer(char* exepath,char* cmdline)
+{
+	char* runprog = NULL;
+	int runsize=0;
+	int ret;
+	int pid=0;
+
+	ret= snprintf_safe(&runprog,&runsize,"\"%s\" %s %d",exepath, cmdline,GetCurrentProcessPid());
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = start_cmd_single_detach(0,runprog);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	pid = ret;
+
+	snprintf_safe(&runprog,&runsize,NULL);
+	return pid;
+fail:
+	snprintf_safe(&runprog,&runsize,NULL);
+	SETERRNO(ret);
+	return ret;
+
+}
+
+int protect_doing(HANDLE exitevt,char* curcmdline,char* peercmdline,DWORD peerpid,int waitmills,int interval)
 {
 	char* exepath=NULL;
 	int exesize=0;
 	int ret;
-	char* mysemname=NULL;
-	int mysemsize=0;
-	char* peersemname = NULL;
-	int peersemsize=0;
+	char* myevtname=NULL;
+	int myevtsize=0;
+	char* peerevtname = NULL;
+	int peerevtsize=0;
 	char* mymuxname= NULL;
 	int mymuxsize=0;
 	char* peermuxname=  NULL;
 	int peermuxsize=0;
+	HANDLE peerevt=NULL;
+	char* runprog = NULL;
+	int runsize=0;
+	HANDLE mymux = NULL;
+	HANDLE peermux = NULL;
+	HANDLE myevt = NULL;
+	int running = 1;
+	HANDLE waithd[2];
+	DWORD waitnum=0;
 
 
 	REFERENCE_ARG(peerpid);
@@ -128,19 +166,19 @@ int protect_doing(HANDLE exitevt,char* curcmdline,char* peercmdline,DWORD peerpi
 		goto fail;
 	}
 
-	ret = snprintf_safe(&mysemname,&mysemsize,"%s%s_sem",exepath,curcmdline);
+	ret = snprintf_safe(&myevtname,&myevtsize,"%s%s_evt",exepath,curcmdline);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
-	normalize_name(mysemname);
+	normalize_name(myevtname);
 
-	ret = snprintf_safe(&peersemname,&peersemsize,"%s%s_sem",exepath,peercmdline);
+	ret = snprintf_safe(&peerevtname,&peerevtsize,"%s%s_evt",exepath,peercmdline);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
-	normalize_name(peersemname);
+	normalize_name(peerevtname);
 
 	ret = snprintf_safe(&mymuxname,&mymuxsize,"%s%s_mux",exepath,curcmdline);
 	if (ret < 0) {
@@ -154,22 +192,127 @@ int protect_doing(HANDLE exitevt,char* curcmdline,char* peercmdline,DWORD peerpi
 		GETERRNO(ret);
 		goto fail;
 	}
+	normalize_name(peermuxname);
 
 
-
-
-
-
-
-	ret = 0;
-	while(1){
-		ret ++;
-		SleepEx(10,TRUE);
+	/*now to get the my mux created*/
+	mymux = open_mutex(mymuxname,1);
+	if (mymux == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("create [%s] error[%d]",mymuxname,ret);
+		goto fail;
 	}
 
+	myevt = open_event(myevtname,1);
+	if (myevt == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("create [%s] error[%d]",myevtname,ret);
+		goto fail;
+	}
+
+	if (peerpid != 0) {
+		/*yes this means that we have the peer ,so we should set event notify*/
+		peerevt = open_event(peerevtname,0);
+		if (peerevt != NULL) {
+			bret = SetEvent(peerevt);
+			if (!bret) {
+				GETERRNO(ret);
+				ERROR_INFO("can not set event for [%s] error[%d]", peerevtname,ret);
+				goto fail;
+			}
+			/*we close this*/
+			CloseHandle(peerevt);
+			peerevt = NULL;
+		}
+	}
+
+	while(running) {
+		peermux = open_mutex(peermuxname,1);
+		waitnum = 0;
+		if (exitevt != NULL) {
+			waithd[waitnum] exitevt;
+			waitnum ++;
+		}
+		if (peermux != NULL) {
+			CloseHandle(peermux);
+			peermux = NULL;
+			/*this means the peer exit ,so we should create this function*/
+			ret = __start_peer(exepath,peercmdline);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			/*now wait for the event*/
+			waithd[waitnum] = myevt;
+			waitnum ++;
+			dret = WaitForMultipleObjects(waitnum,waithd,FALSE,waitmills);
+			if (dret >= WAIT_OBJECT_0 && dret < (WAIT_OBJECT_0 + waitnum)) {
+				hd = waithd[(dret - WAIT_OBJECT_0)];
+				if (hd == exitevt) {
+					running = 0;
+					ERROR_INFO("exit notify");
+					continue;
+				} else if (hd == myevt) {
+					/*ok we should give the notify*/
+					ResetEvent(myevt);
+					continue;
+				} else {
+					ASSERT_IF(0!=0);
+				}
+			} else if (dret == WAIT_TIMEOUT) {
+				/*that means we should make another try*/
+				continue;
+			} else {
+				GETERRNO(ret);
+				ERROR_INFO("wait error[%ld] [%d]", dret,ret);
+				goto fail;
+			}
+		}
+
+		if (waitnum > 0) {
+			dret = WaitForMultipleObjects(waitnum,waithd,FALSE,interval);
+			if (dret == WAIT_OBJECT_0 )  {
+				running = 0;
+				continue;
+			} else if (dret == WAIT_TIMEOUT) {
+				continue;
+			} else {
+				GETERRNO(ret);
+				ERROR_INFO("wait error[%ld] [%d]", dret,ret);
+				goto fail;				
+			}
+		} else {
+			SleepEx(interval,TRUE);
+		}
+	}
 
 	ret = 0;
 fail:
+	if (mymux != NULL) {
+		CloseHandle(mymux);
+	}
+	mymux = NULL;
+
+	if (myevt != NULL) {
+		CloseHandle(myevt);
+	}
+	myevt = NULL;
+
+	if (peermux != NULL) {
+		CloseHandle(peermux);
+	}
+	peermux = NULL;
+
+	if (peerevt != NULL) {
+		CloseHandle(peerevt);
+	}
+	peerevt = NULL;
+
+	snprintf_safe(&peerevtname,&peerevtsize,NULL);
+	snprintf_safe(&peermuxname,&peermuxsize,NULL);
+	snprintf_safe(&myevtname,&myevtsize,NULL)
+	snprintf_safe(&mymuxname,&mymuxsize,NULL);
 	get_executable_wholepath(1,&exepath,&exesize);
 	SETERRNO(ret);
 	return ret;
