@@ -2708,3 +2708,231 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int iswts_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(parsestate);
+
+    init_log_level(pargs);
+
+    fprintf(stdout, "wts [%s]\n", is_wts_enabled() > 0 ? "enabled" : "disabled");
+
+    return 0;
+
+}
+
+int termproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    int pid = -1;
+    int idx;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    init_log_level(pargs);
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    for (idx = 0; parsestate->leftargs && parsestate->leftargs[idx]; idx++) {
+        pid = atoi(parsestate->leftargs[idx]);
+        ret = kill_process(pid);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not kill [%d] error[%d]", pid, ret);
+            goto out;
+        }
+        fprintf(stdout, "[%d]kill [%d] succ\n", idx, pid);
+    }
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int listproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    const char* procname = NULL;
+    int idx;
+    int j;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int* pids = NULL;
+    int retlen = 0;
+    int retsize = 0;
+    init_log_level(pargs);
+
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    for (idx = 0; parsestate->leftargs && parsestate->leftargs[idx]; idx++) {
+        procname = parsestate->leftargs[idx];
+        ret = list_proc(procname, &pids, &retsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not get [%s] error[%d]", procname, ret);
+            goto out;
+        }
+        retlen = ret;
+        fprintf(stdout, "get [%s] [%d]", procname, retlen);
+        for (j = 0; j < retlen; j++) {
+            if ((j % 5) == 0) {
+                fprintf(stdout, "\n%05d:", j);
+            }
+            fprintf(stdout, " %08d", pids[j]);
+        }
+        fprintf(stdout, "\n");
+    }
+
+    ret = 0;
+out:
+    list_proc(NULL, &pids, &retsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int svrbackrun_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+
+    init_log_level(pargs);
+
+    ret = __send_svr_pipe(BACK_CMD_RUN, parsestate, pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+    int pid;
+
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+    init_log_level(pargs);
+
+    ret = init_nt_envop_funcs();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i] != NULL ; i ++) {
+        pid = atoi(parsestate->leftargs[i]);
+        ret = dump_process_security(stdout,pid);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+    ret = 0;
+out:
+    fini_nt_envop_funcs();
+    SETERRNO(ret);
+    return ret;
+}
+
+int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int pid;
+    char* maskstr;
+    char* modestr;
+    char* inheritstr;
+    char* username=NULL;
+
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+    init_log_level(pargs);
+
+    ret = init_nt_envop_funcs();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    pid = atoi(parsestate->leftargs[0]);
+    maskstr = parsestate->leftargs[1];
+    modestr = parsestate->leftargs[2];
+    inheritstr = parsestate->leftargs[3];
+    username = parsestate->leftargs[4];
+
+    ret = proc_dacl_set(NULL,pid,maskstr,modestr,inheritstr,username);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    fprintf(stdout, "set [%s] mask [%s] mode[%s] inherit [%s] user[%s] succ\n",
+    parsestate->leftargs[0],parsestate->leftargs[1],parsestate->leftargs[2],parsestate->leftargs[3],
+    parsestate->leftargs[4]);
+    ret = 0;
+out:
+    fini_nt_envop_funcs();
+    SETERRNO(ret);
+    return ret;
+}
+
+int getprocwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int ret;
+    HANDLE *phds=NULL;
+    int hdsize=0;
+    int hdlen=0;
+    int i;
+    int j;
+    int pid;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        pid = atoi(parsestate->leftargs[i]);
+        if (pid != 0) {
+            ret = get_window_from_pid(pid,&phds,&hdsize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto out;
+            }
+            hdlen = ret;
+            fprintf(stdout,"[%d] windows",pid);
+            for (j=0;j<hdlen;j++) {
+                if ((j%5) == 0){
+                    fprintf(stdout,"\n");
+                }
+                fprintf(stdout," %p",phds[j]);
+            }
+            fprintf(stdout,"\n");
+        }
+    }
+
+    ret=  0;
+out:
+    get_window_from_pid(0,&phds,&hdsize);
+    hdlen = 0;
+    SETERRNO(ret);
+    return ret;
+}
