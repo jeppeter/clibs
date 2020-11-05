@@ -218,7 +218,6 @@ int protect_doing(HANDLE exitevt,char* curcmdline,char* peercmdline,DWORD peerpi
 			if (!bret) {
 				GETERRNO(ret);
 				ERROR_INFO("can not set event for [%s] error[%d]", peerevtname,ret);
-				goto fail;
 			}
 			/*we close this*/
 			CloseHandle(peerevt);
@@ -227,12 +226,13 @@ int protect_doing(HANDLE exitevt,char* curcmdline,char* peercmdline,DWORD peerpi
 	}
 
 	while(running) {
-		peermux = open_mutex(peermuxname,1);
 		waitnum = 0;
 		if (exitevt != NULL) {
-			waithd[waitnum] exitevt;
+			waithd[waitnum] = exitevt;
 			waitnum ++;
 		}
+
+		peermux = open_mutex(peermuxname,1);
 		if (peermux != NULL) {
 			CloseHandle(peermux);
 			peermux = NULL;
