@@ -39,14 +39,12 @@
 #endif
 
 
-#define pid_wmic_cmd_fmt "WMIC /OUTPUT:%s process where \"ProcessId=%d\" get CommandLine,ProcessId"
+#define pid_wmic_cmd_fmt "WMIC process where \"ProcessId=%d\" get CommandLine,ProcessId"
 
 #define MIN_BUF_SIZE    0x400
 
 int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
 {
-	char* tempfile = NULL;
-	int tempsize = 0;
 	int ret = 0;
 	int retsize = 0;
 	char** ppretargv = NULL;
@@ -54,8 +52,6 @@ int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
 	int filllen = 0;
 	int cmdlen = 0;
 	char* pcmd = NULL;
-	char* pfilecont = NULL;
-	int filelen = 0;
 	char* pcurptr = NULL;
 	char* ppassptr = NULL;
 	wchar_t* pucmdline = NULL;
@@ -68,6 +64,9 @@ int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
 	int argv0size = 0;
 	int i;
 	int curlen;
+	char* output=NULL;
+	int outsize=0;
+	int exitcode=0;
 
 	if (pid < 0) {
 		if (pppargv && *pppargv != NULL) {
@@ -90,56 +89,32 @@ int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
 	retsize = *pargvsize;
 
 
-
-	ret = mktempfile_safe("pidfile", &tempfile, &tempsize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		ERROR_INFO("can not mktemp error[%d]", ret);
-		goto fail;
-	}
-
-	cmdlen = tempsize + (int)strlen(pid_wmic_cmd_fmt) + 10;
-	pcmd = (char*)malloc((size_t)cmdlen);
-	if (pcmd == NULL) {
-		GETERRNO(ret);
-		ERROR_INFO("can not malloc %d error[%d]", cmdlen, ret);
-		goto fail;
-	}
-
-	memset(pcmd, 0, (size_t)cmdlen);
-	ret = _snprintf_s(pcmd, (size_t)cmdlen, (size_t)cmdlen, pid_wmic_cmd_fmt, tempfile, pid);
-	if (ret < 0) {
-		GETERRNO(ret);
-		ERROR_INFO("can not snprintf error[%d]", ret);
-		goto fail;
-	}
-
-	ret = system(pcmd);
-	if (ret != 0) {
-		GETERRNO(ret);
-		ERROR_INFO("can not run [%s] error[%d]", pcmd, ret);
-		goto fail;
-	}
-
-	/*now get the file information*/
-	ret =  read_file_encoded(tempfile, &pfilecont, &filelen);
+	ret = snprintf_safe(&pcmd,&cmdlen,pid_wmic_cmd_fmt,pid);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	if (pfilecont == NULL) {
-		ret = -ERROR_BAD_FILE_TYPE;
-		ERROR_INFO("[%s] bad format", pfilecont);
+	ret = run_cmd_output_single(NULL,0,&output,&outsize,NULL,0,&exitcode,0,pcmd);
+	if (ret < 0) {
+		GETERRNO(ret);
 		goto fail;
 	}
 
+	if (exitcode != 0) {
+		ret = exitcode;
+		if (ret > 0) {
+			ret = -ret;
+		}
+		ERROR_INFO("run [%s] error[%d]", pcmd,ret);
+		goto fail;
+	}
 
 	/**/
-	pcurptr = strchr(pfilecont, '\n');
+	pcurptr = strchr(output, '\n');
 	if (pcurptr == NULL) {
 		ret = -ERROR_BAD_FILE_TYPE;
-		ERROR_INFO("[%s] bad format", pfilecont);
+		ERROR_INFO("[%s] bad format", output);
 		goto fail;
 	}
 	ppassptr = pcurptr;
@@ -148,7 +123,7 @@ int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
 	pcurptr = strchr(ppassptr, '\n');
 	if (pcurptr == NULL) {
 		ret = -ERROR_BAD_FILE_TYPE;
-		ERROR_INFO("[%s] bad format", pfilecont);
+		ERROR_INFO("[%s] bad format", output);
 		goto fail;
 	}
 
@@ -157,7 +132,7 @@ int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
 	while (1) {
 		if (pcurptr <= ppassptr) {
 			ret = -ERROR_BAD_FILE_TYPE;
-			ERROR_INFO("[%s] bad format", pfilecont);
+			ERROR_INFO("[%s] bad format", output);
 			goto fail;
 		}
 		if (*pcurptr == '\r' ||
@@ -169,14 +144,14 @@ int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
 			break;
 		}
 		ret = -ERROR_BAD_FILE_TYPE;
-		ERROR_INFO("[%s] bad format", pfilecont);
+		ERROR_INFO("[%s] bad format", output);
 		goto fail;
 	}
 
 	while (1) {
 		if (pcurptr <= ppassptr) {
 			ret = -ERROR_BAD_FILE_TYPE;
-			ERROR_INFO("[%s] bad format", pfilecont);
+			ERROR_INFO("[%s] bad format", output);
 			goto fail;
 		}
 		if (isdigit(*pcurptr)) {
@@ -186,7 +161,7 @@ int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
 			break;
 		}
 		ret = -ERROR_BAD_FILE_TYPE;
-		ERROR_INFO("[%s] bad format", pfilecont);
+		ERROR_INFO("[%s] bad format", output);
 		goto fail;
 	}
 
@@ -273,15 +248,8 @@ try_again:
 	}
 	pcmdline = NULL;
 	cmdlinesize = 0;
-	read_file_encoded(NULL, &pfilecont, &filelen);
-	if (pcmd) {
-		free(pcmd);
-	}
-	pcmd = NULL;
-	if (tempfile != NULL) {
-		delete_file(tempfile);
-	}
-	mktempfile_safe(NULL, &tempfile, &tempsize);
+	run_cmd_output_single(NULL,0,&output,&outsize,NULL,0,&exitcode,0,NULL);
+	snprintf_safe(&pcmd,&cmdlen,NULL);
 
 	if (*pppargv && *pppargv != ppretargv) {
 		free(*pppargv);
@@ -302,15 +270,8 @@ fail:
 	}
 	pcmdline = NULL;
 	cmdlinesize = 0;
-	read_file_encoded(NULL, &pfilecont, &filelen);
-	if (pcmd) {
-		free(pcmd);
-	}
-	pcmd = NULL;
-	if (tempfile != NULL) {
-		delete_file(tempfile);
-	}
-	mktempfile_safe(NULL, &tempfile, &tempsize);
+	run_cmd_output_single(NULL,0,&output,&outsize,NULL,0,&exitcode,0,NULL);
+	snprintf_safe(&pcmd,&cmdlen,NULL);
 	if (ppretargv && ppretargv != *pppargv) {
 		free(ppretargv);
 	}
