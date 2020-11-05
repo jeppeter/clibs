@@ -443,3 +443,267 @@ int dbgcode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 }
 
 #endif
+
+
+static void* st_pdbg = NULL;
+
+BOOL WINAPI HandlerCtrlcRoutine(DWORD dwCtrlType)
+{
+    BOOL bret = TRUE;
+    switch (dwCtrlType) {
+    case CTRL_C_EVENT:
+        DEBUG_INFO("CTRL_C_EVENT\n");
+        break;
+    case CTRL_BREAK_EVENT:
+        DEBUG_INFO("CTRL_BREAK_EVENT\n");
+        break;
+    case CTRL_CLOSE_EVENT:
+        DEBUG_INFO("CTRL_CLOSE_EVENT\n");
+        break;
+    case CTRL_LOGOFF_EVENT:
+        DEBUG_INFO("CTRL_LOGOFF_EVENT\n");
+        break;
+    case CTRL_SHUTDOWN_EVENT:
+        DEBUG_INFO("CTRL_SHUTDOWN_EVENT\n");
+        break;
+    default:
+        DEBUG_INFO("ctrltype %d\n", dwCtrlType);
+        bret = FALSE;
+        break;
+    }
+
+#ifdef  _M_X64
+    int ret;
+    if (st_pdbg) {
+        ret = windbg_interrupt(st_pdbg);
+        if (ret < 0) {
+            ERROR_INFO("can not interrupt [%d]", ret);
+            bret = FALSE;
+        }
+    }
+#endif  /* _M_X64*/
+
+    return bret;
+}
+
+
+int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+#ifdef _M_X64
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int cnt = 0;
+    int i;
+    void* pdbg = NULL;
+    int ret = 0;
+    char* pcmd = NULL;
+    int cmdsize = 0;
+    char* pcurquote = NULL;
+    int curquotesize = 0;
+    BOOL bret;
+
+
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
+    while (parsestate->leftargs != NULL && parsestate->leftargs[cnt] != NULL) {
+        cnt ++;
+    }
+
+    for (i = 0; i < cnt; i++) {
+        ret = quote_string(&pcurquote, &curquotesize, "%s", parsestate->leftargs[i]);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        if (i > 0) {
+            ret = append_snprintf_safe(&pcmd, &cmdsize, " %s", pcurquote);
+        } else {
+            ret = snprintf_safe(&pcmd, &cmdsize, "%s", pcurquote);
+        }
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+
+    bret = SetConsoleCtrlHandler(HandlerCtrlcRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not set ctrl handler [%d]", ret);
+        goto out;
+    }
+
+
+    ret = initialize_com();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not initialized com [%d]\n", ret);
+        goto out;
+    }
+
+    ret = windbg_create_client("", &pdbg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get client error[%d]\n", ret);
+        goto out;
+    }
+
+    st_pdbg = pdbg;
+
+    ret = windbg_start_process_single(pdbg, pcmd, WIN_DBG_FLAGS_CHILDREN | WIN_DBG_FLAGS_HEAP);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "create [%s] error[%d]\n", pcmd, ret);
+        goto out;
+    }
+
+    ret = windbg_go(pdbg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "go [%s] error[%d]\n", pcmd, ret);
+        goto out;
+    }
+
+    fprintf(stdout, "dbg [%s] succ\n", pcmd);
+    ret = 0;
+out:
+    st_pdbg = NULL;
+    windbg_create_client(NULL, &pdbg);
+    uninitialize_com();
+    snprintf_safe(&pcmd, &cmdsize, NULL);
+    quote_string(&pcurquote, &curquotesize, NULL);
+    SETERRNO(ret);
+    return ret;
+#else  /*_M_X64*/
+    int ret = -ERROR_NOT_SUPPORTED;
+    popt = popt;
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+    SETERRNO(ret);
+    return ret;
+#endif /*_M_X64*/
+}
+
+int execdbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+#ifdef _M_X64
+    char* singlecmd = NULL;
+    char* runcmd = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    void* pdbg = NULL;
+    char* pout = NULL;
+    int outsize = 0;
+    int outlen = 0;
+    BOOL bret;
+    char* readbuf = NULL, *pptr;
+    size_t readsize = 512;
+    size_t slen;
+
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
+    singlecmd = parsestate->leftargs[0];
+
+    bret = SetConsoleCtrlHandler(HandlerCtrlcRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not set ctrl handler [%d]", ret);
+        goto out;
+    }
+
+
+    ret = initialize_com();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not initialized com [%d]\n", ret);
+        goto out;
+    }
+
+    ret = windbg_create_client("", &pdbg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get client error[%d]\n", ret);
+        goto out;
+    }
+
+    st_pdbg = pdbg;
+
+    ret = windbg_start_process_single(pdbg, singlecmd, WIN_DBG_FLAGS_CHILDREN | WIN_DBG_FLAGS_HEAP);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "create [%s] error[%d]\n", singlecmd, ret);
+        goto out;
+    }
+
+    readbuf = (char*) malloc(readsize);
+    if (readbuf == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "alloc [%zu] readbuf error[%d]\n", readsize, ret);
+        goto out;
+    }
+
+    while (1) {
+        fprintf(stdout, "dbg>");
+        fflush(stdout);
+        pptr = fgets(readbuf, (int)readsize, stdin);
+        if (pptr == NULL) {
+            GETERRNO(ret);
+            fprintf(stderr, "read error[%d]\n", ret);
+            goto out;
+        }
+        slen = strlen(readbuf);
+        if (slen >= readsize) {
+            continue;
+        }
+        pptr = readbuf + slen;
+        DEBUG_INFO("pptr [%p] readbuf [%p]", pptr, readbuf);
+        while (pptr >= readbuf &&
+                (*pptr == '\r' || *pptr == '\n' || *pptr == '\0')) {
+            DEBUG_INFO("pptr [%p] [0x%02x]", pptr, *pptr);
+            *pptr = '\0';
+            pptr --;
+        }
+
+
+        if (strcmp(readbuf, "exit") == 0) {
+            break;
+        }
+        ret = windbg_exec(pdbg, readbuf);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "run [%s] error [%d]\n", readbuf, ret);
+            goto out;
+        }
+        ret = windbg_get_out(pdbg, WIN_DBG_OUTPUT_OUT, &pout, &outsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "get out for [%s] error[%d]\n", runcmd, ret);
+            goto out;
+        }
+        outlen = ret;
+        fprintf(stdout, "%s", pout);
+    }
+
+    ret = 0;
+out:
+    st_pdbg = NULL;
+    windbg_get_out(NULL, WIN_DBG_FLAGS_FREE, &pout, &outsize);
+    windbg_create_client(NULL, &pdbg);
+    uninitialize_com();
+    SETERRNO(ret);
+    return ret;
+#else /*_M_X64*/
+    int ret = -ERROR_NOT_SUPPORTED;
+    popt = popt;
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+    SETERRNO(ret);
+    return ret;
+#endif /*_M_X64*/
+}
