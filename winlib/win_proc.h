@@ -23,6 +23,11 @@ extern "C" {
 #define  PROC_STDERR_NULL           0x20
 #define  PROC_NO_WINDOW             0x100
 
+
+#define  PROC_APP_MODE           1
+#define  PROC_MONITOR_MODE       2
+
+
 typedef struct __mod_info{
 	void* m_pimgbase;
 	char m_modfullname[MAX_PATH];
@@ -85,6 +90,9 @@ WINLIB_API int list_proc(const char* procname, int** pppids,int *psize);
 
 WINLIB_API int dump_process_security(FILE* fp,int pid);
 WINLIB_API int proc_dacl_set(FILE* fp,int pid,char* maskstr,char* modestr, char* inheritstr, char* username);
+
+WINLIB_API void stop_protect_monitor(void** ppmon);
+WINLIB_API void* start_protect_monitor(char* curcmdline, char* peercmdline, int peerpid, int mode, int waitmills, int interval);
 
 
 #ifdef __cplusplus
