@@ -26,6 +26,8 @@ WINLIB_API void close_event_log(void);
 
 WINLIB_API HANDLE get_or_create_event(char* name);
 WINLIB_API HANDLE get_or_create_mutex(char* name);
+WINLIB_API HANDLE open_event(char* name, int created);
+WINLIB_API HANDLE open_mutex(char* name,int created);
 
 
 #define DEBUG_LOG_EVENT(...)  log_event(BASE_EVENT_DEBUG,__FILE__,__LINE__,__VA_ARGS__)

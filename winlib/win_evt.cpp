@@ -144,34 +144,28 @@ fail:
     return ret;
 }
 
-
-HANDLE get_or_create_event(char* name)
+HANDLE open_event(char* name, int created)
 {
-    TCHAR* ptname=NULL;
+    TCHAR* ptname= NULL;
     int tnamesize=0;
+    HANDLE evt=NULL;
     int ret;
-    HANDLE evt = NULL;
-    int created = 0;
 
     ret = AnsiToTchar(name,&ptname,&tnamesize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-
-    evt = OpenEvent(EVENT_ALL_ACCESS,FALSE,ptname);
-    if (evt ==NULL) {
-        SETERRNO(0);
+    if (created) {
         evt = CreateEvent(NULL,FALSE,FALSE,ptname);
-        created = 1;
+    } else {
+        evt = OpenEvent(EVENT_ALL_ACCESS,FALSE,ptname);
     }
     if (evt == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("get event [%s] error[%d]", name, ret);
         goto fail;
     }
 
-    //DEBUG_INFO("%s [%s] event", created ? "create" : "open", name);
     AnsiToTchar(NULL,&ptname,&tnamesize);
     return evt;
 fail:
@@ -184,41 +178,76 @@ fail:
     return NULL;
 }
 
-HANDLE get_or_create_mutex(char* name)
+
+HANDLE get_or_create_event(char* name)
 {
-    TCHAR* ptname=NULL;
-    int tnamesize=0;
     int ret;
-    HANDLE hmux = NULL;
-    int created = 0;
+    HANDLE evt = NULL;
+
+    evt = open_event(name,0);
+    if (evt == NULL) {
+        evt = open_event(name,1);
+    }
+    if (evt == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    return evt;
+fail:
+    SETERRNO(ret);
+    return NULL;
+}
+
+HANDLE open_mutex(char* name,int created)
+{
+    TCHAR* ptname= NULL;
+    int tnamesize=0;
+    HANDLE mux=NULL;
+    int ret;
 
     ret = AnsiToTchar(name,&ptname,&tnamesize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-
-    hmux = OpenMutex(SYNCHRONIZE,FALSE,ptname);
-    if (hmux ==NULL) {
-        SETERRNO(0);
-        hmux = CreateMutex(NULL,FALSE,ptname);
-        created = 1;
+    if (created) {
+        mux = CreateMutex(NULL,FALSE,ptname);
+    } else {
+        mux = OpenMutex(SYNCHRONIZE,FALSE,ptname);
     }
-    if (hmux == NULL) {
+    if (mux == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("get mutex [%s] error[%d]", name, ret);
         goto fail;
     }
 
-    //DEBUG_INFO("%s [%s] mutex", created ? "create" : "open", name);
     AnsiToTchar(NULL,&ptname,&tnamesize);
-    return hmux;
+    return mux;
 fail:
-    if (hmux != NULL) {
-        CloseHandle(hmux);
+    if (mux != NULL) {
+        CloseHandle(mux);
     }
-    hmux = NULL;
+    mux = NULL;
     AnsiToTchar(NULL,&ptname,&tnamesize);
     SETERRNO(ret);
     return NULL;    
+}
+
+HANDLE get_or_create_mutex(char* name)
+{
+    HANDLE mux=NULL;
+    int ret;
+
+    mux = open_mutex(name,1);
+    if (mux == NULL) {
+        mux = open_mutex(name,0);
+    }
+    if (mux == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    return mux;
+fail:
+    SETERRNO(ret);
+    return NULL;
 }
