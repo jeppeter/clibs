@@ -115,7 +115,7 @@ libtest.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMI
 .cpp.obj:
 	$(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
 
-main.cpp:args_options.cpp
+main.cpp:args_options.cpp protectkill.cpp proctest.cpp
 
 proto_win.cpp:$(CURDIR)\..\proto_win\proto_win.cpp
 	$(QUIETCMD)copy /Y $(CURDIR)\..\proto_win\proto_win.cpp proto_win.cpp
