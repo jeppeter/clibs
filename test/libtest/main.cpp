@@ -43,7 +43,6 @@
 #include <win_evt.h>
 
 
-
 #include <jvalue.h>
 #include <crypt_md5.h>
 
@@ -195,6 +194,8 @@ int getenvval_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int enumwintext_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int protectkill_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int openmux_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int waitevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int setevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0

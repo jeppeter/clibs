@@ -280,5 +280,11 @@
     },
     "openmux<openmux_handler>##muxname [created]to open mutex and wait##" : {
         "$" : "+"
+    },
+    "waitevt<waitevt_handler>##evtname to wait for event##" : {
+        "$" : 1
+    },
+    "setevt<setevt_handler>##evtname to set event##" : {
+        "$" : 1
     }
 }

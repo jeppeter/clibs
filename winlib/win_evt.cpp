@@ -157,7 +157,14 @@ HANDLE open_event(char* name, int created)
         goto fail;
     }
     if (created) {
-        evt = CreateEvent(NULL,FALSE,FALSE,ptname);
+        SETERRNO(0);
+        evt = CreateEvent(NULL,TRUE,FALSE,ptname);
+        if (evt != NULL) {
+            GETERRNO(ret);
+            if (ret == -ERROR_ALREADY_EXISTS) {
+                goto fail;
+            }
+        }
     } else {
         evt = OpenEvent(EVENT_ALL_ACCESS,FALSE,ptname);
     }
@@ -212,7 +219,14 @@ HANDLE open_mutex(char* name,int created)
         goto fail;
     }
     if (created) {
-        mux = CreateMutex(NULL,TRUE,ptname);
+        SETERRNO(0);
+        mux = CreateMutex(NULL,FALSE,ptname);
+        if (mux != NULL) {
+            GETERRNO(ret);
+            if (ret == -ERROR_ALREADY_EXISTS) {
+                goto fail;
+            }
+        }
     } else {
         mux = OpenMutex(SYNCHRONIZE,FALSE,ptname);
     }
@@ -220,6 +234,8 @@ HANDLE open_mutex(char* name,int created)
         GETERRNO(ret);
         goto fail;
     }
+
+    DEBUG_INFO("%s [%s] [%p]", created ? "CreateMutex" : "OpenMutex" , name, mux);
 
     AnsiToTchar(NULL,&ptname,&tnamesize);
     return mux;

@@ -334,6 +334,7 @@ int openmux_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 	while(st_run) {
 		mux = open_mutex(muxname,created);
 		if (mux != NULL) {
+			fprintf(stdout,"%s [%s] succ\n", created ? "create" : "open", muxname);
 			break;
 		}
 		GETERRNO(ret);
@@ -354,6 +355,107 @@ out:
 		CloseHandle(mux);
 	}
 	mux = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int waitevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	char* evtname =NULL;
+	int ret;
+	HANDLE evt=NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	BOOL bret;
+	int cnt=0,waitcnt=0;
+	DWORD dret;
+
+	init_log_level(pargs);
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+
+    bret = SetConsoleCtrlHandler(HandlerConsoleRunOk, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
+        goto out;
+    }
+
+	evtname = parsestate->leftargs[0];
+	evt = open_event(evtname,1);
+	if (evt == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "create [%s] error[%d]\n",evtname, ret );
+		goto out;
+	}
+
+	cnt = 0;
+	waitcnt = 0;
+	while (st_run) {
+		dret = WaitForSingleObject(evt,1000);
+		if (dret == WAIT_OBJECT_0) {
+			cnt ++;
+			ResetEvent(evt);
+			fprintf(stdout,"[%s] signaled [%d]\n",evtname,cnt);
+			continue;
+		}
+		fprintf(stdout, "[%s] not signaled [%d]\n",evtname, waitcnt);
+		waitcnt ++;
+	}
+
+	ret = 0;
+out:
+	if (evt != NULL) {
+		CloseHandle(evt);
+	}
+	evt = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int setevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	char* evtname =NULL;
+	int ret;
+	HANDLE evt=NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	BOOL bret;
+
+	init_log_level(pargs);
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+
+    bret = SetConsoleCtrlHandler(HandlerConsoleRunOk, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
+        goto out;
+    }
+
+	evtname = parsestate->leftargs[0];
+	evt = open_event(evtname,0);
+	if (evt == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "open [%s] error[%d]\n", evtname, ret);
+		goto out;
+	}
+
+	bret= SetEvent(evt);
+	if (!bret) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	fprintf(stdout,"set [%s] succ\n",evtname);
+
+
+	ret = 0;
+out:
+	if (evt != NULL) {
+		CloseHandle(evt);
+	}
+	evt = NULL;
 	SETERRNO(ret);
 	return ret;
 }
