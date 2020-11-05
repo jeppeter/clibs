@@ -192,6 +192,7 @@ int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int getprocwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getenvval_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int enumwintext_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int protectkill_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -322,6 +323,7 @@ BOOL WINAPI HandlerConsoleRoutine(DWORD dwCtrlType)
 #include "prntest.cpp"
 #include "crypttest.cpp"
 #include "privtest.cpp"
+#include "protectkill.cpp"
 
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {

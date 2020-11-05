@@ -274,5 +274,8 @@
     },
     "enumwintext<enumwintext_handler>##desktopname  to enum desktop windows##" : {
         "$" : 1
+    },
+    "protectkill<protectkill_handler>##[monitor|app] [pid] to make the protect kill##" : {
+        "$" : "*"
     }
 }
