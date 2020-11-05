@@ -40,6 +40,7 @@
 #include <win_user.h>
 #include <win_namedpipe.h>
 #include <win_prn.h>
+#include <win_evt.h>
 
 
 
@@ -193,6 +194,7 @@ int getprocwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int getenvval_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int enumwintext_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int protectkill_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int openmux_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -304,6 +306,40 @@ BOOL WINAPI HandlerConsoleRoutine(DWORD dwCtrlType)
     if (bret && st_ExitEvt) {
         DEBUG_INFO("setevent 0x%x\n", st_ExitEvt);
         SetEvent(st_ExitEvt);
+    }
+
+    return bret;
+}
+
+static int st_run=1;
+
+BOOL WINAPI HandlerConsoleRunOk(DWORD dwCtrlType)
+{
+    BOOL bret = TRUE;
+    switch (dwCtrlType) {
+    case CTRL_C_EVENT:
+        DEBUG_INFO("CTRL_C_EVENT\n");
+        break;
+    case CTRL_BREAK_EVENT:
+        DEBUG_INFO("CTRL_BREAK_EVENT\n");
+        break;
+    case CTRL_CLOSE_EVENT:
+        DEBUG_INFO("CTRL_CLOSE_EVENT\n");
+        break;
+    case CTRL_LOGOFF_EVENT:
+        DEBUG_INFO("CTRL_LOGOFF_EVENT\n");
+        break;
+    case CTRL_SHUTDOWN_EVENT:
+        DEBUG_INFO("CTRL_SHUTDOWN_EVENT\n");
+        break;
+    default:
+        DEBUG_INFO("ctrltype %d\n", dwCtrlType);
+        bret = FALSE;
+        break;
+    }
+
+    if (bret ) {
+        st_run = 0;
     }
 
     return bret;

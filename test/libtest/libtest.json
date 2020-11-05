@@ -277,5 +277,8 @@
     },
     "protectkill<protectkill_handler>##[monitor|app] [pid] to make the protect kill##" : {
         "$" : "*"
+    },
+    "openmux<openmux_handler>##muxname [created]to open mutex and wait##" : {
+        "$" : "+"
     }
 }

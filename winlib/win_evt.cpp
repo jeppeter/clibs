@@ -212,7 +212,7 @@ HANDLE open_mutex(char* name,int created)
         goto fail;
     }
     if (created) {
-        mux = CreateMutex(NULL,FALSE,ptname);
+        mux = CreateMutex(NULL,TRUE,ptname);
     } else {
         mux = OpenMutex(SYNCHRONIZE,FALSE,ptname);
     }

@@ -305,3 +305,55 @@ int protectkill_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 	SETERRNO(ret);
 	return ret;
 }
+
+int openmux_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	pargs_options_t pargs = (pargs_options_t) popt;
+	int ret;
+	char* muxname = NULL;
+	HANDLE mux = NULL;
+	BOOL bret;
+	int cnt = 0;
+	int created = 0;
+
+	init_log_level(pargs);
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+
+    bret = SetConsoleCtrlHandler(HandlerConsoleRunOk, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
+        goto out;
+    }
+
+	muxname = parsestate->leftargs[0];
+	if (parsestate->leftargs && parsestate->leftargs[1]) {
+		created = 1;
+	}
+	while(st_run) {
+		mux = open_mutex(muxname,created);
+		if (mux != NULL) {
+			break;
+		}
+		GETERRNO(ret);
+		fprintf(stdout,"%s [%s] error[%d]\n",created ? "create" : "open",muxname,ret);
+		SleepEx(1000,TRUE);
+	}
+
+	cnt = 0;
+	while(st_run) {
+		fprintf(stdout,"[%s] hold on [%d]\n",muxname,cnt);
+		SleepEx(1000,TRUE);
+		cnt ++;
+	}
+
+	ret = 0;
+out:
+	if (mux != NULL) {
+		CloseHandle(mux);
+	}
+	mux = NULL;
+	SETERRNO(ret);
+	return ret;
+}
