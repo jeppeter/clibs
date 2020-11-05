@@ -239,3 +239,134 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int __mk_svc_handler(pextargs_state_t parsestate, pargs_options_t pargs, int drivemode)
+{
+    char* binpath = NULL;
+    char* svcname = NULL;
+    int svcnamesize = 0;
+    int allocname = 0;
+    char* desc = NULL;
+    int descsize = 0;
+    int allocdesc = 0;
+    int startmode = SVC_START_ON_DEMAND;
+    char* pstart = NULL;
+    int idx = 0;
+    char* pcurptr = NULL;
+    char* lastptr = NULL;
+    int ret;
+
+    REFERENCE_ARG(pargs);
+
+    binpath = parsestate->leftargs[idx];
+    idx ++;
+
+    if (parsestate->leftargs[idx]) {
+        svcname = parsestate->leftargs[idx];
+        idx ++;
+    } else {
+        pcurptr = strrchr(binpath, '\\');
+        if (pcurptr) {
+            pcurptr ++;
+        } else {
+            pcurptr = binpath;
+        }
+        ret = snprintf_safe(&svcname, &svcnamesize, "%s", pcurptr);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        lastptr = svcname + strlen(svcname);
+        while (lastptr != svcname) {
+            if (*lastptr == '.') {
+                *lastptr = '\0';
+                break;
+            }
+            lastptr --;
+        }
+        allocname = 1;
+    }
+
+    if (parsestate->leftargs[idx]) {
+        desc = parsestate->leftargs[idx];
+        idx ++;
+    } else {
+        ret = snprintf_safe(&desc, &descsize, "%s description", svcname);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        allocdesc = 1;
+    }
+
+    if (parsestate->leftargs[idx]) {
+        pstart = parsestate->leftargs[idx];
+        idx ++;
+        if (_stricmp(pstart, "demand") == 0) {
+            startmode = SVC_START_ON_DEMAND;
+        } else if (_stricmp(pstart, "auto") == 0) {
+            startmode = SVC_START_ON_AUTO;
+        } else if (_stricmp(pstart, "boot") == 0) {
+            startmode = SVC_START_ON_BOOT;
+        } else if (_stricmp(pstart, "system") == 0) {
+            startmode = SVC_START_ON_SYSTEM;
+        } else if (_stricmp(pstart, "disable") == 0) {
+            startmode = SVC_START_ON_DISABLED;
+        } else {
+            ret = -ERROR_INVALID_PARAMETER;
+            ERROR_INFO("[%s] not support type start mode", pstart);
+            goto out;
+        }
+    }
+
+    if (drivemode) {
+        ret = create_driver(svcname, desc, binpath, startmode);
+    } else {
+        ret = create_service(svcname, desc, binpath, startmode);
+    }
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("create %s [%s] [%s] [%s] mode[%d] error[%d]", drivemode ? "driver" : "service",
+                   svcname, desc, binpath, startmode, ret);
+        goto out;
+    }
+
+    fprintf(stdout, "create %s [%s] [%s] [%s] mode[%d] succ\n", drivemode ? "driver" : "service",
+            svcname, desc, binpath, startmode);
+    ret = 0;
+out:
+    if (allocdesc) {
+        snprintf_safe(&desc, &descsize, NULL);
+    }
+    desc = NULL;
+    descsize = 0;
+    allocdesc = 0;
+    if (allocname) {
+        snprintf_safe(&svcname, &svcnamesize, NULL);
+    }
+    svcname = NULL;
+    svcnamesize = 0;
+    allocname = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int mkdrv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    init_log_level(pargs);
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    return __mk_svc_handler(parsestate, pargs, 1);
+}
+int mksvc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    init_log_level(pargs);
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    return __mk_svc_handler(parsestate, pargs, 0);
+}

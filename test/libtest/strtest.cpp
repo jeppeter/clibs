@@ -345,3 +345,438 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* input = NULL;
+    char* output = NULL;
+    char* inbuf = NULL;
+    int insize = 0, inlen = 0;
+    char* outbuf = NULL;
+    int outsize = 0;
+    int outlen = 0;
+    int ret;
+    char* expandline = NULL;
+    int expandsize = 0;
+    int expandlen = 0;
+
+    init_log_level(pargs);
+    argc = argc;
+    argv = argv;
+    input = parsestate->leftargs[0];
+    output = parsestate->leftargs[1];
+
+    ret = read_file_whole(input, &inbuf, &insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "read %s error%d\n", input, ret);
+        goto out;
+    }
+    inlen = ret;
+
+    outsize = 32;
+try_again:
+    if (outbuf) {
+        free(outbuf);
+    }
+    outbuf = NULL;
+    outbuf = (char*)malloc((size_t)outsize);
+    if (outbuf == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "alloc %d error%d\n", outsize, ret );
+        goto out;
+    }
+
+    ret = encode_base64((unsigned char*)inbuf, inlen, outbuf, outsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            outsize <<= 1;
+            goto try_again;
+        }
+        fprintf(stderr, "can not encode base\n");
+        __debug_buf(stderr, inbuf, insize);
+        fprintf(stderr, "error [%d]\n", ret);
+        goto out;
+    }
+
+    outlen = ret;
+    ret = base64_splite_line(outbuf, outlen, 76, &expandline, &expandsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "expand line error[%d]\n", ret);
+        goto out;
+    }
+
+    expandlen = ret;
+
+    fprintf(stdout, "inlen [%d]outlen [%d]\n", inlen, expandlen);
+    ret = write_file_whole(output, expandline, expandlen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "write [%s] error[%d]\n", output, ret );
+        goto out;
+    }
+
+    fprintf(stdout, "encode [%s] => [%s] succ\n", input, output );
+    ret = 0;
+
+out:
+    base64_splite_line(NULL, 0, 0, &expandline, &expandsize);
+    read_file_whole(NULL, &inbuf, &insize);
+    if (outbuf) {
+        free(outbuf);
+    }
+    outbuf = NULL;
+    SETERRNO(ret);
+    return ret;
+
+}
+int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* input = NULL;
+    char* output = NULL;
+    char* inbuf = NULL;
+    int insize = 0, inlen = 0;
+    char* outbuf = NULL;
+    int outsize = 0;
+    int outlen = 0;
+    int ret;
+    char* compactbuf = NULL;
+    int compactlen = 0, compactsize = 0;
+
+    init_log_level(pargs);
+    argc = argc;
+    argv = argv;
+    input = parsestate->leftargs[0];
+    output = parsestate->leftargs[1];
+
+    ret = read_file_whole(input, &inbuf, &insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "read %s error%d\n", input, ret);
+        goto out;
+    }
+    inlen = ret;
+
+
+    ret = base64_compact_line(inbuf, inlen, &compactbuf, &compactsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "compact error[%d]\n", ret);
+        goto out;
+    }
+    compactlen = ret;
+
+    outsize = 32;
+try_again:
+    if (outbuf) {
+        free(outbuf);
+    }
+    outbuf = NULL;
+    outbuf = (char*)malloc((size_t)outsize);
+    if (outbuf == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "alloc %d error%d\n", outsize, ret );
+        goto out;
+    }
+
+
+
+    ret = decode_base64(compactbuf, compactlen, (unsigned char*)outbuf, outsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+            outsize <<= 1;
+            goto try_again;
+        }
+        fprintf(stderr, "can not decode base\n");
+        __debug_buf(stderr, inbuf, insize);
+        fprintf(stderr, "error [%d]\n", ret);
+        goto out;
+    }
+
+    outlen = ret;
+    fprintf(stdout, "inlen [%d]outlen [%d]\n", inlen, outlen);
+    ret = write_file_whole(output, outbuf, outlen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "write [%s] error[%d]\n", output, ret );
+        goto out;
+    }
+
+    fprintf(stdout, "decode [%s] => [%s] succ\n", input, output );
+    ret = 0;
+
+out:
+    base64_compact_line(NULL, 0, &compactbuf, &compactsize);
+    read_file_whole(NULL, &inbuf, &insize);
+    if (outbuf) {
+        free(outbuf);
+    }
+    outbuf = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+static int format_pipe_data(jvalue* pj, char** ppsndbuf, int* psndsize)
+{
+    jentry** entries = NULL;
+    jentry* pcurentry = NULL;
+    unsigned int entriesizes = 0;
+    int ret;
+    int sndlen = 0;
+    char* pstr = NULL;
+    int strsize = 0;
+    char* valstr = NULL;
+    unsigned int valsize = 0;
+    int retlen = 0;
+    char* pretbuf = NULL;
+    unsigned int i;
+
+
+    if (psndsize == NULL || ppsndbuf == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    retlen = *psndsize;
+    pretbuf = *ppsndbuf;
+
+    entries = jobject_entries(pj, &entriesizes);
+    if (entries == NULL) {
+        ret = snprintf_safe(&pstr, &strsize, "");
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    } else {
+        for (i = 0; i < entriesizes; i++) {
+            pcurentry = entries[i];
+            switch (pcurentry->value->type) {
+            case JNONE:
+            case JBOOL:
+            case JNULL:
+            case JINT:
+            case JINT64:
+            case JREAL:
+            case JSTRING:
+            case JARRAY:
+            case JOBJECT:
+                if (valstr) {
+                    free(valstr);
+                }
+                valstr = NULL;
+                valsize = 0;
+                valstr = jvalue_write(pcurentry->value, &valsize);
+                if (valstr == NULL) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                ret = append_snprintf_safe(&pstr, &strsize, "%s=%s\n", pcurentry->key, valstr);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                break;
+            default:
+                ret = -ERROR_INVALID_PARAMETER;
+                goto fail;
+            }
+        }
+    }
+
+    sndlen = (int)(strlen(pstr) + sizeof(uint32_t));
+    if (retlen < sndlen || pretbuf == NULL) {
+        if (retlen < sndlen) {
+            retlen = sndlen;
+        }
+        pretbuf = (char*) malloc((size_t)retlen);
+        if (pretbuf == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    memcpy(pretbuf, &sndlen, sizeof(uint32_t));
+    if (sndlen > sizeof(uint32_t)) {
+        memcpy(&(pretbuf[sizeof(uint32_t)]), pstr, (sndlen - sizeof(uint32_t)));
+    }
+
+    if (*ppsndbuf && *ppsndbuf != pretbuf) {
+        free(*ppsndbuf);
+    }
+    *ppsndbuf = pretbuf;
+    *psndsize = retlen;
+
+    snprintf_safe(&pstr, &strsize, NULL);
+    if (valstr) {
+        free(valstr);
+    }
+    valstr = NULL;
+    valsize = 0;
+    jentries_destroy(&entries);
+
+    return sndlen;
+fail:
+    if (pretbuf && pretbuf != *ppsndbuf) {
+        free(pretbuf);
+    }
+    pretbuf = NULL;
+
+    snprintf_safe(&pstr, &strsize, NULL);
+    if (valstr) {
+        free(valstr);
+    }
+    valstr = NULL;
+    valsize = 0;
+    jentries_destroy(&entries);
+    SETERRNO(ret);
+    return ret;
+}
+
+int pipedata_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int i;
+    char* fname;
+    jvalue* pj = NULL;
+    char* filecon = NULL;
+    int filesize = 0;
+    int ret;
+    unsigned int size;
+    char* poutdata = NULL;
+    int outsize = 0;
+    int outlen = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    init_log_level(pargs);
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i] ; i++) {
+        fname = parsestate->leftargs[i];
+        ret = read_file_whole(fname, &filecon, &filesize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("read [%s] error[%d]", fname, ret);
+            goto out;
+        }
+
+        if (pj) {
+            jvalue_destroy(pj);
+        }
+        pj = NULL;
+        size = 0;
+        pj = jvalue_read(filecon, &size);
+        if (pj == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("[%s] not json file", fname);
+            goto out;
+        }
+
+        ret = format_pipe_data(pj, &poutdata, &outsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("format pipe [%s] error[%d]", fname, ret);
+            goto out;
+        }
+        outlen = ret;
+        DEBUG_BUFFER_FMT(poutdata, outlen, "[%s] format data", fname);
+    }
+
+    ret = 0;
+out:
+    if (pj) {
+        jvalue_destroy(pj);
+    }
+    pj = NULL;
+    read_file_whole(NULL, &filecon, &filesize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int utf8touni_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* putf8 = NULL;
+    int utf8size = 0;
+    int utf8len = 0;
+    wchar_t* puni = NULL;
+    int unisize = 0, unilen = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    ret = __get_code(parsestate, &putf8, &utf8size);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    utf8len = ret;
+    ret = Utf8ToUnicode(putf8, &puni, &unisize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not trans buffer [%d]\n", ret);
+        goto out;
+    }
+    unilen = ret;
+
+    fprintf(stdout, "utf8 buffer [%d]\n", utf8len);
+    __debug_buf(stdout, putf8, utf8len);
+    fprintf(stdout, "unicode buffer [%d]\n", unilen);
+    __debug_buf(stdout, (char*)puni, unilen);
+    ret = 0;
+out:
+    Utf8ToUnicode(NULL, &puni, &unisize);
+    __get_code(NULL, &putf8, &utf8size);
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* pbuf = NULL;
+    int bufsize = 0, buflen = 0;
+    char* putf8 = NULL;
+    int utf8size = 0;
+    int utf8len = 0;
+    wchar_t* puni = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    ret = __get_code(parsestate, &pbuf, &bufsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    buflen = ret;
+    puni = (wchar_t*)pbuf;
+
+    ret = UnicodeToUtf8(puni, &putf8, &utf8size);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not trans buffer [%d]\n", ret);
+        goto out;
+    }
+    utf8len = ret;
+
+    fprintf(stdout, "unicode buffer [%d]\n", buflen);
+    __debug_buf(stdout, pbuf, buflen);
+    fprintf(stdout, "utf8 buffer [%d]\n", utf8len);
+    __debug_buf(stdout, putf8, utf8len);
+    ret = 0;
+out:
+    UnicodeToUtf8(NULL, &putf8, &utf8size);
+    __get_code(NULL, &pbuf, &bufsize);
+    SETERRNO(ret);
+    return ret;
+}

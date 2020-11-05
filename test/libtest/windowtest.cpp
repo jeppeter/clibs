@@ -319,3 +319,30 @@ int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     return 0;
 }
+
+
+int getsess_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_level(pargs);
+
+    argc = argc;
+    argv = argv;
+    parsestate = parsestate;
+
+    ret = get_desktop_session();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get desktop session [%d]\n", ret);
+        goto out;
+    }
+
+    fprintf(stdout, "session [%d]\n", ret);
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
