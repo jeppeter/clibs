@@ -168,11 +168,13 @@ HANDLE open_event(char* name, int created)
     } else {
         evt = OpenEvent(EVENT_ALL_ACCESS,FALSE,ptname);
     }
-    if (evt == NULL) {
+    if (evt == NULL || evt == INVALID_HANDLE_VALUE) {
         GETERRNO(ret);
+        evt = NULL;
         goto fail;
     }
 
+    DEBUG_INFO("%s [%s] [%p]", created ? "CreateEvent" : "OpenEvent", name, evt);
     AnsiToTchar(NULL,&ptname,&tnamesize);
     return evt;
 fail:

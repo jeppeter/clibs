@@ -64,9 +64,9 @@ int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
 	int argv0size = 0;
 	int i;
 	int curlen;
-	char* output=NULL;
-	int outsize=0;
-	int exitcode=0;
+	char* output = NULL;
+	int outsize = 0;
+	int exitcode = 0;
 
 	if (pid < 0) {
 		if (pppargv && *pppargv != NULL) {
@@ -89,13 +89,13 @@ int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
 	retsize = *pargvsize;
 
 
-	ret = snprintf_safe(&pcmd,&cmdlen,pid_wmic_cmd_fmt,pid);
+	ret = snprintf_safe(&pcmd, &cmdlen, pid_wmic_cmd_fmt, pid);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = run_cmd_output_single(NULL,0,&output,&outsize,NULL,0,&exitcode,0,pcmd);
+	ret = run_cmd_output_single(NULL, 0, &output, &outsize, NULL, 0, &exitcode, 0, pcmd);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -106,7 +106,7 @@ int get_pid_argv(int pid, char*** pppargv, int *pargvsize)
 		if (ret > 0) {
 			ret = -ret;
 		}
-		ERROR_INFO("run [%s] error[%d]", pcmd,ret);
+		ERROR_INFO("run [%s] error[%d]", pcmd, ret);
 		goto fail;
 	}
 
@@ -248,8 +248,8 @@ try_again:
 	}
 	pcmdline = NULL;
 	cmdlinesize = 0;
-	run_cmd_output_single(NULL,0,&output,&outsize,NULL,0,&exitcode,0,NULL);
-	snprintf_safe(&pcmd,&cmdlen,NULL);
+	run_cmd_output_single(NULL, 0, &output, &outsize, NULL, 0, &exitcode, 0, NULL);
+	snprintf_safe(&pcmd, &cmdlen, NULL);
 
 	if (*pppargv && *pppargv != ppretargv) {
 		free(*pppargv);
@@ -270,8 +270,8 @@ fail:
 	}
 	pcmdline = NULL;
 	cmdlinesize = 0;
-	run_cmd_output_single(NULL,0,&output,&outsize,NULL,0,&exitcode,0,NULL);
-	snprintf_safe(&pcmd,&cmdlen,NULL);
+	run_cmd_output_single(NULL, 0, &output, &outsize, NULL, 0, &exitcode, 0, NULL);
+	snprintf_safe(&pcmd, &cmdlen, NULL);
 	if (ppretargv && ppretargv != *pppargv) {
 		free(ppretargv);
 	}
@@ -5103,6 +5103,7 @@ typedef struct __protect_monitor {
 	HANDLE m_thr;
 	HANDLE m_exitevt;
 	HANDLE m_exitnotifyevt;
+	HANDLE m_mymux;
 	char* m_curcmdline;
 	char* m_peercmdline;
 	int m_peerpid;
@@ -5137,6 +5138,11 @@ void __free_protect_monitor(pprotect_monitor_t *ppmon)
 			CloseHandle(pmon->m_exitnotifyevt);
 		}
 		pmon->m_exitnotifyevt = NULL;
+
+		if (pmon->m_mymux != NULL) {
+			CloseHandle(pmon->m_mymux);
+		}
+		pmon->m_mymux = NULL;
 
 		if (pmon->m_thr != NULL) {
 			CloseHandle(pmon->m_thr);
@@ -5213,21 +5219,88 @@ fail:
 	return ret;
 }
 
-int __protect_doing(HANDLE exitevt, char* curcmdline, char* peercmdline, int peerpid, int waitmills, int interval)
+HANDLE __open_evt(char* cmdline, int created)
 {
+	char* mymuxname = NULL;
+	int mymuxsize = 0;
 	char* exepath = NULL;
 	int exesize = 0;
 	int ret;
-	char* myevtname = NULL;
-	int myevtsize = 0;
-	char* peerevtname = NULL;
-	int peerevtsize = 0;
+	HANDLE mymux = NULL;
+
+	ret = get_executable_wholepath(0, &exepath, &exesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = snprintf_safe(&mymuxname, &mymuxsize, "%s%s_evt", exepath, cmdline);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	__normalize_name(mymuxname);
+
+	mymux = open_event(mymuxname, created);
+	if (mymux == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	snprintf_safe(&mymuxname, &mymuxsize, NULL);
+	get_executable_wholepath(1, &exepath, &exesize);
+	return mymux;
+fail:
+	snprintf_safe(&mymuxname, &mymuxsize, NULL);
+	get_executable_wholepath(1, &exepath, &exesize);
+	SETERRNO(ret);
+	return NULL;
+}
+
+HANDLE __open_mux(char* cmdline, int created)
+{
 	char* mymuxname = NULL;
 	int mymuxsize = 0;
-	char* peermuxname =  NULL;
-	int peermuxsize = 0;
-	HANDLE peerevt = NULL;
+	char* exepath = NULL;
+	int exesize = 0;
+	int ret;
 	HANDLE mymux = NULL;
+
+	ret = get_executable_wholepath(0, &exepath, &exesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = snprintf_safe(&mymuxname, &mymuxsize, "%s%s_mux", exepath, cmdline);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	__normalize_name(mymuxname);
+
+	mymux = open_mutex(mymuxname, created);
+	if (mymux == NULL) {
+		GETERRNO(ret);
+		//ERROR_INFO("%s [%s] error[%d]", created ? "CreateEvent" : "OpenEvent", mymuxname, ret);
+		goto fail;
+	}
+
+	snprintf_safe(&mymuxname, &mymuxsize, NULL);
+	get_executable_wholepath(1, &exepath, &exesize);
+	return mymux;
+fail:
+	snprintf_safe(&mymuxname, &mymuxsize, NULL);
+	get_executable_wholepath(1, &exepath, &exesize);
+	SETERRNO(ret);
+	return NULL;
+}
+
+
+int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int peerpid, int waitmills, int interval)
+{
+	int ret;
+	HANDLE peerevt = NULL;
 	HANDLE peermux = NULL;
 	HANDLE myevt = NULL;
 	int running = 1;
@@ -5238,65 +5311,29 @@ int __protect_doing(HANDLE exitevt, char* curcmdline, char* peercmdline, int pee
 	BOOL bret;
 	DWORD dret;
 	int res;
+	char* exepath = NULL;
+	int exesize=0;
 
-	ret = get_executable_wholepath(0, &exepath, &exesize);
+	ret = get_executable_wholepath(0,&exepath,&exesize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = snprintf_safe(&myevtname, &myevtsize, "%s%s_evt", exepath, curcmdline);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	__normalize_name(myevtname);
-
-	ret = snprintf_safe(&peerevtname, &peerevtsize, "%s%s_evt", exepath, peercmdline);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	__normalize_name(peerevtname);
-
-	ret = snprintf_safe(&mymuxname, &mymuxsize, "%s%s_mux", exepath, curcmdline);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	__normalize_name(mymuxname);
-
-	ret = snprintf_safe(&peermuxname, &peermuxsize, "%s%s_mux", exepath, peercmdline);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	__normalize_name(peermuxname);
-
-
-	/*now to get the my mux created*/
-	mymux = open_mutex(mymuxname, 1);
-	if (mymux == NULL) {
-		GETERRNO(ret);
-		ERROR_INFO("create [%s] error[%d]", mymuxname, ret);
-		goto fail;
-	}
-
-	myevt = open_event(myevtname, 1);
+	myevt = __open_evt(curcmdline, 1);
 	if (myevt == NULL) {
 		GETERRNO(ret);
-		ERROR_INFO("create [%s] error[%d]", myevtname, ret);
 		goto fail;
 	}
 
 	if (peerpid != 0) {
 		/*yes this means that we have the peer ,so we should set event notify*/
-		peerevt = open_event(peerevtname, 0);
+		peerevt = __open_evt(peercmdline, 0);
 		if (peerevt != NULL) {
 			bret = SetEvent(peerevt);
 			if (!bret) {
 				GETERRNO(ret);
-				ERROR_INFO("can not set event for [%s] error[%d]", peerevtname, ret);
+				ERROR_INFO("can not set event for [%s] error[%d]", peercmdline, ret);
 			}
 			/*we close this*/
 			CloseHandle(peerevt);
@@ -5312,7 +5349,7 @@ int __protect_doing(HANDLE exitevt, char* curcmdline, char* peercmdline, int pee
 			waitnum ++;
 		}
 
-		peermux = open_mutex(peermuxname, 1);
+		peermux = __open_mux(peercmdline,1);
 		if (peermux != NULL) {
 			CloseHandle(peermux);
 			peermux = NULL;
@@ -5381,11 +5418,6 @@ int __protect_doing(HANDLE exitevt, char* curcmdline, char* peercmdline, int pee
 	}
 
 fail:
-	if (mymux != NULL) {
-		CloseHandle(mymux);
-	}
-	mymux = NULL;
-
 	if (myevt != NULL) {
 		CloseHandle(myevt);
 	}
@@ -5400,12 +5432,7 @@ fail:
 		CloseHandle(peerevt);
 	}
 	peerevt = NULL;
-
-	snprintf_safe(&peerevtname, &peerevtsize, NULL);
-	snprintf_safe(&peermuxname, &peermuxsize, NULL);
-	snprintf_safe(&myevtname, &myevtsize, NULL);
-	snprintf_safe(&mymuxname, &mymuxsize, NULL);
-	get_executable_wholepath(1, &exepath, &exesize);
+	get_executable_wholepath(1,&exepath,&exesize);
 	SETERRNO(ret);
 	return ret;
 }
@@ -5415,7 +5442,7 @@ DWORD CALLBACK protect_monitor_thread(LPVOID lparam)
 	int ret = 0;
 	pprotect_monitor_t pmon = (pprotect_monitor_t) lparam;
 
-	ret =  __protect_doing(pmon->m_exitevt, pmon->m_curcmdline, pmon->m_peercmdline, pmon->m_peerpid, pmon->m_waitmills, pmon->m_interval);
+	ret =  __protect_doing(pmon->m_exitevt,  pmon->m_curcmdline, pmon->m_peercmdline, pmon->m_peerpid, pmon->m_waitmills, pmon->m_interval);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -5429,6 +5456,7 @@ fail:
 	ERROR_INFO("error on protect [%d]", ret);
 	exit(4);
 }
+
 
 pprotect_monitor_t __alloc_protect_monitor(char* curcmdline, char* peercmdline, int peerpid, int waitmills, int interval)
 {
@@ -5476,6 +5504,13 @@ pprotect_monitor_t __alloc_protect_monitor(char* curcmdline, char* peercmdline, 
 		goto fail;
 	}
 
+	pmon->m_mymux = __open_mux(pmon->m_curcmdline,1);
+	if (pmon->m_mymux == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("create [%s] error[%d]", pmon->m_curcmdline,ret);
+		goto fail;
+	}
+
 	pmon->m_waitmills = waitmills;
 	pmon->m_interval = interval;
 
@@ -5502,13 +5537,25 @@ void* start_protect_monitor(char* curcmdline, char* peercmdline, int peerpid, in
 {
 	pprotect_monitor_t pmon = NULL;
 	int ret;
+	HANDLE mymux = NULL;
 
 	if (mode == PROC_MONITOR_MODE) {
 		if (peerpid == 0) {
 			exit(4);
 		}
+
+		mymux = __open_mux(curcmdline,1);
+		if (mymux == NULL) {
+			GETERRNO(ret);
+			goto monitor_fail;
+		}
 		/*not here*/
 		ret = __protect_doing(NULL, curcmdline, peercmdline, peerpid, waitmills, interval);
+monitor_fail:
+		if (mymux != NULL) {
+			CloseHandle(mymux);
+		}
+		mymux = NULL;
 		ERROR_INFO("can not reach MONITOR_MODE here");
 		exit(ret);
 	} else {
