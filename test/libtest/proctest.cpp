@@ -2313,10 +2313,10 @@ int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     }
 
 
-    pnp = connect_namedpipe(pipename);
+    pnp = connect_namedpipe_timeout(pipename,pargs->m_timeout);
     if (pnp == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("can not connect [%s] error[%d]", pipename, ret);
+        ERROR_INFO("can not connect [%s] timeout[%d] error[%d]", pipename,pargs->m_timeout, ret);
         goto out;
     }
 
@@ -2335,6 +2335,9 @@ int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     }
     writesize = 0;
     while (curidx < argcnt || ridx < argcnt) {
+        if (pargs->m_timeout != 0) {
+            sleep_mill(pargs->m_timeout);
+        }
         DEBUG_INFO("curidx [%d] ridx [%d] argcnt [%d]", curidx, ridx, argcnt);
         waitnum = 0;
         waithds[waitnum] = st_ExitEvt;

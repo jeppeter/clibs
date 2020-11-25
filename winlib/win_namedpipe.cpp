@@ -121,7 +121,7 @@ void __free_namedpipe(pnamed_pipe_t *ppnp)
     return ;
 }
 
-pnamed_pipe_t __alloc_namedpipe(char* name, int servermode)
+pnamed_pipe_t __alloc_namedpipe(char* name, int servermode,int timeout)
 {
     pnamed_pipe_t pnp = NULL;
     int ret;
@@ -209,6 +209,14 @@ pnamed_pipe_t __alloc_namedpipe(char* name, int servermode)
             }
         }
     } else {
+        if (timeout > 0) {
+            bret = WaitNamedPipe(ptname,(DWORD)timeout);
+            if (!bret) {
+                GETERRNO(ret);
+                ERROR_INFO("wait for [%s] error[%d]", name , ret);
+                goto fail;
+            }
+        }
         pnp->m_hpipe = CreateFile(ptname,  GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, NULL);
         if (pnp->m_hpipe == INVALID_HANDLE_VALUE) {
             GETERRNO(ret);
@@ -230,7 +238,7 @@ void* bind_namedpipe(char* name)
 {
     pnamed_pipe_t pnp = NULL;
     int ret;
-    pnp = __alloc_namedpipe(name, 1);
+    pnp = __alloc_namedpipe(name, 1,0);
     if (pnp == NULL) {
         GETERRNO(ret);
         SETERRNO(ret);
@@ -243,7 +251,7 @@ void* connect_namedpipe(char* name)
 {
     pnamed_pipe_t pnp = NULL;
     int ret;
-    pnp = __alloc_namedpipe(name, 0);
+    pnp = __alloc_namedpipe(name, 0,0);
     if (pnp == NULL) {
         GETERRNO(ret);
         SETERRNO(ret);
@@ -251,6 +259,20 @@ void* connect_namedpipe(char* name)
     }
     return (void*)pnp;
 }
+
+void* connect_namedpipe_timeout(char* name,int timeout)
+{
+    pnamed_pipe_t pnp = NULL;
+    int ret;
+    pnp = __alloc_namedpipe(name, 0,timeout);
+    if (pnp == NULL) {
+        GETERRNO(ret);
+        SETERRNO(ret);
+        return NULL;
+    }
+    return (void*)pnp;
+}
+
 
 void close_namedpipe(void** ppnp)
 {

@@ -14,6 +14,7 @@ extern "C" {
 
 WINLIB_API void* bind_namedpipe(char* name);
 WINLIB_API void* connect_namedpipe(char* name);
+WINLIB_API void* connect_namedpipe_timeout(char* name,int timeout);
 WINLIB_API void close_namedpipe(void** ppnp);
 WINLIB_API HANDLE get_namedpipe_rdevt(void* pnp);
 WINLIB_API HANDLE get_namedpipe_wrevt(void* pnp);
