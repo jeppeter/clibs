@@ -352,3 +352,18 @@ int disable_token_tcb_priv(HANDLE htoken)
 {
     return __handle_priv_token(htoken, "SeTcbPrivilege", 0);
 }
+
+int enable_shutdown_priv(void)
+{
+    return __handle_priv("SeShutdownPrivilege",1);
+}
+
+int disable_shutdown_priv(void)
+{
+    return __handle_priv("SeShutdownPrivilege",0);
+}
+
+int is_shutdown_priv(void)
+{
+    return __get_priv_value("SeShutdownPrivilege");   
+}
