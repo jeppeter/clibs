@@ -286,5 +286,8 @@
     },
     "setevt<setevt_handler>##evtname to set event##" : {
         "$" : 1
+    },
+    "pipesvrtimeout<pipesvrtimeout_handler>##[pipename] timeout to make timeout connection##" : {
+        "$" : "+"
     }
 }

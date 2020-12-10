@@ -196,6 +196,7 @@ int protectkill_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int openmux_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int waitevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int pipesvrtimeout_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -361,6 +362,7 @@ BOOL WINAPI HandlerConsoleRunOk(DWORD dwCtrlType)
 #include "crypttest.cpp"
 #include "privtest.cpp"
 #include "protectkill.cpp"
+#include "pipecmd.cpp"
 
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
