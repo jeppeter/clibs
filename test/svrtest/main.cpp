@@ -788,7 +788,7 @@ int restoreprn_cmd(HANDLE exitevt,ppipe_hdr_t phdr, int hdrlen)
         pcurptr += curlen;
     }
 
-    if (exportfile) {
+    if (exportfile == NULL) {
         ret = -ERROR_INVALID_PARAMETER ;
         ERROR_INFO("no exportfile specified");
         goto fail;
