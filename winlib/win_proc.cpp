@@ -5575,6 +5575,91 @@ void stop_protect_monitor(void** ppmon)
 	return;
 }
 
+int process_exist(int pid)
+{
+	int ret;
+	int existed = 0;
+	HANDLE hproc=NULL;
+	int enabled = 0;
+	HANDLE hsnap = NULL;
+	PROCESSENTRY32 processEntry;
+	BOOL bret;
+	if (pid == 0) {
+		/*idle must exist*/
+		return 1;
+	}
+	ret = enable_debug_priv();
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	enabled = 1;
+
+	hproc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,(DWORD)pid);
+	if (hproc == NULL || hproc == INVALID_HANDLE_VALUE) {
+		GETERRNO(ret);
+		if (ret != -ERROR_ACCESS_DENIED) {
+			ERROR_INFO("open [%d] error[%d]", pid,ret);
+			goto fail;
+		}
+		hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		if (hsnap == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create process snapshot error [%d]", ret);
+			goto fail;
+		}
+		processEntry.dwSize = sizeof(processEntry);
+		bret = Process32First(hsnap,&processEntry);
+		if (bret) {
+			if (processEntry.th32ProcessID  == (DWORD)pid) {
+				existed = 1;
+			}
+			while(existed == 0) {
+				bret = Process32Next(hsnap,&processEntry);
+				if (!bret) {
+					break;
+				}
+				if (processEntry.th32ProcessID == (DWORD) pid) {
+					existed = 1;
+				}
+			}
+		}
+	} else {
+		existed = 1;
+	}
+
+	if (hsnap != NULL ){
+		CloseHandle(hsnap);
+	}
+	hsnap = NULL;
+	if (hproc != NULL && hproc != INVALID_HANDLE_VALUE) {
+		CloseHandle(hproc);	
+	}
+	hproc = NULL;	
+
+	if (enabled) {
+		disable_debug_priv();
+	}
+	enabled = 0;
+	return existed;
+fail:
+	if (hsnap != NULL ){
+		CloseHandle(hsnap);
+	}
+	hsnap = NULL;
+	if (hproc != NULL && hproc != INVALID_HANDLE_VALUE) {
+		CloseHandle(hproc);	
+	}
+	hproc = NULL;	
+
+	if (enabled) {
+		disable_debug_priv();
+	}
+	enabled = 0;
+	SETERRNO(ret);
+	return existed;
+}
+
 
 #if _MSC_VER >= 1910
 #pragma warning(pop)

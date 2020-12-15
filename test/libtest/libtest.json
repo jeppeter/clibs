@@ -289,5 +289,8 @@
     },
     "pipesvrtimeout<pipesvrtimeout_handler>##[pipename] timeout to make timeout connection##" : {
         "$" : "+"
+    },
+    "chkproc<existproc_handler>## pid ... to check pid exist##" : {
+        "$" : "+"
     }
 }

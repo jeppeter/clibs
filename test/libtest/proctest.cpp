@@ -2939,3 +2939,24 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int existproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int ret;
+    int i;
+    int pid;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        pid = atoi(parsestate->leftargs[i]);
+        ret = process_exist(pid);
+        fprintf(stdout,"[%d] %s\n",pid, ret > 0 ? "exist" : "not exist");
+    }
+    ret = 0;
+    SETERRNO(ret);
+    return ret;
+}

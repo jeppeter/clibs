@@ -86,6 +86,7 @@ WINLIB_API int is_wts_enabled(void);
 WINLIB_API int get_temp_pipe_name(char* prefix, char** pptmp, int *psize);
 
 WINLIB_API int kill_process(int pid);
+WINLIB_API int process_exist(int pid);
 WINLIB_API int list_proc(const char* procname, int** pppids,int *psize);
 
 WINLIB_API int dump_process_security(FILE* fp,int pid);
