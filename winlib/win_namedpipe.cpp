@@ -590,3 +590,78 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int cancel_namedpipe_connect(void* pnp1)
+{
+    pnamed_pipe_t pnp = (pnamed_pipe_t)pnp1;
+    BOOL bret;
+    int ret;
+    if (pnp == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (pnp->m_connpending == 0) {
+        return 0;
+    }
+    bret = CancelIoEx(pnp->m_hpipe, &(pnp->m_connov));
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("cancel [%s] connect pending error [%d]", pnp->m_name, ret);
+        SETERRNO(ret);
+        return ret;
+    }
+    pnp->m_connpending = 0;
+    return 1;
+}
+
+int cancel_namedpipe_read(void* pnp1)
+{
+    pnamed_pipe_t pnp = (pnamed_pipe_t)pnp1;
+    BOOL bret;
+    int ret;
+    if (pnp == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (pnp->m_rdpending == 0) {
+        return 0;
+    }
+    bret = CancelIoEx(pnp->m_hpipe, &(pnp->m_rdov));
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("cancel [%s] read pending error [%d]", pnp->m_name, ret);
+        SETERRNO(ret);
+        return ret;
+    }
+    pnp->m_rdpending = 0;
+    return 1;
+}
+
+int cancel_namedpipe_write(void* pnp1)
+{
+    pnamed_pipe_t pnp = (pnamed_pipe_t)pnp1;
+    BOOL bret;
+    int ret;
+    if (pnp == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (pnp->m_wrpending == 0) {
+        return 0;
+    }
+    bret = CancelIoEx(pnp->m_hpipe, &(pnp->m_wrov));
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("cancel [%s] write pending error [%d]", pnp->m_name, ret);
+        SETERRNO(ret);
+        return ret;
+    }
+    pnp->m_wrpending = 0;
+    return 1;
+}

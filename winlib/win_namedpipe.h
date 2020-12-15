@@ -27,6 +27,9 @@ WINLIB_API int complete_namedpipe_connpending(void* pnp);
 WINLIB_API int get_namedpipe_rdstate(void* pnp);
 WINLIB_API int get_namedpipe_wrstate(void* pnp);
 WINLIB_API int get_namedpipe_connstate(void* pnp);
+WINLIB_API int cancel_namedpipe_connect(void* pnp);
+WINLIB_API int cancel_namedpipe_read(void* pnp);
+WINLIB_API int cancel_namedpipe_write(void* pnp);
 
 #ifdef __cplusplus
 };
