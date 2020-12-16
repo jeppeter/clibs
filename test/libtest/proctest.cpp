@@ -2960,3 +2960,94 @@ int existproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     SETERRNO(ret);
     return ret;
 }
+
+int waitexit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int ret;
+    int i;
+    int *ppid=NULL;
+    HANDLE *pproc=NULL;
+    int argcnt = 0;
+    DWORD dret;
+    int d;
+    BOOL bret;
+    DWORD exitcode;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    for(argcnt = 0;parsestate->leftargs && parsestate->leftargs[argcnt];argcnt ++) {
+
+    }
+
+    ppid =(int*) malloc(sizeof(ppid[0]) * argcnt);
+    if (ppid == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memset(ppid,0,sizeof(ppid[0]) * argcnt);
+    pproc = (HANDLE*)malloc(sizeof(pproc[0]) * argcnt);
+    if (pproc == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memset(pproc,0,sizeof(pproc[0]) * argcnt);
+
+    for (i=0;i < argcnt;i++) {
+        ppid[i] = atoi(parsestate->leftargs[i]);
+        pproc[i] = OpenProcess(SYNCHRONIZE,FALSE,(DWORD)ppid[i]);
+        if (pproc[i] == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("open [%d] error[%d]", ppid[i],ret);
+            goto out;
+        }
+        DEBUG_INFO("[%d]open [%d]", i , ppid[i]);
+    }
+
+    while(1) {
+        dret = WaitForMultipleObjectsEx((DWORD)argcnt,pproc,FALSE,1000,TRUE);
+        if (dret < (WAIT_OBJECT_0 + argcnt)) {
+            d = (int)(dret - WAIT_OBJECT_0);
+            bret = GetExitCodeProcess(pproc[d],&exitcode);
+            if (bret) {
+                fprintf(stdout,"[%d] exit [%ld]\n",ppid[d],exitcode);
+                break;
+            }else {
+                GETERRNO(ret);
+                if (ret == -ERROR_ACCESS_DENIED) {
+                    fprintf(stdout,"[%d] exit\n",ppid[d]);
+                    break;
+                }
+                DEBUG_INFO("wait [%d] error[%d]", ppid[i], ret);
+            }
+        } else if (dret == WAIT_TIMEOUT) {
+            DEBUG_INFO("no exit");
+            continue;
+        } else {
+            GETERRNO(ret);
+            ERROR_INFO("wait error [%ld] [%d]", dret,ret);
+            goto out;
+        }
+    }
+    ret=  0;
+out:
+    if (pproc) {
+        for (i=0;i<argcnt;i++) {
+            if (pproc[i] != NULL) {
+                CloseHandle(pproc[i]);
+                pproc[i] = NULL;
+            }
+        }
+        free(pproc);
+        pproc = NULL;
+    }
+
+    if (ppid) {
+        free(ppid);
+        ppid = NULL;
+    }
+    SETERRNO(ret);
+    return ret;
+}

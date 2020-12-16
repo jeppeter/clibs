@@ -292,5 +292,8 @@
     },
     "chkproc<existproc_handler>## pid ... to check pid exist##" : {
         "$" : "+"
+    },
+    "waitexit<waitexit_handler>## pid ... to wait for pid exit##" : {
+        "$" : "+"
     }
 }
