@@ -17,7 +17,7 @@ extern "C"  {
 *    return value success >= 0 number of bytes in *ppChar
 *    otherwise negative error code
 **********************************************************/
-WINLIB_API int UnicodeToAnsi(wchar_t* pWideChar,char** ppChar,int*pCharSize);
+WINLIB_API int UnicodeToAnsi(const wchar_t* pWideChar,char** ppChar,int*pCharSize);
 
 /**********************************************************
 *    if pChar==NULL  will reset *ppWideChar=NULL and free memory
@@ -33,7 +33,7 @@ WINLIB_API int AnsiToUnicode(char* pChar,wchar_t **pWideChar,int*pWideCharSize);
 *    return value success >= 0 number of bytes in *ppChar
 *    otherwise negative error code
 **********************************************************/
-WINLIB_API int TcharToAnsi(TCHAR *ptchar,char** ppChar,int*pCharSize);
+WINLIB_API int TcharToAnsi(const TCHAR *ptchar, char** ppChar, int*pCharSize);
 
 /**********************************************************
 *    if pChar==NULL  will reset *pptchar=NULL and free memory
@@ -64,6 +64,10 @@ WINLIB_API int AnsiToUtf8(const char* pchars, char** ppUtf8,int *pUtf8size);
 
 WINLIB_API int Utf8ToUnicode(const char* putf8, wchar_t** ppUni,int *punisize);
 WINLIB_API int UnicodeToUtf8(const wchar_t* pUni, char** pputf8, int *putf8size);
+
+WINLIB_API int Utf8ToTchar(const char* putf8, TCHAR** pptchar,int *ptcharsize);
+WINLIB_API int TcharToUtf8(const TCHAR* ptchar, char** ppUtf8,int *pUtf8size);
+
 
 #ifdef __cplusplus
 };

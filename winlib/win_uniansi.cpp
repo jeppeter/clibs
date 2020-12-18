@@ -10,7 +10,7 @@
 
 #pragma warning(pop)
 
-int UnicodeToAnsi(wchar_t* pWideChar, char** ppChar, int*pCharSize)
+int UnicodeToAnsi(const wchar_t* pWideChar, char** ppChar, int*pCharSize)
 {
     char* pRetChar = *ppChar;
     int retcharsize = *pCharSize;
@@ -153,7 +153,7 @@ fail:
 #endif
 
 
-int TcharToAnsi(TCHAR *ptchar, char** ppChar, int*pCharSize)
+int TcharToAnsi(const TCHAR *ptchar, char** ppChar, int*pCharSize)
 {
     int ret;
 #ifdef _UNICODE
@@ -484,6 +484,65 @@ fail:
         free(pretutf8);
     }
     pretutf8 = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int Utf8ToTchar(const char* putf8, TCHAR** pptchar,int *ptcharsize)
+{
+    char* ansi=NULL;
+    int ansisize=0;
+    int ret;
+    if (putf8 == NULL) {
+        return AnsiToTchar(NULL,pptchar,ptcharsize);
+    }
+
+    ret = Utf8ToAnsi(putf8,&ansi,&ansisize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = AnsiToTchar(ansi,pptchar,ptcharsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    Utf8ToAnsi(NULL,&ansi,&ansisize);
+
+    return ret;
+fail:    
+    Utf8ToAnsi(NULL,&ansi,&ansisize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int TcharToUtf8(const TCHAR* ptchar, char** ppUtf8,int *pUtf8size)
+{
+    char* ansi=NULL;
+    int ansisize=0;
+    int ret;
+    if (ptchar == NULL) {
+        return AnsiToUtf8(NULL,ppUtf8,pUtf8size);
+    }
+
+    ret = TcharToAnsi(ptchar,&ansi,&ansisize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = AnsiToUtf8(ansi,ppUtf8,pUtf8size);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    TcharToAnsi(NULL,&ansi,&ansisize);
+    return ret;
+fail:
+    TcharToAnsi(NULL,&ansi,&ansisize);
     SETERRNO(ret);
     return ret;
 }
