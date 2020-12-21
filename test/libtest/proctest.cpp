@@ -2997,7 +2997,7 @@ int waitexit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
     for (i=0;i < argcnt;i++) {
         ppid[i] = atoi(parsestate->leftargs[i]);
-        pproc[i] = OpenProcess(SYNCHRONIZE,FALSE,(DWORD)ppid[i]);
+        pproc[i] = OpenProcess(SYNCHRONIZE |PROCESS_QUERY_LIMITED_INFORMATION ,FALSE,(DWORD)ppid[i]);
         if (pproc[i] == NULL) {
             GETERRNO(ret);
             ERROR_INFO("open [%d] error[%d]", ppid[i],ret);
@@ -3016,10 +3016,6 @@ int waitexit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
                 break;
             }else {
                 GETERRNO(ret);
-                if (ret == -ERROR_ACCESS_DENIED) {
-                    fprintf(stdout,"[%d] exit\n",ppid[d]);
-                    break;
-                }
                 DEBUG_INFO("wait [%d] error[%d]", ppid[i], ret);
             }
         } else if (dret == WAIT_TIMEOUT) {
@@ -3050,4 +3046,36 @@ out:
     }
     SETERRNO(ret);
     return ret;
+}
+
+int sendctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret=0;
+    int curpid = 0;
+    int argcnt = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+    for (argcnt = 0; parsestate->leftargs && parsestate->leftargs[argcnt] ; argcnt ++) {
+
+    }
+
+    for (i=0;i<argcnt;i++) {
+        curpid = atoi(parsestate->leftargs[i]);
+        ret= send_ctrlc(curpid);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("send_ctrlc [%d]", ret);
+            goto out;
+        }
+    }
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+
 }

@@ -5660,6 +5660,61 @@ fail:
 	return existed;
 }
 
+int send_ctrlc(int pid)
+{
+	int ret;
+	BOOL bret;
+	int added = 0;
+
+	bret = SetConsoleCtrlHandler(NULL,TRUE);
+	if (!bret) {
+		GETERRNO(ret);
+		ERROR_INFO("SetConsoleCtrlHandler error[%d]", ret);
+		goto fail;
+	}
+
+	added = 1;
+	bret = FreeConsole();
+	if (!bret) {
+		GETERRNO(ret);
+		if (ret != -ERROR_INVALID_PARAMETER ){
+			ERROR_INFO("FreeConsole error[%d]", ret);
+			goto fail;
+		}
+	}
+
+	bret = AttachConsole((DWORD)pid);
+	if (!bret) {
+		GETERRNO(ret);
+		ERROR_INFO("AttachConsole error[%d]", ret);
+		goto fail;
+	}
+
+	bret = GenerateConsoleCtrlEvent(CTRL_C_EVENT,0);
+	if (!bret) {
+		GETERRNO(ret);
+		ERROR_INFO("GenerateConsoleCtrlEvent error[%d]", ret);
+		goto fail;
+	}
+
+	bret = SetConsoleCtrlHandler(NULL,FALSE);
+	if (!bret) {
+		GETERRNO(ret);
+		ERROR_INFO("SetConsoleCtrlHandler FALSE error[%d]", ret);
+		goto fail;
+	}
+	added = 0;
+	FreeConsole();
+	return 0;
+fail:
+	if (added) {
+		SetConsoleCtrlHandler(NULL,FALSE);
+	}
+	added = 0;
+	SETERRNO(ret);
+	return ret;
+}
+
 
 #if _MSC_VER >= 1910
 #pragma warning(pop)

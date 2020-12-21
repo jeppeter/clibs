@@ -295,5 +295,8 @@
     },
     "waitexit<waitexit_handler>## pid ... to wait for pid exit##" : {
         "$" : "+"
+    },
+    "sendctrlc<sendctrlc_handler>## pid ... to send ctrl-c to pid##" : {
+        "$" : "+"
     }
 }
