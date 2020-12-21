@@ -3071,6 +3071,7 @@ int sendctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
             ERROR_INFO("send_ctrlc [%d]", ret);
             goto out;
         }
+        fprintf(stdout,"send_ctrlc [%d] succ\n",curpid);
     }
 
     ret = 0;
