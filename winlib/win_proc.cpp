@@ -5304,7 +5304,7 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 	HANDLE peermux = NULL;
 	HANDLE myevt = NULL;
 	int running = 1;
-	HANDLE waithd[3];
+	HANDLE waithd[2];
 	DWORD waitnum = 0;
 	int killpid = 0;
 	HANDLE hd = NULL;
@@ -5313,9 +5313,6 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 	int res;
 	char* exepath = NULL;
 	int exesize=0;
-	HANDLE hproc=NULL;
-	DWORD exitcode=0;
-	waitmills = waitmills;
 
 	ret = get_executable_wholepath(0,&exepath,&exesize);
 	if (ret < 0) {
@@ -5345,93 +5342,68 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 	}
 	killpid = peerpid;
 
-	if (killpid > 0) {
-		hproc = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, (DWORD)killpid);
-		if (hproc == NULL) {
-			GETERRNO(ret);
-			ERROR_INFO("cannot open [%d] error[%d]", killpid, ret);
-			goto fail;
-		}
-	}
-
-
 	while (running) {
 		waitnum = 0;
 		if (exitevt != NULL) {
 			waithd[waitnum] = exitevt;
 			waitnum ++;
 		}
-		if (hproc != NULL) {
-			waithd[waitnum] = hproc;
-			waitnum ++ ;
-		} else {
-			ASSERT_IF(killpid <= 0);
-			waithd[waitnum] = myevt;
-			waitnum ++;
-			ret = __start_peer(exepath,peercmdline);
+
+		peermux = __open_mux(peercmdline,1);
+		if (peermux != NULL) {
+			CloseHandle(peermux);
+			peermux = NULL;
+			/*this means the peer exit ,so we should create this function*/
+			ret = __start_peer(exepath, peercmdline);
 			if (ret < 0) {
 				GETERRNO(ret);
-				ERROR_INFO("can not start [%s][%s] error[%d]",exepath,peercmdline,ret);
 				goto fail;
 			}
-			killpid =  ret;
-			hproc = OpenProcess(SYNCHRONIZE|PROCESS_QUERY_LIMITED_INFORMATION,FALSE,(DWORD)killpid);
-			if (hproc == NULL) {
-				GETERRNO(ret);
-				ERROR_INFO("cannot open [%d] error[%d]", killpid, ret);
-				goto fail;
-			}
-			waithd[waitnum] = hproc;
+			killpid = ret;
+
+			/*now wait for the event*/
+			waithd[waitnum] = myevt;
 			waitnum ++;
-			dret = WaitForMultipleObjects(waitnum,waithd,FALSE,(DWORD)interval);
-			if (dret < (WAIT_OBJECT_0 + waitnum)) {
+			dret = WaitForMultipleObjects(waitnum, waithd, FALSE, (DWORD)waitmills);
+			if (dret < (DWORD)(WAIT_OBJECT_0 + waitnum)) {
 				hd = waithd[(dret - WAIT_OBJECT_0)];
-				if (hd == exitevt) {
-					ERROR_INFO("exit notify");
+				if ( exitevt != NULL && hd == exitevt) {
 					running = 0;
-					break;
+					ERROR_INFO("exit notify");
+					continue;
 				} else if (hd == myevt) {
+					/*ok we should give the notify*/
 					ResetEvent(myevt);
 					continue;
-				} else if (hd == hproc) {
-					CloseHandle(hproc);
-					hproc = NULL;
-					kill_process(killpid);
-					killpid = 0;
-					continue;
 				} else {
-					ASSERT_IF(dret > (WAIT_OBJECT_0 + waitnum));
+					ERROR_INFO("should not here");
+					ret = -ERROR_INTERNAL_ERROR;
+					goto fail;
 				}
+			} else if (dret == WAIT_TIMEOUT) {
+				/*that means we should make another try*/
+				continue;
+			} else {
+				GETERRNO(ret);
+				ERROR_INFO("wait error[%ld] [%d]", dret, ret);
+				goto fail;
 			}
-			GETERRNO(ret);
-			ERROR_INFO("wait error [%ld] [%d]", dret,ret);
-			goto fail;
 		}
 
-		dret = WaitForMultipleObjects(waitnum,waithd,FALSE,INFINITE);
-		if (dret < (WAIT_OBJECT_0 + waitnum)) {
-			hd = waithd[(dret - WAIT_OBJECT_0)];
-			if (hd == hproc) {
-				bret = GetExitCodeProcess(hproc,&exitcode);
-				if (!bret) {
-					continue;
-				}
-				CloseHandle(hproc);
-				hproc = NULL;
-				killpid = 0;
-				continue;
-			} else if (hd == exitevt) {
+		if (waitnum > 0) {
+			dret = WaitForMultipleObjects(waitnum, waithd, FALSE, (DWORD)interval);
+			if (dret == WAIT_OBJECT_0 )  {
 				running = 0;
-				break;
+				continue;
+			} else if (dret == WAIT_TIMEOUT) {
+				continue;
 			} else {
-				ASSERT_IF(dret > (WAIT_OBJECT_0 + waitnum));
+				GETERRNO(ret);
+				ERROR_INFO("wait error[%ld] [%d]", dret, ret);
+				goto fail;
 			}
-		} else if (dret == WAIT_TIMEOUT) {
-			ERROR_INFO("wait timeout");
-			continue;
 		} else {
-			GETERRNO(ret);
-			goto fail;
+			SleepEx((DWORD)interval, TRUE);
 		}
 	}
 
@@ -5446,10 +5418,6 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 	}
 
 fail:
-	if (hproc != NULL) {
-		CloseHandle(hproc);
-	}
-	hproc = NULL;
 	if (myevt != NULL) {
 		CloseHandle(myevt);
 	}
