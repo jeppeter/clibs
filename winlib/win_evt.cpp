@@ -174,7 +174,7 @@ HANDLE open_event(char* name, int created)
         goto fail;
     }
 
-    DEBUG_INFO("%s [%s] [%p]", created ? "CreateEvent" : "OpenEvent", name, evt);
+    //DEBUG_INFO("%s [%s] [%p]", created ? "CreateEvent" : "OpenEvent", name, evt);
     AnsiToTchar(NULL,&ptname,&tnamesize);
     return evt;
 fail:
@@ -237,7 +237,7 @@ HANDLE open_mutex(char* name,int created)
         goto fail;
     }
 
-    DEBUG_INFO("%s [%s] [%p]", created ? "CreateMutex" : "OpenMutex" , name, mux);
+    //DEBUG_INFO("%s [%s] [%p]", created ? "CreateMutex" : "OpenMutex" , name, mux);
 
     AnsiToTchar(NULL,&ptname,&tnamesize);
     return mux;

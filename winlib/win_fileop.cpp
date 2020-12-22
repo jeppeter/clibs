@@ -75,7 +75,7 @@ int mktempfile_safe(char* inputtemplate, char**ppoutput, int* bufsize)
     templen = (int)strlen(plastpart) + 2;
     templen += (int)strlen(ptemppath);
     templen += TEMP_XSIZE;
-    DEBUG_INFO(" ");
+    //DEBUG_INFO(" ");
 
     if (templen > retlen || pretout == NULL) {
         retlen = templen;

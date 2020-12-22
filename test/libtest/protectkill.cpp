@@ -51,10 +51,7 @@ int protectkill_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 			goto out;
 		}
 		cntargc ++;
-
 	}
-
-
 
 	cntargc = 0;
 	while (parsestate->leftargs && parsestate->leftargs[cntargc]) {
@@ -113,7 +110,7 @@ int protectkill_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 	}
 
 	while (st_run) {
-		SleepEx(1000, TRUE);
+		SleepEx(500, FALSE);
 	}
 	fprintf(stdout, "exit [%ld]\n", GetCurrentProcessId());
 
