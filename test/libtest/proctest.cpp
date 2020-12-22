@@ -3055,12 +3055,20 @@ int sendctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     int argcnt = 0;
     pargs_options_t pargs = (pargs_options_t) popt;
     int i;
+    BOOL bret;
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
     init_log_level(pargs);
     for (argcnt = 0; parsestate->leftargs && parsestate->leftargs[argcnt] ; argcnt ++) {
 
+    }
+
+    bret = SetConsoleCtrlHandler(HandlerConsoleRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
+        goto out;
     }
 
     for (i=0;i<argcnt;i++) {
@@ -3078,5 +3086,13 @@ int sendctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 out:
     SETERRNO(ret);
     return ret;
+}
 
+int waitctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(parsestate);
+    REFERENCE_ARG(popt);
+    return 0;
 }

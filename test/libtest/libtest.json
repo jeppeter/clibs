@@ -298,5 +298,8 @@
     },
     "sendctrlc<sendctrlc_handler>## pid ... to send ctrl-c to pid##" : {
         "$" : "+"
+    },
+    "waitctrlc<waitctrlc_handler>## to wait on the ctrlc handler##" : {
+        "$" : 0
     }
 }

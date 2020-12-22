@@ -200,6 +200,7 @@ int pipesvrtimeout_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 int existproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int waitexit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sendctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int waitctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
