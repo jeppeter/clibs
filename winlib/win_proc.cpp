@@ -5315,7 +5315,7 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 	int exesize=0;
 	HANDLE hproc=NULL;
 	DWORD exitcode=0;
-	waitmills = waitmills;
+	interval = interval;
 
 	ret = get_executable_wholepath(0,&exepath,&exesize);
 	if (ret < 0) {
@@ -5383,10 +5383,10 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 			}
 			waithd[waitnum] = hproc;
 			waitnum ++;
-			dret = WaitForMultipleObjects(waitnum,waithd,FALSE,(DWORD)interval);
+			dret = WaitForMultipleObjects(waitnum,waithd,FALSE,(DWORD)waitmills);
 			if (dret < (WAIT_OBJECT_0 + waitnum)) {
 				hd = waithd[(dret - WAIT_OBJECT_0)];
-				if (hd == exitevt) {
+				if (exitevt != NULL && hd == exitevt) {
 					ERROR_INFO("exit notify");
 					running = 0;
 					break;
@@ -5404,7 +5404,7 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 				}
 			}
 			GETERRNO(ret);
-			ERROR_INFO("wait error [%ld] [%d]", dret,ret);
+			ERROR_INFO("wait error [%s] waitmills [%d] [%ld] [%d]",curcmdline,waitmills, dret,ret);
 			goto fail;
 		}
 
@@ -5420,7 +5420,7 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 				hproc = NULL;
 				killpid = 0;
 				continue;
-			} else if (hd == exitevt) {
+			} else if (exitevt != NULL && hd == exitevt) {
 				running = 0;
 				break;
 			} else {
@@ -5485,7 +5485,7 @@ DWORD CALLBACK protect_monitor_thread(LPVOID lparam)
 	pmon->m_exited = 1;
 	return (DWORD)ret;
 fail:
-	ERROR_INFO("error on protect [%d]", ret);
+	ERROR_INFO("error on [%s] [%d]", pmon->m_curcmdline, ret);
 	exit(4);
 }
 
