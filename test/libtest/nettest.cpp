@@ -39,6 +39,7 @@ void debug_net_adapter(pnet_inter_info_t pinfo, FILE* fp, const char* fmt, ...)
         fprintf(fp, "0");
     }
     fprintf(fp, "\n");
+    DEBUG_BUFFER_FMT(pinfo->m_adapternickname,sizeof(pinfo->m_adapternickname),"adaptername [%s]",pinfo->m_adapternickname);
     return ;
 }
 
