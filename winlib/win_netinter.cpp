@@ -316,7 +316,7 @@ fill_again:
             isok = 1;
         } else if (pfilter) {
             if (pcuraddr->FriendlyName) {
-                ret = UnicodeToUtf8(pcuraddr->FriendlyName, &pansibuf, &ansisize);
+                ret = UnicodeToAnsi(pcuraddr->FriendlyName, &pansibuf, &ansisize);
                 if (ret < 0) {
                     goto fail;
                 }
@@ -333,7 +333,7 @@ fill_again:
             }
             strncpy_s(pRetInfo[curidx].m_adaptername, sizeof(pRetInfo[curidx].m_adaptername), pcuraddr->AdapterName, sizeof(pRetInfo[curidx].m_adaptername));
             if (pcuraddr->FriendlyName) {
-                ret = UnicodeToUtf8(pcuraddr->FriendlyName, &pansibuf, &ansisize);
+                ret = UnicodeToAnsi(pcuraddr->FriendlyName, &pansibuf, &ansisize);
                 if (ret < 0) {
                     goto fail;
                 }
@@ -417,7 +417,7 @@ fill_again:
 
     nret = curidx;
 
-    UnicodeToUtf8(NULL, &pansibuf, &ansisize);
+    UnicodeToAnsi(NULL, &pansibuf, &ansisize);
     append_snprintf_safe(&pformatbuf, &formatsize, NULL);
     if (padapterprefix) {
         free(padapterprefix);
@@ -440,7 +440,7 @@ fill_again:
 
     return nret;
 fail:
-    UnicodeToUtf8(NULL, &pansibuf, &ansisize);
+    UnicodeToAnsi(NULL, &pansibuf, &ansisize);
     append_snprintf_safe(&pformatbuf, &formatsize, NULL);
     if (pRetInfo && pRetInfo != *ppinfos) {
         free(pRetInfo);
