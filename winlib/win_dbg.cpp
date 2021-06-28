@@ -21,7 +21,6 @@
 #define _NO_CVCONST_H
 #include <dbghelp.h>
 #include <dbgeng.h>
-#include <atlcomcli.h>
 
 #pragma warning(pop)
 
