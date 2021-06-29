@@ -5,6 +5,10 @@
 #include <tchar.h>
 
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
 #define  REG_OP_MAGIC     0x448213
 #pragma warning(disable:4996)
 

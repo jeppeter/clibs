@@ -5,6 +5,10 @@
 
 #include <Windows.h>
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
 int __handle_priv_token(HANDLE htoken, const char* privstr, int enabled)
 {
     TCHAR* ptpriv = NULL;

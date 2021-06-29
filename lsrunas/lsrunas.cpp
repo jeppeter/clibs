@@ -27,6 +27,10 @@
 #define STARTF_UNTRUSTEDSOURCE  0x00008000
 #endif
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
 typedef struct __args_options {
 	int m_verbose;
 	int m_version;
@@ -244,6 +248,8 @@ int __update_ums(args_options_t* popt, LPPROC_THREAD_ATTRIBUTE_LIST pthreadattr,
 	int ret = 0;
 	UMS_CREATE_THREAD_ATTRIBUTES umsattr;
 	BOOL bret;
+
+	REFERENCE_ARG(popt);
 
 	if (umscommand != NULL) {
 		if (pthreadattr == NULL || pattr == NULL) {

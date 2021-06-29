@@ -12,6 +12,10 @@
 #pragma warning(default:4820)
 #pragma warning(default:4668)
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
 #pragma comment(lib,"Wintrust.lib")
 
 int verify_windows_pe(const char* fname)

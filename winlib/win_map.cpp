@@ -4,6 +4,10 @@
 #include <win_output_debug.h>
 #include <win_uniansi.h>
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
 typedef struct __map_buffer_t {
     HANDLE m_hfile;
     HANDLE m_maphd;

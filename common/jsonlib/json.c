@@ -7,6 +7,11 @@
 #include "util.h"
 #include "arraylist.h"
 
+#if defined(_MSC_VER) && _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
+
 /* Max number of the JSON number string */
 #define MAX_VALUE_NUMBER_SIZE   64
 

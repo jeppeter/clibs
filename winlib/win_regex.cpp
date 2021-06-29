@@ -24,6 +24,10 @@
 
 #pragma warning(pop)
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
 #define __REGEX_DEBUG__   1
 
 #ifdef __REGEX_DEBUG__

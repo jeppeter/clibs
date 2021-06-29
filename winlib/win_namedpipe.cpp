@@ -3,8 +3,12 @@
 #include <win_types.h>
 #include <win_uniansi.h>
 
-#define   NAMED_PIPE_MAGIC             0x33219
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
+#define   NAMED_PIPE_MAGIC             0x33219
 
 typedef struct __named_pipe {
     uint32_t m_magic;

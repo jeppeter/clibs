@@ -12,6 +12,11 @@
 #include "util.h"
 #include "jvalue.h"
 
+#if defined(_MSC_VER) && _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
+
 #if defined(_MSC_VER) && _MSC_VER < 1900
 #define snprintf(s, n, format, ...) \
     _snprintf_s(s, n, _TRUNCATE, format, __VA_ARGS__)

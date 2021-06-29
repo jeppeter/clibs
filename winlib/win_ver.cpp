@@ -3,6 +3,9 @@
 #include <win_output_debug.h>
 #include <win_regop.h>
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
 
 #define  VERSION_REG_PATH   "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"
 #define  CURRENT_VERSION    "CurrentVersion"

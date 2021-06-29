@@ -2,6 +2,10 @@
 #include <win_err.h>
 
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
 typedef struct __win_thread {
     HANDLE m_exitevt;
     HANDLE m_thrhd;

@@ -2,6 +2,10 @@
 #include <win_err.h>
 #include <win_types.h>
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
 DWORD __filter_function()
 {
     return EXCEPTION_EXECUTE_HANDLER;

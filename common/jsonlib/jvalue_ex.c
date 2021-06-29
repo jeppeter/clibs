@@ -6,6 +6,11 @@
 #include <cmn_output_debug.h>
 
 
+#if defined(_MSC_VER) && _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
+
 void free_jvalue(jvalue** ppj)
 {
   if (ppj && *ppj) {

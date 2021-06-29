@@ -1,6 +1,11 @@
 #include "arraylist.h"
 #include "util.h"
 
+#if defined(_MSC_VER) && _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
+
 #define ARRAY_EXPAND_SIZE 1024
 
 struct jarraylist {

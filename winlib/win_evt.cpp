@@ -3,6 +3,10 @@
 #include <win_uniansi.h>
 #include <win_strop.h>
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
 static HANDLE st_hevent = NULL;
 static int st_evtlevel = BASE_EVENT_ERROR;
 

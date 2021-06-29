@@ -5,6 +5,11 @@
 #include "jstring.h"
 #include "util.h"
 
+#if defined(_MSC_VER) && _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
+
 #define UNICODE_MISSING         0xFFFD
 
 #define BUFFER_EXPAND_SIZE      12*12*12

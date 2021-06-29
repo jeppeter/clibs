@@ -15,11 +15,16 @@
 #define EXTARGS_DEBUG_BUFFER(...)
 #endif
 
+#if defined(_MSC_VER) && _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
 
 #ifdef __EXTARGS_WIN__
 /*this is windows defined*/
 #define STRNCASECMP _strnicmp
 #define GETENV(envkey) getenv(envkey)
+
 #else
 /*this is not windows defined*/
 #define STRNCASECMP strncasecmp

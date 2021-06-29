@@ -23,6 +23,10 @@
 #pragma warning(pop)
 
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
 #pragma comment(lib, "shlwapi.lib")
 #pragma comment(lib,"Advapi32.lib")
 

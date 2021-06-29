@@ -16,6 +16,10 @@
 
 #pragma warning(pop)
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
 #define   WIN_ACL_MAGIC            0x3021211
 
 #define   WRITE_PROP               0x100

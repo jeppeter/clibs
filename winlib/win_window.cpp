@@ -3,6 +3,9 @@
 #include <win_err.h>
 #include <win_uniansi.h>
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
 
 #pragma comment(lib,"User32.lib")
 

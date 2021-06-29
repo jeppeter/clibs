@@ -18,11 +18,19 @@
 #pragma warning(disable:4577)
 #endif
 
+#if _MSC_VER >= 1929
+#pragma warning(disable:5204)
+#endif
+
 #define _NO_CVCONST_H
 #include <dbghelp.h>
 #include <dbgeng.h>
 
 #pragma warning(pop)
+
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
 
 #ifdef  _M_X64
 
