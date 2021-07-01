@@ -264,6 +264,10 @@ const char *parse_json_object(jvalue *table, const char *src)
       p++;
     }
   }
+  if (key) {
+    util_free(key);
+  }
+  key = 0;
   return p;
 }
 

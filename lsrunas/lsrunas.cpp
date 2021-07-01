@@ -1340,6 +1340,7 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 	}
 	ppi = NULL;
 	snprintf_safe(&pcmdline, &cmdlinesize, NULL);
+	append_snprintf_safe(&penvs,&envsize,NULL);
 	AnsiToUnicode(NULL, &pwfname, &wfnamesize);
 	AnsiToUnicode(NULL, &pwcmdline, &wcmdlinesize);
 	AnsiToUnicode(NULL, &pwcurdir, &curdirsize);
@@ -1395,6 +1396,7 @@ fail:
 	}
 	ppi = NULL;
 	snprintf_safe(&pcmdline, &cmdlinesize, NULL);
+	append_snprintf_safe(&penvs,&envsize,NULL);
 	AnsiToUnicode(NULL, &pwfname, &wfnamesize);
 	AnsiToUnicode(NULL, &pwcmdline, &wcmdlinesize);
 	AnsiToUnicode(NULL, &pwcurdir, &curdirsize);

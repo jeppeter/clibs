@@ -98,7 +98,7 @@ jvalue *jarraylist_set(jarraylist *list, unsigned int index, jvalue *v)
 
 jvalue *jarraylist_get(jarraylist *list, unsigned int index)
 {
-  if ((int) index <= list->position) {
+  if ((int) index <= list->position && list->value != 0) {
     return list->value[index];
   }
   return 0;

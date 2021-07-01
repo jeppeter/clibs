@@ -645,6 +645,10 @@ iswin32:
     bufsize = 0;
     return WIN32_ARCH;
 fail:
+    if (pBuf) {
+        free(pBuf);
+    }
+    bufsize = 0;
     SETERRNO(-ret);
     return ret;
 }

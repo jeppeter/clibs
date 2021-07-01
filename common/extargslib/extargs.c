@@ -3352,6 +3352,7 @@ int set_env_subcmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* p
     char* pjsonenvval = NULL;
     char* prefix = NULL;
     int prefixsize = 0;
+    char* copyenv=NULL;
     popt_cmd_t dummy1 = pmaincmd;
     dummy1 = dummy1;
 
@@ -3372,11 +3373,17 @@ int set_env_subcmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* p
                 str_upper_case(pjsonenvkey);
                 pjsonenvval = GETENV(pjsonenvkey);
                 if (pjsonenvval != NULL) {
+                    copyenv = strdup(pjsonenvval);
+                    if (copyenv == NULL) {
+                        ret = -1;
+                        goto out;
+                    }
+
                     ret = format_cmd_prefix(pstate, i, &prefix, &prefixsize);
                     if (ret < 0) {
                         goto out;
                     }
-                    ret = load_value_from_json(pcurcmdstate->m_optcmd, pstate, popt, pjsonenvval, prefix);
+                    ret = load_value_from_json(pcurcmdstate->m_optcmd, pstate, popt, copyenv, prefix);
                     if (ret < 0) {
                         goto out;
                     }
@@ -3387,6 +3394,10 @@ int set_env_subcmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* p
     }
     ret = cnt;
 out:
+    if (copyenv) {
+        free(copyenv);
+    }
+    copyenv = NULL;
     snprintf_safe(&pjsonenvkey, &jsonenvkeysize, NULL);
     format_cmd_prefix(NULL, 0, &prefix, &prefixsize);
     return ret;
@@ -3399,6 +3410,7 @@ int set_env_cmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt
     char* pjsonenvkey = NULL;
     int jsonenvkeysize = 0;
     char* pjsonenvval = NULL;
+    char* dupenv= NULL;
 
     if (pstate->m_cmdstates != NULL && pstate->m_cmdnum > 0) {
         if (st_extargs_inner_state.m_options.m_jsonlong != NULL) {
@@ -3412,7 +3424,12 @@ int set_env_cmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt
         str_upper_case(pjsonenvkey);
         pjsonenvval = GETENV(pjsonenvkey);
         if (pjsonenvval != NULL) {
-            ret = load_value_from_json(pmaincmd, pstate, popt, pjsonenvval, "");
+            dupenv = strdup(pjsonenvval);
+            if (dupenv  == NULL) {
+                ret = -1;
+                goto out;
+            }
+            ret = load_value_from_json(pmaincmd, pstate, popt, dupenv, "");
             if (ret < 0) {
                 goto out;
             }
@@ -3421,6 +3438,10 @@ int set_env_cmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt
     }
     ret = cnt;
 out:
+    if (dupenv) {
+        free(dupenv);
+    }
+    dupenv = NULL;
     snprintf_safe(&pjsonenvkey, &jsonenvkeysize, NULL);
     return ret;
 }
@@ -4146,7 +4167,7 @@ int parse_param_smart_ex(int argc, char* argv[], popt_cmd_t pmaincmd, void* popt
         ret = -EXTARGS_INVAL_PARAM;
         goto fail;
     }
-
+    init_parse_state(&state);
     extargs_log_init();
 
     ret = init_extargs_inner_state(argc, argv, pmaincmd, pargoptions);
@@ -4158,9 +4179,7 @@ int parse_param_smart_ex(int argc, char* argv[], popt_cmd_t pmaincmd, void* popt
     if (ret < 0) {
         goto fail;
     }
-
     EXTARGS_DEBUG("popt %p", popt);
-    init_parse_state(&state);
     if (pmaincmd == NULL) {
         ret = -EXTARGS_INVAL_PARAM;
         goto fail;

@@ -897,10 +897,24 @@ int jvalue_compare(const jvalue *value1, const jvalue *value2)
           break;
         }
       }
-      util_free(entries1);
-      util_free(entries2);
+      if (entries1) {
+        util_free(entries1);  
+      }
+      entries1 = NULL;
+      if (entries2) {
+        util_free(entries2);  
+      }
+      entries2 = NULL;
       if (i == size1) return 0;
     }
+    if (entries1) {
+      util_free(entries1);  
+    }
+    entries1 = NULL;
+    if (entries2) {
+      util_free(entries2);  
+    }
+    entries2 = NULL;
   } else if (value1->type == JARRAY && value2->type == JARRAY) {
     if (jarray_size(value1) == jarray_size(value2)) {
       unsigned int i = 0;
@@ -980,7 +994,7 @@ jvalue *jreal_create(double number)
 
 jvalue *jstring_create(const char* str, int *error)
 {
-  jstring *value;
+  jstring *value = NULL;
   char *str_copy = util_strdup(str, MAX_VALUE_STRING_SIZE, error);
   if (str_copy == 0) return 0;
   value = (jstring *) util_malloc(sizeof(jstring));

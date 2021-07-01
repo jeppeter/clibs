@@ -21,8 +21,8 @@ struct jhashtable
 
 static jentry *jentry_create(const char *key, jvalue *value, int *error)
 {
-  jentry *entry;
-  char *key_copy;
+  jentry *entry = NULL;
+  char *key_copy = NULL;
   if (key == 0 || *key == 0 || value == 0) {
     if (error) *error = JERROR_NULL_PARAM;
     return 0;
@@ -36,6 +36,10 @@ static jentry *jentry_create(const char *key, jvalue *value, int *error)
   entry = (jentry *) util_malloc(sizeof(jentry));
   if (entry == 0) {
     if (error) *error = JERROR_NOT_ENOUGH_MEMORY;
+    if (key_copy) {
+       util_free(key_copy);
+    }
+    key_copy = NULL;
     return 0;
   }
   entry->key = key_copy;

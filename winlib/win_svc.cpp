@@ -629,6 +629,7 @@ try_again:
 
     pdep->m_depends = pstatus;
     pdep->m_depcnt = (int) svccnt;
+    pstatus = NULL;
 
     if (hservice != NULL) {
         CloseHandle(hservice);
@@ -654,6 +655,12 @@ try_again:
 
     return pdep;
 fail:
+    if (pstatus) {
+        free(pstatus);
+    }
+    pstatus = NULL;
+    svccnt = 0;
+    /*because we freed pstatus on the NULL*/
     __free_svc_depends(&pdep);
     if (hservice != NULL) {
         CloseHandle(hservice);
