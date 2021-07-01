@@ -1001,8 +1001,15 @@ jvalue *jstring_create(const char* str, int *error)
   if (value) {
     value->type = JSTRING;
     if (str == 0) value->value = 0;
-    else value->value = str_copy;
+    else {
+      value->value = str_copy;
+      str_copy = NULL;
+    }
+  } 
+  if (str_copy) {
+    util_free(str_copy);
   }
+  str_copy = NULL;
   return (jvalue *) value;
 }
 
