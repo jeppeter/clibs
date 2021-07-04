@@ -163,7 +163,7 @@ static const char *parse_json_value(jvalue **parent, const char *key, const char
   if (*p == '[') {
     jvalue *array = jarray_create();
     /* advance the pointer to next */
-    if (p) p++;
+    p++;
     while (p && *p != 0 && *p != ']') {
       /* advance the pointer to next */
       p = parse_json_value(&array, key, p);
