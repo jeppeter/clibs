@@ -416,11 +416,10 @@ HANDLE __open_output_debug(char* file, int appendmode)
         goto fail;
     }
 
+    AnsiToTchar(NULL,&ptname,&tnamesize);
     return hd;
 fail:
-    if (hd != NULL && hd != INVALID_HANDLE_VALUE) {
-        CloseHandle(hd);
-    }
+    AnsiToTchar(NULL,&ptname,&tnamesize);
     SETERRNO(ret);
     return NULL;
 }
