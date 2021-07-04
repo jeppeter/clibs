@@ -5660,7 +5660,7 @@ int send_ctrlc(int pid)
 	BOOL bret;
 	int added = 0;
 
-	/*bret = SetConsoleCtrlHandler(NULL,TRUE);
+	bret = SetConsoleCtrlHandler(NULL,TRUE);
 	if (!bret) {
 		GETERRNO(ret);
 		ERROR_INFO("SetConsoleCtrlHandler error[%d]", ret);
@@ -5668,7 +5668,7 @@ int send_ctrlc(int pid)
 	}
 
 	added = 1;
-	*/
+
 	bret = FreeConsole();
 	if (!bret) {
 		GETERRNO(ret);
