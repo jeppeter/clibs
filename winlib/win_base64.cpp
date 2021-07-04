@@ -255,7 +255,7 @@ int base64_compact_line(char* pencbuf, int enclen, char** ppencnoline, int* pout
 
     pretenc = *ppencnoline;
     retsize = *poutsize;
-    if (retsize < (enclen + 1) || pretenc)  {
+    if (pretenc == NULL || retsize < (enclen + 1))  {
         if (retsize < (enclen + 1)) {
             retsize = enclen + 1;
         }
