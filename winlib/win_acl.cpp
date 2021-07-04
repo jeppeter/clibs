@@ -2533,9 +2533,6 @@ int __set_file_descriptor(char* name, SECURITY_INFORMATION  info, PSECURITY_DESC
         if (ret > 0) {
             ret = -ret;
         }
-        if (ret == 0) {
-            ret = -1;
-        }
         ERROR_INFO("set [%s] [%s][%d] error[%d]", name, infostr, info, ret);
         goto fail;
     }
