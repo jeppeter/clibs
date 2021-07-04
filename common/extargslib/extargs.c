@@ -2486,10 +2486,6 @@ pparse_cmd_state_t find_dummy_state_by_opt_by_add(pparse_state_t pstate, popt_he
     pstate->m_dummynum ++;
     return pstatedummy;
 fail:
-    if (ptmpdummy != NULL) {
-        free(ptmpdummy);
-    }
-    ptmpdummy = NULL;
 
     if (pstatedummy) {
         free(pstatedummy);
