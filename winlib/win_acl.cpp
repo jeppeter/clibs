@@ -2405,9 +2405,6 @@ int __restore_old_owner(char* name, PSECURITY_DESCRIPTOR pdp)
         if (ret > 0) {
             ret = -ret;
         }
-        if (ret == 0) {
-            ret = -1;
-        }
         ERROR_INFO("set named security [%s] error[%d]", name, ret);
         goto fail;
     }
