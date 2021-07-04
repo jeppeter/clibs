@@ -1101,6 +1101,7 @@ int enum_symbol_pdb(const char* pdbfile,const char* searchmask,addr_t loadaddr,
         ERROR_INFO("can not SymInitialize (%d)", ret);
         goto fail;
     }
+    inited = 1;
 
     filesize = __get_dbg_file_size(pdbfile);
     GETERRNO_DIRECT(ret);
