@@ -2003,10 +2003,6 @@ try_again:
     APPEND_CHAR('\n');
     return pretstr;
 fail:
-    if (pretstr) {
-        free(pretstr);
-    }
-    pretstr = NULL;
     return NULL;
 }
 
