@@ -219,7 +219,7 @@ int base64_splite_line(char* pencbuf, int inlen, int linelen, char**ppencline, i
 
     return outlen;
 fail:
-    if (pretline && pretline != *ppencline) {
+    if ( pretline != *ppencline && pretline != NULL) {
         free(pretline);
     }
     pretline = NULL;
