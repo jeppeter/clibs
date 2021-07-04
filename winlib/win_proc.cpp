@@ -5447,10 +5447,6 @@ fail:
 	}
 	peermux = NULL;
 
-	if (peerevt != NULL) {
-		CloseHandle(peerevt);
-	}
-	peerevt = NULL;
 	get_executable_wholepath(1,&exepath,&exesize);
 	SETERRNO(ret);
 	return ret;
