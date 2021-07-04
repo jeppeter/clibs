@@ -500,10 +500,6 @@ int __init_output_cfg(poutput_debug_cfg_t pcfg)
     st_output_cnt = tmpcnt;
     return 0;
 fail:
-    if (ptmphds) {
-        free(ptmphds);
-    }
-    ptmphds = NULL;
     if (phds) {
         free(phds);
     }
