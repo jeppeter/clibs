@@ -584,9 +584,6 @@ int __get_basenum(unsigned char* ptr, unsigned char* pnum, int base)
             } else {
                 break;
             }
-        } else {
-            ret = -ERROR_INVALID_PARAMETER;
-            goto fail;
         }
     }
 
