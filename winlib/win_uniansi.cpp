@@ -421,7 +421,14 @@ int Utf8ToUnicode(const char* putf8, wchar_t** ppUni,int *punisize)
     }
     memset(pretuni, 0 ,(size_t)retsize);
 
+    SETERRNO(0);
     ret = MultiByteToWideChar(CP_UTF8,0,putf8,(int)strlen(putf8),pretuni, (int)((retsize / sizeof(wchar_t)) -1));
+    if (ret == 0) {
+        GETERRNO_DIRECT(ret);
+        if (ret != 0) {
+            goto fail;
+        }
+    }
     retlen = (int)(ret * sizeof(wchar_t));
     if (*ppUni && *ppUni != pretuni) {
         free(*ppUni);
