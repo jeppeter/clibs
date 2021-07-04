@@ -1584,9 +1584,6 @@ fail:
 		free(argv);
 	}
 	argv = NULL;
-	if (pproc) {
-		__free_proc_handle((pproc_handle_t*)&pproc);
-	}
 	SETERRNO(ret);
 	return NULL;
 }
