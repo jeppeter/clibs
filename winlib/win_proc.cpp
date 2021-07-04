@@ -2315,7 +2315,6 @@ int __wts_inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, ch
 	int outsize = 0, outlen = 0;
 	char* preterr = NULL;
 	int errsize = 0, errlen = 0;
-	char* ptmpbuf = NULL;
 	HANDLE waithds[4];
 	int waitnum = 0;
 	DWORD dret = 0;
@@ -2430,10 +2429,6 @@ int __wts_inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, ch
 	}
 	return 0;
 fail:
-	if (ptmpbuf) {
-		free(ptmpbuf);
-	}
-	ptmpbuf = NULL;
 	if (pretout && (ppout == NULL || pretout != *ppout)) {
 		free(pretout);
 	}
@@ -5675,10 +5670,6 @@ int process_exist(int pid)
 	enabled = 0;
 	return existed;
 fail:
-	if (hsnap != NULL ){
-		CloseHandle(hsnap);
-	}
-	hsnap = NULL;
 	if (hproc != NULL && hproc != INVALID_HANDLE_VALUE) {
 		CloseHandle(hproc);	
 	}

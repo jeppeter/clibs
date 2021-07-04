@@ -503,9 +503,6 @@ int map_file(char* name, int flag, uint64_t* psize, void** ppmap)
     if (flag & WINLIB_MAP_FILE_WRITE) {
         if (psize) {
             filesize = *psize;
-        } else {
-            ret = -ERROR_INVALID_PARAMETER;
-            goto fail;
         }
     } else {
         ret = __get_file_size(pmap, &filesize);
