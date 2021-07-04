@@ -3966,10 +3966,6 @@ int get_module_info(int procid, const char* name, pmod_info_t *ppinfo, int *psiz
 		MOD_INFO_HANDLE();
 	}
 succ:
-	if (ptmpinfo) {
-		free(ptmpinfo);
-	}
-	ptmpinfo = NULL;
 
 	TcharToAnsi(NULL, &pmodname, &modsize);
 	if (pmod) {
@@ -3989,10 +3985,6 @@ succ:
 
 	return (int)(retlen * sizeof(*pretinfo));
 fail:
-	if (ptmpinfo) {
-		free(ptmpinfo);
-	}
-	ptmpinfo = NULL;
 
 	if (pretinfo && pretinfo != *ppinfo) {
 		free(pretinfo);
