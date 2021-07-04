@@ -163,7 +163,7 @@ int  parse_long_double(char* str, long double *pdbl, char** ppend)
 
     errno = 0;
     retdbl = strtold(str, &pretstr);
-    if (retdbl == 0.0 && str == pretstr) {
+    if (str == pretstr) {
         ret = -ERROR_INVALID_PARAMETER;
         goto fail;
     } else if (errno == ERANGE) {
