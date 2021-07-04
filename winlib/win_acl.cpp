@@ -3394,9 +3394,6 @@ copy_sid_again:
         if (ret > 0) {
             ret = -ret;
         }
-        if (ret == 0) {
-            ret = -1;
-        }
         ERROR_INFO("build [%d] access for [%s] error[%d]", newaccnum, ctrl == SACL_MODE ? "SACL" : "DACL", ret);
         goto fail;
     }
