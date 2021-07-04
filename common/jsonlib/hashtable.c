@@ -223,8 +223,10 @@ jentry **jhashtable_entries(jhashtable* table, unsigned int *size)
 {
   unsigned int i, j;
   jentry **entries;
-  if (table == 0 && table->size == 0) {
-    if (size) *size = 0;
+  if (table == 0 || table->size == 0) {
+    if (size) {
+      *size = 0;
+    }
     return 0;
   }
   entries = (jentry **) util_malloc(table->size * sizeof(jentry *));

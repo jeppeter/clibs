@@ -4176,10 +4176,6 @@ int copy_to_leftargs(pparse_state_t pstate,char* arg)
     pstate->m_leftargs[exnum] = pdupstr;
     return (exnum+1);
 fail:
-    if (ptmpleftargs) {
-        free(ptmpleftargs);
-    }
-    ptmpleftargs = NULL;
     if (pdupstr) {
         free(pdupstr);
     }
