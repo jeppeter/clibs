@@ -1091,6 +1091,9 @@ def __format_free_function(parser,structname,functionname,prefix=''):
     # make a seperate line
     s += __format_tabs_line('',0)
 
+    s += __format_tabs_line('if (popt == NULL) {',1)
+    s += __format_tabs_line('return;',2)
+    s += __format_tabs_line('}',1)
     s += __format_free_function_inner(parser,'popt',None,1)
     s += __format_tabs_line('',0)
     s += __format_tabs_line('/*this is for popt unused warning disable*/', 1)
