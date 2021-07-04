@@ -145,6 +145,36 @@ void free_extargs_inner_state(extargs_inner_state_t* pinnerstate)
     return;
 }
 
+int _normalize_strdup(const char* penv, char** ppout)
+{
+    int ret = 0; 
+    if (penv == NULL) {
+        if (ppout && *ppout) {
+            free(*ppout);
+            *ppout = NULL;
+        }
+        return 0;
+    }
+
+    if (ppout== NULL) {
+        ret = -EXTARGS_INVAL_PARAM;
+        return ret;
+    }
+
+    if (*ppout !=NULL) {
+        free(*ppout);
+        *ppout = NULL;
+    }
+
+    *ppout = strdup(penv);
+    if (*ppout == NULL) {
+        ret = -EXTARGS_NO_MEM;
+    } else {
+        ret = (int)strlen(*ppout);
+    }
+    return ret;
+}
+
 int init_extargs_inner_state(int argc, char* argv[], popt_cmd_t pmaincmd, extargs_options_t* pextopt)
 {
     extargs_options_t* pptropt = pextopt;
@@ -3373,12 +3403,10 @@ int set_env_subcmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* p
                 str_upper_case(pjsonenvkey);
                 pjsonenvval = GETENV(pjsonenvkey);
                 if (pjsonenvval != NULL) {
-                    copyenv = strdup(pjsonenvval);
-                    if (copyenv == NULL) {
-                        ret = -1;
+                    ret = _normalize_strdup(pjsonenvval,&copyenv);
+                    if (ret < 0) {
                         goto out;
                     }
-
                     ret = format_cmd_prefix(pstate, i, &prefix, &prefixsize);
                     if (ret < 0) {
                         goto out;
@@ -3394,10 +3422,7 @@ int set_env_subcmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* p
     }
     ret = cnt;
 out:
-    if (copyenv) {
-        free(copyenv);
-    }
-    copyenv = NULL;
+    _normalize_strdup(NULL,&copyenv);
     snprintf_safe(&pjsonenvkey, &jsonenvkeysize, NULL);
     format_cmd_prefix(NULL, 0, &prefix, &prefixsize);
     return ret;
@@ -3424,9 +3449,8 @@ int set_env_cmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt
         str_upper_case(pjsonenvkey);
         pjsonenvval = GETENV(pjsonenvkey);
         if (pjsonenvval != NULL) {
-            dupenv = strdup(pjsonenvval);
-            if (dupenv  == NULL) {
-                ret = -1;
+            ret = _normalize_strdup(pjsonenvval,&dupenv);
+            if (ret < 0) {
                 goto out;
             }
             ret = load_value_from_json(pmaincmd, pstate, popt, dupenv, "");
@@ -3438,10 +3462,7 @@ int set_env_cmd_json_args(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt
     }
     ret = cnt;
 out:
-    if (dupenv) {
-        free(dupenv);
-    }
-    dupenv = NULL;
+    _normalize_strdup(NULL,&dupenv);
     snprintf_safe(&pjsonenvkey, &jsonenvkeysize, NULL);
     return ret;
 }
