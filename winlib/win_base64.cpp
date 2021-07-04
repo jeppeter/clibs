@@ -282,10 +282,6 @@ int base64_compact_line(char* pencbuf, int enclen, char** ppencnoline, int* pout
     *poutsize = retsize;
     return outlen;
 fail:
-    if (pretenc && pretenc != *ppencnoline) {
-        free(pretenc);
-    }
-    pretenc = NULL;
     SETERRNO(ret);
     return ret;
 }
