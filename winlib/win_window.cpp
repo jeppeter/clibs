@@ -495,13 +495,9 @@ int get_window_text(HWND hd, char** pptext,int *psize)
 		return TcharToAnsi(NULL,pptext,psize);
 	}
 
-	tnamesize = 2;
+	tnamesize = 256;
 
 //try_again:
-	if (ptname) {
-		free(ptname);
-	}
-	ptname = NULL;
 	ptname = (TCHAR*) malloc(sizeof(TCHAR) * tnamesize);
 	if (ptname == NULL) {
 		GETERRNO(ret);
