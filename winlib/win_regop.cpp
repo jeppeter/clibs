@@ -195,7 +195,7 @@ int query_hklm_string(void* pregop, const char* path, char** ppretval, int *pret
     }
 
     pretval = *ppretval;
-    retsize = *pretsize;
+    retvalsize = *pretsize;
 
     if (pinner == NULL || pinner->m_magic != REG_OP_MAGIC) {
         ret = -ERROR_INVALID_PARAMETER;
