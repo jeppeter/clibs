@@ -5285,7 +5285,6 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 {
 	int ret;
 	HANDLE peerevt = NULL;
-	HANDLE peermux = NULL;
 	HANDLE myevt = NULL;
 	int running = 1;
 	HANDLE waithd[3];
@@ -5438,11 +5437,6 @@ fail:
 		CloseHandle(myevt);
 	}
 	myevt = NULL;
-
-	if (peermux != NULL) {
-		CloseHandle(peermux);
-	}
-	peermux = NULL;
 
 	get_executable_wholepath(1,&exepath,&exesize);
 	SETERRNO(ret);
