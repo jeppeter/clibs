@@ -2200,9 +2200,6 @@ int __new_sid_descriptor(PSID psid, int mode , PSECURITY_DESCRIPTOR *ppsdp, int 
         if (ret > 0) {
             ret = -ret;
         }
-        if (ret == 0) {
-            ret = -1;
-        }
         ERROR_INFO("build [%s] error[%d]", mode == SID_OWNER_MODE ? "owner" : "group", ret);
         goto fail;
     }
