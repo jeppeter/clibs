@@ -505,7 +505,7 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
 		goto fail;
 	}
 
-	if (wr) {
+	/*if (wr) {
 		omode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
 		//pmode = PIPE_TYPE_MESSAGE | PIPE_WAIT;
 		pmode = PIPE_TYPE_MESSAGE ;
@@ -513,7 +513,9 @@ int __create_pipe(char* name , int wr, HANDLE *ppipe, OVERLAPPED* pov, HANDLE *p
 		omode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
 		//pmode = PIPE_TYPE_MESSAGE  | PIPE_WAIT;
 		pmode = PIPE_TYPE_MESSAGE;
-	}
+	}*/
+	omode = PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED;
+	pmode = PIPE_TYPE_MESSAGE;
 
 	DEBUG_INFO("create %s [%s]", wr ? "write" : "read", name);
 
