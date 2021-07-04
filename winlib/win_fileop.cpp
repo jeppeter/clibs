@@ -202,11 +202,6 @@ int __read_fp_buffer(FILE* fp, char** ppoutbuf, int *pbufsize)
         }
     }
 
-    if (ptmpbuf != NULL) {
-        free(ptmpbuf);
-    }
-    ptmpbuf = NULL;
-
     if (*ppoutbuf != NULL && *ppoutbuf != pretbuf) {
         free(*ppoutbuf);
     }
@@ -215,10 +210,6 @@ int __read_fp_buffer(FILE* fp, char** ppoutbuf, int *pbufsize)
     return (int)retlen;
 
 fail:
-    if (ptmpbuf != NULL) {
-        free(ptmpbuf);
-    }
-    ptmpbuf = NULL;
     if (pretbuf != NULL && pretbuf != *ppoutbuf) {
         free(pretbuf);
     }
