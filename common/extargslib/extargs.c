@@ -3965,10 +3965,6 @@ pextargs_state_t alloc_extargs_state(void)
 
     return pstate;
 fail:
-    if (pstate) {
-        free(pstate);
-    }
-    pstate = NULL;
     return NULL;
 }
 
