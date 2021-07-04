@@ -29,7 +29,9 @@ static int isutf8(const char *source, unsigned int length)
         case 0xED: if (a > 0x9F) return 0; break;
         case 0xF0: if (a < 0x90) return 0; break;
         case 0xF4: if (a > 0x8F) return 0; break;
-        default:   if (a < 0x80) return 0;
+        default:
+           /*to pass thuru*/  
+           s = s;
       }
     case 1: if (s >= 0x80 && s < 0xC2) return 0;
   }
