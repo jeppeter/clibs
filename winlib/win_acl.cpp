@@ -3266,11 +3266,6 @@ int remove_dacl(void* pacl1, const char* username, const char* action, const cha
     pacl->m_daclsize = (DWORD)dpsize;
     pacl->m_dacllen = (DWORD)dplen;
 
-
-    if (pdp) {
-        LocalFree(pdp);
-    }
-    pdp = NULL;
     dpsize = 0;
     dplen = 0;
     __get_sid_from_name(NULL, &psid, &sidsize);
