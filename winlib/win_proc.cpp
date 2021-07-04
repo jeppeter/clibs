@@ -3328,11 +3328,6 @@ fail:
 	}
 	hsnap = INVALID_HANDLE_VALUE;
 
-	if (ptmppids) {
-		free(ptmppids);
-	}
-	ptmppids = NULL;
-
 	if (pretpids && pretpids != *ppids) {
 		free(pretpids);
 	}
