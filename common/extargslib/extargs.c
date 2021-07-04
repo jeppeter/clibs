@@ -147,7 +147,11 @@ void free_extargs_inner_state(extargs_inner_state_t* pinnerstate)
 
 int _normalize_strdup(const char* penv, char** ppout)
 {
-    int ret = 0; 
+    int ret = 0;
+    int retlen = 0;
+    int i,j;
+    const char* psrc=NULL; 
+    char* pdst = NULL;
     if (penv == NULL) {
         if (ppout && *ppout) {
             free(*ppout);
@@ -166,11 +170,47 @@ int _normalize_strdup(const char* penv, char** ppout)
         *ppout = NULL;
     }
 
-    *ppout = strdup(penv);
+    retlen = (int) strlen(penv);
+    retlen += 1;
+    *ppout = (char*)malloc(retlen);
     if (*ppout == NULL) {
         ret = -EXTARGS_NO_MEM;
     } else {
-        ret = (int)strlen(*ppout);
+        j = 0;
+        pdst = *ppout;
+        for (i=0,psrc=penv;*psrc != '\0';i++,psrc ++) {
+            if (*psrc == '\\' || *psrc == '/') {
+                *pdst = *psrc;
+                pdst ++;
+                j ++;
+            } else if (*psrc >= '0' && *psrc <= '9') {
+                *pdst = *psrc;
+                pdst ++;
+                j ++;
+            } else if (*psrc >= 'a' && *psrc <= 'z') {
+                *pdst = *psrc;
+                pdst ++;
+                j ++;                
+            } else if (*psrc >= 'A' && *psrc <= 'Z') {
+                *pdst = *psrc;
+                pdst ++;
+                j ++;                
+            } else if (*psrc == ' ' || *psrc == '_') {
+                *pdst = *psrc;
+                pdst ++;
+                j ++;
+            } else {
+                ret = -EXTARGS_INVAL_PARAM;
+                goto fail;
+            }
+        }
+        ret = j;
+    }    
+    return ret;
+fail:
+    if (ppout && *ppout) {
+        free(*ppout);
+        *ppout = NULL;
     }
     return ret;
 }
