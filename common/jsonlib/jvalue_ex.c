@@ -76,13 +76,11 @@ int add_jobject(jvalue* pj, const char* pkey, const char* value)
         }
     }
     if (pinsertval != NULL) {
+        ret = 0;
         pjret = jobject_put(pj, pkey, pinsertval, &ret);
         if (ret > 0) {
             if (ret > 0) {
                 ret = -ret;
-            }
-            if (ret == 0) {
-                ret = -1;
             }
             ERROR_INFO( "insert key[%s] value [%s] error[%d]\n", pkey, value, ret);
             free_jvalue(&pinsertval);
@@ -139,13 +137,11 @@ int add_jobject(jvalue* pj, const char* pkey, const char* value)
     }
 
     /*now insert it*/
+    ret = 0;
     pjret = jobject_put(pj, pkey, pinsertval, &ret);
     if (ret > 0) {
         if (ret > 0) {
             ret = -ret;
-        }
-        if (ret == 0) {
-            ret = -1;
         }
         ERROR_INFO( "insert key[%s] value [%s] error[%d]\n", pkey, value, ret);
         goto fail;
