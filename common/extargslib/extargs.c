@@ -2238,7 +2238,7 @@ char* help_usage(const char* arg0, const char* subcmd, popt_cmd_t pmaincmd, cons
 #else
     va_list ap;
 #endif
-    if (fmt == NULL) {
+    if (fmt != NULL) {
         va_start(ap, fmt);
     }
     return help_usagev(arg0, subcmd, pmaincmd, fmt, ap);
