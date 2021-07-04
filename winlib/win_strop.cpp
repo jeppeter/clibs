@@ -1021,19 +1021,11 @@ int split_lines(const char* str, char*** ppplines, int *psize)
 
     retlen ++;
 
-    if (pptmpbuf) {
-        free(pptmpbuf);
-    }
-    pptmpbuf = NULL;
     __inner_free(ppplines, psize);
     *ppplines = ppretlines;
     *psize = retsize;
     return retlen;
 fail:
-    if (pptmpbuf) {
-        free(pptmpbuf);
-    }
-    pptmpbuf = NULL;
     __inner_free(&ppretlines, &retsize);
     SETERRNO(ret);
     return ret;
