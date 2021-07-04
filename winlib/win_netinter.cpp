@@ -264,7 +264,6 @@ int get_all_adapter_info(int freed, char* pfilter, pnet_inter_info_t* ppinfos, i
     PIP_ADAPTER_ADDRESSES pAddress = NULL, pcuraddr = NULL;
     ULONG family, flags;
     int i;
-    char* padapterprefix = NULL;
     int prefixsize = 0;
 
     if (freed) {
@@ -419,10 +418,6 @@ fill_again:
 
     UnicodeToAnsi(NULL, &pansibuf, &ansisize);
     append_snprintf_safe(&pformatbuf, &formatsize, NULL);
-    if (padapterprefix) {
-        free(padapterprefix);
-    }
-    padapterprefix = NULL;
     prefixsize = 0;
     if (pbuffer) {
         free(pbuffer);
@@ -446,10 +441,6 @@ fail:
         free(pRetInfo);
     }
     pRetInfo = NULL;
-    if (padapterprefix) {
-        free(padapterprefix);
-    }
-    padapterprefix = NULL;
     prefixsize = 0;
     if (pbuffer) {
         free(pbuffer);
