@@ -107,7 +107,7 @@ static void jobject_clone_object(jobject *table, jentry *entry)
     jobject_put_real((jvalue *) table, key, v->value);
   } if (value->type == JSTRING) {
     jstring *v = (jstring *) value;
-    jobject_put_string((jvalue *) table, key, v->value);
+    res = jobject_put_string((jvalue *) table, key, v->value);
   } if (value->type == JOBJECT) {
     jobject *v = (jobject *) value;
     jobject *t = jobject_clone(v);
