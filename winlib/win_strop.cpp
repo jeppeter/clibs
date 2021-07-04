@@ -203,11 +203,6 @@ try_again:
     nret = ret + 1;
     nret += (int)cntsize;
 
-    if (pTmpBuf) {
-        free(pTmpBuf);
-    }
-    pTmpBuf = NULL;
-    tmpsize = 0;
     if (*ppbuf && *ppbuf != pRetBuf) {
         free(*ppbuf);
     }
@@ -215,11 +210,6 @@ try_again:
     *pbufsize = (int)retsize;
     return nret;
 fail:
-    if (pTmpBuf) {
-        free(pTmpBuf);
-    }
-    pTmpBuf = NULL;
-    tmpsize = 0;
     if (pRetBuf && pRetBuf != *ppbuf) {
         free(pRetBuf);
     }
