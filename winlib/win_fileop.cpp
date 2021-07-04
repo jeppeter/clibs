@@ -1367,10 +1367,6 @@ int __list_all_subitems(char* basedir,char* curdir,pfile_sub_item_t *ppitems,int
 
     snprintf_safe(&pat,&patsize,NULL);
 
-    if (ptmpitems) {
-        free(ptmpitems);
-    }
-    ptmpitems = NULL;
     if (*ppitems && *ppitems != pretitems) {
         free(*ppitems);
     }
@@ -1382,11 +1378,6 @@ fail:
         free(pfinddata);
     }
     pfinddata = NULL;
-
-    if (ptmpitems) {
-        free(ptmpitems);
-    }
-    ptmpitems = NULL;
 
     if (pretitems) {
         for(i=0;i<retsize;i++) {

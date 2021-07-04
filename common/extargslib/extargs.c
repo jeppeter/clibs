@@ -1232,7 +1232,9 @@ opt_help_t* find_opt_idx(int argc, char* argv[], pparse_state_t pstate, int *err
     size_t longlen = 0, shortlen = 0;
     pparse_cmd_state_t* pcmdstate = NULL;
     popt_help_t poptions = NULL;
-    *error = 0;
+    if (error != NULL) {
+        *error = 0;    
+    }    
     longprefix = st_extargs_inner_state.m_options.m_longprefix;
     shortprefix = st_extargs_inner_state.m_options.m_shortprefix;
     if ((st_extargs_inner_state.m_options.m_flags & EXTARGS_FLAG_NO_BUNDLE)) {
@@ -1256,7 +1258,9 @@ search_opt_begin:
         pstate->m_validx = -1;
         pstate->m_shortcharhasidx = -1;
         pstate->m_longopthasidx = -1;
-        *error = 0;
+        if (error != NULL) {
+            *error = 0;    
+        }        
         return NULL;
     }
     if (strcmp(argv[oldidx], "--") == 0) {
@@ -1486,7 +1490,9 @@ find_short_opt_bundle:
         }
     }
     /*that is like subnargs or args or sub command*/
-    *error = 0;
+    if (error) {
+        *error = 0;    
+    }    
     pstate->m_curidx = oldidx;
     pstate->m_validx = -1;
     pstate->m_keyidx = -1;
