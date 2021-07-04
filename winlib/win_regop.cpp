@@ -173,8 +173,8 @@ int query_hklm_string(void* pregop, const char* path, char** ppretval, int *pret
     int ansivalsize = 0;
     int nret;
     DWORD regtype = REG_EXPAND_SZ;
-    char* pretval = *ppretval;
-    int retvalsize = *pretsize;
+    char* pretval = NULL;
+    int retvalsize = 0;
     int ret;
 
     if (path == NULL) {
@@ -187,6 +187,15 @@ int query_hklm_string(void* pregop, const char* path, char** ppretval, int *pret
         }
         return 0;
     }
+
+    if (ppretval == NULL || pretsize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretval = *ppretval;
+    retsize = *pretsize;
 
     if (pinner == NULL || pinner->m_magic != REG_OP_MAGIC) {
         ret = -ERROR_INVALID_PARAMETER;
