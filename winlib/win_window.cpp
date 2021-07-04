@@ -183,10 +183,6 @@ int __get_window_type(HWND hwnd,void* param)
 		ret = 0;
 	}
 out:
-	if (pwndtmp) {
-		free(pwndtmp);
-	}
-	pwndtmp = NULL;
 	TcharToAnsi(NULL,&clsname,&clsnamesize);
 	if (tclassname) {
 		free(tclassname);
