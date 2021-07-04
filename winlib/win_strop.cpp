@@ -764,10 +764,6 @@ int unquote_string(char** ppstr, int *psize, char* pinput)
     }
 
 
-    if (ptmpbuf != NULL) {
-        free(ptmpbuf);
-    }
-    ptmpbuf = NULL;
     if (*ppstr != NULL && (unsigned char*)*ppstr != pretstr) {
         free(*ppstr);
     }
@@ -776,11 +772,6 @@ int unquote_string(char** ppstr, int *psize, char* pinput)
 
     return (int)retlen;
 fail:
-    if (ptmpbuf != NULL) {
-        free(ptmpbuf);
-    }
-    ptmpbuf = NULL;
-
     if (pretstr != NULL && pretstr != (unsigned char*)*ppstr) {
         free(pretstr);
     }
