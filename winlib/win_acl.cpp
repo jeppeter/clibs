@@ -2309,9 +2309,6 @@ get_owner_again:
             if (ret > 0) {
                 ret = -ret;
             }
-            if (ret == 0) {
-                ret = -1;
-            }
             ERROR_INFO("build new user error[%d]", ret);
             goto fail;
         }
