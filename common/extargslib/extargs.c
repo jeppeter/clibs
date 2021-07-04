@@ -281,7 +281,7 @@ int init_extargs_inner_state(int argc, char* argv[], popt_cmd_t pmaincmd, extarg
     }
 
     if (optionsize > OPTION_OFFSET(extargs_options_t, m_shortprefix)) {
-        if (pptropt->m_longprefix != NULL) {
+        if (pptropt->m_shortprefix != NULL) {
             st_extargs_inner_state.m_options.m_shortprefix = safe_strdup(pptropt->m_shortprefix);
         } else {
             st_extargs_inner_state.m_options.m_shortprefix = safe_strdup(EXTARGS_DEFAULT_SHORTPREFIX);
@@ -1425,7 +1425,7 @@ find_short_opt_bundle:
             return NULL;
         }
 
-        if (longprefix && STRNCMP(argv[oldidx], longprefix, longlen) == 0) {
+        if (longprefix != NULL && STRNCMP(argv[oldidx], longprefix, longlen) == 0) {
             pptr = &(argv[oldidx][longlen]);
             /*we search for the help of sub command first*/
             j = pstate->m_cmdnum - 1;
