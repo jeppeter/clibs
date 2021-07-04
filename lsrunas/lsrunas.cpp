@@ -1112,7 +1112,6 @@ int login_user_create_process(int argc, char* argv[], pextargs_state_t pextstate
 			GETERRNO(ret);
 			error_out("opne (%s) error(%d)", popt->m_stderrfile, ret);
 			goto fail;
-			goto fail;
 		}
 
 		psiw->dwFlags |= STARTF_USESTDHANDLES;
