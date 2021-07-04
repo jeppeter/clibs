@@ -358,10 +358,6 @@ BOOL CALLBACK enum_win_proc(HWND hwnd,LPARAM ctx)
 
 	return TRUE;
 fail:
-	if (ptmp) {
-		free(ptmp);
-	}
-	ptmp = NULL;
 	pwin->m_error = ret;
 	SETERRNO(ret);
 	return FALSE;
