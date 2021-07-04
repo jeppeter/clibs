@@ -2322,10 +2322,6 @@ int expand_opts_array(pparse_state_t pstate, popt_cmd_t addcmd)
     pstate->m_cmdstates = pcmdstates;
     return ret;
 fail:
-    if (pcmdstate != NULL) {
-        free(pcmdstate);
-    }
-    pcmdstate = NULL;
     if (pcmdstates != NULL && pcmdstates != pstate->m_cmdstates) {
         free(pcmdstates);
     }
