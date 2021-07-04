@@ -37,8 +37,8 @@ int find_endof_inbuf(void* pbuf, int bufsize)
 
 int vsnprintf_safe(char** ppbuf, int *pbufsize, const char* fmt, va_list ap)
 {
-    char* pRetBuf = *ppbuf;
-    size_t retsize = (size_t)(*pbufsize);
+    char* pRetBuf = NULL;
+    size_t retsize = 0;
     int nret;
     int ret;
     va_list origap;
@@ -51,6 +51,15 @@ int vsnprintf_safe(char** ppbuf, int *pbufsize, const char* fmt, va_list ap)
         *pbufsize = 0;
         return 0;
     }
+
+    if (ppbuf ==NULL || pbufsize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pRetBuf = *ppbuf;
+    retsize = (size_t)(*pbufsize);
 
     if (pRetBuf == NULL || retsize < 32) {
         if (retsize < 32) {
