@@ -272,7 +272,7 @@ int query_hklm_binary(void* pregop, const char* path, void** ppdata, int *pdatas
     int ret;
 
     if (path == NULL) {
-        if (ppdata && *ppdata) {
+        if (ppdata !=NULL && *ppdata != NULL) {
             free(*ppdata);
             *ppdata = NULL;
         }

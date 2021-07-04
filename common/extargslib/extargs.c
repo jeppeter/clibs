@@ -1240,8 +1240,18 @@ opt_help_t* find_opt_idx(int argc, char* argv[], pparse_state_t pstate, int *err
     if ((st_extargs_inner_state.m_options.m_flags & EXTARGS_FLAG_NO_BUNDLE)) {
         bundlemode = 0;
     }
-    longlen = strlen(longprefix);
-    shortlen = strlen(shortprefix);
+    if (longprefix != NULL) {
+        longlen = strlen(longprefix);    
+    } else {
+        longlen = 0;
+    }
+    
+    if (shortprefix != NULL) {
+        shortlen = strlen(shortprefix);    
+    } else {
+        shortlen = 0;
+    }
+    
     EXTARGS_DEBUG("m_longopthasidx [%d]",pstate->m_longopthasidx);
     if (pstate->m_longopthasidx >= 0) {
         oldidx += pstate->m_longopthasidx;
@@ -1445,7 +1455,7 @@ find_short_opt_bundle:
             }
         }
 
-        if (shortprefix && STRNCMP(argv[oldidx], shortprefix, shortlen) == 0 && strlen(argv[oldidx]) == (shortlen + 1)) {
+        if (shortprefix != NULL && STRNCMP(argv[oldidx], shortprefix, shortlen) == 0 && strlen(argv[oldidx]) == (shortlen + 1)) {
             oldcharidx = (int)shortlen;
             j = pstate->m_cmdnum - 1;
             EXTARGS_DEBUG("search for [%d][%d] %c (%s)", oldidx, oldcharidx, argv[oldidx][oldcharidx], argv[oldidx]);
