@@ -617,13 +617,22 @@ jvalue *jarray_remove(const jvalue *value, unsigned int index, int *error)
 {
   const jarray *array;
   if (value == 0) {
-    if (error) *error = JERROR_NULL_PARAM;
+    if (error) {
+      *error = JERROR_NULL_PARAM;
+    }
+    return NULL;
   }
   if (value->type != JARRAY) {
-    if (error) *error = JERROR_WRONG_PARAM_TYPE;
+    if (error) {
+      *error = JERROR_WRONG_PARAM_TYPE;
+    }
+    return NULL;
   }
   if (index >= jarray_size(value)) {
-    if (error) *error = JERROR_OUT_OF_INDEX;
+    if (error) {
+      *error = JERROR_OUT_OF_INDEX;
+    }
+    return NULL;
   }
   array = (const jarray *) value;
   return jarraylist_remove(array->list, index);
