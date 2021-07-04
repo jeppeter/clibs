@@ -3310,11 +3310,6 @@ out:
     bufsize = 0;
     bufnum = 0;
 
-    if (ptmpbuf) {
-        free(ptmpbuf);
-    }
-    ptmpbuf = NULL;
-
     if (fp) {
         fclose(fp);
     }

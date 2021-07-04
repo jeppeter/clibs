@@ -183,7 +183,7 @@ int util_realtostr(char *str, unsigned int size, double number)
   for (; *e != 0; e++) {
     if (*e == 'e') break;
   }
-  if (e) {
+  if (*e == 'e') {
     int power;
     char *zero = e;
     /* trim excess zeros */
