@@ -2131,10 +2131,7 @@ char* __help_usagev(const char* arg0, const char* subcmd , popt_cmd_t pmaincmd, 
             curopthelplen = (int)strlen(popthelp);
             if ((maxoptnamelen + maxoptarglen + curopthelplen + 2) > st_extargs_inner_state.m_options.m_screenwidth) {
                 APPEND_STRING("\t%-*s %-*s\n", maxoptnamelen, poptname, maxoptarglen, poptargname);
-                if (pindentstr) {
-                    free(pindentstr);
-                }
-                pindentstr = NULL;
+                ASSERT_IF(pindentstr == NULL);
                 preindent = st_extargs_inner_state.m_options.m_screenwidth / 3;
                 pindentstr = format_indent_string(popthelp, preindent, st_extargs_inner_state.m_options.m_screenwidth);
                 if (pindentstr == NULL) {
@@ -2174,10 +2171,7 @@ char* __help_usagev(const char* arg0, const char* subcmd , popt_cmd_t pmaincmd, 
             curopthelplen = (int) strlen(pcmdhelp);
             if ((maxcmdnamelen + maxcmdexprlen + curopthelplen + 2) > st_extargs_inner_state.m_options.m_screenwidth) {
                 APPEND_STRING("\t%-*s %-*s\n", maxcmdnamelen, pcmdname, maxcmdexprlen, pcmdexpr);
-                if (pindentstr != NULL) {
-                    free(pindentstr);
-                }
-                pindentstr = NULL;
+                ASSERT_IF(pindentstr == NULL);
                 preindent = st_extargs_inner_state.m_options.m_screenwidth / 3;
                 pindentstr = format_indent_string(pcmdhelp, preindent, st_extargs_inner_state.m_options.m_screenwidth);
                 if (pindentstr == NULL) {
