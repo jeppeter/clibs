@@ -452,6 +452,7 @@ int UnicodeToUtf8(const wchar_t* pUni, char** pputf8, int *putf8size)
     int retsize=0;
     int retlen=0;
     int wlen = 0;
+    int res;
 
     if (pUni == NULL) {
         if (pputf8 && *pputf8) {
@@ -482,7 +483,18 @@ int UnicodeToUtf8(const wchar_t* pUni, char** pputf8, int *putf8size)
         }
     }
 
+    SETERRNO(0);
     ret = WideCharToMultiByte(CP_UTF8,0,pUni,-1,pretutf8,retsize,NULL,NULL);
+    if (ret  == 0) {
+        GETERRNO_DIRECT(res);
+        if (res != 0) {
+            ret = -res;
+            if (ret > 0) {
+                ret = -ret;
+            }
+            goto fail;
+        }
+    }
     retlen = ret;
 
     if (*pputf8 && *pputf8 != pretutf8) {
