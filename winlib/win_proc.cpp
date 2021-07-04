@@ -4188,11 +4188,6 @@ fail:
 	}
 	hd = NULL;
 
-	if (ptmppids) {
-		free(ptmppids);
-	}
-	ptmppids = NULL;
-
 	if (pretpids && pretpids != *pppids) {
 		free(pretpids);
 	}
