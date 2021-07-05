@@ -2194,9 +2194,10 @@ out:
     snprintf_safe(&pcmdname, &cmdnamesize, NULL);
     snprintf_safe(&pcmdexpr, &cmdexprsize, NULL);
     snprintf_safe(&pcmdhelp, &cmdhelpsize, NULL);
-    if (pindentstr != NULL) {
-        free(pindentstr);
-    }
+    /*pindentstr will always free*/
+    //if (pindentstr != NULL) {
+    //    free(pindentstr);
+    //}
     pindentstr = NULL;
     return poutbuffer;
 fail:
