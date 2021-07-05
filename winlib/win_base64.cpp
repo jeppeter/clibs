@@ -219,7 +219,8 @@ int base64_splite_line(char* pencbuf, int inlen, int linelen, char**ppencline, i
 
     return outlen;
 fail:
-    if ( pretline != *ppencline && pretline != NULL) {
+    /*because pretline == NULL only this goto fail, can be here*/
+    if ( pretline != NULL) {
         free(pretline);
     }
     pretline = NULL;
