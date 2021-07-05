@@ -76,10 +76,10 @@ WINLIB_API int windbg_go(void* pclient);
 WINLIB_API int windbg_exec(void* pclient, const char* cmd);
 WINLIB_API int windbg_get_out(void* pclient,int flags, char** ppout, int *psize);
 WINLIB_API int windbg_interrupt(void* pclient);
+WINLIB_API int enum_symbol_pdb(const char* pdbfile,const char* searchmask,addr_t loadaddr, pdebug_symbol_info_t psyminfo,int maxsize,uint64_t* pretval);
 
 #endif /*  _M_X64*/
 
-WINLIB_API int enum_symbol_pdb(const char* pdbfile,const char* searchmask,addr_t loadaddr, pdebug_symbol_info_t psyminfo,int maxsize);
 
 #ifdef __cplusplus
 };

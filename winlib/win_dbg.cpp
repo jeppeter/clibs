@@ -1088,7 +1088,7 @@ BOOL CALLBACK SymEnumSymbolsProcFill(PSYMBOL_INFO pSymInfo,ULONG SymbolSize,PVOI
 
 #ifdef _M_X64
 int enum_symbol_pdb(const char* pdbfile,const char* searchmask,addr_t loadaddr, 
-    pdebug_symbol_info_t psyminfo,int maxsize)
+    pdebug_symbol_info_t psyminfo,int maxsize,uint64_t* pretval)
 {
     int ret, res;
     int inited = 0, loaded = 0;
@@ -1150,7 +1150,10 @@ int enum_symbol_pdb(const char* pdbfile,const char* searchmask,addr_t loadaddr,
         goto fail;
     }
     inited = 0;
-    return (int)(sizeof(*psyminfo) + (psyminfo->m_num - 1) * sizeof(psyminfo->m_syminfo[0]));
+    if (pretval) {
+        *pretval = (uint64_t)(sizeof(*psyminfo) + (psyminfo->m_num - 1) * sizeof(psyminfo->m_syminfo[0]));
+    }
+    return 0;
 fail:
     if (loaded) {
         bret = ::SymUnloadModule64(GetCurrentProcess(), modbase);
