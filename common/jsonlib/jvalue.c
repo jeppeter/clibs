@@ -907,13 +907,11 @@ int jvalue_compare(const jvalue *value1, const jvalue *value2)
           break;
         }
       }
-      if (entries1 != NULL) {
-        util_free(entries1);  
-      }
+      /*entries1!=NULL because size1 != 0*/
+      util_free(entries1);  
       entries1 = NULL;
-      if (entries2 != NULL) {
-        util_free(entries2);  
-      }
+      /*entries2!=NULL because size2 != 0*/
+      util_free(entries2);  
       entries2 = NULL;
       if (i == size1) return 0;
     }
