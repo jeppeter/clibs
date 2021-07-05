@@ -1141,17 +1141,19 @@ int svc_start(char* svcname, LPSERVICE_MAIN_FUNCTION pProc)
     int ret;
     TCHAR* ptsvcname = NULL;
     int tsvcsize = 0;
+    SERVICE_TABLE_ENTRY DispatchTable[] = {
+        { NULL, NULL },
+        { NULL, NULL }
+    };
+
 
     ret = AnsiToTchar(svcname, &ptsvcname, &tsvcsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-
-    SERVICE_TABLE_ENTRY DispatchTable[] = {
-        { (LPTSTR)ptsvcname, pProc },
-        { NULL, NULL }
-    };
+    DispatchTable[0].lpServiceName = ptsvcname;
+    DispatchTable[0].lpServiceProc = pProc;
 
     bret = StartServiceCtrlDispatcher( DispatchTable );
 
@@ -1161,9 +1163,13 @@ int svc_start(char* svcname, LPSERVICE_MAIN_FUNCTION pProc)
         goto fail;
     }
 
+    DispatchTable[0].lpServiceName = NULL;
+    DispatchTable[0].lpServiceProc = NULL;
     AnsiToTchar(NULL, &ptsvcname, &tsvcsize);
     return 0;
 fail:
+    DispatchTable[0].lpServiceName = NULL;
+    DispatchTable[0].lpServiceProc = NULL;
     AnsiToTchar(NULL, &ptsvcname, &tsvcsize);
     SETERRNO(ret);
     return ret;

@@ -4221,15 +4221,16 @@ int parse_param_smart_ex(int argc, char* argv[], popt_cmd_t pmaincmd, void* popt
         goto fail;
     }
 
+    if (pmaincmd == NULL) {
+        ret = -EXTARGS_INVAL_PARAM;
+        goto fail;
+    }
+
     ret = check_main_cmd(pmaincmd);
     if (ret < 0) {
         goto fail;
     }
     EXTARGS_DEBUG("popt %p", popt);
-    if (pmaincmd == NULL) {
-        ret = -EXTARGS_INVAL_PARAM;
-        goto fail;
-    }
 
     ret = expand_opts_array(&state, pcurcmd);
     if (ret < 0) {
