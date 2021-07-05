@@ -725,7 +725,7 @@ int __update_thread_attribute(args_options_t *popt, LPPROC_THREAD_ATTRIBUTE_LIST
 #endif
 	        popt->m_thrattrproctionlevel != NULL || popt->m_thrattrchildprocesspolicy != NULL) {
 		pattr = __alloc_thread_attribute();
-		if (pthreadattr == NULL) {
+		if (pattr == NULL) {
 			GETERRNO(ret);
 			goto fail;
 		}
@@ -768,6 +768,7 @@ int __update_thread_attribute(args_options_t *popt, LPPROC_THREAD_ATTRIBUTE_LIST
 			GETERRNO(ret);
 			goto fail;
 		}
+		memset(pthreadattr,0,attrsize);
 		bret = InitializeProcThreadAttributeList(pthreadattr, maxattrs, 0, &attrsize);
 		if (!bret) {
 			GETERRNO(ret);
