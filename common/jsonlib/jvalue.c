@@ -898,7 +898,7 @@ int jvalue_compare(const jvalue *value1, const jvalue *value2)
     jentry **entries1 = jobject_entries(value1, &size1);
     unsigned int size2;
     jentry **entries2 = jobject_entries(value2, &size2);
-    if (size1 == size2) {
+    if ( size1 != 0 && size1 == size2) {
       unsigned int i;
       util_qsort(entries1, size1, sizeof(jentry *), jvalue_compar);
       util_qsort(entries2, size2, sizeof(jentry *), jvalue_compar);
