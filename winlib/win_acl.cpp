@@ -1486,9 +1486,12 @@ int __get_acl_action_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char**
         break;
     }
     if (retlen == 0) {
-        if (ppaction && *ppaction) {
+
+
+        //if (ppaction && *ppaction) {
+        /*because default has set ,so we should set this ok*/
             **ppaction = '\0';
-        }
+        //}
     }
     return retlen;
 fail:
