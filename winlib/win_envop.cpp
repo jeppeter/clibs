@@ -90,9 +90,10 @@ int get_env_variable(char* envvar, char** ppenvval, int* pvalsize)
     }
     *ppenvval = pretval;
     *pvalsize = retsize;
-    if (penv) {
-        free(penv);
-    }
+    //if (penv) {
+    /*because penv != NULL will here*/
+    free(penv);
+    //}
     penv = NULL;
 
     return vallen;
