@@ -499,7 +499,17 @@ int __init_output_cfg(poutput_debug_cfg_t pcfg)
     st_output_cnt = tmpcnt;
     return 0;
 fail:
+    if (hd != NULL) {
+        CloseHandle(hd);
+    }
+    hd = NULL;
     if (phds) {
+        for (i=0;i<tmpcnt;i++) {
+            if (phds[i] != NULL) {
+                CloseHandle(phds[i]);
+            }
+            phds[i] = NULL;
+        }
         free(phds);
     }
     phds = NULL;
