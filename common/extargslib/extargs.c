@@ -4209,11 +4209,11 @@ int parse_param_smart_ex(int argc, char* argv[], popt_cmd_t pmaincmd, void* popt
     int validx;
     int step;
 
+    init_parse_state(&state);
     if (ppextstate == NULL || *ppextstate != NULL) {
         ret = -EXTARGS_INVAL_PARAM;
         goto fail;
     }
-    init_parse_state(&state);
     extargs_log_init();
 
     ret = init_extargs_inner_state(argc, argv, pmaincmd, pargoptions);
