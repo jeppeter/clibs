@@ -2703,9 +2703,10 @@ int get_name_sid(const char* name, char** ppsid, int *psize)
     __get_sid_from_name(NULL, &psid, &sidsize);
 
     if (retlen == 0) {
-        if (ppsid && *ppsid) {
+        //if (ppsid && *ppsid) {
+            /*ppsid != NULL becase TcharToAnsi(ptsid, ppsid, psize);*/
             **ppsid = '\0';
-        }
+        //}
     }
     SETERRNO(0);
     return retlen;
