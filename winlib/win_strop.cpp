@@ -100,9 +100,10 @@ try_again:
 
     return nret;
 fail:
-    if (pRetBuf && pRetBuf != *ppbuf) {
+    /*if (pRetBuf && pRetBuf != *ppbuf) {
         free(pRetBuf);
-    }
+    }*/
+    /*because fail go here for pRetBuf == NULL ,so not free the buffer*/
     pRetBuf = NULL;
     retsize = 0;
     SETERRNO(-ret);
