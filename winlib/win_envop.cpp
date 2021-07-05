@@ -568,9 +568,8 @@ get_wholeagain:
 
     return cpylen;
 fail:
-    if (pretpath) {
-        free(pretpath);
-    }
+    /*we can not get pretpath != NULL && pretpath != *ppath ,so not 
+      free(pretpath)*/
     pretpath = NULL;
     retsize = 0;
 
