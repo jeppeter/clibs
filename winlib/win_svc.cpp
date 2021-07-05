@@ -1278,9 +1278,10 @@ int __create_svc_inner(const char* name, const char* desc, const char* binpath, 
 
     return 0;
 fail:
-    if (hservice) {
-        CloseHandle(hservice);
-    }
+    /*no hservice close*/
+    //if (hservice) {
+    //    CloseHandle(hservice);
+    //}
     hservice = NULL;
 
     AnsiToTchar(NULL, &ptname, &tnamesize);
