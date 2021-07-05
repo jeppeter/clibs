@@ -1273,9 +1273,7 @@ int __create_svc_inner(const char* name, const char* desc, const char* binpath, 
     AnsiToTchar(NULL, &ptname, &tnamesize);
     AnsiToTchar(NULL, &ptdesc, &tdescsize);
     AnsiToTchar(NULL, &ptbin, &tbinsize);
-    if (sch != NULL) {
-        CloseHandle(sch);
-    }
+    CloseHandle(sch);
     sch = NULL;
 
     return 0;
