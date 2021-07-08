@@ -301,5 +301,8 @@
     },
     "waitctrlc<waitctrlc_handler>## to wait on the ctrlc handler##" : {
         "$" : 0
+    },
+    "getexe<getexe_handler>## to get exe whole path##" : {
+        "$" : 0
     }
 }

@@ -453,6 +453,7 @@ try_again:
         goto fail;
     }
     retlen = ret;
+    DEBUG_INFO("path %s",*ppath);
     if (ptpath) {
         free(ptpath);
     }

@@ -7,6 +7,7 @@
 #include <win_output_debug.h>
 #include <win_uniansi.h>
 #include <stdio.h>
+#include <time.h>
 
 #pragma warning(pop)
 
@@ -132,6 +133,85 @@ void __file_output(char* pFmtStr)
     return ;
 }
 
+#define  MINI_FMT_SIZE           32
+
+int __inner_time_format(int freed,char** ppfmt,size_t *pfmtsize)
+{
+    char* pretfmt=NULL;
+    size_t retsize=0;
+    int retlen = 0;
+    int ret;
+    size_t sret;
+    struct tm nowtime;
+    __time64_t nowt;
+    if (freed) {
+        if (ppfmt && *ppfmt) {
+            free(*ppfmt);
+            *ppfmt = NULL;
+        }
+        if (pfmtsize) {
+            *pfmtsize = 0;
+        }
+        return 0;
+    }
+    if (ppfmt == NULL || pfmtsize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    retsize = *pfmtsize;
+    pretfmt = *ppfmt;
+
+    if (pretfmt == NULL || retsize < MINI_FMT_SIZE) {
+        if (retsize < MINI_FMT_SIZE) {
+            retsize = MINI_FMT_SIZE;
+        }
+        pretfmt = (char*)malloc(retsize);
+        if (pretfmt == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    memset(pretfmt , 0, retsize);
+
+    _time64(&nowt);
+    ret = _localtime64_s(&nowtime,&nowt);
+    if (ret != 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+try_again:
+    sret = strftime(pretfmt,retsize-1,"%Y-%m-%d %H:%M:%S",&nowtime);
+    if (sret == 0) {
+        retsize <<= 1;
+        if (pretfmt && pretfmt != *ppfmt) {
+            free(pretfmt);
+        }
+        pretfmt = NULL;
+        pretfmt = (char*)malloc(retsize);
+        if (pretfmt == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        goto try_again;
+    }
+    retlen = (int)sret;
+
+    if (*ppfmt && *ppfmt != pretfmt) {
+        free(*ppfmt);
+    }
+    *ppfmt = pretfmt;
+    *pfmtsize = retsize;
+    return retlen;
+fail:
+    /*no pretfmt here*/
+    pretfmt = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
 void __inner_output_console(int loglvl, const char* file, int lineno, const char* fmt,va_list ap,output_func_t outfunc)
 {
     char* pFmt = NULL;
@@ -140,12 +220,20 @@ void __inner_output_console(int loglvl, const char* file, int lineno, const char
     va_list oldap;
     size_t alloclen = 1024;
     int ret;
+    char* fmttime=NULL;
+    size_t timesize=0;
 
     if (loglvl > st_output_loglvl) {
         /*nothing to output*/
         return;
     }
     va_copy(oldap,ap);
+
+    ret = __inner_time_format(0,&fmttime,&timesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
 
 try_again:
     va_copy(ap,oldap);
@@ -175,7 +263,7 @@ try_again:
     memset(pLine, 0, alloclen);
     memset(pWhole, 0, alloclen * 2);
 
-    ret = _snprintf_s(pLine, alloclen, alloclen - 1, "%s:%d:time(0x%08x)\t", file, lineno, (unsigned int)GetTickCount());
+    ret = _snprintf_s(pLine, alloclen, alloclen - 1, "%s:%d:time(0x%08x):%s\t", file, lineno, (unsigned int)GetTickCount(),fmttime);
     if (ret < 0 || ret >= (int)(alloclen - 1)) {
         alloclen <<= 1;
         goto try_again;
@@ -211,7 +299,7 @@ out:
         free(pWhole);
     }
     pWhole = NULL;
-
+    __inner_time_format(1,&fmttime,&timesize);
     return ;    
 }
 
@@ -258,6 +346,8 @@ do {\
     formedlen = 0;\
 } while(0)
 
+
+
 void __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, va_list ap, output_func_t outfunc)
 {
     size_t fmtlen = 2000;
@@ -265,6 +355,8 @@ void __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char*
     int formedlen;
     int ret;
     int i;
+    char* fmttime=NULL;
+    size_t timesize=0;
 
     if (loglvl > st_output_loglvl) {
         return;
@@ -274,7 +366,13 @@ void __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char*
     pCur = pLine;
     formedlen = 0;
 
-    FORMAT_SNPRINTF("[%s:%d:time(0x%llx)]\tbuffer %p (%d)", file, lineno, GetTickCount64(), pBuffer, buflen);
+    ret = __inner_time_format(0,&fmttime,&timesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    FORMAT_SNPRINTF("[%s:%d:time(0x%llx):%s]\tbuffer %p (%d)", file, lineno, GetTickCount64(),fmttime, pBuffer, buflen);
     if (fmt) {
         ret = _vsnprintf_s(pCur, (size_t)(fmtlen - formedlen), (size_t)(formedlen - formedlen - 1), fmt, ap);
         if (ret < 0 || ret >= ((int)(fmtlen - formedlen - 1))) {
@@ -336,6 +434,7 @@ void __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char*
     }
 
 out:
+    __inner_time_format(1,&fmttime,&timesize);
     delete [] pLine;
     pLine = NULL;
     return ;
