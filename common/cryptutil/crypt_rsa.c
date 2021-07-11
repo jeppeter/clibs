@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#if 0
+#if 1
 #define RSA_DEBUG(...)
 #define RSA_ERROR(...)   do { if(printfunc != NULL) { printfunc(__VA_ARGS__); printfunc("\n");}} while(0)
 #else
@@ -93,13 +93,14 @@ int get_hex_val(unsigned char ch)
     return val;
 }
 
-int hex_str_buffer(const char* hexstr,uint8_t *pbuf,uint32_t buflen)
+int hex_str_buffer(const char* hexstr,uint8_t *pbuf,uint32_t buflen,printf_func_t printfunc)
 {
     uint32_t i,j;
     uint32_t len=(uint32_t) strlen(hexstr);
 
     if (len > (buflen*2))
     {
+        RSA_ERROR("len [%d][%s] buflen[%d]", len, hexstr,buflen);
         return -1;
     }
 
@@ -226,7 +227,7 @@ fill_again:
         }
 
         RSA_DEBUG(" ");
-        ret = hex_str_buffer(mpz_get_str(expbuf,16,c),ppcipherptr,blocksize);
+        ret = hex_str_buffer(mpz_get_str(expbuf,16,c),ppcipherptr,blocksize,printfunc);
         if (ret < 0)
         {
             RSA_ERROR(" ");
@@ -338,7 +339,7 @@ int __rsa_decrypt(char* message,int messlen, char* cipher, int length,rsa_contex
 
         block_decrypt(m,c,prsa, printfunc);
         RSA_DEBUG(" ");
-        ret = hex_str_buffer(mpz_get_str(expbuf,16,m),(uint8_t*)filledbuf,blocksize);
+        ret = hex_str_buffer(mpz_get_str(expbuf,16,m),(uint8_t*)filledbuf,blocksize,printfunc);
         if (ret < 0)
         {
             goto fail;
@@ -488,7 +489,7 @@ fill_again:
             goto fail;
         }
 
-        ret = hex_str_buffer(mpz_get_str(expbuf,16,c),pcursignedmess,blocksize);
+        ret = hex_str_buffer(mpz_get_str(expbuf,16,c),pcursignedmess,blocksize,printfunc);
         if (ret < 0)
         {
             goto fail;
@@ -583,7 +584,7 @@ int __rsa_verify(unsigned char * verimess,int verilen,unsigned char * mess,int m
         mpz_import(c,blocksize,1,sizeof(char),0,0,pcurmess);
 
         block_encrypt(m,c,prsa);
-        ret = hex_str_buffer(mpz_get_str(expbuf,16,m),(uint8_t*)filledbuf,blocksize);
+        ret = hex_str_buffer(mpz_get_str(expbuf,16,m),(uint8_t*)filledbuf,blocksize,printfunc);
         if (ret < 0)
         {
             goto fail;

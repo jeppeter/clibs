@@ -137,7 +137,7 @@ int rsaenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     init_log_level(pargs);
     GET_OPT_INT(bitsize,"bitsize");
-    ret = rsa_init_nums(&ctx,bitsize,pargs->m_rsan,pargs->m_rsae,pargs->m_rsad,16);
+    ret = rsa_init_nums(&ctx,bitsize,pargs->m_rsan,pargs->m_rsae,NULL,16);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not init rsa");
@@ -152,7 +152,7 @@ int rsaenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     inlen = ret;
     blksize = bitsize / 8;
 
-    outsize= ((inlen + blksize - 1) / blksize ) * blksize;
+    outsize= ((inlen + blksize - 1) / blksize ) * blksize * 2;
     pout = (char*) malloc((size_t)outsize);
     if (pout == NULL) {
         GETERRNO(ret);
@@ -248,4 +248,5 @@ out:
     read_file_whole_stdin(1,NULL,&pout,&outsize);
     rsa_free(&ctx);
     SETERRNO(ret);
-    return ret;}
+    return ret;
+}
