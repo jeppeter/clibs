@@ -209,6 +209,8 @@ int sendctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int waitctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int rsaenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int rsadec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int rsaverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0

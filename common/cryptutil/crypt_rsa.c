@@ -432,12 +432,14 @@ int __rsa_sign(unsigned char* signedmess ,int signedlen,unsigned char *mess,int 
     expbuf = malloc(blocksize* 4);
     if (expbuf == NULL)
     {
+        RSA_ERROR(" ");
         goto fail;
     }
 
     filledbuf = malloc(blocksize*4);
     if (filledbuf == NULL)
     {
+        RSA_ERROR(" ");
         goto fail;
     }
 
@@ -486,12 +488,14 @@ fill_again:
         block_decrypt(c,m,prsa, printfunc);
         if (leftsignedmess < blocksize)
         {
+            RSA_ERROR(" ");
             goto fail;
         }
 
         ret = hex_str_buffer(mpz_get_str(expbuf,16,c),pcursignedmess,blocksize,printfunc);
         if (ret < 0)
         {
+            RSA_ERROR(" ");
             goto fail;
         }
 

@@ -4467,9 +4467,10 @@ next_cycle:
         free(psubcmdname);
     }
     psubcmdname = NULL;
-    EXTARGS_DEBUG(" ");
+    EXTARGS_DEBUG("pcurcmd [%p] name [%s]", pcurcmd, pcurcmd ? pcurcmd->m_cmd : "NULL");
     deinitialize_state(&state);
     if (pcurcmd && pcurcmd->m_cmdfunc) {
+
         ret = pcurcmd->m_cmdfunc(argc, argv, pextstate, popt);
         if (ret < 0) {
             ret = -EXTARGS_INVAL_RETURN;

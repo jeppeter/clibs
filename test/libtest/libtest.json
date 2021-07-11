@@ -314,5 +314,12 @@
     },
     "rsadec<rsadec_handler>##[bitsize]  to encrypt content from input and write to output default bitsize 2048##" : {
         "$" : "?"
+    },
+    "rsaverify<rsaverify_handler>##[bitsize]  to verify content from input and write to output default bitsize 2048##" : {
+        "$" : "?"
+    },
+    "rsasign<rsasign_handler>##[bitsize]  to verify content from input and write to output default bitsize 2048##" : {
+        "$" : "?"
     }
+
 }

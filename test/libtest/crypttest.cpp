@@ -204,7 +204,7 @@ int rsadec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     init_log_level(pargs);
     GET_OPT_INT(bitsize,"bitsize");
-    ret = rsa_init_nums(&ctx,bitsize,pargs->m_rsan,pargs->m_rsae,pargs->m_rsad,16);
+    ret = rsa_init_nums(&ctx,bitsize,pargs->m_rsan,NULL,pargs->m_rsad,16);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not init rsa");
@@ -226,6 +226,143 @@ int rsadec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
 
     ret = rsa_decrypt((unsigned char*)pout,outsize,(unsigned char*)pin,inlen,&ctx,printf);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    outlen = ret;
+    DEBUG_BUFFER_FMT(pin,inlen,"input len");
+    DEBUG_BUFFER_FMT(pout,outlen,"output len");
+    ret = write_file_whole_stdout(pargs->m_output,pout,outlen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    if (pout) {
+        free(pout);
+    }
+    pout = NULL;
+    read_file_whole_stdin(1,NULL,&pout,&outsize);
+    rsa_free(&ctx);
+    SETERRNO(ret);
+    return ret;
+}
+
+int rsaverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret=0;
+    char* pin=NULL;
+    int insize=0;
+    int inlen=0;
+    char* pout=NULL;
+    int outsize=0;
+    int outlen=0;
+    rsa_context ctx = {0};
+    int bitsize=2048;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int idx=0;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+
+    init_log_level(pargs);
+    GET_OPT_INT(bitsize,"bitsize");
+    ret = rsa_init_nums(&ctx,bitsize,pargs->m_rsan,pargs->m_rsae,NULL,16);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not init rsa");
+        goto out;
+    }
+
+    ret = read_file_whole_stdin(0,pargs->m_input,&pin,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    inlen = ret;
+
+    outsize= inlen;
+    pout = (char*) malloc((size_t)outsize);
+    if (pout == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = rsa_verify((unsigned char*)pout,outsize,(unsigned char*)pin,inlen,&ctx,printf);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("verify [%s] error[%s]", pargs->m_input ? pargs->m_input : "stdin", ret);
+        goto out;
+    }
+    outlen = ret;
+    DEBUG_BUFFER_FMT(pin,inlen,"input len");
+    DEBUG_BUFFER_FMT(pout,outlen,"output len");
+    ret = write_file_whole_stdout(pargs->m_output,pout,outlen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    if (pout) {
+        free(pout);
+    }
+    pout = NULL;
+    read_file_whole_stdin(1,NULL,&pout,&outsize);
+    rsa_free(&ctx);
+    SETERRNO(ret);
+    return ret;
+}
+
+int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret=0;
+    char* pin=NULL;
+    int insize=0;
+    int inlen=0;
+    char* pout=NULL;
+    int outsize=0;
+    int outlen=0;
+    rsa_context ctx = {0};
+    int bitsize=2048;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int idx=0;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+
+    init_log_level(pargs);
+    ERROR_INFO(" ");
+    GET_OPT_INT(bitsize,"bitsize");
+    ret = rsa_init_nums(&ctx,bitsize,pargs->m_rsan,NULL,pargs->m_rsad,16);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not init rsa");
+        goto out;
+    }
+
+    ERROR_INFO(" ");
+    ret = read_file_whole_stdin(0,pargs->m_input,&pin,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    inlen = ret;
+    ERROR_INFO(" ");
+
+    outsize= inlen*2;
+    pout = (char*) malloc((size_t)outsize);
+    if (pout == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ERROR_INFO(" ");
+    ret = rsa_sign((unsigned char*)pout,outsize,(unsigned char*)pin,inlen,&ctx,printf);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
