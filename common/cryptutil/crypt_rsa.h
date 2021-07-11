@@ -154,7 +154,7 @@ int rsa_init_nums(rsa_context* ctx,int bitsize,char* nstr,char* estr,
 
 int rsa_init_func(rsa_context* ctx,randfunc_t randfunc,void* arg);
 
-int rsa_encrypt(unsigned char cipher[],int cipherlen,unsigned char message[], int messlen, rsa_context* prsa,printf_func_t printfunc);
+int rsa_encrypt(unsigned char* cipher,int cipherlen,unsigned char* message, int messlen, rsa_context* prsa,printf_func_t printfunc);
 int rsa_decrypt(unsigned char* message,int messlen,unsigned char* cipher, int cipherlen, rsa_context* prsa,printf_func_t printfunc);
 int rsa_sign(unsigned char* signedmess ,int signedlen,unsigned char *mess,int messlen,rsa_context* prsa,printf_func_t printfunc);
 int rsa_verify(unsigned char* verimess ,int verilen,unsigned char *mess,int messlen,rsa_context* prsa,printf_func_t printfunc);

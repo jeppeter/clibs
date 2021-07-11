@@ -140,7 +140,7 @@ void block_encrypt(mpz_t C, mpz_t M, rsa_context* rsa)
 }
 
 
-int __rsa_encrypt(char cipher[],int cipherlen, char message[], int length, rsa_context* rsa,int blocksize,printf_func_t printfunc)
+int __rsa_encrypt(char* cipher,int cipherlen, char* message, int length, rsa_context* rsa,int blocksize,printf_func_t printfunc)
 {
     char *expbuf=NULL;
     char *filledbuf=NULL;
@@ -274,7 +274,7 @@ fail:
 }
 
 
-int rsa_encrypt(unsigned char cipher[],int cipherlen,unsigned char message[], int messlen, rsa_context* prsa,printf_func_t printfunc)
+int rsa_encrypt(unsigned char* cipher,int cipherlen,unsigned char* message, int messlen, rsa_context* prsa,printf_func_t printfunc)
 {
     return __rsa_encrypt((char*)cipher,cipherlen,(char*)message,messlen,prsa,(prsa->len >> 3), printfunc);
 }

@@ -116,3 +116,136 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int rsaenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret=0;
+    char* pin=NULL;
+    int insize=0;
+    int inlen=0;
+    char* pout=NULL;
+    int outsize=0;
+    int outlen=0;
+    rsa_context ctx = {0};
+    int bitsize=2048;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int idx=0;
+    int blksize=0;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+
+    init_log_level(pargs);
+    GET_OPT_INT(bitsize,"bitsize");
+    ret = rsa_init_nums(&ctx,bitsize,pargs->m_rsan,pargs->m_rsae,pargs->m_rsad,16);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not init rsa");
+        goto out;
+    }
+
+    ret = read_file_whole_stdin(0,pargs->m_input,&pin,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    inlen = ret;
+    blksize = bitsize / 8;
+
+    outsize= ((inlen + blksize - 1) / blksize ) * blksize;
+    pout = (char*) malloc((size_t)outsize);
+    if (pout == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = rsa_encrypt((unsigned char*)pout,outsize,(unsigned char*)pin,inlen,&ctx,printf);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    outlen = ret;
+    DEBUG_BUFFER_FMT(pin,inlen,"input len");
+    DEBUG_BUFFER_FMT(pout,outlen,"output len");
+    ret = write_file_whole_stdout(pargs->m_output,pout,outlen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    if (pout) {
+        free(pout);
+    }
+    pout = NULL;
+    read_file_whole_stdin(1,NULL,&pout,&outsize);
+    rsa_free(&ctx);
+    SETERRNO(ret);
+    return ret;
+}
+
+int rsadec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret=0;
+    char* pin=NULL;
+    int insize=0;
+    int inlen=0;
+    char* pout=NULL;
+    int outsize=0;
+    int outlen=0;
+    rsa_context ctx = {0};
+    int bitsize=2048;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int idx=0;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+
+    init_log_level(pargs);
+    GET_OPT_INT(bitsize,"bitsize");
+    ret = rsa_init_nums(&ctx,bitsize,pargs->m_rsan,pargs->m_rsae,pargs->m_rsad,16);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not init rsa");
+        goto out;
+    }
+
+    ret = read_file_whole_stdin(0,pargs->m_input,&pin,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    inlen = ret;
+
+    outsize= inlen;
+    pout = (char*) malloc((size_t)outsize);
+    if (pout == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = rsa_decrypt((unsigned char*)pout,outsize,(unsigned char*)pin,inlen,&ctx,printf);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    outlen = ret;
+    DEBUG_BUFFER_FMT(pin,inlen,"input len");
+    DEBUG_BUFFER_FMT(pout,outlen,"output len");
+    ret = write_file_whole_stdout(pargs->m_output,pout,outlen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    if (pout) {
+        free(pout);
+    }
+    pout = NULL;
+    read_file_whole_stdin(1,NULL,&pout,&outsize);
+    rsa_free(&ctx);
+    SETERRNO(ret);
+    return ret;}

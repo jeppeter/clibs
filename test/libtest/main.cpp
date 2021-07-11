@@ -45,6 +45,7 @@
 
 #include <jvalue.h>
 #include <crypt_md5.h>
+#include <crypt_rsa.h>
 
 #include <proto_api.h>
 #include <proto_win.h>
@@ -70,6 +71,7 @@
 
 
 #define  MIN_SID_SIZE          32
+#define  MINI_BUFFER_SIZE      256
 
 typedef struct __args_options {
     char* m_classname;
@@ -77,6 +79,10 @@ typedef struct __args_options {
     char* m_output;
     char* m_errout;
     char* m_pipename;
+    char* m_rsan;
+    char* m_rsae;
+    char* m_rsad;
+    char* m_aeskey;
     int m_verbose;
     int m_timeout;
     int m_bufsize;
@@ -201,6 +207,8 @@ int existproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int waitexit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sendctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int waitctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int rsaenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int rsadec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -255,6 +263,118 @@ int init_log_level(pargs_options_t pargs)
     return INIT_LOG(loglvl);
 }
 
+int read_file_whole_stdin(int freed, char* fname, char** ppout, int* psize)
+{
+    int ret = 0;
+    size_t rets;
+    int retlen = 0;
+    size_t retsize = 0;
+    char* pretout = NULL;
+    char* ptmpbuf = NULL;
+    if (freed) {
+        if (ppout && *ppout) {
+            free(*ppout);
+            *ppout = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (ppout == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (fname != NULL) {
+        return read_file_whole(fname, ppout, psize);
+    }
+
+    pretout = *ppout;
+    retsize = (size_t)(*psize);
+
+    if (pretout == NULL || retsize < MINI_BUFFER_SIZE) {
+        if (retsize < MINI_BUFFER_SIZE) {
+            retsize = MINI_BUFFER_SIZE;
+        }
+        pretout = (char*) malloc(retsize);
+        if (pretout == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    memset(pretout, 0, retsize);
+    while (1) {
+        rets = fread(&(pretout[retlen]), 1, (size_t)(retsize - retlen), stdin);
+        if (rets == 0) {
+            if (feof(stdin)) {
+                break;
+            }
+
+            if (ferror(stdin)) {
+                GETERRNO(ret);
+                ERROR_INFO("read stdin [%d] error[%d]", retlen, ret);
+                goto fail;
+            }
+        }
+        retlen += (int)rets;
+        if (retlen >= (int)retsize) {
+            retsize <<= 1;
+            ptmpbuf = (char*) malloc(retsize);
+            if (ptmpbuf == NULL) {
+                GETERRNO(ret);
+                goto fail;
+            }
+
+            memset(ptmpbuf, 0, retsize);
+            if (retlen > 0) {
+                memcpy(ptmpbuf, pretout, (size_t)retlen);
+            }
+            if (pretout && pretout != *ppout) {
+                free(pretout);
+            }
+            pretout = ptmpbuf;
+            ptmpbuf = NULL;
+        }
+    }
+
+    if (*ppout && *ppout != pretout) {
+        free(*ppout);
+    }
+    *ppout = pretout;
+    *psize = (int)retsize;
+    return retlen;
+fail:
+    if (pretout && pretout != *ppout) {
+        free(pretout);
+    }
+    pretout = NULL;
+    retsize = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+int write_file_whole_stdout(char* fname, char* pout, int outlen)
+{
+    int ret;
+    size_t rets;
+    if (fname) {
+        return write_file_whole(fname, pout, outlen);
+    }
+
+    rets = fwrite(pout,(size_t)outlen, 1, stdout);
+    if (rets != 1) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    return outlen;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
 
 int readencode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -317,7 +437,7 @@ BOOL WINAPI HandlerConsoleRoutine(DWORD dwCtrlType)
     return bret;
 }
 
-static int st_run=1;
+static int st_run = 1;
 
 BOOL WINAPI HandlerConsoleRunOk(DWORD dwCtrlType)
 {

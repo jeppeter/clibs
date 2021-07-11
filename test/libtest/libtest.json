@@ -8,6 +8,10 @@
     "pipename|P<m_pipename>" : "\\\\.\\pipe\\tstsvr_pipe",
     "hidewindow|H<m_hidewindow>" : false,
     "privenable|E<m_privenable>" : false,
+    "rsae<m_rsae>" : null,
+    "rsan<m_rsan>" : null,
+    "rsad<m_rsad>" : null,
+    "aeskey<m_aeskey>" : null,
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },
@@ -304,5 +308,11 @@
     },
     "getexe<getexe_handler>## to get exe whole path##" : {
         "$" : 0
+    },
+    "rsaenc<rsaenc_handler>##[bitsize]  to encrypt content from input and write to output default bitsize 2048##" : {
+        "$" : "?"
+    },
+    "rsadec<rsadec_handler>##[bitsize]  to encrypt content from input and write to output default bitsize 2048##" : {
+        "$" : "?"
     }
 }
