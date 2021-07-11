@@ -17,8 +17,8 @@ TARGET=cryptutil
 STATICLIB_FILE = $(TARGET).lib
 SHAREDLIB_FILE = $(TARGET).dll
 
-HEADERS = crypt_md5.h
-SOURCES = crypt_md5.c
+HEADERS = crypt_md5.h crypt_aes.h
+SOURCES = crypt_md5.c crypt_aes.c
 OBJECTS = $(SOURCES:.c=.obj)
 
 !IFDEF UNICODE_MODE
@@ -74,7 +74,7 @@ CFLAGS  = $(UNICODE_CFLAGS) $(NOLOGO_CFLAGS) $(INC_CFLAGS) $(COM_CFLAGS) $(REL_C
 LDFLAGS = $(REL_LDFLAGS)
 ARFLAGS = /NOLOGO /WX
 
-LIB_SOURCE = crypt_md5.c
+LIB_SOURCE = crypt_md5.c crypt_aes.c
 LIB_OBJECTS = $(LIB_SOURCE:.c=.obj)
 OBJECTS = $(LIB_OBJECTS)
 
