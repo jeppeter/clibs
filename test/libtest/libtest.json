@@ -327,6 +327,9 @@
     },
     "aesdec<aesdec_handler>## to encrypt content from input and write to output##" : {
         "$" : 0
+    },
+    "sha256sum<sha256sum_handler>## files ... to make sha256 sum for files ...##" : {
+        "$" : "*"
     }
 
 }

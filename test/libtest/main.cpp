@@ -47,6 +47,7 @@
 #include <crypt_md5.h>
 #include <crypt_rsa.h>
 #include <crypt_aes.h>
+#include <crypt_sha256.h>
 
 #include <proto_api.h>
 #include <proto_win.h>
@@ -215,6 +216,7 @@ int rsaverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int aesenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int aesdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int sha256sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
