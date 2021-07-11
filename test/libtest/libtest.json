@@ -12,6 +12,7 @@
     "rsan<m_rsan>" : null,
     "rsad<m_rsad>" : null,
     "aeskey<m_aeskey>" : null,
+    "aesiv<m_aesiv>" : null,
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },
@@ -320,6 +321,12 @@
     },
     "rsasign<rsasign_handler>##[bitsize]  to verify content from input and write to output default bitsize 2048##" : {
         "$" : "?"
+    },
+    "aesenc<aesenc_handler>## to encrypt content from input and write to output##" : {
+        "$" : 0
+    },
+    "aesdec<aesdec_handler>## to encrypt content from input and write to output##" : {
+        "$" : 0
     }
 
 }

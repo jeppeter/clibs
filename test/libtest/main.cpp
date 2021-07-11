@@ -46,6 +46,7 @@
 #include <jvalue.h>
 #include <crypt_md5.h>
 #include <crypt_rsa.h>
+#include <crypt_aes.h>
 
 #include <proto_api.h>
 #include <proto_win.h>
@@ -83,6 +84,7 @@ typedef struct __args_options {
     char* m_rsae;
     char* m_rsad;
     char* m_aeskey;
+    char* m_aesiv;
     int m_verbose;
     int m_timeout;
     int m_bufsize;
@@ -211,6 +213,8 @@ int rsaenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int rsadec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int rsaverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int aesenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int aesdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -264,6 +268,25 @@ int init_log_level(pargs_options_t pargs)
     //fprintf(stdout, "verbose [%d]\n", pargs->m_verbose);
     return INIT_LOG(loglvl);
 }
+
+int parse_get_hex_val(unsigned char ch)
+{
+    int val=0;
+    if (ch >= '0' && ch<='9')
+    {
+        val = ch - '0';
+    }
+    else if (ch >= 'a' && ch<='f')
+    {
+        val = ch - 'a' + 10;
+    }
+    else if (ch >= 'A' && ch<='F')
+    {
+        val = ch - 'A' + 10;
+    }
+    return val;
+}
+
 
 int read_file_whole_stdin(int freed, char* fname, char** ppout, int* psize)
 {

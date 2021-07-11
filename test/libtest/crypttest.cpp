@@ -387,3 +387,275 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int get_value_hex_string(const char* str, uint8_t**ppval,int *psize)
+{
+    int retlen=0;
+    int ret;
+    uint8_t* pretval = NULL;
+    int retsize=0;
+    int codelen=0;
+    int i=0,j;
+    if (str == NULL) {
+        if (ppval && *ppval) {
+            free(*ppval);
+            *ppval = NULL;
+        }
+
+        if (psize) {
+            *psize= 0;
+        }
+        return 0;
+    }
+    
+    if (ppval == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretval = *ppval;
+    retsize = *psize;
+
+    codelen = (int) strlen(str);
+    retlen = ((codelen + 1) / 2 );
+    i = 0;
+    j = 0;
+
+    if (retsize < retlen || pretval == NULL) {
+        if (retsize < retlen) {
+            retsize = retlen;
+        }
+        pretval = (uint8_t*)malloc((size_t)retsize);
+        if (pretval == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    if (retlen*2 !=  codelen) {
+        pretval[j] = (uint8_t)parse_get_hex_val((uint8_t)str[i]);
+        j ++;
+        i ++;
+    }
+
+    while(i < codelen) {
+        pretval[j] = (uint8_t)((parse_get_hex_val((uint8_t)str[i]) << 4) | (parse_get_hex_val((uint8_t)str[i+1])));
+        i += 2;
+        j ++;
+    }
+
+    if (*ppval && *ppval != pretval) {
+        free(*ppval);
+    }
+    *ppval = pretval;
+    *psize = retsize;
+
+    return retlen;
+fail:
+    if (pretval && pretval != *ppval) {
+        free(pretval);
+    }
+    pretval = NULL;
+    retsize = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+int aesenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret=0;
+    char* pin=NULL;
+    int insize=0;
+    int inlen=0;
+    char* pout=NULL;
+    int outsize=0;
+    int outlen=0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    uint8_t* aeskey=NULL,*aesiv=NULL;
+    int keysize=0,ivsize=0;
+    int keylen=0,ivlen=0;
+    AES_ctx ctx = {0};
+    int leftlen = 0;
+    int i;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(parsestate);
+
+    init_log_level(pargs);
+
+    ret = get_value_hex_string(pargs->m_aeskey,&aeskey,&keysize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    keylen = ret;
+
+    ret = get_value_hex_string(pargs->m_aesiv,&aesiv,&ivsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    ivlen = ret;
+    if (ivlen != AES_BLOCKLEN || keylen != AES_KEYLEN) {
+        ERROR_INFO("ivlen [%d] != [%d] or keylen [%d] != [%d]",
+                ivlen,AES_BLOCKLEN,keylen,AES_KEYLEN);
+        ret = -ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+
+    ret = read_file_whole_stdin(0,pargs->m_input,&pin,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    inlen = ret;
+
+    outsize= inlen*2;
+    outlen = inlen;
+    outlen = ((outlen + AES_BLOCKLEN- 1) / AES_BLOCKLEN) * AES_BLOCKLEN;
+    if (outlen > outsize) {
+        outsize = outlen;
+    }
+    pout = (char*) malloc((size_t)outsize);
+    if (pout == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    memset(pout,0,(size_t)outsize);
+    memcpy(pout,pin,(size_t)inlen);
+
+    leftlen = (outlen - inlen);
+    ERROR_INFO("leftlen [%d] outlen [%d] inlen[%d]", leftlen,outlen,inlen);
+    if (leftlen > 0) {
+        for (i=inlen;i<outlen;i++) {
+            pout[i] = (char) leftlen;
+        }
+    }
+
+    AES_init_ctx_iv(&ctx,aeskey,aesiv);
+    AES_CBC_encrypt_buffer(&ctx,(uint8_t*)pout,(size_t)outlen);
+
+    ret = write_file_whole_stdout(pargs->m_output,pout,outlen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    if (pout) {
+        free(pout);
+    }
+    pout = NULL;
+    read_file_whole_stdin(1,NULL,&pout,&outsize);
+    get_value_hex_string(NULL,&aeskey,&keysize);
+    get_value_hex_string(NULL,&aesiv,&ivsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int aesdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret=0;
+    char* pin=NULL;
+    int insize=0;
+    int inlen=0;
+    char* pout=NULL;
+    int outsize=0;
+    int outlen=0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    uint8_t* aeskey=NULL,*aesiv=NULL;
+    int keysize=0,ivsize=0;
+    int keylen=0,ivlen=0;
+    AES_ctx ctx = {0};
+    int leftlen = 0;
+    int valid = 0;
+    int i;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(parsestate);
+
+    init_log_level(pargs);
+
+    ret = get_value_hex_string(pargs->m_aeskey,&aeskey,&keysize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    keylen = ret;
+
+    ret = get_value_hex_string(pargs->m_aesiv,&aesiv,&ivsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    ivlen = ret;
+
+    if (ivlen != AES_BLOCKLEN || keylen != AES_KEYLEN) {
+        ERROR_INFO("ivlen [%d] != [%d] or keylen [%d] != [%d]",
+                ivlen,AES_BLOCKLEN,keylen,AES_KEYLEN);
+        ret = -ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+
+    ret = read_file_whole_stdin(0,pargs->m_input,&pin,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    inlen = ret;
+
+    if (inlen % AES_BLOCKLEN) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("inlen [%d] not align [%d]", inlen,AES_BLOCKLEN);
+        goto out;
+    }
+
+    outsize= inlen;
+    pout = (char*) malloc((size_t)outsize);
+    if (pout == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memcpy(pout,pin,(size_t)inlen);
+    outlen = inlen;
+
+    AES_init_ctx_iv(&ctx,aeskey,aesiv);
+    AES_CBC_decrypt_buffer(&ctx,(uint8_t*)pout,(size_t)outlen);
+    leftlen = pout[outlen- 1];
+    if (leftlen < AES_BLOCKLEN) {
+        valid = 1;
+        for (i=0;i<leftlen;i++) {
+            if (pout[outlen - i - 1] != leftlen) {
+                valid = 0;
+                break;
+            }
+        }
+        if (valid) {
+            outlen -= leftlen;
+        }
+    }
+    ERROR_INFO("leftlen [%d] inlen [%d] outlen[%d]", leftlen,inlen,outlen);
+
+
+    ret = write_file_whole_stdout(pargs->m_output,pout,outlen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    if (pout) {
+        free(pout);
+    }
+    pout = NULL;
+    read_file_whole_stdin(1,NULL,&pout,&outsize);
+    get_value_hex_string(NULL,&aeskey,&keysize);
+    get_value_hex_string(NULL,&aesiv,&ivsize);
+    SETERRNO(ret);
+    return ret;
+}
