@@ -1,6 +1,7 @@
 #ifndef __CRYPT_RSA_H__
 #define __CRYPT_RSA_H__
 
+#include <cmn_err.h>
 #include <crypt_mpn.h>
 
 /*
@@ -133,7 +134,7 @@ extern "C" {
  * \note           Currently, RSA_PKCS_V21 padding
  *                 is not supported.
  */
-void rsa_init( rsa_context *ctx,
+WINLIB_API void rsa_init( rsa_context *ctx,
                int padding,
                int hash_id);
 
@@ -149,15 +150,15 @@ void rsa_init( rsa_context *ctx,
  * \param radix  for radix as the string will convert
  *
  */
-int rsa_init_nums(rsa_context* ctx,int bitsize,char* nstr,char* estr,
+WINLIB_API int rsa_init_nums(rsa_context* ctx,int bitsize,char* nstr,char* estr,
                   char* dstr,int radix);
 
-int rsa_init_func(rsa_context* ctx,randfunc_t randfunc,void* arg);
+WINLIB_API int rsa_init_func(rsa_context* ctx,randfunc_t randfunc,void* arg);
 
-int rsa_encrypt(unsigned char* cipher,int cipherlen,unsigned char* message, int messlen, rsa_context* prsa,printf_func_t printfunc);
-int rsa_decrypt(unsigned char* message,int messlen,unsigned char* cipher, int cipherlen, rsa_context* prsa,printf_func_t printfunc);
-int rsa_sign(unsigned char* signedmess ,int signedlen,unsigned char *mess,int messlen,rsa_context* prsa,printf_func_t printfunc);
-int rsa_verify(unsigned char* verimess ,int verilen,unsigned char *mess,int messlen,rsa_context* prsa,printf_func_t printfunc);
+WINLIB_API int rsa_encrypt(unsigned char* cipher,int cipherlen,unsigned char* message, int messlen, rsa_context* prsa,printf_func_t printfunc);
+WINLIB_API int rsa_decrypt(unsigned char* message,int messlen,unsigned char* cipher, int cipherlen, rsa_context* prsa,printf_func_t printfunc);
+WINLIB_API int rsa_sign(unsigned char* signedmess ,int signedlen,unsigned char *mess,int messlen,rsa_context* prsa,printf_func_t printfunc);
+WINLIB_API int rsa_verify(unsigned char* verimess ,int verilen,unsigned char *mess,int messlen,rsa_context* prsa,printf_func_t printfunc);
 
 
 
@@ -167,7 +168,7 @@ int rsa_verify(unsigned char* verimess ,int verilen,unsigned char *mess,int mess
  *
  * \param ctx      RSA Context to free
  */
-void rsa_free( rsa_context *ctx );
+WINLIB_API void rsa_free( rsa_context *ctx );
 
 
 #ifdef __cplusplus

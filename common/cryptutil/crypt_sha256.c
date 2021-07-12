@@ -1,5 +1,5 @@
 /*********************************************************************
-* Filename:   crypt_sha256.c
+* Filename:   sha256.c
 * Author:     Brad Conte (brad AT bradconte.com)
 * Copyright:
 * Disclaimer: This code is presented "as is" without any guarantees.
@@ -9,10 +9,12 @@
               offered in this implementation.
               Algorithm specification can be found here:
                * http://csrc.nist.gov/publications/fips/fips180-2/fips180-2withchangenotice.pdf
-              This implementation uses little endian byte order.
+              This implementation uses little endian unsigned char order.
 *********************************************************************/
 
 /*************************** HEADER FILES ***************************/
+#include <stdlib.h>
+#include <memory.h>
 #include <crypt_sha256.h>
 
 /****************************** MACROS ******************************/
@@ -41,7 +43,7 @@ static const unsigned int k[64] = {
 /*********************** FUNCTION DEFINITIONS ***********************/
 void sha256_transform(SHA256_CTX *ctx, const unsigned char* data)
 {
-	int a, b, c, d, e, f, g, h, i, j, t1, t2, m[64];
+	unsigned int a, b, c, d, e, f, g, h, i, j, t1, t2, m[64];
 
 	for (i = 0, j = 0; i < 16; ++i, j += 4)
 		m[i] = (data[j] << 24) | (data[j + 1] << 16) | (data[j + 2] << 8) | (data[j + 3]);
@@ -96,9 +98,9 @@ void sha256_init(SHA256_CTX *ctx)
 
 void sha256_update(SHA256_CTX *ctx, const unsigned char* data, size_t len)
 {
-	int i;
+	unsigned int i;
 
-	for (i = 0; i < (int)len; ++i) {
+	for (i = 0; i < len; ++i) {
 		ctx->data[ctx->datalen] = data[i];
 		ctx->datalen++;
 		if (ctx->datalen == 64) {
@@ -109,25 +111,11 @@ void sha256_update(SHA256_CTX *ctx, const unsigned char* data, size_t len)
 	}
 }
 
-#include <stdlib.h>
-#include <stdio.h>
-
-#define  DEBUG_DATA(ctx)                                                                          \
-do{                                                                                               \
-	int __i;                                                                                      \
-	fprintf(stdout,"[%s:%d]data :",__FILE__,__LINE__);                                            \
-	for (__i=0;__i < 8; __i++) {                                                                  \
-		fprintf(stdout," %02x",ctx->state[__i]);                                                  \
-	}                                                                                             \
-	fprintf(stdout,"\n");                                                                         \
-}while(0)
-
 void sha256_final(SHA256_CTX *ctx, unsigned char* hash)
 {
-	int i;
+	unsigned int i;
 
 	i = ctx->datalen;
-	DEBUG_DATA(ctx);
 
 	// Pad whatever data is left in the buffer.
 	if (ctx->datalen < 56) {
@@ -142,12 +130,10 @@ void sha256_final(SHA256_CTX *ctx, unsigned char* hash)
 		sha256_transform(ctx, ctx->data);
 		memset(ctx->data, 0, 56);
 	}
-	DEBUG_DATA(ctx);
-
 
 	// Append to the padding the total message's length in bits and transform.
 	ctx->bitlen += ctx->datalen * 8;
-	ctx->data[63] = (unsigned char)ctx->bitlen;
+	ctx->data[63] = (unsigned char)(ctx->bitlen);
 	ctx->data[62] = (unsigned char)(ctx->bitlen >> 8);
 	ctx->data[61] = (unsigned char)(ctx->bitlen >> 16);
 	ctx->data[60] = (unsigned char)(ctx->bitlen >> 24);
@@ -157,8 +143,8 @@ void sha256_final(SHA256_CTX *ctx, unsigned char* hash)
 	ctx->data[56] = (unsigned char)(ctx->bitlen >> 56);
 	sha256_transform(ctx, ctx->data);
 
-	// Since this implementation uses little endian byte ordering and SHA uses big endian,
-	// reverse all the bytes when copying the final state to the output hash.
+	// Since this implementation uses little endian unsigned char ordering and SHA uses big endian,
+	// reverse all the unsigned chars when copying the final state to the output hash.
 	for (i = 0; i < 4; ++i) {
 		hash[i]      = (ctx->state[0] >> (24 - i * 8)) & 0x000000ff;
 		hash[i + 4]  = (ctx->state[1] >> (24 - i * 8)) & 0x000000ff;
