@@ -9,8 +9,7 @@
     "hidewindow|H<m_hidewindow>" : false,
     "privenable|E<m_privenable>" : false,
     "rsafile<m_rsafile>" : null,
-    "aeskey<m_aeskey>" : null,
-    "aesiv<m_aesiv>" : null,
+    "aesfile<m_aesfile>" : null,
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },

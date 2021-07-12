@@ -82,8 +82,7 @@ typedef struct __args_options {
     char* m_errout;
     char* m_pipename;
     char* m_rsafile;
-    char* m_aeskey;
-    char* m_aesiv;
+    char* m_aesfile;
     int m_verbose;
     int m_timeout;
     int m_bufsize;
