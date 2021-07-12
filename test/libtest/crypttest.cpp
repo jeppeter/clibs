@@ -218,7 +218,7 @@ do{                                                                             
     }                                                                                             \
 }while(0)
 
-int parse_rsakey_jsonfile(const char* keyfile, char** ppestr, int* esize, char** ppdstr, int *dsize, char** ppnstr, int *nsize, int *pbits)
+int parse_rsakey_jsonfile(const char* keyfile, char** ppestr, int* esize, char** ppdstr, int *dsize, char** ppnstr, int *nsize, int *pbits,int *ppad)
 {
     char* pkeystr = NULL;
     int keysize = 0;
@@ -233,6 +233,7 @@ int parse_rsakey_jsonfile(const char* keyfile, char** ppestr, int* esize, char**
     int bits = 0;
     int retcnt = 0;
     int ret;
+    int padding = 0;
     if (keyfile == NULL) {
         if (ppestr && *ppestr) {
             free(*ppestr);
@@ -262,6 +263,9 @@ int parse_rsakey_jsonfile(const char* keyfile, char** ppestr, int* esize, char**
 
         if (pbits) {
             *pbits = 0;
+        }
+        if (ppad) {
+            *ppad = 0;
         }
 
         return 0;
@@ -342,6 +346,16 @@ if (pbits) {
     }
 }
 
+if (ppad) {
+    ret = 0;
+    padding = jobject_get_int(pj,"padding", &ret);
+    if (padding == 0 && ret != 0) {
+        GETERRNO(ret);
+        goto  fail;
+    }
+
+}
+
 if (ppdstr != NULL) {
     if (*ppdstr && *ppdstr != pretd) {
         free(*ppdstr);
@@ -377,6 +391,11 @@ if (ppnstr != NULL) {
 
 if (pbits) {
     *pbits = bits;
+    retcnt ++;
+}
+
+if (ppad) {
+    *ppad = padding;
     retcnt ++;
 }
 
@@ -600,6 +619,7 @@ int rsaenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     char *rsae =NULL,*rsad=NULL,*rsan=NULL;
     int esize=0,dsize=0,nsize=0;
     int bitsize=2048;
+    int padding=0;
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);

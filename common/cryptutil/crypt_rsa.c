@@ -25,7 +25,7 @@ void rsa_init( rsa_context *ctx,
                int hash_id )
 {
     hash_id = hash_id;
-    padding = padding;
+    rsa->padding = padding;
     memset( ctx, 0, sizeof( rsa_context ) );
     mpz_init(ctx->N);
     mpz_init(ctx->E);
@@ -162,6 +162,9 @@ int __rsa_encrypt(char* cipher,int cipherlen, char* message, int length, rsa_con
     {
         goto fail;
     }
+    if (rsa->padding == 0) {
+        rsa->padding = 3;
+    }
 
     filledbuf = malloc(blocksize* 2);
     if (filledbuf == NULL)
@@ -177,7 +180,7 @@ int __rsa_encrypt(char* cipher,int cipherlen, char* message, int length, rsa_con
 
     while(leftlen > 0)
     {
-        curlen  = (blocksize - 3);
+        curlen  = (blocksize - rsa->padding);
         if (leftlen < curlen)
         {
             curlen = leftlen;
@@ -186,7 +189,7 @@ int __rsa_encrypt(char* cipher,int cipherlen, char* message, int length, rsa_con
         filledbuf[0] = 0x0;
         filledbuf[1] = 0x2;
 
-        for (i=2; i<(blocksize - curlen-1); i++)
+        for (i=(rsa->padding - 1); i<(blocksize - curlen-1); i++)
         {
             if (rsa->m_rand)
             {

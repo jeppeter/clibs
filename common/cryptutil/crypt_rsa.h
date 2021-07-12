@@ -106,13 +106,14 @@ typedef int (*printf_func_t)(const char* fmt, ...);
 typedef struct
 {
     int ver;                    /*!<  always 0          */
-    int len;                    /*!<  size(N) in chars  */
+    int len;                    /*!<  size(N) in chars  */   
 
     mpz_t N;                      /*!<  public modulus    */
     mpz_t E;                      /*!<  public exponent   */
     mpz_t D;                      /*!<  private exponent  */
 	randfunc_t m_rand;
 	void* m_randarg;
+    int padding;
 }
 rsa_context;
 
