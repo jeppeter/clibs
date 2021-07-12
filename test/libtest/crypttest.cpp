@@ -117,6 +117,227 @@ out:
     return ret;
 }
 
+#define  COPY_STR_VALUE(key,ppval,ptr,rets)                                                       \
+do{                                                                                               \
+    if (ppval != NULL) {                                                                          \
+        pcurval = jobject_get_string(pj,key,&ret);                                                \
+        if (pcurval == NULL) {                                                                    \
+            GETERRNO(ret);                                                                        \
+            ERROR_INFO("can not get [%s]",key);                                                   \
+            goto fail;                                                                            \
+        }                                                                                         \
+        curlen = (int)strlen(pcurval);                                                            \
+        if ((ptr) ==NULL || (rets) < (curlen + 1)) {                                              \
+            if ((rets) < (curlen + 1)) {                                                          \
+                (rets) = (curlen + 1);                                                            \
+            }                                                                                     \
+            (ptr) = (char*) malloc((size_t)(rets));                                               \
+            if ((ptr) == NULL) {                                                                  \
+                GETERRNO(ret);                                                                    \
+                goto fail;                                                                        \
+            }                                                                                     \
+        }                                                                                         \
+        memset((ptr),0,(size_t)(rets));                                                           \
+        if (curlen > 0) {                                                                         \
+            memcpy((ptr), pcurval,(size_t)curlen);                                                \
+        }                                                                                         \
+    }                                                                                             \
+}while(0)
+
+int parse_rsakey_jsonfile(const char* keyfile, char** ppestr, int* esize, char** ppdstr, int *dsize, char** ppnstr, int *nsize, int *pbits)
+{
+    char* pkeystr = NULL;
+    int keysize = 0;
+    int keylen = 0;
+    char *prete = NULL, *pretn = NULL, *pretd = NULL;
+    int retesize = 0, retnsize = 0, retdsize = 0;
+    jvalue* pj = NULL;
+    char* tmpbuf = NULL;
+    unsigned int parselen = 0;
+    const char* pcurval = NULL;
+    int curlen = 0;
+    int bits = 0;
+    int retcnt = 0;
+    int ret;
+    if (keyfile == NULL) {
+        if (ppestr && *ppestr) {
+            free(*ppestr);
+            *ppestr = NULL;
+        }
+        if (esize) {
+            *esize = 0;
+        }
+
+        if (ppdstr && *ppdstr) {
+            free(*ppdstr);
+            *ppdstr = NULL;
+        }
+
+        if (dsize) {
+            *dsize = 0;
+        }
+
+        if (ppnstr && *ppnstr) {
+            free(*ppnstr);
+            *ppnstr = NULL;
+        }
+
+        if (nsize) {
+            *nsize = 0;
+        }
+
+        if (pbits) {
+            *pbits = 0;
+        }
+
+        return 0;
+    }
+
+    if ((ppdstr == NULL && ppestr == NULL && ppnstr == NULL)) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if ((ppdstr != NULL && dsize == NULL) ||
+            (ppestr != NULL && esize == NULL) ||
+            (ppnstr != NULL && nsize == NULL) ) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (ppdstr != NULL) {
+        pretd = *ppdstr;
+        retdsize = *dsize;
+    }
+
+    if (ppnstr != NULL) {
+        pretn = *ppnstr;
+        retnsize = *nsize;
+    }
+
+    if (ppestr != NULL) {
+        prete = *ppestr;
+        retesize = *esize;
+    }
+
+    ret = read_file_whole((char*)keyfile, &pkeystr, &keysize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    keylen = ret;
+    if (keylen == keysize) {
+        keysize = keylen + 1;
+        tmpbuf = (char*) malloc((size_t)keysize);
+        if (tmpbuf == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        memset(tmpbuf, 0, (size_t)keysize);
+        if (keylen > 0) {
+            memcpy(tmpbuf, pkeystr, (size_t)keylen);
+        }
+        if (pkeystr) {
+            free(pkeystr);
+        }
+        pkeystr = tmpbuf;
+        tmpbuf = NULL;
+    } else {
+        pkeystr[keylen] = '\0';
+    }
+    parselen = (unsigned int)(keylen + 1);
+
+    pj = jvalue_read(pkeystr, &parselen);
+    if (pj == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not parse [%s]", pkeystr);
+        goto fail;
+    }
+
+    COPY_STR_VALUE("d", ppdstr, pretd, retdsize);
+    COPY_STR_VALUE("e", ppestr, prete, retesize);
+    COPY_STR_VALUE("n", ppnstr, pretn, retnsize);
+    if (pbits) {
+        ret = 0;
+        bits = jobject_get_int(pj, "bits", &ret);
+        if (bits == 0 && ret != 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    if (ppdstr != NULL) {
+        if (*ppdstr && *ppdstr != pretd) {
+            free(*ppdstr);
+        }
+        *ppdstr = pretd;
+        if (dsize) {
+            *dsize = retdsize;
+        }
+        retcnt ++;
+    }
+
+    if (ppestr != NULL) {
+        if (*ppestr && *ppestr != prete) {
+            free(*ppestr);
+        }
+        *ppestr = prete;
+        if (esize) {
+            *esize = retesize;
+        }
+        retcnt ++;
+    }
+
+    if (ppnstr != NULL) {
+        if (*ppnstr && *ppnstr != pretn) {
+            free(*ppnstr);
+        }
+        *ppnstr = pretn;
+        if (nsize) {
+            *nsize = retnsize;
+        }
+        retcnt ++;
+    }
+
+    if (pbits) {
+        *pbits = bits;
+        retcnt ++;
+    }
+
+    jvalue_destroy(pj);
+    pj = NULL;
+    read_file_whole(NULL, &pkeystr, &keysize);
+    return retcnt;
+fail:
+    if (prete != NULL && (ppestr != NULL && *ppestr != prete)) {
+        free(prete);
+    }
+    prete = NULL;
+    retesize = 0;
+
+    if (pretn != NULL && (ppnstr != NULL && *ppnstr != pretn)) {
+        free(pretn);
+    }
+    pretn = NULL;
+    retnsize = 0;
+
+    if (pretd != NULL && (ppdstr != NULL && *ppdstr != pretd)) {
+        free(pretd);
+    }
+    pretd = NULL;
+    retdsize = 0;
+
+    if (pj != NULL) {
+        jvalue_destroy(pj);
+    }
+    pj = NULL;
+    read_file_whole(NULL, &pkeystr, &keysize);
+    SETERRNO(ret);
+    return ret;
+}
+
 int rsaenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret = 0;
@@ -127,17 +348,24 @@ int rsaenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     int outsize = 0;
     int outlen = 0;
     rsa_context ctx = {0};
-    int bitsize = 2048;
     pargs_options_t pargs = (pargs_options_t) popt;
-    int idx = 0;
     int blksize = 0;
+    char *rsae =NULL,*rsad=NULL,*rsan=NULL;
+    int esize=0,dsize=0,nsize=0;
+    int bitsize=2048;
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);
+    REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
-    GET_OPT_INT(bitsize, "bitsize");
-    ret = rsa_init_nums(&ctx, bitsize, pargs->m_rsan, pargs->m_rsae, NULL, 16);
+    ret = parse_rsakey_jsonfile(pargs->m_rsafile,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
+    if (ret != 4) {
+        GETERRNO(ret);
+        ERROR_INFO("can not parse [%s]", pargs->m_rsafile ? pargs->m_rsafile : "NULL");
+        goto out;
+    }
+    ret = rsa_init_nums(&ctx, bitsize, rsan, rsae, NULL, 16);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not init rsa");
@@ -181,6 +409,7 @@ out:
     pout = NULL;
     read_file_whole_stdin(1, NULL, &pout, &outsize);
     rsa_free(&ctx);
+    parse_rsakey_jsonfile(NULL,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
     SETERRNO(ret);
     return ret;
 }
@@ -197,14 +426,21 @@ int rsadec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     rsa_context ctx = {0};
     int bitsize = 2048;
     pargs_options_t pargs = (pargs_options_t) popt;
-    int idx = 0;
+    char *rsae =NULL,*rsad=NULL,*rsan=NULL;
+    int esize=0,dsize=0,nsize=0;
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);
+    REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
-    GET_OPT_INT(bitsize, "bitsize");
-    ret = rsa_init_nums(&ctx, bitsize, pargs->m_rsan, NULL, pargs->m_rsad, 16);
+    ret = parse_rsakey_jsonfile(pargs->m_rsafile,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
+    if (ret != 4) {
+        GETERRNO(ret);
+        ERROR_INFO("can not parse [%s]", pargs->m_rsafile ? pargs->m_rsafile : "NULL");
+        goto out;
+    }
+    ret = rsa_init_nums(&ctx, bitsize, rsan, NULL, rsad, 16);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not init rsa");
@@ -245,8 +481,9 @@ out:
         free(pout);
     }
     pout = NULL;
-    read_file_whole_stdin(1, NULL, &pout, &outsize);
+    read_file_whole_stdin(1, NULL, &pout, &outsize);    
     rsa_free(&ctx);
+    parse_rsakey_jsonfile(NULL,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
     SETERRNO(ret);
     return ret;
 }
@@ -263,14 +500,21 @@ int rsaverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     rsa_context ctx = {0};
     int bitsize = 2048;
     pargs_options_t pargs = (pargs_options_t) popt;
-    int idx = 0;
+    char *rsae =NULL,*rsad=NULL,*rsan=NULL;
+    int esize=0,dsize=0,nsize=0;
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);
+    REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
-    GET_OPT_INT(bitsize, "bitsize");
-    ret = rsa_init_nums(&ctx, bitsize, pargs->m_rsan, pargs->m_rsae, NULL, 16);
+    ret = parse_rsakey_jsonfile(pargs->m_rsafile,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
+    if (ret != 4) {
+        GETERRNO(ret);
+        ERROR_INFO("can not parse [%s]", pargs->m_rsafile ? pargs->m_rsafile : "NULL");
+        goto out;
+    }
+    ret = rsa_init_nums(&ctx, bitsize, rsan, rsae, NULL, 16);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not init rsa");
@@ -314,6 +558,7 @@ out:
     pout = NULL;
     read_file_whole_stdin(1, NULL, &pout, &outsize);
     rsa_free(&ctx);
+    parse_rsakey_jsonfile(NULL,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
     SETERRNO(ret);
     return ret;
 }
@@ -330,15 +575,21 @@ int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     rsa_context ctx = {0};
     int bitsize = 2048;
     pargs_options_t pargs = (pargs_options_t) popt;
-    int idx = 0;
+    char *rsae =NULL,*rsad=NULL,*rsan=NULL;
+    int esize=0,dsize=0,nsize=0;
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);
+    REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
-    ERROR_INFO(" ");
-    GET_OPT_INT(bitsize, "bitsize");
-    ret = rsa_init_nums(&ctx, bitsize, pargs->m_rsan, NULL, pargs->m_rsad, 16);
+    ret = parse_rsakey_jsonfile(pargs->m_rsafile,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
+    if (ret != 4) {
+        GETERRNO(ret);
+        ERROR_INFO("can not parse [%s]", pargs->m_rsafile ? pargs->m_rsafile : "NULL");
+        goto out;
+    }
+    ret = rsa_init_nums(&ctx, bitsize, rsan, NULL, rsad, 16);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not init rsa");
@@ -384,6 +635,7 @@ out:
     pout = NULL;
     read_file_whole_stdin(1, NULL, &pout, &outsize);
     rsa_free(&ctx);
+    parse_rsakey_jsonfile(NULL,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
     SETERRNO(ret);
     return ret;
 }
@@ -676,22 +928,22 @@ int debug_sha256_hash(char* fname)
         goto fail;
     }
     inlen = ret;
-    DEBUG_BUFFER_FMT(pin,inlen,"%s ",fname ? fname : "<STDIN>");
+    DEBUG_BUFFER_FMT(pin, inlen, "%s ", fname ? fname : "<STDIN>");
     fflush(stderr);
     sha256_init(&ctx);
     sha256_update(&ctx, (const unsigned char*)pin, (size_t)inlen);
     sha256_final(&ctx, hash);
 
-    fprintf(stdout,"%s ", fname ? fname : "<STDIN>");
-    for (i=0;i<32;i++) {
-        fprintf(stdout,"%02x",hash[i]);
+    fprintf(stdout, "%s ", fname ? fname : "<STDIN>");
+    for (i = 0; i < 32; i++) {
+        fprintf(stdout, "%02x", hash[i]);
     }
-    fprintf(stdout,"\n");
+    fprintf(stdout, "\n");
 
-    read_file_whole_stdin(1,NULL,&pin,&insize);
+    read_file_whole_stdin(1, NULL, &pin, &insize);
     return 0;
 fail:
-    read_file_whole_stdin(1,NULL,&pin,&insize);
+    read_file_whole_stdin(1, NULL, &pin, &insize);
     SETERRNO(ret);
     return ret;
 }

@@ -8,9 +8,7 @@
     "pipename|P<m_pipename>" : "\\\\.\\pipe\\tstsvr_pipe",
     "hidewindow|H<m_hidewindow>" : false,
     "privenable|E<m_privenable>" : false,
-    "rsae<m_rsae>" : null,
-    "rsan<m_rsan>" : null,
-    "rsad<m_rsad>" : null,
+    "rsafile<m_rsafile>" : null,
     "aeskey<m_aeskey>" : null,
     "aesiv<m_aesiv>" : null,
     "mktemp<mktemp_handler>" : {
