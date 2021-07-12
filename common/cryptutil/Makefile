@@ -7,8 +7,8 @@ SYSTEM_NAME:=$(shell uname)
 
 TARGET  = libcryptutil
 
-HEADERS = crypt_md5.h crypt_aes.h
-SOURCES = crypt_md5.c crypt_aes.c
+HEADERS = crypt_md5.h crypt_aes.h crypt_mulmpi.h crypt_mpi.h crypt_mpn.h crypt_rsa.h crypt_sha256.h
+SOURCES = crypt_md5.c crypt_aes.c crypt_mpi.c crypt_mpn.c crypt_rsa.c crypt_sha256.c
 OBJECTS = $(patsubst %.c,%.o,$(SOURCES))
 
 CFLAGS  = $(COMMON_CFLAGS)
