@@ -114,6 +114,7 @@ typedef struct
 	randfunc_t m_rand;
 	void* m_randarg;
     int padding;
+    int rsv1;
 }
 rsa_context;
 

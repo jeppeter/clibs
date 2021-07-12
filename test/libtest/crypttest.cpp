@@ -61,7 +61,7 @@ int get_value_hex_string(const char* str, uint8_t**ppval, int *psize)
     *psize = retsize;
 
     return retlen;
-    fail:
+fail:
     if (pretval && pretval != *ppval) {
         free(pretval);
     }
@@ -153,7 +153,7 @@ int md5sum_file(char* fname, uint64_t size, char* digest, int digsize)
     close_file(&pf);
 
     return overed;
-    fail:
+fail:
     if (pbuf) {
         free(pbuf);
     }
@@ -186,7 +186,7 @@ int md5sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         fprintf(stdout, "[%s] => [%s]\n", fname, digest);
     }
     ret = 0;
-    out:
+out:
     SETERRNO(ret);
     return ret;
 }
@@ -218,7 +218,7 @@ do{                                                                             
     }                                                                                             \
 }while(0)
 
-int parse_rsakey_jsonfile(const char* keyfile, char** ppestr, int* esize, char** ppdstr, int *dsize, char** ppnstr, int *nsize, int *pbits,int *ppad)
+int parse_rsakey_jsonfile(const char* keyfile, char** ppestr, int* esize, char** ppdstr, int *dsize, char** ppnstr, int *nsize, int *pbits, int *ppad)
 {
     char* pkeystr = NULL;
     int keysize = 0;
@@ -278,170 +278,170 @@ int parse_rsakey_jsonfile(const char* keyfile, char** ppestr, int* esize, char**
     }
 
     if ((ppdstr != NULL && dsize == NULL) ||
-        (ppestr != NULL && esize == NULL) ||
-        (ppnstr != NULL && nsize == NULL) ) {
+            (ppestr != NULL && esize == NULL) ||
+            (ppnstr != NULL && nsize == NULL) ) {
         ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (ppdstr != NULL) {
+        pretd = *ppdstr;
+        retdsize = *dsize;
+    }
+
+    if (ppnstr != NULL) {
+        pretn = *ppnstr;
+        retnsize = *nsize;
+    }
+
+    if (ppestr != NULL) {
+        prete = *ppestr;
+        retesize = *esize;
+    }
+
+    ret = read_file_whole((char*)keyfile, &pkeystr, &keysize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    keylen = ret;
+    if (keylen == keysize) {
+        keysize = keylen + 1;
+        tmpbuf = (char*) malloc((size_t)keysize);
+        if (tmpbuf == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        memset(tmpbuf, 0, (size_t)keysize);
+        if (keylen > 0) {
+            memcpy(tmpbuf, pkeystr, (size_t)keylen);
+        }
+        if (pkeystr) {
+            free(pkeystr);
+        }
+        pkeystr = tmpbuf;
+        tmpbuf = NULL;
+    } else {
+        pkeystr[keylen] = '\0';
+    }
+    parselen = (unsigned int)(keylen + 1);
+
+    pj = jvalue_read(pkeystr, &parselen);
+    if (pj == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not parse [%s]", pkeystr);
+        goto fail;
+    }
+
+    COPY_STR_VALUE("d", ppdstr, pretd, retdsize);
+    COPY_STR_VALUE("e", ppestr, prete, retesize);
+    COPY_STR_VALUE("n", ppnstr, pretn, retnsize);
+    if (pbits) {
+        ret = 0;
+        bits = jobject_get_int(pj, "bits", &ret);
+        if (bits == 0 && ret != 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    if (ppad) {
+        ret = 0;
+        padding = jobject_get_int(pj, "padding", &ret);
+        if (padding == 0 && ret != 0) {
+            GETERRNO(ret);
+            goto  fail;
+        }
+
+    }
+
+    if (ppdstr != NULL) {
+        if (*ppdstr && *ppdstr != pretd) {
+            free(*ppdstr);
+        }
+        *ppdstr = pretd;
+        if (dsize) {
+            *dsize = retdsize;
+        }
+        retcnt ++;
+    }
+
+    if (ppestr != NULL) {
+        if (*ppestr && *ppestr != prete) {
+            free(*ppestr);
+        }
+        *ppestr = prete;
+        if (esize) {
+            *esize = retesize;
+        }
+        retcnt ++;
+    }
+
+    if (ppnstr != NULL) {
+        if (*ppnstr && *ppnstr != pretn) {
+            free(*ppnstr);
+        }
+        *ppnstr = pretn;
+        if (nsize) {
+            *nsize = retnsize;
+        }
+        retcnt ++;
+    }
+
+    if (pbits) {
+        *pbits = bits;
+        retcnt ++;
+    }
+
+    if (ppad) {
+        *ppad = padding;
+        retcnt ++;
+    }
+
+    jvalue_destroy(pj);
+    pj = NULL;
+    read_file_whole(NULL, &pkeystr, &keysize);
+    return retcnt;
+fail:
+    if (prete != NULL && (ppestr != NULL && *ppestr != prete)) {
+        free(prete);
+    }
+    prete = NULL;
+    retesize = 0;
+
+    if (pretn != NULL && (ppnstr != NULL && *ppnstr != pretn)) {
+        free(pretn);
+    }
+    pretn = NULL;
+    retnsize = 0;
+
+    if (pretd != NULL && (ppdstr != NULL && *ppdstr != pretd)) {
+        free(pretd);
+    }
+    pretd = NULL;
+    retdsize = 0;
+
+    if (pj != NULL) {
+        jvalue_destroy(pj);
+    }
+    pj = NULL;
+    read_file_whole(NULL, &pkeystr, &keysize);
     SETERRNO(ret);
     return ret;
 }
 
-if (ppdstr != NULL) {
-    pretd = *ppdstr;
-    retdsize = *dsize;
-}
-
-if (ppnstr != NULL) {
-    pretn = *ppnstr;
-    retnsize = *nsize;
-}
-
-if (ppestr != NULL) {
-    prete = *ppestr;
-    retesize = *esize;
-}
-
-ret = read_file_whole((char*)keyfile, &pkeystr, &keysize);
-if (ret < 0) {
-    GETERRNO(ret);
-    goto fail;
-}
-keylen = ret;
-if (keylen == keysize) {
-    keysize = keylen + 1;
-    tmpbuf = (char*) malloc((size_t)keysize);
-    if (tmpbuf == NULL) {
-        GETERRNO(ret);
-        goto fail;
-    }
-    memset(tmpbuf, 0, (size_t)keysize);
-    if (keylen > 0) {
-        memcpy(tmpbuf, pkeystr, (size_t)keylen);
-    }
-    if (pkeystr) {
-        free(pkeystr);
-    }
-    pkeystr = tmpbuf;
-    tmpbuf = NULL;
-} else {
-    pkeystr[keylen] = '\0';
-}
-parselen = (unsigned int)(keylen + 1);
-
-pj = jvalue_read(pkeystr, &parselen);
-if (pj == NULL) {
-    GETERRNO(ret);
-    ERROR_INFO("can not parse [%s]", pkeystr);
-    goto fail;
-}
-
-COPY_STR_VALUE("d", ppdstr, pretd, retdsize);
-COPY_STR_VALUE("e", ppestr, prete, retesize);
-COPY_STR_VALUE("n", ppnstr, pretn, retnsize);
-if (pbits) {
-    ret = 0;
-    bits = jobject_get_int(pj, "bits", &ret);
-    if (bits == 0 && ret != 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-}
-
-if (ppad) {
-    ret = 0;
-    padding = jobject_get_int(pj,"padding", &ret);
-    if (padding == 0 && ret != 0) {
-        GETERRNO(ret);
-        goto  fail;
-    }
-
-}
-
-if (ppdstr != NULL) {
-    if (*ppdstr && *ppdstr != pretd) {
-        free(*ppdstr);
-    }
-    *ppdstr = pretd;
-    if (dsize) {
-        *dsize = retdsize;
-    }
-    retcnt ++;
-}
-
-if (ppestr != NULL) {
-    if (*ppestr && *ppestr != prete) {
-        free(*ppestr);
-    }
-    *ppestr = prete;
-    if (esize) {
-        *esize = retesize;
-    }
-    retcnt ++;
-}
-
-if (ppnstr != NULL) {
-    if (*ppnstr && *ppnstr != pretn) {
-        free(*ppnstr);
-    }
-    *ppnstr = pretn;
-    if (nsize) {
-        *nsize = retnsize;
-    }
-    retcnt ++;
-}
-
-if (pbits) {
-    *pbits = bits;
-    retcnt ++;
-}
-
-if (ppad) {
-    *ppad = padding;
-    retcnt ++;
-}
-
-jvalue_destroy(pj);
-pj = NULL;
-read_file_whole(NULL, &pkeystr, &keysize);
-return retcnt;
-fail:
-if (prete != NULL && (ppestr != NULL && *ppestr != prete)) {
-    free(prete);
-}
-prete = NULL;
-retesize = 0;
-
-if (pretn != NULL && (ppnstr != NULL && *ppnstr != pretn)) {
-    free(pretn);
-}
-pretn = NULL;
-retnsize = 0;
-
-if (pretd != NULL && (ppdstr != NULL && *ppdstr != pretd)) {
-    free(pretd);
-}
-pretd = NULL;
-retdsize = 0;
-
-if (pj != NULL) {
-    jvalue_destroy(pj);
-}
-pj = NULL;
-read_file_whole(NULL, &pkeystr, &keysize);
-SETERRNO(ret);
-return ret;
-}
-
-int parse_aeskey_jsonfile(const char* aesfile,uint8_t** ppaes,int *pkeysize,uint8_t** ppiv, int*pivsize)
+int parse_aeskey_jsonfile(const char* aesfile, uint8_t** ppaes, int *pkeysize, uint8_t** ppiv, int*pivsize)
 {
     int ret;
     char* pkeystr = NULL;
     int keysize = 0;
     int keylen = 0;
-    char* tmpbuf=NULL;
-    jvalue* pj=NULL;
-    uint8_t *pretaes=NULL,*pretiv=NULL;
-    int retaessize=0,retivsize=0;
-    int aeslen=0,ivlen=0;
+    char* tmpbuf = NULL;
+    jvalue* pj = NULL;
+    uint8_t *pretaes = NULL, *pretiv = NULL;
+    int retaessize = 0, retivsize = 0;
+    int aeslen = 0, ivlen = 0;
     const char* pcurval = NULL;
     unsigned int parselen = 0;
 
@@ -472,7 +472,7 @@ int parse_aeskey_jsonfile(const char* aesfile,uint8_t** ppaes,int *pkeysize,uint
     }
 
 
-    ret = read_file_whole((char*)aesfile,&pkeystr,&keysize);
+    ret = read_file_whole((char*)aesfile, &pkeystr, &keysize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -507,14 +507,14 @@ int parse_aeskey_jsonfile(const char* aesfile,uint8_t** ppaes,int *pkeysize,uint
         goto fail;
     }
 
-    pcurval = jobject_get_string(pj,"key",&ret);
+    pcurval = jobject_get_string(pj, "key", &ret);
     if (pcurval == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not find key");
         goto fail;
     }
 
-    ret = get_value_hex_string(pcurval,&pretaes,&retaessize);
+    ret = get_value_hex_string(pcurval, &pretaes, &retaessize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -522,18 +522,18 @@ int parse_aeskey_jsonfile(const char* aesfile,uint8_t** ppaes,int *pkeysize,uint
     aeslen = ret;
     if (aeslen != 32) {
         ret = -ERROR_INVALID_PARAMETER;
-        ERROR_INFO("[%s] not 32 size",pcurval);
+        ERROR_INFO("[%s] not 32 size", pcurval);
         goto fail;
     }
 
-    pcurval = jobject_get_string(pj,"iv",&ret);
+    pcurval = jobject_get_string(pj, "iv", &ret);
     if (pcurval == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not find iv");
         goto fail;
     }
 
-    ret = get_value_hex_string(pcurval,&pretiv,&retivsize);
+    ret = get_value_hex_string(pcurval, &pretiv, &retivsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -541,12 +541,12 @@ int parse_aeskey_jsonfile(const char* aesfile,uint8_t** ppaes,int *pkeysize,uint
     ivlen = ret;
     if (ivlen != 16) {
         ret = -ERROR_INVALID_PARAMETER;
-        ERROR_INFO("[%s] not 16 size",pcurval);
+        ERROR_INFO("[%s] not 16 size", pcurval);
         goto fail;
     }
 
     /*now to give the length*/
-    if ((*ppaes) ==NULL || *pkeysize < 32) {
+    if ((*ppaes) == NULL || *pkeysize < 32) {
         if (*pkeysize < 32) {
             *pkeysize = 32;
         }
@@ -561,8 +561,8 @@ int parse_aeskey_jsonfile(const char* aesfile,uint8_t** ppaes,int *pkeysize,uint
             goto fail;
         }
     }
-    memset((*ppaes),0,(size_t)(*pkeysize));
-    memcpy((*ppaes), pretaes,(size_t)aeslen);
+    memset((*ppaes), 0, (size_t)(*pkeysize));
+    memcpy((*ppaes), pretaes, (size_t)aeslen);
 
     if (*ppiv == NULL || *pivsize < 16) {
         if (*pivsize < 16) {
@@ -579,22 +579,22 @@ int parse_aeskey_jsonfile(const char* aesfile,uint8_t** ppaes,int *pkeysize,uint
             goto fail;
         }
     }
-    memset((*ppiv),0,(size_t)(*pivsize));
-    memcpy((*ppiv), pretiv,(size_t)ivlen);
+    memset((*ppiv), 0, (size_t)(*pivsize));
+    memcpy((*ppiv), pretiv, (size_t)ivlen);
 
 
 
-    get_value_hex_string(NULL,&pretaes,&retaessize);
-    get_value_hex_string(NULL,&pretiv,&retivsize);
+    get_value_hex_string(NULL, &pretaes, &retaessize);
+    get_value_hex_string(NULL, &pretiv, &retivsize);
     if (pj) {
         jvalue_destroy(pj);
     }
     pj = NULL;
     read_file_whole(NULL, &pkeystr, &keysize);
     return 2;
-    fail:
-    get_value_hex_string(NULL,&pretaes,&retaessize);
-    get_value_hex_string(NULL,&pretiv,&retivsize);
+fail:
+    get_value_hex_string(NULL, &pretaes, &retaessize);
+    get_value_hex_string(NULL, &pretiv, &retivsize);
     if (pj) {
         jvalue_destroy(pj);
     }
@@ -616,22 +616,24 @@ int rsaenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     rsa_context ctx = {0};
     pargs_options_t pargs = (pargs_options_t) popt;
     int blksize = 0;
-    char *rsae =NULL,*rsad=NULL,*rsan=NULL;
-    int esize=0,dsize=0,nsize=0;
-    int bitsize=2048;
-    int padding=0;
+    char *rsae = NULL, *rsad = NULL, *rsan = NULL;
+    int esize = 0, dsize = 0, nsize = 0;
+    int bitsize = 2048;
+    int padding = 0;
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);
     REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
-    ret = parse_rsakey_jsonfile(pargs->m_rsafile,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
-    if (ret != 4) {
+    ret = parse_rsakey_jsonfile(pargs->m_rsafile, &rsae, &esize, &rsad, &dsize, &rsan, &nsize, &bitsize, &padding);
+    if (ret != 5) {
         GETERRNO(ret);
         ERROR_INFO("can not parse [%s]", pargs->m_rsafile ? pargs->m_rsafile : "NULL");
         goto out;
     }
+
+    rsa_init(&ctx, padding, 0);
     ret = rsa_init_nums(&ctx, bitsize, rsan, rsae, NULL, 16);
     if (ret < 0) {
         GETERRNO(ret);
@@ -669,14 +671,14 @@ int rsaenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
 
     ret = 0;
-    out:
+out:
     if (pout) {
         free(pout);
     }
     pout = NULL;
     read_file_whole_stdin(1, NULL, &pout, &outsize);
     rsa_free(&ctx);
-    parse_rsakey_jsonfile(NULL,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
+    parse_rsakey_jsonfile(NULL, &rsae, &esize, &rsad, &dsize, &rsan, &nsize, &bitsize, &padding);
     SETERRNO(ret);
     return ret;
 }
@@ -693,20 +695,23 @@ int rsadec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     rsa_context ctx = {0};
     int bitsize = 2048;
     pargs_options_t pargs = (pargs_options_t) popt;
-    char *rsae =NULL,*rsad=NULL,*rsan=NULL;
-    int esize=0,dsize=0,nsize=0;
+    char *rsae = NULL, *rsad = NULL, *rsan = NULL;
+    int esize = 0, dsize = 0, nsize = 0;
+    int padding = 0;
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);
     REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
-    ret = parse_rsakey_jsonfile(pargs->m_rsafile,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
-    if (ret != 4) {
+    ret = parse_rsakey_jsonfile(pargs->m_rsafile, &rsae, &esize, &rsad, &dsize, &rsan, &nsize, &bitsize, &padding);
+    if (ret != 5) {
         GETERRNO(ret);
         ERROR_INFO("can not parse [%s]", pargs->m_rsafile ? pargs->m_rsafile : "NULL");
         goto out;
     }
+
+    rsa_init(&ctx, padding,0);
     ret = rsa_init_nums(&ctx, bitsize, rsan, NULL, rsad, 16);
     if (ret < 0) {
         GETERRNO(ret);
@@ -743,14 +748,14 @@ int rsadec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
 
     ret = 0;
-    out:
+out:
     if (pout) {
         free(pout);
     }
     pout = NULL;
-    read_file_whole_stdin(1, NULL, &pout, &outsize);    
+    read_file_whole_stdin(1, NULL, &pout, &outsize);
     rsa_free(&ctx);
-    parse_rsakey_jsonfile(NULL,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
+    parse_rsakey_jsonfile(NULL, &rsae, &esize, &rsad, &dsize, &rsan, &nsize, &bitsize, &padding);
     SETERRNO(ret);
     return ret;
 }
@@ -767,20 +772,22 @@ int rsaverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     rsa_context ctx = {0};
     int bitsize = 2048;
     pargs_options_t pargs = (pargs_options_t) popt;
-    char *rsae =NULL,*rsad=NULL,*rsan=NULL;
-    int esize=0,dsize=0,nsize=0;
+    char *rsae = NULL, *rsad = NULL, *rsan = NULL;
+    int esize = 0, dsize = 0, nsize = 0;
+    int padding = 0;
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);
     REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
-    ret = parse_rsakey_jsonfile(pargs->m_rsafile,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
-    if (ret != 4) {
+    ret = parse_rsakey_jsonfile(pargs->m_rsafile, &rsae, &esize, &rsad, &dsize, &rsan, &nsize, &bitsize,&padding);
+    if (ret != 5) {
         GETERRNO(ret);
         ERROR_INFO("can not parse [%s]", pargs->m_rsafile ? pargs->m_rsafile : "NULL");
         goto out;
     }
+    rsa_init(&ctx,padding,0);
     ret = rsa_init_nums(&ctx, bitsize, rsan, rsae, NULL, 16);
     if (ret < 0) {
         GETERRNO(ret);
@@ -818,14 +825,14 @@ int rsaverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
 
     ret = 0;
-    out:
+out:
     if (pout) {
         free(pout);
     }
     pout = NULL;
     read_file_whole_stdin(1, NULL, &pout, &outsize);
     rsa_free(&ctx);
-    parse_rsakey_jsonfile(NULL,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
+    parse_rsakey_jsonfile(NULL, &rsae, &esize, &rsad, &dsize, &rsan, &nsize, &bitsize,&padding);
     SETERRNO(ret);
     return ret;
 }
@@ -842,20 +849,22 @@ int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     rsa_context ctx = {0};
     int bitsize = 2048;
     pargs_options_t pargs = (pargs_options_t) popt;
-    char *rsae =NULL,*rsad=NULL,*rsan=NULL;
-    int esize=0,dsize=0,nsize=0;
+    char *rsae = NULL, *rsad = NULL, *rsan = NULL;
+    int esize = 0, dsize = 0, nsize = 0;
+    int padding = 0;
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);
     REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
-    ret = parse_rsakey_jsonfile(pargs->m_rsafile,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
+    ret = parse_rsakey_jsonfile(pargs->m_rsafile, &rsae, &esize, &rsad, &dsize, &rsan, &nsize, &bitsize,&padding);
     if (ret != 4) {
         GETERRNO(ret);
         ERROR_INFO("can not parse [%s]", pargs->m_rsafile ? pargs->m_rsafile : "NULL");
         goto out;
     }
+    rsa_init(&ctx,padding,0);
     ret = rsa_init_nums(&ctx, bitsize, rsan, NULL, rsad, 16);
     if (ret < 0) {
         GETERRNO(ret);
@@ -892,14 +901,14 @@ int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     }
 
     ret = 0;
-    out:
+out:
     if (pout) {
         free(pout);
     }
     pout = NULL;
     read_file_whole_stdin(1, NULL, &pout, &outsize);
     rsa_free(&ctx);
-    parse_rsakey_jsonfile(NULL,&rsae,&esize,&rsad,&dsize,&rsan,&nsize,&bitsize);
+    parse_rsakey_jsonfile(NULL, &rsae, &esize, &rsad, &dsize, &rsan, &nsize, &bitsize,&padding);
     SETERRNO(ret);
     return ret;
 }
@@ -926,7 +935,7 @@ int aesenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
-    ret = parse_aeskey_jsonfile(pargs->m_aesfile,&aeskey,&keysize,&aesiv,&ivsize);
+    ret = parse_aeskey_jsonfile(pargs->m_aesfile, &aeskey, &keysize, &aesiv, &ivsize);
     if (ret != 2) {
         GETERRNO(ret);
         ERROR_INFO("can not parse [%s]", pargs->m_aesfile ? pargs->m_aesfile : "NULL");
@@ -974,13 +983,13 @@ int aesenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
 
     ret = 0;
-    out:
+out:
     if (pout) {
         free(pout);
     }
     pout = NULL;
     read_file_whole_stdin(1, NULL, &pout, &outsize);
-    parse_aeskey_jsonfile(NULL,&aeskey,&keysize,&aesiv,&ivsize);
+    parse_aeskey_jsonfile(NULL, &aeskey, &keysize, &aesiv, &ivsize);
     SETERRNO(ret);
     return ret;
 }
@@ -1008,7 +1017,7 @@ int aesdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     init_log_level(pargs);
 
-    ret = parse_aeskey_jsonfile(pargs->m_aesfile,&aeskey,&keysize,&aesiv,&ivsize);
+    ret = parse_aeskey_jsonfile(pargs->m_aesfile, &aeskey, &keysize, &aesiv, &ivsize);
     if (ret != 2) {
         GETERRNO(ret);
         ERROR_INFO("can not parse [%s]", pargs->m_aesfile ? pargs->m_aesfile : "NULL");
@@ -1060,13 +1069,13 @@ int aesdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
 
     ret = 0;
-    out:
+out:
     if (pout) {
         free(pout);
     }
     pout = NULL;
     read_file_whole_stdin(1, NULL, &pout, &outsize);
-    parse_aeskey_jsonfile(NULL,&aeskey,&keysize,&aesiv,&ivsize);
+    parse_aeskey_jsonfile(NULL, &aeskey, &keysize, &aesiv, &ivsize);
     SETERRNO(ret);
     return ret;
 }
@@ -1101,7 +1110,7 @@ int debug_sha256_hash(char* fname)
 
     read_file_whole_stdin(1, NULL, &pin, &insize);
     return 0;
-    fail:
+fail:
     read_file_whole_stdin(1, NULL, &pin, &insize);
     SETERRNO(ret);
     return ret;
@@ -1137,7 +1146,7 @@ int sha256sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
 
     ret = 0;
-    out:
+out:
     SETERRNO(ret);
     return ret;
 }

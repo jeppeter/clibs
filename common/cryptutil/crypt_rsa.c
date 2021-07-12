@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#if 1
+#if 0
 #define RSA_DEBUG(...)
 #define RSA_ERROR(...)   do { if(printfunc != NULL) { printfunc(__VA_ARGS__); printfunc("\n");}} while(0)
 #else
@@ -25,8 +25,8 @@ void rsa_init( rsa_context *ctx,
                int hash_id )
 {
     hash_id = hash_id;
-    rsa->padding = padding;
     memset( ctx, 0, sizeof( rsa_context ) );
+    ctx->padding = padding;
     mpz_init(ctx->N);
     mpz_init(ctx->E);
     mpz_init(ctx->D);
@@ -156,7 +156,6 @@ int __rsa_encrypt(char* cipher,int cipherlen, char* message, int length, rsa_con
     mpz_t c;
     int ret;
 
-    RSA_DEBUG(" ");
     expbuf = malloc(blocksize*4);
     if (expbuf == NULL)
     {
@@ -171,7 +170,6 @@ int __rsa_encrypt(char* cipher,int cipherlen, char* message, int length, rsa_con
     {
         goto fail;
     }
-    RSA_DEBUG(" ");
 
     leftlen = length;
     pptr = message;
@@ -189,7 +187,7 @@ int __rsa_encrypt(char* cipher,int cipherlen, char* message, int length, rsa_con
         filledbuf[0] = 0x0;
         filledbuf[1] = 0x2;
 
-        for (i=(rsa->padding - 1); i<(blocksize - curlen-1); i++)
+        for (i=2; i<(blocksize - curlen-1); i++)
         {
             if (rsa->m_rand)
             {
@@ -211,17 +209,12 @@ fill_again:
 
         memcpy(&(filledbuf[i]),pptr,curlen);
 
-        RSA_DEBUG(" ");
         /*now to filled m c */
         mpz_init(m);
-        RSA_DEBUG(" ");
         mpz_init(c);
-        RSA_DEBUG(" ");
 
         mpz_import(m,blocksize,1,sizeof(char),0,0,filledbuf);
-        RSA_DEBUG(" ");
         block_encrypt(c,m,rsa);
-        RSA_DEBUG(" ");
 
         if (leftcipherlen < blocksize)
         {
@@ -229,7 +222,6 @@ fill_again:
             goto fail;
         }
 
-        RSA_DEBUG(" ");
         ret = hex_str_buffer(mpz_get_str(expbuf,16,c),ppcipherptr,blocksize,printfunc);
         if (ret < 0)
         {
@@ -237,11 +229,8 @@ fill_again:
             goto fail;
         }
 
-        RSA_DEBUG(" ");
         mpz_clear(m);
-        RSA_DEBUG(" ");
         mpz_clear(c);
-        RSA_DEBUG(" ");
         leftcipherlen -= blocksize;
         ppcipherptr += blocksize;
         pptr += curlen;
@@ -249,7 +238,6 @@ fill_again:
         filledlen += blocksize;
     }
 
-    RSA_DEBUG(" ");
     if (filledbuf)
     {
         free(filledbuf);
@@ -260,7 +248,6 @@ fill_again:
         free(expbuf);
     }
     expbuf = NULL;
-    RSA_DEBUG(" ");
     return filledlen;
 
 fail:
