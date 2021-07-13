@@ -319,26 +319,18 @@ int __rsa_decrypt(char* message,int messlen, char* cipher, int length,rsa_contex
 
     for (i=0; i<(length /blocksize); i++)
     {
-        RSA_DEBUG(" ");
         mpz_init(m);
-        RSA_DEBUG(" ");
         mpz_init(c);
-        RSA_DEBUG(" ");
         mpz_import(c,blocksize,1,sizeof(char),0,0,cipher+i*blocksize);
-        RSA_DEBUG(" ");
 
         block_decrypt(m,c,prsa, printfunc);
-        RSA_DEBUG(" ");
         ret = hex_str_buffer(mpz_get_str(expbuf,16,m),(uint8_t*)filledbuf,blocksize,printfunc);
         if (ret < 0)
         {
             goto fail;
         }
-        RSA_DEBUG(" ");
         mpz_clear(m);
-        RSA_DEBUG(" ");
         mpz_clear(c);
-        RSA_DEBUG(" ");
 
         for (j=2; j<blocksize; j++)
         {
@@ -347,14 +339,12 @@ int __rsa_decrypt(char* message,int messlen, char* cipher, int length,rsa_contex
                 break;
             }
         }
-        RSA_DEBUG(" ");
 
         if (j >= (blocksize-1))
         {
             /*this is invalid ,so failed to decrypt*/
             goto fail;
         }
-        RSA_DEBUG(" ");
         j ++;
         /*current len to copy*/
         curlen = blocksize - j;
@@ -362,7 +352,6 @@ int __rsa_decrypt(char* message,int messlen, char* cipher, int length,rsa_contex
         {
             goto fail;
         }
-        RSA_DEBUG(" ");
 
         memcpy(pcurmess,&(filledbuf[j]),curlen);
         pcurmess += curlen;
@@ -375,13 +364,12 @@ int __rsa_decrypt(char* message,int messlen, char* cipher, int length,rsa_contex
         free(filledbuf);
     }
     filledbuf = NULL;
-    RSA_DEBUG(" ");
+
     if (expbuf)
     {
         free(expbuf);
     }
     expbuf = NULL;
-    RSA_DEBUG(" ");
     return filledlen;
 
 fail:
@@ -401,7 +389,6 @@ fail:
 
 int rsa_decrypt(unsigned char* message,int messlen,unsigned char* cipher, int cipherlen, rsa_context* prsa,printf_func_t printfunc)
 {
-    RSA_DEBUG(" ");
     return __rsa_decrypt((char*)message,messlen,(char*)cipher,cipherlen,prsa,(prsa->len >> 3), printfunc);
 }
 
@@ -549,7 +536,6 @@ int __rsa_verify(unsigned char * verimess,int verilen,unsigned char * mess,int m
     mpz_t m;
     mpz_t c;
     int j;
-    RSA_DEBUG(" ");
 
     expbuf = malloc(blocksize* 4);
     if (expbuf == NULL)
