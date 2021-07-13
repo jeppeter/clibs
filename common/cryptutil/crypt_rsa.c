@@ -419,6 +419,10 @@ int __rsa_sign(unsigned char* signedmess ,int signedlen,unsigned char *mess,int 
     mpz_t c;
     int i;
 
+    if (prsa->padding == 0) {
+        prsa->padding = 3;
+    }
+
     expbuf = malloc(blocksize* 4);
     if (expbuf == NULL)
     {
@@ -441,14 +445,14 @@ int __rsa_sign(unsigned char* signedmess ,int signedlen,unsigned char *mess,int 
     leftsignedmess = signedlen;
     while(leftmesslen > 0)
     {
-        curlen = blocksize - 3;
+        curlen = (blocksize - prsa->padding);
         if (curlen > leftmesslen)
         {
             curlen = leftmesslen;
         }
 
         filledbuf[0] = 0x0;
-        filledbuf[1] = 0x3;
+        filledbuf[1] = 0x1;
         for (i=2; i<(blocksize - curlen - 1); i++)
         {
             if (prsa->m_rand)

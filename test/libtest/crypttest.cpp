@@ -873,6 +873,12 @@ out:
     return ret;
 }
 
+static unsigned int rand_ff(void* arg)
+{
+    REFERENCE_ARG(arg);
+    return 0xff;
+}
+
 int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret = 0;
@@ -904,6 +910,13 @@ int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("can not init rsa");
+        goto out;
+    }
+
+    ret = rsa_init_func(&ctx,rand_ff,NULL);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not init func");
         goto out;
     }
 
