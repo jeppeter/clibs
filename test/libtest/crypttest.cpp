@@ -1008,6 +1008,11 @@ int aesenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
+    if (pargs->m_aesfile == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("no aesfile specified");
+        goto out;
+    }
     ret = parse_aeskey_jsonfile(pargs->m_aesfile, &aeskey, &keysize, &aesiv, &ivsize);
     if (ret != 2) {
         GETERRNO(ret);
@@ -1025,7 +1030,7 @@ int aesenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     outsize = inlen * 2;
     outlen = inlen;
-    outlen = ((outlen + AES_BLOCKLEN - 1) / AES_BLOCKLEN) * AES_BLOCKLEN;
+    outlen = ((outlen + AES_BLOCKLEN - 1) / AES_BLOCKLEN) * AES_BLOCKLEN + AES_BLOCKLEN;
     if (outlen > outsize) {
         outsize = outlen;
     }
@@ -1089,7 +1094,11 @@ int aesdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
-
+    if (pargs->m_aesfile == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("no aesfile specified");
+        goto out;
+    }
     ret = parse_aeskey_jsonfile(pargs->m_aesfile, &aeskey, &keysize, &aesiv, &ivsize);
     if (ret != 2) {
         GETERRNO(ret);
@@ -1122,17 +1131,24 @@ int aesdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     AES_init_ctx_iv(&ctx, aeskey, aesiv);
     AES_CBC_decrypt_buffer(&ctx, (uint8_t*)pout, (size_t)outlen);
     leftlen = pout[outlen - 1];
-    if (leftlen < AES_BLOCKLEN) {
-        valid = 1;
-        for (i = 0; i < leftlen; i++) {
-            if (pout[outlen - i - 1] != leftlen) {
-                valid = 0;
-                break;
-            }
+    if (leftlen < AES_BLOCKLEN || leftlen >= 2 * AES_BLOCKLEN) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("can not get padding len [%d]", leftlen);
+        goto out;
+    }
+    valid = 1;
+    for (i = 0; i < leftlen; i++) {
+        if (pout[outlen - i - 1] != leftlen) {
+            valid = 0;
+            ERROR_INFO("not valid on [%d]", i);
+            break;
         }
-        if (valid) {
-            outlen -= leftlen;
-        }
+    }
+    if (valid) {
+        outlen -= leftlen;
+    } else {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto out;
     }
 
     ret = write_file_whole_stdout(pargs->m_output, pout, outlen);
