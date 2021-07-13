@@ -191,6 +191,78 @@ out:
     return ret;
 }
 
+int read_json_parse(const char* jsonfile,jvalue** ppjval)
+{
+    char* pin=NULL;
+    int insize=0,inlen=0;
+    int ret;
+    char* tmpbuf=NULL;
+    unsigned int passlen=0;
+    jvalue *pj=NULL;
+    
+
+    if (jsonfile == NULL) {
+        if (ppjval!=NULL && (*ppjval)) {
+            jvalue_destroy(*ppjval);
+            *ppjval = NULL;
+        }
+        return 0;
+    }
+
+    if (ppjval == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = read_file_whole((char*)jsonfile,&pin,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    inlen = ret;
+    if (inlen < insize) {
+        pin[inlen] = '\0';
+    } else {
+        insize += 10;
+        tmpbuf = (char*)malloc((size_t)insize);
+        if (tmpbuf == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        memset(tmpbuf,0,(size_t)insize);
+        if (inlen > 0) {
+            memcpy(tmpbuf,pin,(size_t)inlen);
+        }
+        if (pin) {
+            free(pin);
+        }
+        pin = tmpbuf;
+        tmpbuf = NULL;
+    }
+
+    passlen = (unsigned int)(inlen + 1);
+    pj = jvalue_read(pin,&passlen);
+    if (pj == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (*ppjval) {
+        jvalue_destroy(*ppjval);
+    }
+    *ppjval = pj;
+    pj = NULL;
+
+    read_file_whole(NULL,&pin,&insize);
+    return 1;
+fail:
+    read_file_whole(NULL,&pin,&insize);
+    SETERRNO(ret);
+    return ret;
+}
+
+
 #define  COPY_STR_VALUE(key,ppval,ptr,rets)                                                       \
 do{                                                                                               \
     if (ppval != NULL) {                                                                          \
@@ -220,14 +292,9 @@ do{                                                                             
 
 int parse_rsakey_jsonfile(const char* keyfile, char** ppestr, int* esize, char** ppdstr, int *dsize, char** ppnstr, int *nsize, int *pbits, int *ppad)
 {
-    char* pkeystr = NULL;
-    int keysize = 0;
-    int keylen = 0;
     char *prete = NULL, *pretn = NULL, *pretd = NULL;
     int retesize = 0, retnsize = 0, retdsize = 0;
     jvalue* pj = NULL;
-    char* tmpbuf = NULL;
-    unsigned int parselen = 0;
     const char* pcurval = NULL;
     int curlen = 0;
     int bits = 0;
@@ -300,39 +367,12 @@ int parse_rsakey_jsonfile(const char* keyfile, char** ppestr, int* esize, char**
         retesize = *esize;
     }
 
-    ret = read_file_whole((char*)keyfile, &pkeystr, &keysize);
+    ret = read_json_parse(keyfile,&pj);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-    keylen = ret;
-    if (keylen == keysize) {
-        keysize = keylen + 1;
-        tmpbuf = (char*) malloc((size_t)keysize);
-        if (tmpbuf == NULL) {
-            GETERRNO(ret);
-            goto fail;
-        }
-        memset(tmpbuf, 0, (size_t)keysize);
-        if (keylen > 0) {
-            memcpy(tmpbuf, pkeystr, (size_t)keylen);
-        }
-        if (pkeystr) {
-            free(pkeystr);
-        }
-        pkeystr = tmpbuf;
-        tmpbuf = NULL;
-    } else {
-        pkeystr[keylen] = '\0';
-    }
-    parselen = (unsigned int)(keylen + 1);
 
-    pj = jvalue_read(pkeystr, &parselen);
-    if (pj == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("can not parse [%s]", pkeystr);
-        goto fail;
-    }
 
     COPY_STR_VALUE("d", ppdstr, pretd, retdsize);
     COPY_STR_VALUE("e", ppestr, prete, retesize);
@@ -399,9 +439,7 @@ int parse_rsakey_jsonfile(const char* keyfile, char** ppestr, int* esize, char**
         retcnt ++;
     }
 
-    jvalue_destroy(pj);
-    pj = NULL;
-    read_file_whole(NULL, &pkeystr, &keysize);
+    read_json_parse(NULL,&pj);
     return retcnt;
 fail:
     if (prete != NULL && (ppestr != NULL && *ppestr != prete)) {
@@ -422,11 +460,7 @@ fail:
     pretd = NULL;
     retdsize = 0;
 
-    if (pj != NULL) {
-        jvalue_destroy(pj);
-    }
-    pj = NULL;
-    read_file_whole(NULL, &pkeystr, &keysize);
+    read_json_parse(NULL,&pj);
     SETERRNO(ret);
     return ret;
 }
@@ -434,16 +468,11 @@ fail:
 int parse_aeskey_jsonfile(const char* aesfile, uint8_t** ppaes, int *pkeysize, uint8_t** ppiv, int*pivsize)
 {
     int ret;
-    char* pkeystr = NULL;
-    int keysize = 0;
-    int keylen = 0;
-    char* tmpbuf = NULL;
     jvalue* pj = NULL;
     uint8_t *pretaes = NULL, *pretiv = NULL;
     int retaessize = 0, retivsize = 0;
     int aeslen = 0, ivlen = 0;
     const char* pcurval = NULL;
-    unsigned int parselen = 0;
 
     if (aesfile == NULL) {
         if (ppaes && *ppaes) {
@@ -471,39 +500,9 @@ int parse_aeskey_jsonfile(const char* aesfile, uint8_t** ppaes, int *pkeysize, u
         return ret;
     }
 
-
-    ret = read_file_whole((char*)aesfile, &pkeystr, &keysize);
+    ret = read_json_parse(aesfile,&pj);
     if (ret < 0) {
         GETERRNO(ret);
-        goto fail;
-    }
-
-    keylen = ret;
-    if (keylen == keysize) {
-        keysize = keylen + 1;
-        tmpbuf = (char*) malloc((size_t)keysize);
-        if (tmpbuf == NULL) {
-            GETERRNO(ret);
-            goto fail;
-        }
-        memset(tmpbuf, 0, (size_t)keysize);
-        if (keylen > 0) {
-            memcpy(tmpbuf, pkeystr, (size_t)keylen);
-        }
-        if (pkeystr) {
-            free(pkeystr);
-        }
-        pkeystr = tmpbuf;
-        tmpbuf = NULL;
-    } else {
-        pkeystr[keylen] = '\0';
-    }
-    parselen = (unsigned int)(keylen + 1);
-
-    pj = jvalue_read(pkeystr, &parselen);
-    if (pj == NULL) {
-        GETERRNO(ret);
-        ERROR_INFO("can not parse [%s]", pkeystr);
         goto fail;
     }
 
@@ -586,20 +585,12 @@ int parse_aeskey_jsonfile(const char* aesfile, uint8_t** ppaes, int *pkeysize, u
 
     get_value_hex_string(NULL, &pretaes, &retaessize);
     get_value_hex_string(NULL, &pretiv, &retivsize);
-    if (pj) {
-        jvalue_destroy(pj);
-    }
-    pj = NULL;
-    read_file_whole(NULL, &pkeystr, &keysize);
+    read_json_parse(NULL,&pj);
     return 2;
 fail:
     get_value_hex_string(NULL, &pretaes, &retaessize);
     get_value_hex_string(NULL, &pretiv, &retivsize);
-    if (pj) {
-        jvalue_destroy(pj);
-    }
-    pj = NULL;
-    read_file_whole(NULL, &pkeystr, &keysize);
+    read_json_parse(NULL,&pj);
     SETERRNO(ret);
     return ret;
 }
