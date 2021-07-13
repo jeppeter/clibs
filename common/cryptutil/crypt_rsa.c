@@ -162,7 +162,7 @@ int __rsa_encrypt(char* cipher,int cipherlen, char* message, int length, rsa_con
         goto fail;
     }
     if (rsa->padding == 0) {
-        rsa->padding = 3;
+        rsa->padding = 11;
     }
 
     filledbuf = malloc(blocksize* 2);
@@ -420,7 +420,7 @@ int __rsa_sign(unsigned char* signedmess ,int signedlen,unsigned char *mess,int 
     int i;
 
     if (prsa->padding == 0) {
-        prsa->padding = 3;
+        prsa->padding = 11;
     }
 
     expbuf = malloc(blocksize* 4);

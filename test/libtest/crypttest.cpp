@@ -1028,10 +1028,13 @@ int aesenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
     inlen = ret;
 
-    outsize = inlen * 2;
+    outsize = inlen;
     outlen = inlen;
-    outlen = ((outlen + AES_BLOCKLEN - 1) / AES_BLOCKLEN) * AES_BLOCKLEN + AES_BLOCKLEN;
+    outlen = ((outlen + AES_BLOCKLEN - 1) / AES_BLOCKLEN) * AES_BLOCKLEN;
     if (outlen > outsize) {
+        outsize = outlen;
+    } else {
+        outlen += AES_BLOCKLEN;
         outsize = outlen;
     }
     pout = (char*) malloc((size_t)outsize);
@@ -1131,7 +1134,7 @@ int aesdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     AES_init_ctx_iv(&ctx, aeskey, aesiv);
     AES_CBC_decrypt_buffer(&ctx, (uint8_t*)pout, (size_t)outlen);
     leftlen = pout[outlen - 1];
-    if (leftlen < AES_BLOCKLEN || leftlen >= 2 * AES_BLOCKLEN) {
+    if (leftlen == 0 || leftlen > AES_BLOCKLEN) {
         ret = -ERROR_INVALID_PARAMETER;
         ERROR_INFO("can not get padding len [%d]", leftlen);
         goto out;
