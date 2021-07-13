@@ -762,6 +762,39 @@ int get_sha256_hash(uint8_t* pdata,int datalen, uint8_t* hash)
     return SHA256_BLOCK_SIZE;
 }
 
+int __rsa_verify_data(char* rawdata, int rawsize,char* verfidata,int verisize)
+{
+    unsigned char hash[SHA256_BLOCK_SIZE];
+    int ret;
+    if (verisize < (sizeof(st_sha256_prefix) + SHA256_BLOCK_SIZE)) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+    if (memcmp(verfidata,st_sha256_prefix,sizeof(st_sha256_prefix)) != 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_BUFFER_FMT(verfidata,verisize, "differ from st_sha256_prefix");
+        goto fail;
+    }
+
+    ret= get_sha256_hash((uint8_t*)rawdata,rawsize,hash);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (memcmp(&(verfidata[sizeof(st_sha256_prefix)]),hash,SHA256_BLOCK_SIZE) != 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_BUFFER_FMT(hash,SHA256_BLOCK_SIZE,"calculate hash");
+        ERROR_BUFFER_FMT(&(verfidata[sizeof(st_sha256_prefix)]),SHA256_BLOCK_SIZE,"get hash");
+        goto fail;
+    }
+
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
 int rsaverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret = 0;
@@ -774,7 +807,6 @@ int rsaverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     char *rsae = NULL, *rsad = NULL, *rsan = NULL;
     int esize = 0, dsize = 0, nsize = 0;
     int padding = 0;
-    uint8_t hash[SHA256_BLOCK_SIZE];
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);
@@ -825,28 +857,9 @@ int rsaverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         goto out;
     }
     declen = ret;
-    if (declen < (sizeof(st_sha256_prefix) + SHA256_BLOCK_SIZE)) {
-        ret = -ERROR_INVALID_PARAMETER;
-        ERROR_INFO("declen [%d] < [%d] + [%d]", declen, sizeof(st_sha256_prefix), SHA256_BLOCK_SIZE);
-        goto out;
-    }
-
-    if (memcmp(pdec,st_sha256_prefix,sizeof(st_sha256_prefix)) != 0) {
-        ret = -ERROR_INVALID_PARAMETER;
-        ERROR_BUFFER_FMT(pdec,declen, "differ from st_sha256_prefix");
-        goto out;
-    }
-
-    ret= get_sha256_hash((uint8_t*)pin,inlen,hash);
+    ret = __rsa_verify_data(pin,inlen,pdec,declen);
     if (ret < 0) {
         GETERRNO(ret);
-        goto out;
-    }
-
-    if (memcmp(&(pdec[sizeof(st_sha256_prefix)]),hash,SHA256_BLOCK_SIZE) != 0) {
-        ret = -ERROR_INVALID_PARAMETER;
-        ERROR_BUFFER_FMT(hash,SHA256_BLOCK_SIZE,"calculate hash");
-        ERROR_BUFFER_FMT(&(pdec[sizeof(st_sha256_prefix)]),SHA256_BLOCK_SIZE,"get hash");
         goto out;
     }
 
