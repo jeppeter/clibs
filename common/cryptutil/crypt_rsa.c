@@ -298,21 +298,18 @@ int __rsa_decrypt(char* message,int messlen, char* cipher, int length,rsa_contex
         goto fail;
     }
 
-    RSA_DEBUG(" ");
     expbuf = malloc(blocksize*4);
     if (expbuf == NULL)
     {
         goto fail;
     }
 
-    RSA_DEBUG(" ");
     filledbuf = malloc(blocksize* 2);
     if (filledbuf == NULL)
     {
         goto fail;
     }
 
-    RSA_DEBUG(" ");
     pcurmess = message;
     leftmesslen = messlen;
     filledlen = 0;
