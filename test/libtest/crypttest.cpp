@@ -760,21 +760,30 @@ out:
     return ret;
 }
 
+static uint8_t st_sha256_prefix[19] = {0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20};
+
+int get_sha256_hash(uint8_t* pdata,int datalen, uint8_t* hash)
+{
+    SHA256_CTX ctx;
+    sha256_init(&ctx);
+    sha256_update(&ctx, (const unsigned char*)pdata, (size_t)datalen);
+    sha256_final(&ctx, hash);
+    return SHA256_BLOCK_SIZE;
+}
+
 int rsaverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret = 0;
-    char* pin = NULL;
-    int insize = 0;
-    int inlen = 0;
-    char* pout = NULL;
-    int outsize = 0;
-    int outlen = 0;
+    char* pin = NULL ,*pout= NULL, *pdec=NULL;
+    int insize = 0 , outsize=0,decsize=0;
+    int inlen = 0, outlen = 0,declen = 0;
     rsa_context ctx = {0};
     int bitsize = 2048;
     pargs_options_t pargs = (pargs_options_t) popt;
     char *rsae = NULL, *rsad = NULL, *rsan = NULL;
     int esize = 0, dsize = 0, nsize = 0;
     int padding = 0;
+    uint8_t hash[SHA256_BLOCK_SIZE];
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);
@@ -802,35 +811,62 @@ int rsaverify_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
     inlen = ret;
 
-    outsize = inlen;
-    pout = (char*) malloc((size_t)outsize);
-    if (pout == NULL) {
+    ret = read_file_whole_stdin(0,pargs->m_output, &pout,&outsize);
+    if (ret < 0) {
         GETERRNO(ret);
         goto out;
     }
+    outlen = ret;
 
-    ret = rsa_verify((unsigned char*)pout, outsize, (unsigned char*)pin, inlen, &ctx, printf);
+    decsize = outlen;
+    pdec = (char*)malloc((size_t)decsize);
+    if (pdec == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memset(pdec,0,(size_t)decsize);
+
+
+    ret = rsa_verify((unsigned char*)pdec, decsize, (unsigned char*)pout, outlen, &ctx, printf);
     if (ret < 0) {
         GETERRNO(ret);
         ERROR_INFO("verify [%s] error[%s]", pargs->m_input ? pargs->m_input : "stdin", ret);
         goto out;
     }
-    outlen = ret;
-    DEBUG_BUFFER_FMT(pin, inlen, "input len");
-    DEBUG_BUFFER_FMT(pout, outlen, "output len");
-    ret = write_file_whole_stdout(pargs->m_output, pout, outlen);
+    declen = ret;
+    if (declen < (sizeof(st_sha256_prefix) + SHA256_BLOCK_SIZE)) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("declen [%d] < [%d] + [%d]", declen, sizeof(st_sha256_prefix), SHA256_BLOCK_SIZE);
+        goto out;
+    }
+
+    if (memcmp(pdec,st_sha256_prefix,sizeof(st_sha256_prefix)) != 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_BUFFER_FMT(pdec,declen, "differ from st_sha256_prefix");
+        goto out;
+    }
+
+    ret= get_sha256_hash((uint8_t*)pin,inlen,hash);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
     }
 
+    if (memcmp(&(pdec[sizeof(st_sha256_prefix)]),hash,SHA256_BLOCK_SIZE) != 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_BUFFER_FMT(hash,SHA256_BLOCK_SIZE,"calculate hash");
+        ERROR_BUFFER_FMT(&(pdec[sizeof(st_sha256_prefix)]),SHA256_BLOCK_SIZE,"get hash");
+        goto out;
+    }
+
     ret = 0;
 out:
-    if (pout) {
-        free(pout);
+    if (pdec) {
+        free(pdec);
     }
-    pout = NULL;
-    read_file_whole_stdin(1, NULL, &pout, &outsize);
+    pdec=NULL;
+    read_file_whole_stdin(1,NULL,&pout,&outsize);
+    read_file_whole_stdin(1,NULL,&pin,&insize);
     rsa_free(&ctx);
     parse_rsakey_jsonfile(NULL, &rsae, &esize, &rsad, &dsize, &rsan, &nsize, &bitsize,&padding);
     SETERRNO(ret);
@@ -840,18 +876,17 @@ out:
 int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret = 0;
-    char* pin = NULL;
-    int insize = 0;
-    int inlen = 0;
-    char* pout = NULL;
-    int outsize = 0;
-    int outlen = 0;
+    char* pin = NULL, *pout=NULL, *penc=NULL;
+    int insize = 0,outsize =0,encsize=0;
+    int inlen = 0, outlen = 0,enclen=0;
     rsa_context ctx = {0};
     int bitsize = 2048;
     pargs_options_t pargs = (pargs_options_t) popt;
     char *rsae = NULL, *rsad = NULL, *rsan = NULL;
     int esize = 0, dsize = 0, nsize = 0;
     int padding = 0;
+    uint8_t hash[SHA256_BLOCK_SIZE];
+
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);
@@ -859,7 +894,7 @@ int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
     init_log_level(pargs);
     ret = parse_rsakey_jsonfile(pargs->m_rsafile, &rsae, &esize, &rsad, &dsize, &rsan, &nsize, &bitsize,&padding);
-    if (ret != 4) {
+    if (ret != 5) {
         GETERRNO(ret);
         ERROR_INFO("can not parse [%s]", pargs->m_rsafile ? pargs->m_rsafile : "NULL");
         goto out;
@@ -879,21 +914,42 @@ int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     }
     inlen = ret;
 
-    outsize = inlen * 2;
+    encsize = sizeof(st_sha256_prefix) + SHA256_BLOCK_SIZE;
+    penc = (char*) malloc((size_t)encsize);
+    if (penc == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    memset(penc,0,(size_t)encsize);
+    memcpy(penc,st_sha256_prefix,sizeof(st_sha256_prefix));
+
+    ret = get_sha256_hash((uint8_t*)pin,inlen,hash);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memcpy(&(penc[sizeof(st_sha256_prefix)]),hash,SHA256_BLOCK_SIZE);
+    enclen = sizeof(st_sha256_prefix) + SHA256_BLOCK_SIZE;
+
+
+
+    outsize = bitsize / 8;
+    if (outsize < (encsize + padding)) {
+        outsize = (encsize+padding) * 2;
+    }
     pout = (char*) malloc((size_t)outsize);
     if (pout == NULL) {
         GETERRNO(ret);
         goto out;
     }
 
-    ret = rsa_sign((unsigned char*)pout, outsize, (unsigned char*)pin, inlen, &ctx, printf);
+    ret = rsa_sign((unsigned char*)pout, outsize, (unsigned char*)penc, enclen, &ctx, printf);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
     }
     outlen = ret;
-    DEBUG_BUFFER_FMT(pin, inlen, "input len");
-    DEBUG_BUFFER_FMT(pout, outlen, "output len");
     ret = write_file_whole_stdout(pargs->m_output, pout, outlen);
     if (ret < 0) {
         GETERRNO(ret);
@@ -902,11 +958,15 @@ int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
     ret = 0;
 out:
+    if (penc) {
+        free(penc);
+    }
+    penc = NULL;
     if (pout) {
         free(pout);
     }
     pout = NULL;
-    read_file_whole_stdin(1, NULL, &pout, &outsize);
+    read_file_whole_stdin(1, NULL, &pin, &insize);
     rsa_free(&ctx);
     parse_rsakey_jsonfile(NULL, &rsae, &esize, &rsad, &dsize, &rsan, &nsize, &bitsize,&padding);
     SETERRNO(ret);
@@ -1085,9 +1145,8 @@ int debug_sha256_hash(char* fname)
     char* pin = NULL;
     int insize = 0;
     int inlen = 0;
-    uint8_t hash[32];
+    uint8_t hash[SHA256_BLOCK_SIZE];
     int ret;
-    SHA256_CTX ctx;
     int i;
 
     ret = read_file_whole_stdin(0, fname, &pin, &insize);
@@ -1098,9 +1157,11 @@ int debug_sha256_hash(char* fname)
     inlen = ret;
     DEBUG_BUFFER_FMT(pin, inlen, "%s ", fname ? fname : "<STDIN>");
     fflush(stderr);
-    sha256_init(&ctx);
-    sha256_update(&ctx, (const unsigned char*)pin, (size_t)inlen);
-    sha256_final(&ctx, hash);
+    ret = get_sha256_hash((uint8_t*)pin,inlen,hash);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
     fprintf(stdout, "%s ", fname ? fname : "<STDIN>");
     for (i = 0; i < 32; i++) {

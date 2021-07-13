@@ -97,6 +97,20 @@ WINLIB_API void FileBufferFmt(int loglvl, const char* file, int lineno, unsigned
 	}while(0)
 
 
+#define  ERROR_BUFFER(ptr,blen) \
+	do{\
+		DebugBufferFmt(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
+		ConsoleBufferFmt(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
+		FileBufferFmt(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
+	}while(0)
+
+#define  ERROR_BUFFER_FMT(ptr,blen,...)  \
+	do{\
+		DebugBufferFmt(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
+		ConsoleBufferFmt(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
+		FileBufferFmt(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
+	}while(0)
+
 
 #define  INIT_LOG(loglvl)  InitOutput(loglvl)
 #define  FINI_LOG()        FiniOutput()
