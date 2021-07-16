@@ -1077,7 +1077,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
 	ERROR("\n");
     if( Q != NULL )
     {
-        mpi_copy( Q, &Z );
+        MPI_CHK(mpi_copy( Q, &Z ));
         Q->s = A->s * B->s;
     }
 
@@ -1085,7 +1085,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
     if( R != NULL )
     {
         MPI_CHK(mpi_shift_r( &X, k ));
-        mpi_copy( R, &X );
+        MPI_CHK(mpi_copy( R, &X ));
 
         R->s = A->s;
         if( mpi_cmp_int( R, 0 ) == 0 )
