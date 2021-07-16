@@ -208,7 +208,7 @@ try_again:
 fail:
     /*no pretfmt here*/
     if (pretfmt != NULL && pretfmt != *ppfmt) {
-        pretfmt = NULL;    
+        free(pretfmt);
     }
     pretfmt = NULL;
     SETERRNO(ret);
