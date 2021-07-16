@@ -971,15 +971,15 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
 	ERROR("\n");
     n = X.n - 1;
     t = Y.n - 1;
-    mpi_shift_l( &Y, biL * (n - t) );
+    MPI_CHK(mpi_shift_l( &Y, biL * (n - t) ));
 
     while( mpi_cmp_mpi( &X, &Y ) >= 0 )
     {
 		ERROR("\n");
         Z.p[n - t]++;
-        mpi_sub_mpi( &X, &X, &Y );
+        MPI_CHK(mpi_sub_mpi( &X, &X, &Y ));
     }
-    mpi_shift_r( &Y, biL * (n - t) );
+    MPI_CHK(mpi_shift_r( &Y, biL * (n - t) ));
 	ERROR("n = %d\n",n);
 
     for( i = n; i > t ; i-- )
@@ -1084,7 +1084,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
 	ERROR("\n");
     if( R != NULL )
     {
-        mpi_shift_r( &X, k );
+        MPI_CHK(mpi_shift_r( &X, k ));
         mpi_copy( R, &X );
 
         R->s = A->s;
