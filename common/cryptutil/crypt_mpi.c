@@ -1341,9 +1341,11 @@ int mpi_exp_mod( mpi *X, const mpi *A, const mpi *E, const mpi *N, mpi *_RR )
     /*
      * W[1] = A * R^2 * R^-1 mod N = A * R mod N
      */
-    if( mpi_cmp_mpi( A, N ) >= 0 )
+    if( mpi_cmp_mpi( A, N ) >= 0 ){
         mpi_mod_mpi( &W[1], A, N );
-    else   mpi_copy( &W[1], A );
+    }   else   {
+        MPI_CHK(mpi_copy( &W[1], A ));
+    }
 
 	ERROR("\n");
     mpi_montmul( &W[1], &RR, N, mm, &T );

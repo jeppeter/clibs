@@ -207,6 +207,9 @@ try_again:
     return retlen;
 fail:
     /*no pretfmt here*/
+    if (pretfmt != NULL && pretfmt != *ppfmt) {
+        pretfmt = NULL;    
+    }
     pretfmt = NULL;
     SETERRNO(ret);
     return ret;

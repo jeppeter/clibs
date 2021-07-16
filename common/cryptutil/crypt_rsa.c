@@ -399,8 +399,8 @@ int __rsa_sign(unsigned char* signedmess ,int signedlen,unsigned char *mess,int 
     int filledlen=0;
     char* expbuf=NULL;
     char* filledbuf=NULL;
-    mpz_t m;
-    mpz_t c;
+    mpz_t md;
+    mpz_t cd;
     int i;
 
     if (prsa->padding == 0) {
@@ -458,28 +458,32 @@ fill_again:
         i ++;
         memcpy(&(filledbuf[i]),pcurmess,curlen);
 
-        mpz_init(m);
-        mpz_init(c);
+        mpz_init(md);
+        mpz_init(cd);
 
         /*now filled buffer*/
-        mpz_import(m,blocksize,1,sizeof(char),0,0,filledbuf);
-        block_decrypt(c,m,prsa, printfunc);
+        mpz_import(md,blocksize,1,sizeof(char),0,0,filledbuf);
+        block_decrypt(cd,md,prsa, printfunc);
         if (leftsignedmess < blocksize)
         {
             RSA_ERROR(" ");
+            mpz_clear(md);
+            mpz_clear(cd);
             goto fail;
         }
 
-        ret = hex_str_buffer(mpz_get_str(expbuf,16,c),pcursignedmess,blocksize,printfunc);
+        ret = hex_str_buffer(mpz_get_str(expbuf,16,cd),pcursignedmess,blocksize,printfunc);
         if (ret < 0)
         {
             RSA_ERROR(" ");
+            mpz_clear(md);
+            mpz_clear(cd);
             goto fail;
         }
 
 
-        mpz_clear(m);
-        mpz_clear(c);
+        mpz_clear(md);
+        mpz_clear(cd);
 
         pcurmess += curlen;
         pcursignedmess += blocksize;
@@ -530,8 +534,8 @@ int __rsa_verify(unsigned char * verimess,int verilen,unsigned char * mess,int m
     int filledlen=0;
     char* expbuf=NULL;
     char* filledbuf=NULL;
-    mpz_t m;
-    mpz_t c;
+    mpz_t md;
+    mpz_t cd;
     int j;
 
     expbuf = malloc(blocksize* 4);
@@ -560,18 +564,20 @@ int __rsa_verify(unsigned char * verimess,int verilen,unsigned char * mess,int m
 
     while(leftmesslen > 0)
     {
-        mpz_init(m);
-        mpz_init(c);
-        mpz_import(c,blocksize,1,sizeof(char),0,0,pcurmess);
+        mpz_init(md);
+        mpz_init(cd);
+        mpz_import(cd,blocksize,1,sizeof(char),0,0,pcurmess);
 
-        block_encrypt(m,c,prsa);
-        ret = hex_str_buffer(mpz_get_str(expbuf,16,m),(uint8_t*)filledbuf,blocksize,printfunc);
+        block_encrypt(md,cd,prsa);
+        ret = hex_str_buffer(mpz_get_str(expbuf,16,md),(uint8_t*)filledbuf,blocksize,printfunc);
         if (ret < 0)
         {
+            mpz_clear(md);
+            mpz_clear(cd);
             goto fail;
         }
-        mpz_clear(m);
-        mpz_clear(c);
+        mpz_clear(md);
+        mpz_clear(cd);
 
         for (j=2; j<blocksize; j++)
         {
