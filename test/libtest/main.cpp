@@ -88,7 +88,11 @@ typedef struct __args_options {
     int m_bufsize;
     int m_hidewindow;
     int m_privenable;
-    int m_res1;
+    int m_disablecon;
+    char** m_appfiles;
+    char** m_outfiles;
+    int m_disablefile;
+    int m_disabledb;
 } args_options_t, *pargs_options_t;
 
 #pragma comment(lib,"user32.lib")
@@ -214,6 +218,7 @@ int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int aesenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int aesdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sha256sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int outputdebug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0

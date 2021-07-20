@@ -41,6 +41,22 @@ void __free_output_hds(void)
     return;
 }
 
+const char* _get_loglevel_note(int loglvl)
+{
+    if (loglvl <= BASE_LOG_FATAL) {
+        return "FATAL";
+    } else if (loglvl > BASE_LOG_FATAL && loglvl <= BASE_LOG_ERROR) {
+        return "ERROR";
+    } else if (loglvl > BASE_LOG_ERROR && loglvl <= BASE_LOG_WARN) {
+        return "WARN";
+    } else if (loglvl > BASE_LOG_WARN && loglvl <= BASE_LOG_INFO) {
+        return "INFO";
+    } else if (loglvl > BASE_LOG_INFO && loglvl <= BASE_LOG_DEBUG) {
+        return "DEBUG";
+    } 
+    return "TRACE";    
+}
+
 void InnerDebug(char* pFmtStr)
 {
     if (st_disableflag & WINLIB_DBWIN_DISABLED) {
@@ -266,7 +282,7 @@ try_again:
     memset(pLine, 0, alloclen);
     memset(pWhole, 0, alloclen * 2);
 
-    ret = _snprintf_s(pLine, alloclen, alloclen - 1, "%s:%d:time(0x%08x):%s\t", file, lineno, (unsigned int)GetTickCount(),fmttime);
+    ret = _snprintf_s(pLine, alloclen, alloclen - 1, "%s:%d:time(0x%08x):%s<%s>\t", file, lineno, (unsigned int)GetTickCount(),fmttime,_get_loglevel_note(loglvl));
     if (ret < 0 || ret >= (int)(alloclen - 1)) {
         alloclen <<= 1;
         goto try_again;
@@ -375,7 +391,7 @@ void __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char*
         goto out;
     }
 
-    FORMAT_SNPRINTF("[%s:%d:time(0x%llx):%s]\tbuffer %p (%d)", file, lineno, GetTickCount64(),fmttime, pBuffer, buflen);
+    FORMAT_SNPRINTF("[%s:%d:time(0x%llx):%s]<%s>\tbuffer %p (%d)", file, lineno, GetTickCount64(),fmttime,_get_loglevel_note(loglvl), pBuffer, buflen);
     if (fmt) {
         ret = _vsnprintf_s(pCur, (size_t)(fmtlen - formedlen), (size_t)(formedlen - formedlen - 1), fmt, ap);
         if (ret < 0 || ret >= ((int)(fmtlen - formedlen - 1))) {
@@ -510,7 +526,13 @@ HANDLE __open_output_debug(char* file, int appendmode)
     if (appendmode) {
         hd = CreateFile(ptname,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
     } else {
-        hd = CreateFile(ptname,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+        hd = CreateFile(ptname,GENERIC_WRITE,FILE_SHARE_READ,NULL,TRUNCATE_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+        if (hd == INVALID_HANDLE_VALUE) {
+            GETERRNO(ret);
+            if (ret == -ERROR_FILE_NOT_FOUND ) {
+                hd = CreateFile(ptname,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+            }
+        }
     }
     if (hd == INVALID_HANDLE_VALUE) {
         GETERRNO(ret);

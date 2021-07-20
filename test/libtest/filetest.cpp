@@ -201,3 +201,103 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int outputdebug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int ret;
+    int idx=0;
+    int times = 10;
+    uint64_t appsize=(1ULL<<20);
+    output_debug_cfg_t cfg={0};
+    int loglevel=BASE_LOG_DEFAULT;
+    char* appfile=NULL;
+    uint64_t cursize;
+    int i;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    GET_OPT_INT(times,"times");
+    GET_OPT_NUM64(appsize,"appsize");
+    cfg.m_ppoutcreatefile = pargs->m_outfiles;
+    cfg.m_ppoutappendfile = pargs->m_appfiles;
+
+    if (pargs->m_verbose <= 0) {
+        loglevel = BASE_LOG_FATAL;
+    } else if (pargs->m_verbose == 1) {
+        loglevel = BASE_LOG_ERROR;
+    } else if (pargs->m_verbose == 2) {
+        loglevel = BASE_LOG_WARN;
+    } else if (pargs->m_verbose == 3) {
+        loglevel = BASE_LOG_INFO;
+    } else if (pargs->m_verbose == 4) {
+        loglevel = BASE_LOG_DEBUG;
+    } else {
+        loglevel = BASE_LOG_TRACE;
+    }
+
+    for (i=0;pargs->m_appfiles && pargs->m_appfiles[i];i++) {
+        appfile = pargs->m_appfiles[i];
+        SETERRNO(0);
+        cursize = get_file_size(appfile);
+        GETERRNO_DIRECT(ret);
+        if (ret == 0) {
+            if (cursize >= appsize) {
+                fprintf(stdout,"will delete [%d][%s]\n",i,appfile);
+                ret = delete_file(appfile);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    fprintf(stderr, "can not delete [%s] error[%d]\n", appfile,ret);
+                    goto out;
+                }
+            }
+        }
+    }
+
+    if (pargs->m_disablecon != 0) {
+        cfg.m_disableflag |= WINLIB_CONSOLE_DISABLED;
+    }
+    if (pargs->m_disablefile != 0) {
+        cfg.m_disableflag |= WINLIB_FILE_DISABLED;
+    }
+
+    if (pargs->m_disabledb != 0) {
+        cfg.m_disableflag |= WINLIB_DBWIN_DISABLED;
+    }
+
+    ret = InitOutputEx(loglevel,&cfg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"init output error[%d]\n",ret);
+        goto out;
+    }
+
+    for (i=0;i<times;i++) {
+        FATAL_INFO("debug line[%d]",i);
+        ERROR_INFO("debug line[%d]",i);
+        WARN_INFO("debug line[%d]",i);
+        INFO_INFO("debug line[%d]",i);
+        DEBUG_INFO("debug line[%d]",i);
+        TRACE_INFO("debug line[%d]",i);
+        FATAL_BUFFER(&cfg,sizeof(cfg));
+        FATAL_BUFFER_FMT(&cfg,sizeof(cfg),"cfg [%p]",&cfg);
+        ERROR_BUFFER(&cfg,sizeof(cfg));
+        ERROR_BUFFER_FMT(&cfg,sizeof(cfg),"cfg [%p]",&cfg);
+        WARN_BUFFER(&cfg,sizeof(cfg));
+        WARN_BUFFER_FMT(&cfg,sizeof(cfg),"cfg [%p]",&cfg);
+        INFO_BUFFER(&cfg,sizeof(cfg));
+        INFO_BUFFER_FMT(&cfg,sizeof(cfg),"cfg [%p]",&cfg);
+        DEBUG_BUFFER(&cfg,sizeof(cfg));
+        DEBUG_BUFFER_FMT(&cfg,sizeof(cfg),"cfg [%p]",&cfg);
+        TRACE_BUFFER(&cfg,sizeof(cfg));
+        TRACE_BUFFER_FMT(&cfg,sizeof(cfg),"cfg [%p]",&cfg);
+    }
+
+    /**/
+    ret = 0;
+out:
+    FiniOutput();
+    SETERRNO(ret);
+    return ret;
+
+}

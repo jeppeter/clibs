@@ -10,6 +10,11 @@
     "privenable|E<m_privenable>" : false,
     "rsafile<m_rsafile>" : null,
     "aesfile<m_aesfile>" : null,
+    "appfiles<m_appfiles>" : [],
+    "outfiles<m_outfiles>" : [],
+    "disablecon<m_disablecon>" : false,
+    "disablefile<m_disablefile>" : false,
+    "disabledb<m_disabledb>" : false,
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },
@@ -326,6 +331,9 @@
         "$" : 0
     },
     "sha256sum<sha256sum_handler>## files ... to make sha256 sum for files ...##" : {
+        "$" : "*"
+    },
+    "outputdebug<outputdebug_handler>## [times] [appsize] to make debug info output for files times default 10 appsize default 1M ##" : {
         "$" : "*"
     }
 
