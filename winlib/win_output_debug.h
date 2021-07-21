@@ -39,160 +39,41 @@ typedef struct __output_debug_cfg {
 	int m_reserv1;
 } output_debug_cfg_t, *poutput_debug_cfg_t;
 
-WINLIB_API void DebugOutString(int loglvl,const char* file,int lineno,const char* fmt,...);
-WINLIB_API void ConsoleOutString(int loglvl,const char* file,int lineno,const char* fmt,...);
-WINLIB_API void FileOutString(int loglvl,const char* file,int lineno,const char* fmt,...);
-WINLIB_API void DebugBufferFmt(int loglvl,const char* file,int lineno,unsigned char* pBuffer,int buflen,const char* fmt,...);
-WINLIB_API void ConsoleBufferFmt(int loglvl,const char* file,int lineno,unsigned char* pBuffer,int buflen,const char* fmt,...);
 WINLIB_API int  InitOutput(int loglvl);
 WINLIB_API int  InitOutputEx(int loglvl,poutput_debug_cfg_t pcfg);
 WINLIB_API void FiniOutput(void);
 WINLIB_API int error_out(const char* fmt, ...);
-WINLIB_API void FileBufferFmt(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...);
+WINLIB_API int output_debug_string_handle(int loglvl, const char* file, int lineno, const char* fmt, ...);
+WINLIB_API int output_buffer_fmt_handle(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...);
 
 
 #ifdef __cplusplus
 };
 #endif
 
-#define __INNER_BACKGROUND_OUTPUT(loglvl,fmt,...) DebugOutString(loglvl,__FILE__,__LINE__,fmt,__VA_ARGS__)
-#define __INNER_CONSOLE_OUTPUTU(loglvl,fmt,...)  ConsoleOutString(loglvl,__FILE__,__LINE__,fmt,__VA_ARGS__)
-#define __INNER_FILE_OUTPUT(loglvl,fmt,...)  FileOutString(loglvl,__FILE__,__LINE__,fmt,__VA_ARGS__)
-
-
-#define FATAL_INFO(fmt,...)  \
-	do{  \
-		__INNER_BACKGROUND_OUTPUT(BASE_LOG_FATAL,fmt,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(BASE_LOG_FATAL,fmt,__VA_ARGS__);\
-		__INNER_FILE_OUTPUT(BASE_LOG_FATAL,fmt,__VA_ARGS__);\
-	}while(0)
-
-
-#define ERROR_INFO(fmt,...)  \
-	do{  \
-		__INNER_BACKGROUND_OUTPUT(BASE_LOG_ERROR,fmt,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(BASE_LOG_ERROR,fmt,__VA_ARGS__);\
-		__INNER_FILE_OUTPUT(BASE_LOG_ERROR,fmt,__VA_ARGS__);\
-	}while(0)
-
-#define WARN_INFO(fmt,...)   \
-	do { \
-		__INNER_BACKGROUND_OUTPUT(BASE_LOG_WARN,fmt,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(BASE_LOG_WARN,fmt,__VA_ARGS__);\
-		__INNER_FILE_OUTPUT(BASE_LOG_WARN,fmt,__VA_ARGS__);\
-	} while(0)
-
-
-#define INFO_INFO(fmt,...) \
-	do{ \
-		__INNER_BACKGROUND_OUTPUT(BASE_LOG_INFO,fmt,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(BASE_LOG_INFO,fmt,__VA_ARGS__);\
-		__INNER_FILE_OUTPUT(BASE_LOG_INFO,fmt,__VA_ARGS__);\
-	}while(0)
-
-#define DEBUG_INFO(fmt,...) \
-	do{ \
-		__INNER_BACKGROUND_OUTPUT(BASE_LOG_DEBUG,fmt,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(BASE_LOG_DEBUG,fmt,__VA_ARGS__);\
-		__INNER_FILE_OUTPUT(BASE_LOG_DEBUG,fmt,__VA_ARGS__);\
-	}while(0)
-
-#define TRACE_INFO(fmt,...) \
-	do{ \
-		__INNER_BACKGROUND_OUTPUT(BASE_LOG_TRACE,fmt,__VA_ARGS__);\
-		__INNER_CONSOLE_OUTPUTU(BASE_LOG_TRACE,fmt,__VA_ARGS__);\
-		__INNER_FILE_OUTPUT(BASE_LOG_TRACE,fmt,__VA_ARGS__);\
-	}while(0)
+#define FATAL_INFO(fmt,...)  output_debug_string_handle(BASE_LOG_FATAL,__FILE__,__LINE__,fmt,__VA_ARGS__)
+#define ERROR_INFO(fmt,...)  output_debug_string_handle(BASE_LOG_ERROR,__FILE__,__LINE__,fmt,__VA_ARGS__)
+#define WARN_INFO(fmt,...)   output_debug_string_handle(BASE_LOG_WARN,__FILE__,__LINE__,fmt,__VA_ARGS__)
+#define INFO_INFO(fmt,...)   output_debug_string_handle(BASE_LOG_INFO,__FILE__,__LINE__,fmt,__VA_ARGS__)
+#define DEBUG_INFO(fmt,...)  output_debug_string_handle(BASE_LOG_DEBUG,__FILE__,__LINE__,fmt,__VA_ARGS__)
+#define TRACE_INFO(fmt,...)  output_debug_string_handle(BASE_LOG_TRACE,__FILE__,__LINE__,fmt,__VA_ARGS__)
 
 
 
-#define  FATAL_BUFFER(ptr,blen) \
-	do{\
-		DebugBufferFmt(BASE_LOG_FATAL,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		ConsoleBufferFmt(BASE_LOG_FATAL,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		FileBufferFmt(BASE_LOG_FATAL,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
-
-#define  FATAL_BUFFER_FMT(ptr,blen,...)  \
-	do{\
-		DebugBufferFmt(BASE_LOG_FATAL,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		ConsoleBufferFmt(BASE_LOG_FATAL,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		FileBufferFmt(BASE_LOG_FATAL,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
+#define  FATAL_BUFFER(ptr,blen)               output_buffer_fmt_handle(BASE_LOG_FATAL,__FILE__,__LINE__,(unsigned char*)(ptr),(int)(blen),NULL)
+#define  ERROR_BUFFER(ptr,blen)               output_buffer_fmt_handle(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)(ptr),(int)(blen),NULL)
+#define  WARN_BUFFER(ptr,blen)                output_buffer_fmt_handle(BASE_LOG_WARN,__FILE__,__LINE__,(unsigned char*)(ptr),(int)(blen),NULL)
+#define  INFO_BUFFER(ptr,blen)                output_buffer_fmt_handle(BASE_LOG_INFO,__FILE__,__LINE__,(unsigned char*)(ptr),(int)(blen),NULL)
+#define  DEBUG_BUFFER(ptr,blen)               output_buffer_fmt_handle(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)(ptr),(int)(blen),NULL)
+#define  TRACE_BUFFER(ptr,blen)               output_buffer_fmt_handle(BASE_LOG_TRACE,__FILE__,__LINE__,(unsigned char*)(ptr),(int)(blen),NULL)
 
 
-#define  ERROR_BUFFER(ptr,blen) \
-	do{\
-		DebugBufferFmt(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		ConsoleBufferFmt(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		FileBufferFmt(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
-
-#define  ERROR_BUFFER_FMT(ptr,blen,...)  \
-	do{\
-		DebugBufferFmt(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		ConsoleBufferFmt(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		FileBufferFmt(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
-
-
-#define  WARN_BUFFER(ptr,blen) \
-	do{\
-		DebugBufferFmt(BASE_LOG_WARN,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		ConsoleBufferFmt(BASE_LOG_WARN,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		FileBufferFmt(BASE_LOG_WARN,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
-
-#define  WARN_BUFFER_FMT(ptr,blen,...)  \
-	do{\
-		DebugBufferFmt(BASE_LOG_WARN,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		ConsoleBufferFmt(BASE_LOG_WARN,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		FileBufferFmt(BASE_LOG_WARN,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
-
-
-#define  INFO_BUFFER(ptr,blen) \
-	do{\
-		DebugBufferFmt(BASE_LOG_INFO,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		ConsoleBufferFmt(BASE_LOG_INFO,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		FileBufferFmt(BASE_LOG_INFO,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
-
-#define  INFO_BUFFER_FMT(ptr,blen,...)  \
-	do{\
-		DebugBufferFmt(BASE_LOG_INFO,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		ConsoleBufferFmt(BASE_LOG_INFO,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		FileBufferFmt(BASE_LOG_INFO,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
-
-
-#define  DEBUG_BUFFER(ptr,blen) \
-	do{\
-		DebugBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		ConsoleBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		FileBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
-
-#define  DEBUG_BUFFER_FMT(ptr,blen,...)  \
-	do{\
-		DebugBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		ConsoleBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		FileBufferFmt(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
-
-#define  TRACE_BUFFER(ptr,blen) \
-	do{\
-		DebugBufferFmt(BASE_LOG_TRACE,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		ConsoleBufferFmt(BASE_LOG_TRACE,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-		FileBufferFmt(BASE_LOG_TRACE,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
-
-#define  TRACE_BUFFER_FMT(ptr,blen,...)  \
-	do{\
-		DebugBufferFmt(BASE_LOG_TRACE,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		ConsoleBufferFmt(BASE_LOG_TRACE,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);\
-		FileBufferFmt(BASE_LOG_TRACE,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);\
-	}while(0)
+#define  FATAL_BUFFER_FMT(ptr,blen,...)       output_buffer_fmt_handle(BASE_LOG_FATAL,__FILE__,__LINE__,(unsigned char*)(ptr),(int)(blen),__VA_ARGS__)
+#define  ERROR_BUFFER_FMT(ptr,blen,...)       output_buffer_fmt_handle(BASE_LOG_ERROR,__FILE__,__LINE__,(unsigned char*)(ptr),(int)(blen),__VA_ARGS__)
+#define  WARN_BUFFER_FMT(ptr,blen,...)        output_buffer_fmt_handle(BASE_LOG_WARN,__FILE__,__LINE__,(unsigned char*)(ptr),(int)(blen),__VA_ARGS__)
+#define  INFO_BUFFER_FMT(ptr,blen,...)        output_buffer_fmt_handle(BASE_LOG_INFO,__FILE__,__LINE__,(unsigned char*)(ptr),(int)(blen),__VA_ARGS__)
+#define  DEBUG_BUFFER_FMT(ptr,blen,...)       output_buffer_fmt_handle(BASE_LOG_DEBUG,__FILE__,__LINE__,(unsigned char*)(ptr),(int)(blen),__VA_ARGS__)
+#define  TRACE_BUFFER_FMT(ptr,blen,...)       output_buffer_fmt_handle(BASE_LOG_TRACE,__FILE__,__LINE__,(unsigned char*)(ptr),(int)(blen),__VA_ARGS__)
 
 
 

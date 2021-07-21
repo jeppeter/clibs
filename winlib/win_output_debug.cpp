@@ -24,7 +24,7 @@ static int st_output_cnt = 0;
 static int st_disableflag = 0;
 
 
-typedef void (*output_func_t)(char* pbuf);
+typedef int (*output_func_t)(char* pbuf);
 
 void __free_output_hds(void)
 {
@@ -43,24 +43,24 @@ void __free_output_hds(void)
 
 const char* _get_loglevel_note(int loglvl)
 {
-    if (loglvl <= BASE_LOG_FATAL) {
+    if (loglvl < BASE_LOG_ERROR) {
         return "FATAL";
-    } else if (loglvl > BASE_LOG_FATAL && loglvl <= BASE_LOG_ERROR) {
+    } else if (loglvl >= BASE_LOG_ERROR && loglvl < BASE_LOG_WARN) {
         return "ERROR";
-    } else if (loglvl > BASE_LOG_ERROR && loglvl <= BASE_LOG_WARN) {
+    } else if (loglvl >= BASE_LOG_WARN && loglvl < BASE_LOG_INFO) {
         return "WARN";
-    } else if (loglvl > BASE_LOG_WARN && loglvl <= BASE_LOG_INFO) {
+    } else if (loglvl >= BASE_LOG_INFO && loglvl < BASE_LOG_DEBUG) {
         return "INFO";
-    } else if (loglvl > BASE_LOG_INFO && loglvl <= BASE_LOG_DEBUG) {
+    } else if (loglvl >= BASE_LOG_DEBUG && loglvl < BASE_LOG_TRACE) {
         return "DEBUG";
     } 
     return "TRACE";    
 }
 
-void InnerDebug(char* pFmtStr)
+int InnerDebug(char* pFmtStr)
 {
     if (st_disableflag & WINLIB_DBWIN_DISABLED) {
-        return ;
+        return 0;
     }
 
 #ifdef UNICODE
@@ -70,7 +70,7 @@ void InnerDebug(char* pFmtStr)
     len = (int) strlen(pFmtStr) + 1;
     pWide = (wchar_t*)malloc((size_t)((len + 1) * 2));
     if (pWide == NULL) {
-        return ;
+        return 0;
     }
     //pWide = new wchar_t[(len+1) * 2];
     bret = MultiByteToWideChar(CP_ACP, NULL, pFmtStr, -1, pWide, len * 2);
@@ -86,16 +86,17 @@ void InnerDebug(char* pFmtStr)
     OutputDebugStringA(pFmtStr);
     //fprintf(stderr,"Out %s",pFmtStr);
 #endif
-    return ;
+    return len;
 }
 
-void __console_out(char* pFmtStr)
+int __console_out(char* pFmtStr)
 {
+    int ret;
     if (st_disableflag & WINLIB_CONSOLE_DISABLED) {
-        return ;
+        return 0;
     }
-    fprintf(stderr, "%s", pFmtStr);
-    return;
+    ret = fprintf(stderr, "%s", pFmtStr);
+    return ret;
 }
 
 
@@ -128,12 +129,13 @@ fail:
     return ret;
 }
 
-void __file_output(char* pFmtStr)
+int __file_output(char* pFmtStr)
 {
     int i;
     int size=0;
+    int retsize=0;
     if (st_disableflag & WINLIB_FILE_DISABLED) {
-        return ;
+        return 0;
     }
 
     size = (int)strlen(pFmtStr);
@@ -142,11 +144,12 @@ void __file_output(char* pFmtStr)
         for (i=0;i<st_output_cnt;i++) {
             if (st_output_hds[i] != NULL) {
                 __output_hd_flush(st_output_hds[i],pFmtStr,size);    
+                retsize = size;
             }            
         }
     }
     LeaveCriticalSection(&st_outputcs);
-    return ;
+    return retsize;
 }
 
 #define  MINI_FMT_SIZE           32
@@ -231,7 +234,7 @@ fail:
     return ret;
 }
 
-void __inner_output_console(int loglvl, const char* file, int lineno, const char* fmt,va_list ap,output_func_t outfunc)
+int __inner_output_console(int loglvl, const char* file, int lineno, const char* fmt,va_list ap,output_func_t outfunc,...)
 {
     char* pFmt = NULL;
     char* pLine = NULL;
@@ -241,10 +244,13 @@ void __inner_output_console(int loglvl, const char* file, int lineno, const char
     int ret;
     char* fmttime=NULL;
     size_t timesize=0;
+    va_list funcap;
+    output_func_t pnextfn=NULL;
+    int retsize=0;
 
     if (loglvl > st_output_loglvl) {
         /*nothing to output*/
-        return;
+        return 0;
     }
     va_copy(oldap,ap);
 
@@ -301,7 +307,15 @@ try_again:
         goto try_again;
     }
 
-    outfunc(pWhole);
+    va_start(funcap,outfunc);
+    pnextfn = outfunc;
+    while(pnextfn != NULL) {
+        ret = pnextfn(pWhole);
+        if (retsize < ret) {
+            retsize = ret;
+        }
+        pnextfn = (output_func_t) va_arg(funcap,output_func_t);
+    }
 out:
     if (pFmt) {
         //delete [] pFmt;
@@ -319,55 +333,49 @@ out:
     }
     pWhole = NULL;
     __inner_time_format(1,&fmttime,&timesize);
-    return ;    
+    return retsize;
 }
 
-void DebugOutString(int loglvl, const char* file, int lineno, const char* fmt, ...)
+int output_debug_string_handle(int loglvl, const char* file, int lineno, const char* fmt, ...)
 {
     va_list ap;
     va_start(ap,fmt);
-    __inner_output_console(loglvl, file, lineno, fmt,ap,InnerDebug);
-    return;
-}
-
-void ConsoleOutString(int loglvl, const char* file, int lineno, const char* fmt, ...)
-{
-    va_list ap;
-    va_start(ap,fmt);
-    __inner_output_console(loglvl, file, lineno, fmt,ap,__console_out);
-    return;
-}
-
-void FileOutString(int loglvl, const char* file, int lineno, const char* fmt, ...)
-{
-    va_list ap;
-    va_start(ap,fmt);
-    __inner_output_console(loglvl, file, lineno, fmt,ap,__file_output);
-    return;
+    return __inner_output_console(loglvl, file, lineno, fmt,ap,InnerDebug,__console_out,__file_output,NULL);
 }
 
 
 
-#define FORMAT_SNPRINTF(...)  \
-do {\
-    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, __VA_ARGS__); \
-    if (ret < 0 || ret >= ((int)(fmtlen - formedlen - 1))) {\
-        goto out;\
-    }\
-    pCur += ret;\
-    formedlen += ret;\
+
+#define FORMAT_SNPRINTF(...)                                                                      \
+do {                                                                                              \
+    ret = _snprintf_s(pCur, fmtlen - formedlen, fmtlen - formedlen - 1, __VA_ARGS__);             \
+    if (ret < 0 || ret >= ((int)(fmtlen - formedlen - 1))) {                                      \
+        goto out;                                                                                 \
+    }                                                                                             \
+    pCur += ret;                                                                                  \
+    formedlen += ret;                                                                             \
 } while(0)
 
-#define FLUSH_BUFFER()  \
-do {\
-    outfunc(pLine);\
-    pCur = pLine;\
-    formedlen = 0;\
+#define FLUSH_BUFFER()                                                                            \
+do {                                                                                              \
+    output_func_t _pnextfn=outfunc;                                                               \
+    cursize = 0;                                                                                  \
+    va_copy(funcap,funcoldap);                                                                    \
+    while(_pnextfn != NULL) {                                                                     \
+        ret =  _pnextfn(pLine);                                                                   \
+        if (cursize < ret) {                                                                      \
+            cursize = ret;                                                                        \
+        }                                                                                         \
+        _pnextfn = va_arg(funcap,output_func_t);                                                  \
+    }                                                                                             \
+    retsize += cursize;                                                                           \
+    pCur = pLine;                                                                                 \
+    formedlen = 0;                                                                                \
 } while(0)
 
 
 
-void __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, va_list ap, output_func_t outfunc)
+int __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, va_list ap, output_func_t outfunc,...)
 {
     size_t fmtlen = 2000;
     char*pLine = NULL, *pCur, *plastbuf = NULL, *pcurbuf = NULL;
@@ -376,10 +384,15 @@ void __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char*
     int i;
     char* fmttime=NULL;
     size_t timesize=0;
+    int retsize=0,cursize=0;
+    va_list funcap,funcoldap;
 
     if (loglvl > st_output_loglvl) {
-        return;
+        return 0;
     }
+
+    va_start(funcap,outfunc);
+    va_copy(funcoldap,funcap);
 
     pLine = new char[fmtlen];
     pCur = pLine;
@@ -456,42 +469,19 @@ out:
     __inner_time_format(1,&fmttime,&timesize);
     delete [] pLine;
     pLine = NULL;
-    return ;
+    return retsize;
 }
 
 
-void DebugBufferFmt(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
+int output_buffer_fmt_handle(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
 {
     va_list ap = NULL;
     if (fmt != NULL) {
-        va_start(ap, fmt);
+        va_start(ap,fmt);
     }
-    __inner_out_buffer(loglvl, file, lineno, pBuffer, buflen, fmt, ap, InnerDebug);
-    return;
+    return __inner_out_buffer(loglvl,file,lineno,pBuffer,buflen,fmt,ap,InnerDebug,__console_out,__file_output,NULL);
 }
 
-
-void ConsoleBufferFmt(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
-{
-    va_list ap = NULL;
-    if (fmt != NULL) {
-        va_start(ap, fmt);
-    }
-    __inner_out_buffer(loglvl, file, lineno, pBuffer, buflen, fmt, ap, __console_out);
-    return;
-}
-
-
-
-void FileBufferFmt(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
-{
-    va_list ap = NULL;
-    if (fmt != NULL) {
-        va_start(ap, fmt);
-    }
-    __inner_out_buffer(loglvl, file, lineno, pBuffer, buflen, fmt, ap, __file_output);
-    return;
-}
 
 int error_out(const char* fmt, ...)
 {
