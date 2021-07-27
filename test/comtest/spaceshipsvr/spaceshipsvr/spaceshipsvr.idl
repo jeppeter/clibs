@@ -1,0 +1,18 @@
+﻿// spaceshipsvr.idl: spaceshipsvr 的 IDL 源
+//
+
+// 此文件将由 MIDL 工具处理以
+// 生成类型库(spaceshipsvr.tlb)和封送处理代码。
+
+import "oaidl.idl";
+import "ocidl.idl";
+
+[
+	uuid(c1b1ca83-b9bf-4e99-8be6-cc5d16b62570),
+	version(1.0),
+]
+library spaceshipsvrLib
+{
+	importlib("stdole2.tlb");
+};
+
