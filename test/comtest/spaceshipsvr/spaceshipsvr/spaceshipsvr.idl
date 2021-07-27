@@ -16,7 +16,28 @@ import "ocidl.idl";
 ]
 interface IATLSpaceship : IDispatch
 {
+	[id(1)] HRESULT CallStartFleet([in]float fStarDate, [out, retval]BSTR* pbstrRecipient);
 };
+
+[
+	object,
+	uuid(692D03A4-C689-11CE-B337-88EA36DE9E4E),
+	dual,
+	helpstring("IMotion interface")
+]
+interface IMotion : IDispatch
+{
+};
+
+[
+	object,
+	uuid(692D03A5-C689-11CE-B337-88EA36DE9E4E),
+	helpstring("IVisual interface")
+]
+interface IVisual : IUnknown
+{
+};
+
 [
 	uuid(c1b1ca83-b9bf-4e99-8be6-cc5d16b62570),
 	version(1.0),

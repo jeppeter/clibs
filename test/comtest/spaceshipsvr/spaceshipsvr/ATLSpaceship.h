@@ -26,6 +26,7 @@ class ATL_NO_VTABLE CATLSpaceship :
 public:
 	CATLSpaceship()
 	{
+		m_nColor = m_nAcceleration = m_nPosition = 0;
 	}
 
 DECLARE_REGISTRY_RESOURCEID(106)
@@ -53,6 +54,10 @@ public:
 
 
 
+	int m_nColor;
+	int m_nAcceleration;
+	int m_nPosition;
+	STDMETHOD(CallStartFleet)(float fStarDate, BSTR* pbstrRecipient);
 };
 
 OBJECT_ENTRY_AUTO(__uuidof(ATLSpaceship), CATLSpaceship)

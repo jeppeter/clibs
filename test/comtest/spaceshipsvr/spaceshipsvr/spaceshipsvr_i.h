@@ -51,6 +51,20 @@ typedef interface IATLSpaceship IATLSpaceship;
 #endif 	/* __IATLSpaceship_FWD_DEFINED__ */
 
 
+#ifndef __IMotion_FWD_DEFINED__
+#define __IMotion_FWD_DEFINED__
+typedef interface IMotion IMotion;
+
+#endif 	/* __IMotion_FWD_DEFINED__ */
+
+
+#ifndef __IVisual_FWD_DEFINED__
+#define __IVisual_FWD_DEFINED__
+typedef interface IVisual IVisual;
+
+#endif 	/* __IVisual_FWD_DEFINED__ */
+
+
 #ifndef __ATLSpaceship_FWD_DEFINED__
 #define __ATLSpaceship_FWD_DEFINED__
 
@@ -88,6 +102,10 @@ EXTERN_C const IID IID_IATLSpaceship;
     IATLSpaceship : public IDispatch
     {
     public:
+        virtual /* [id] */ HRESULT STDMETHODCALLTYPE CallStartFleet( 
+            /* [in] */ float fStarDate,
+            /* [retval][out] */ BSTR *pbstrRecipient) = 0;
+        
     };
     
     
@@ -146,6 +164,11 @@ EXTERN_C const IID IID_IATLSpaceship;
             /* [annotation][out] */ 
             _Out_opt_  UINT *puArgErr);
         
+        /* [id] */ HRESULT ( STDMETHODCALLTYPE *CallStartFleet )( 
+            IATLSpaceship * This,
+            /* [in] */ float fStarDate,
+            /* [retval][out] */ BSTR *pbstrRecipient);
+        
         END_INTERFACE
     } IATLSpaceshipVtbl;
 
@@ -182,6 +205,9 @@ EXTERN_C const IID IID_IATLSpaceship;
     ( (This)->lpVtbl -> Invoke(This,dispIdMember,riid,lcid,wFlags,pDispParams,pVarResult,pExcepInfo,puArgErr) ) 
 
 
+#define IATLSpaceship_CallStartFleet(This,fStarDate,pbstrRecipient)	\
+    ( (This)->lpVtbl -> CallStartFleet(This,fStarDate,pbstrRecipient) ) 
+
 #endif /* COBJMACROS */
 
 
@@ -191,6 +217,196 @@ EXTERN_C const IID IID_IATLSpaceship;
 
 
 #endif 	/* __IATLSpaceship_INTERFACE_DEFINED__ */
+
+
+#ifndef __IMotion_INTERFACE_DEFINED__
+#define __IMotion_INTERFACE_DEFINED__
+
+/* interface IMotion */
+/* [helpstring][dual][uuid][object] */ 
+
+
+EXTERN_C const IID IID_IMotion;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("692D03A4-C689-11CE-B337-88EA36DE9E4E")
+    IMotion : public IDispatch
+    {
+    public:
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct IMotionVtbl
+    {
+        BEGIN_INTERFACE
+        
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            IMotion * This,
+            /* [in] */ REFIID riid,
+            /* [annotation][iid_is][out] */ 
+            _COM_Outptr_  void **ppvObject);
+        
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            IMotion * This);
+        
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            IMotion * This);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetTypeInfoCount )( 
+            IMotion * This,
+            /* [out] */ UINT *pctinfo);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetTypeInfo )( 
+            IMotion * This,
+            /* [in] */ UINT iTInfo,
+            /* [in] */ LCID lcid,
+            /* [out] */ ITypeInfo **ppTInfo);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetIDsOfNames )( 
+            IMotion * This,
+            /* [in] */ REFIID riid,
+            /* [size_is][in] */ LPOLESTR *rgszNames,
+            /* [range][in] */ UINT cNames,
+            /* [in] */ LCID lcid,
+            /* [size_is][out] */ DISPID *rgDispId);
+        
+        /* [local] */ HRESULT ( STDMETHODCALLTYPE *Invoke )( 
+            IMotion * This,
+            /* [annotation][in] */ 
+            _In_  DISPID dispIdMember,
+            /* [annotation][in] */ 
+            _In_  REFIID riid,
+            /* [annotation][in] */ 
+            _In_  LCID lcid,
+            /* [annotation][in] */ 
+            _In_  WORD wFlags,
+            /* [annotation][out][in] */ 
+            _In_  DISPPARAMS *pDispParams,
+            /* [annotation][out] */ 
+            _Out_opt_  VARIANT *pVarResult,
+            /* [annotation][out] */ 
+            _Out_opt_  EXCEPINFO *pExcepInfo,
+            /* [annotation][out] */ 
+            _Out_opt_  UINT *puArgErr);
+        
+        END_INTERFACE
+    } IMotionVtbl;
+
+    interface IMotion
+    {
+        CONST_VTBL struct IMotionVtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define IMotion_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define IMotion_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define IMotion_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#define IMotion_GetTypeInfoCount(This,pctinfo)	\
+    ( (This)->lpVtbl -> GetTypeInfoCount(This,pctinfo) ) 
+
+#define IMotion_GetTypeInfo(This,iTInfo,lcid,ppTInfo)	\
+    ( (This)->lpVtbl -> GetTypeInfo(This,iTInfo,lcid,ppTInfo) ) 
+
+#define IMotion_GetIDsOfNames(This,riid,rgszNames,cNames,lcid,rgDispId)	\
+    ( (This)->lpVtbl -> GetIDsOfNames(This,riid,rgszNames,cNames,lcid,rgDispId) ) 
+
+#define IMotion_Invoke(This,dispIdMember,riid,lcid,wFlags,pDispParams,pVarResult,pExcepInfo,puArgErr)	\
+    ( (This)->lpVtbl -> Invoke(This,dispIdMember,riid,lcid,wFlags,pDispParams,pVarResult,pExcepInfo,puArgErr) ) 
+
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __IMotion_INTERFACE_DEFINED__ */
+
+
+#ifndef __IVisual_INTERFACE_DEFINED__
+#define __IVisual_INTERFACE_DEFINED__
+
+/* interface IVisual */
+/* [helpstring][uuid][object] */ 
+
+
+EXTERN_C const IID IID_IVisual;
+
+#if defined(__cplusplus) && !defined(CINTERFACE)
+    
+    MIDL_INTERFACE("692D03A5-C689-11CE-B337-88EA36DE9E4E")
+    IVisual : public IUnknown
+    {
+    public:
+    };
+    
+    
+#else 	/* C style interface */
+
+    typedef struct IVisualVtbl
+    {
+        BEGIN_INTERFACE
+        
+        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
+            IVisual * This,
+            /* [in] */ REFIID riid,
+            /* [annotation][iid_is][out] */ 
+            _COM_Outptr_  void **ppvObject);
+        
+        ULONG ( STDMETHODCALLTYPE *AddRef )( 
+            IVisual * This);
+        
+        ULONG ( STDMETHODCALLTYPE *Release )( 
+            IVisual * This);
+        
+        END_INTERFACE
+    } IVisualVtbl;
+
+    interface IVisual
+    {
+        CONST_VTBL struct IVisualVtbl *lpVtbl;
+    };
+
+    
+
+#ifdef COBJMACROS
+
+
+#define IVisual_QueryInterface(This,riid,ppvObject)	\
+    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
+
+#define IVisual_AddRef(This)	\
+    ( (This)->lpVtbl -> AddRef(This) ) 
+
+#define IVisual_Release(This)	\
+    ( (This)->lpVtbl -> Release(This) ) 
+
+
+#endif /* COBJMACROS */
+
+
+#endif 	/* C style interface */
+
+
+
+
+#endif 	/* __IVisual_INTERFACE_DEFINED__ */
 
 
 
@@ -213,6 +429,16 @@ ATLSpaceship;
 #endif /* __spaceshipsvrLib_LIBRARY_DEFINED__ */
 
 /* Additional Prototypes for ALL interfaces */
+
+unsigned long             __RPC_USER  BSTR_UserSize(     unsigned long *, unsigned long            , BSTR * ); 
+unsigned char * __RPC_USER  BSTR_UserMarshal(  unsigned long *, unsigned char *, BSTR * ); 
+unsigned char * __RPC_USER  BSTR_UserUnmarshal(unsigned long *, unsigned char *, BSTR * ); 
+void                      __RPC_USER  BSTR_UserFree(     unsigned long *, BSTR * ); 
+
+unsigned long             __RPC_USER  BSTR_UserSize64(     unsigned long *, unsigned long            , BSTR * ); 
+unsigned char * __RPC_USER  BSTR_UserMarshal64(  unsigned long *, unsigned char *, BSTR * ); 
+unsigned char * __RPC_USER  BSTR_UserUnmarshal64(unsigned long *, unsigned char *, BSTR * ); 
+void                      __RPC_USER  BSTR_UserFree64(     unsigned long *, BSTR * ); 
 
 /* end of Additional Prototypes */
 
