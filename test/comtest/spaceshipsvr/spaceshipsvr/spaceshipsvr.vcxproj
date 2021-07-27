@@ -214,6 +214,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="ATLSpaceship.h" />
     <ClInclude Include="dllmain.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
@@ -222,6 +223,7 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ATLSpaceship.cpp" />
     <ClCompile Include="dllmain.cpp">
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</CompileAsManaged>
       <CompileAsManaged Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</CompileAsManaged>
@@ -262,6 +264,7 @@
     <ResourceCompile Include="spaceshipsvr.rc" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="ATLSpaceship.rgs" />
     <None Include="spaceshipsvr.def" />
     <None Include="spaceshipsvr.rgs" />
   </ItemGroup>

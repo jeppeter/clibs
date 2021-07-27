@@ -8,11 +8,29 @@ import "oaidl.idl";
 import "ocidl.idl";
 
 [
+	object,
+	uuid(ace53709-fa8f-452e-99e8-d57985c53717),
+	dual,
+	nonextensible,
+	pointer_default(unique)
+]
+interface IATLSpaceship : IDispatch
+{
+};
+[
 	uuid(c1b1ca83-b9bf-4e99-8be6-cc5d16b62570),
 	version(1.0),
 ]
 library spaceshipsvrLib
 {
 	importlib("stdole2.tlb");
+	[
+		uuid(77562bec-dd02-4645-ada1-d0c254a98de7)
+	]
+	coclass ATLSpaceship
+	{
+		[default] interface IATLSpaceship;
+	};
 };
 
+import "shobjidl.idl";
