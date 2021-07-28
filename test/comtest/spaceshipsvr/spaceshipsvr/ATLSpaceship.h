@@ -21,7 +21,9 @@ using namespace ATL;
 class ATL_NO_VTABLE CATLSpaceship :
 	public CComObjectRootEx<CComSingleThreadModel>,
 	public CComCoClass<CATLSpaceship, &CLSID_ATLSpaceship>,
-	public IDispatchImpl<IATLSpaceship, &IID_IATLSpaceship, &LIBID_spaceshipsvrLib, /*wMajor =*/ 1, /*wMinor =*/ 0>
+	public IDispatchImpl<IATLSpaceship, &IID_IATLSpaceship, &LIBID_spaceshipsvrLib, /*wMajor =*/ 1, /*wMinor =*/ 0>,
+	public IDispatchImpl<IVisual, &IID_IVisual, &LIBID_spaceshipsvrLib,0>,
+	public IDispatchImpl<IMotion, &IID_IMotion, &LIBID_spaceshipsvrLib, 0>
 {
 public:
 	CATLSpaceship()
@@ -34,7 +36,9 @@ DECLARE_REGISTRY_RESOURCEID(106)
 
 BEGIN_COM_MAP(CATLSpaceship)
 	COM_INTERFACE_ENTRY(IATLSpaceship)
-	COM_INTERFACE_ENTRY(IDispatch)
+	COM_INTERFACE_ENTRY(IMotion)
+	COM_INTERFACE_ENTRY2(IDispatch, IATLSpaceship)
+	COM_INTERFACE_ENTRY(IVisual)
 END_COM_MAP()
 
 
