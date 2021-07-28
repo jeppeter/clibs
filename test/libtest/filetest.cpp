@@ -310,3 +310,126 @@ out:
     return ret;
 
 }
+
+#define   MAX_APPEND_FILE_SIZE   (10 << 20)
+
+int init_write_file_debug(int loglvl)
+{
+    char* appendfile[2];
+    char* outfile[2];
+    char* appname = NULL;
+    int appsize = 0;
+    char* app2name = NULL;
+    int app2size = 0;
+    char* outname = NULL;
+    int outsize = 0;
+    output_debug_cfg_t cfg;
+    int ret;
+    char* pfulldir = NULL;
+    int fulldirsize = 0;
+    uint64_t appfilesize = 0;
+    void* pfile = NULL;
+    memset(appendfile, 0, sizeof(appendfile));
+    memset(outfile, 0, sizeof(outfile));
+    ret = get_executable_dirname(0, &pfulldir, &fulldirsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = snprintf_safe(&appname, &appsize, "%s\\idvtools_append.log", pfulldir);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    ret = snprintf_safe(&app2name, &app2size, "%s\\idvtools_append.log.2", pfulldir);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    ret = snprintf_safe(&outname, &outsize, "%s\\idvtools_output.log", pfulldir);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pfile = open_file(appname, READ_MODE);
+    ERROR_INFO("open [%s] return [%p]",appname, pfile);
+    if (pfile != NULL) {
+        SETERRNO(0);
+        appfilesize = get_file_size(pfile);
+        GETERRNO_DIRECT(ret);
+        if (ret == 0) {
+            close_file(&pfile);
+            if (appfilesize >= MAX_APPEND_FILE_SIZE) {
+                ret = copy_file_force(appname, app2name);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    ERROR_INFO("copy [%s] => [%s] error[%d]", appname, app2name, ret);
+                    goto fail;
+                }
+                ret = delete_file(appname);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    ERROR_INFO("can not delete [%s]", appname);
+                    goto fail;
+                }
+            }
+        }
+    }
+    close_file(&pfile);
+
+    memset(&cfg, 0, sizeof(cfg));
+    appendfile[0] = appname;
+    appendfile[1] = NULL;
+    outfile[0] = outname;
+    outfile[1] = NULL;
+    cfg.m_ppoutcreatefile = outfile;
+    cfg.m_ppoutappendfile =  appendfile;
+    ERROR_INFO("will init loglvl %d", loglvl);
+
+    ret = InitOutputEx(loglvl, &cfg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("append file [%s] output file [%s]", appname, outname);
+
+    close_file(&pfile);
+    snprintf_safe(&app2name, &app2size, NULL);
+    snprintf_safe(&appname, &appsize, NULL);
+    snprintf_safe(&outname, &outsize, NULL);
+    get_executable_dirname(1, &pfulldir, &fulldirsize);
+    return 0;
+fail:
+    close_file(&pfile);
+    INIT_LOG(loglvl);
+    ERROR_INFO("fail init error[%d]", ret);
+    snprintf_safe(&app2name, &app2size, NULL);
+    snprintf_safe(&appname, &appsize, NULL);
+    snprintf_safe(&outname, &outsize, NULL);
+    get_executable_dirname(1, &pfulldir, &fulldirsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int idvtooloutput_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int i;
+    int cnt=10;
+    int idx=0;
+    int ret;
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(popt);
+    init_write_file_debug(BASE_LOG_DEBUG);
+    GET_OPT_INT(cnt,"cnt");
+    for (i=0;i<cnt ;i++) {
+        DEBUG_INFO("output [%d]",i);    
+    }
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}

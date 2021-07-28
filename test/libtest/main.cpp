@@ -219,6 +219,7 @@ int aesenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int aesdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sha256sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int outputdebug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int idvtooloutput_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0

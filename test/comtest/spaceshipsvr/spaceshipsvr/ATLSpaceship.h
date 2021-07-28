@@ -62,6 +62,9 @@ public:
 	int m_nAcceleration;
 	int m_nPosition;
 	STDMETHOD(CallStartFleet)(float fStarDate, BSTR* pbstrRecipient);
+	STDMETHOD(Fly)();
+	STDMETHOD(GetPosition)(long* nPosition);
+	STDMETHOD(Display)();
 };
 
 OBJECT_ENTRY_AUTO(__uuidof(ATLSpaceship), CATLSpaceship)

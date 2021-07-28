@@ -19,10 +19,16 @@
 
 static int st_output_loglvl = BASE_LOG_DEFAULT;
 static CRITICAL_SECTION st_outputcs;
+static int st_output_inited = 0;
 static HANDLE* st_output_hds = NULL; /**/
 static int st_output_cnt = 0;
 static int st_disableflag = 0;
 
+#if 0
+#define _OUTPUT_DEBUG_ERROR(...)  do{fprintf(stderr,"[%s:%d]:",__FILE__,__LINE__); fprintf(stderr,__VA_ARGS__); fprintf(stderr,"\n");fflush(stderr);}while(0)
+#else
+#define _OUTPUT_DEBUG_ERROR(...)  do{}while(0)
+#endif
 
 typedef int (*output_func_t)(char* pbuf);
 
@@ -134,7 +140,7 @@ int __file_output(char* pFmtStr)
     int i;
     int size=0;
     int retsize=0;
-    if (st_disableflag & WINLIB_FILE_DISABLED) {
+    if (st_disableflag & WINLIB_FILE_DISABLED || st_output_inited == 0) {
         return 0;
     }
 
@@ -643,6 +649,7 @@ int InitOutput(int loglvl)
         SETERRNO(ret);
         return ret;
     }
+    st_output_inited = 1;
     return 0;
 }
 
@@ -664,6 +671,7 @@ int InitOutputEx(int loglvl, poutput_debug_cfg_t pcfg)
         GETERRNO(ret);
         goto fail;
     }
+    st_output_inited = 1;
     return 0;
 fail:
     __free_output_hds();

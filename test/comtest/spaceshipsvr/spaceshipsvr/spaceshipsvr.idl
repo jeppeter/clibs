@@ -27,6 +27,8 @@ interface IATLSpaceship : IDispatch
 ]
 interface IMotion : IDispatch
 {
+	[id(1)] HRESULT Fly();
+	[id(2)] HRESULT GetPosition([out, retval] long* nPosition);
 };
 
 [
@@ -36,6 +38,7 @@ interface IMotion : IDispatch
 ]
 interface IVisual : IUnknown
 {
+	[id(1)] HRESULT Display();
 };
 
 [

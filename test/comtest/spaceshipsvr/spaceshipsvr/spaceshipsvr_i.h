@@ -234,6 +234,11 @@ EXTERN_C const IID IID_IMotion;
     IMotion : public IDispatch
     {
     public:
+        virtual /* [id] */ HRESULT STDMETHODCALLTYPE Fly( void) = 0;
+        
+        virtual /* [id] */ HRESULT STDMETHODCALLTYPE GetPosition( 
+            /* [retval][out] */ long *nPosition) = 0;
+        
     };
     
     
@@ -292,6 +297,13 @@ EXTERN_C const IID IID_IMotion;
             /* [annotation][out] */ 
             _Out_opt_  UINT *puArgErr);
         
+        /* [id] */ HRESULT ( STDMETHODCALLTYPE *Fly )( 
+            IMotion * This);
+        
+        /* [id] */ HRESULT ( STDMETHODCALLTYPE *GetPosition )( 
+            IMotion * This,
+            /* [retval][out] */ long *nPosition);
+        
         END_INTERFACE
     } IMotionVtbl;
 
@@ -328,6 +340,12 @@ EXTERN_C const IID IID_IMotion;
     ( (This)->lpVtbl -> Invoke(This,dispIdMember,riid,lcid,wFlags,pDispParams,pVarResult,pExcepInfo,puArgErr) ) 
 
 
+#define IMotion_Fly(This)	\
+    ( (This)->lpVtbl -> Fly(This) ) 
+
+#define IMotion_GetPosition(This,nPosition)	\
+    ( (This)->lpVtbl -> GetPosition(This,nPosition) ) 
+
 #endif /* COBJMACROS */
 
 
@@ -354,6 +372,8 @@ EXTERN_C const IID IID_IVisual;
     IVisual : public IUnknown
     {
     public:
+        virtual /* [id] */ HRESULT STDMETHODCALLTYPE Display( void) = 0;
+        
     };
     
     
@@ -373,6 +393,9 @@ EXTERN_C const IID IID_IVisual;
             IVisual * This);
         
         ULONG ( STDMETHODCALLTYPE *Release )( 
+            IVisual * This);
+        
+        /* [id] */ HRESULT ( STDMETHODCALLTYPE *Display )( 
             IVisual * This);
         
         END_INTERFACE
@@ -397,6 +420,9 @@ EXTERN_C const IID IID_IVisual;
 #define IVisual_Release(This)	\
     ( (This)->lpVtbl -> Release(This) ) 
 
+
+#define IVisual_Display(This)	\
+    ( (This)->lpVtbl -> Display(This) ) 
 
 #endif /* COBJMACROS */
 
@@ -430,7 +456,7 @@ ATLSpaceship;
 
 /* Additional Prototypes for ALL interfaces */
 
-unsigned long             __RPC_USER  BSTR_UserSize(     unsigned long *, unsigned long            , BSTR * ); 
+unsigned long             __RPC_USER  BSTR_UserSize( unsigned long *, unsigned long            , BSTR * );
 unsigned char * __RPC_USER  BSTR_UserMarshal(  unsigned long *, unsigned char *, BSTR * ); 
 unsigned char * __RPC_USER  BSTR_UserUnmarshal(unsigned long *, unsigned char *, BSTR * ); 
 void                      __RPC_USER  BSTR_UserFree(     unsigned long *, BSTR * ); 

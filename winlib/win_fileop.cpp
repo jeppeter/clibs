@@ -1013,6 +1013,8 @@ void*  open_file(const char* file,int mode)
         attrmode = FILE_ATTRIBUTE_NORMAL;
     }
 
+    ERROR_INFO("will open [%s]", file);
+
     pfile->m_hFile = CreateFile(pfile->m_pfname,accmode,sharemode,NULL,createmode,attrmode,NULL);
     if (pfile->m_hFile == INVALID_HANDLE_VALUE){
         GETERRNO(ret);
@@ -1021,6 +1023,7 @@ void*  open_file(const char* file,int mode)
     }
     return pfile;
 fail:
+    ERROR_INFO("fail open [%s]",file);
     close_file((void**)&pfile);
     SETERRNO(ret);
     return NULL;

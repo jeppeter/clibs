@@ -335,6 +335,9 @@
     },
     "outputdebug<outputdebug_handler>## [times] [appsize] to make debug info output for files times default 10 appsize default 1M ##" : {
         "$" : "*"
+    },
+    "idvtooloutput<idvtooloutput_handler>## to make idvtooloutput output##" : {
+        "$" : "?"
     }
 
 }
