@@ -2164,7 +2164,7 @@ int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char**
 	char* preterr = NULL;
 	int errsize = 0, errlen = 0;
 	char* ptmpbuf = NULL;
-	HANDLE waithds[4];
+	HANDLE waithds[6];
 	int waitnum = 0;
 	DWORD dret = 0;
 	uint64_t sticks = 0, cticks = 0;
@@ -2174,6 +2174,8 @@ int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char**
 	int inwait = 0, outwait = 0, errwait = 0;
 	int ret;
 	int curlen;
+	HANDLE hprocsync = NULL;
+	DWORD procpid = 0;
 
 	if (ppout != NULL) {
 		pretout = *ppout;
@@ -2189,13 +2191,23 @@ int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char**
 		sticks = get_current_ticks();
 	}
 
-	while (1) {
-		ret = get_proc_exit(pproc, NULL);
-		if (ret >= 0) {
-			DEBUG_INFO("proc exited");
-			break;
-		}
+	procpid = GetProcessId(pproc->m_prochd);
+	if (procpid == 0) {
+		GETERRNO(ret);
+		ERROR_INFO("get [%p] pid error[%d]", pproc->m_prochd, ret);
+		goto fail;
+	}
+	hprocsync = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, procpid);
+	if (hprocsync == NULL || hprocsync == INVALID_HANDLE_VALUE) {
+		GETERRNO(ret);
+		hprocsync = NULL;
+		ERROR_INFO("can not open [%d] error[%d]", procpid, ret);
+		goto fail;
+	}
 
+
+
+	while (1) {
 		/*now we should make waithds*/
 		memset(waithds, 0 , sizeof(waithds));
 		waitnum = 0;
@@ -2208,6 +2220,9 @@ int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char**
 			waithds[waitnum] = hevt;
 			waitnum ++;
 		}
+
+		waithds[waitnum] = hprocsync;
+		waitnum ++;
 
 		waittime = INFINITE;
 		if (timeout > 0) {
@@ -2240,6 +2255,9 @@ int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char**
 					ret = -WSAEINTR;
 					ERROR_INFO("interrupted");
 					goto fail;
+				} else if (hprocsync != NULL && hd == hprocsync) {
+					ERROR_INFO("hprocsync event");
+					break;
 				}
 			} else  if (dret == WAIT_TIMEOUT) {
 				continue;
@@ -2258,6 +2276,11 @@ int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char**
 			DEBUG_INFO("prochd time");
 		}
 	}
+
+	if (hprocsync != NULL) {
+		CloseHandle(hprocsync);
+	}
+	hprocsync = NULL;
 
 	STDOUT_READ_LEFT();
 	STDERR_READ_LEFT();
@@ -2288,6 +2311,11 @@ int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char**
 	}
 	return 0;
 fail:
+	if (hprocsync != NULL) {
+		CloseHandle(hprocsync);
+	}
+	hprocsync = NULL;
+
 	if (ptmpbuf) {
 		free(ptmpbuf);
 	}
@@ -5284,12 +5312,12 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 	DWORD dret;
 	int res;
 	char* exepath = NULL;
-	int exesize=0;
-	HANDLE hproc=NULL;
-	DWORD exitcode=0;
+	int exesize = 0;
+	HANDLE hproc = NULL;
+	DWORD exitcode = 0;
 	interval = interval;
 
-	ret = get_executable_wholepath(0,&exepath,&exesize);
+	ret = get_executable_wholepath(0, &exepath, &exesize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -5340,14 +5368,14 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 			ASSERT_IF(killpid <= 0);
 			waithd[waitnum] = myevt;
 			waitnum ++;
-			ret = __start_peer(exepath,peercmdline);
+			ret = __start_peer(exepath, peercmdline);
 			if (ret < 0) {
 				GETERRNO(ret);
-				ERROR_INFO("can not start [%s][%s] error[%d]",exepath,peercmdline,ret);
+				ERROR_INFO("can not start [%s][%s] error[%d]", exepath, peercmdline, ret);
 				goto fail;
 			}
 			killpid =  ret;
-			hproc = OpenProcess(SYNCHRONIZE|PROCESS_QUERY_LIMITED_INFORMATION,FALSE,(DWORD)killpid);
+			hproc = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, (DWORD)killpid);
 			if (hproc == NULL) {
 				GETERRNO(ret);
 				ERROR_INFO("cannot open [%d] error[%d]", killpid, ret);
@@ -5355,7 +5383,7 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 			}
 			waithd[waitnum] = hproc;
 			waitnum ++;
-			dret = WaitForMultipleObjects(waitnum,waithd,FALSE,(DWORD)waitmills);
+			dret = WaitForMultipleObjects(waitnum, waithd, FALSE, (DWORD)waitmills);
 			if (dret < (WAIT_OBJECT_0 + waitnum)) {
 				hd = waithd[(dret - WAIT_OBJECT_0)];
 				if (exitevt != NULL && hd == exitevt) {
@@ -5376,15 +5404,15 @@ int __protect_doing(HANDLE exitevt , char* curcmdline, char* peercmdline, int pe
 				}
 			}
 			GETERRNO(ret);
-			ERROR_INFO("wait error [%s] waitmills [%d] [%ld] [%d]",curcmdline,waitmills, dret,ret);
+			ERROR_INFO("wait error [%s] waitmills [%d] [%ld] [%d]", curcmdline, waitmills, dret, ret);
 			goto fail;
 		}
 
-		dret = WaitForMultipleObjects(waitnum,waithd,FALSE,INFINITE);
+		dret = WaitForMultipleObjects(waitnum, waithd, FALSE, INFINITE);
 		if (dret < (WAIT_OBJECT_0 + waitnum)) {
 			hd = waithd[(dret - WAIT_OBJECT_0)];
 			if (hd == hproc) {
-				bret = GetExitCodeProcess(hproc,&exitcode);
+				bret = GetExitCodeProcess(hproc, &exitcode);
 				if (!bret) {
 					continue;
 				}
@@ -5427,7 +5455,7 @@ fail:
 	}
 	myevt = NULL;
 
-	get_executable_wholepath(1,&exepath,&exesize);
+	get_executable_wholepath(1, &exepath, &exesize);
 	SETERRNO(ret);
 	return ret;
 }
@@ -5499,10 +5527,10 @@ pprotect_monitor_t __alloc_protect_monitor(char* curcmdline, char* peercmdline, 
 		goto fail;
 	}
 
-	pmon->m_mymux = __open_mux(pmon->m_curcmdline,1);
+	pmon->m_mymux = __open_mux(pmon->m_curcmdline, 1);
 	if (pmon->m_mymux == NULL) {
 		GETERRNO(ret);
-		ERROR_INFO("create [%s] error[%d]", pmon->m_curcmdline,ret);
+		ERROR_INFO("create [%s] error[%d]", pmon->m_curcmdline, ret);
 		goto fail;
 	}
 
@@ -5539,7 +5567,7 @@ void* start_protect_monitor(char* curcmdline, char* peercmdline, int peerpid, in
 			exit(4);
 		}
 
-		mymux = __open_mux(curcmdline,1);
+		mymux = __open_mux(curcmdline, 1);
 		if (mymux == NULL) {
 			GETERRNO(ret);
 			goto monitor_fail;
@@ -5574,7 +5602,7 @@ int process_exist(int pid)
 {
 	int ret;
 	int existed = 0;
-	HANDLE hproc=NULL;
+	HANDLE hproc = NULL;
 	int enabled = 0;
 	HANDLE hsnap = NULL;
 	PROCESSENTRY32 processEntry;
@@ -5590,11 +5618,11 @@ int process_exist(int pid)
 	}
 	enabled = 1;
 
-	hproc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION,FALSE,(DWORD)pid);
+	hproc = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, (DWORD)pid);
 	if (hproc == NULL || hproc == INVALID_HANDLE_VALUE) {
 		GETERRNO(ret);
 		if (ret != -ERROR_ACCESS_DENIED) {
-			ERROR_INFO("open [%d] error[%d]", pid,ret);
+			ERROR_INFO("open [%d] error[%d]", pid, ret);
 			goto fail;
 		}
 		hsnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
@@ -5604,13 +5632,13 @@ int process_exist(int pid)
 			goto fail;
 		}
 		processEntry.dwSize = sizeof(processEntry);
-		bret = Process32First(hsnap,&processEntry);
+		bret = Process32First(hsnap, &processEntry);
 		if (bret) {
 			if (processEntry.th32ProcessID  == (DWORD)pid) {
 				existed = 1;
 			}
-			while(existed == 0) {
-				bret = Process32Next(hsnap,&processEntry);
+			while (existed == 0) {
+				bret = Process32Next(hsnap, &processEntry);
 				if (!bret) {
 					break;
 				}
@@ -5623,14 +5651,14 @@ int process_exist(int pid)
 		existed = 1;
 	}
 
-	if (hsnap != NULL ){
+	if (hsnap != NULL ) {
 		CloseHandle(hsnap);
 	}
 	hsnap = NULL;
 	if (hproc != NULL && hproc != INVALID_HANDLE_VALUE) {
-		CloseHandle(hproc);	
+		CloseHandle(hproc);
 	}
-	hproc = NULL;	
+	hproc = NULL;
 
 	if (enabled) {
 		disable_debug_priv();
@@ -5639,9 +5667,9 @@ int process_exist(int pid)
 	return existed;
 fail:
 	if (hproc != NULL && hproc != INVALID_HANDLE_VALUE) {
-		CloseHandle(hproc);	
+		CloseHandle(hproc);
 	}
-	hproc = NULL;	
+	hproc = NULL;
 
 	if (enabled) {
 		disable_debug_priv();
@@ -5657,7 +5685,7 @@ int send_ctrlc(int pid)
 	BOOL bret;
 	int added = 0;
 
-	bret = SetConsoleCtrlHandler(NULL,TRUE);
+	bret = SetConsoleCtrlHandler(NULL, TRUE);
 	if (!bret) {
 		GETERRNO(ret);
 		ERROR_INFO("SetConsoleCtrlHandler error[%d]", ret);
@@ -5669,7 +5697,7 @@ int send_ctrlc(int pid)
 	bret = FreeConsole();
 	if (!bret) {
 		GETERRNO(ret);
-		if (ret != -ERROR_INVALID_PARAMETER ){
+		if (ret != -ERROR_INVALID_PARAMETER ) {
 			ERROR_INFO("FreeConsole error[%d]", ret);
 			goto fail;
 		}
@@ -5682,14 +5710,14 @@ int send_ctrlc(int pid)
 		goto fail;
 	}
 
-	bret = GenerateConsoleCtrlEvent(CTRL_C_EVENT,0);
+	bret = GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0);
 	if (!bret) {
 		GETERRNO(ret);
 		ERROR_INFO("GenerateConsoleCtrlEvent error[%d]", ret);
 		goto fail;
 	}
 
-	bret = SetConsoleCtrlHandler(NULL,FALSE);
+	bret = SetConsoleCtrlHandler(NULL, FALSE);
 	if (!bret) {
 		GETERRNO(ret);
 		ERROR_INFO("SetConsoleCtrlHandler FALSE error[%d]", ret);
@@ -5700,7 +5728,7 @@ int send_ctrlc(int pid)
 	return 0;
 fail:
 	if (added) {
-		SetConsoleCtrlHandler(NULL,FALSE);
+		SetConsoleCtrlHandler(NULL, FALSE);
 	}
 	added = 0;
 	SETERRNO(ret);
