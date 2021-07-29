@@ -2257,7 +2257,10 @@ int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char**
 					goto fail;
 				} else if (hprocsync != NULL && hd == hprocsync) {
 					ERROR_INFO("hprocsync event");
-					break;
+					ret = get_proc_exit(pproc,NULL);
+					if (ret >= 0) {
+						break;	
+					}					
 				}
 			} else  if (dret == WAIT_TIMEOUT) {
 				continue;

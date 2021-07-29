@@ -139,7 +139,7 @@ int runv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt
         }
         fprintf(stdout, "%s", parsestate->leftargs[i]);
     }
-    fprintf(stdout, "] succ\n");
+    fprintf(stdout, "] succ [%d]\n",exitcode);
     if (pargs->m_input != NULL) {
         fprintf(stdout, "input --------------------\n");
         __debug_buf(stdout, inbuf, insize);
