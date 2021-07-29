@@ -1,0 +1,10 @@
+; mymfc28B.def : Declares the module parameters for the DLL.
+
+LIBRARY      "mymfc28B"
+DESCRIPTION  'mymfc28B Windows Dynamic Link Library'
+
+EXPORTS
+    ; Explicit exports can go here
+	DllCanUnloadNow PRIVATE
+	DllGetClassObject PRIVATE
+	DllRegisterServer PRIVATE

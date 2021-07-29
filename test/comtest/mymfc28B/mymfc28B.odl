@@ -1,0 +1,44 @@
+// mymfc28B.odl : type library source for mymfc28B.dll
+
+// This file will be processed by the MIDL compiler to produce the
+// type library (mymfc28B.tlb).
+
+[ uuid(9C1CDB57-4682-4385-9736-0DBA1587E5A7), version(1.0) ]
+library Mymfc28B
+{
+	importlib("stdole32.tlb");
+	importlib("stdole2.tlb");
+
+
+
+
+	//  Primary dispatch interface for CSpaceship
+	
+	[ uuid(1736E26F-3625-4BC5-B0A0-BFA2AE03EAAC) ]
+	dispinterface ISpaceship
+	{
+		properties:
+			// NOTE - ClassWizard will maintain property information here.
+			//    Use extreme caution when editing this section.
+			//{{AFX_ODL_PROP(CSpaceship)
+			//}}AFX_ODL_PROP
+			
+		methods:
+			// NOTE - ClassWizard will maintain method information here.
+			//    Use extreme caution when editing this section.
+			//{{AFX_ODL_METHOD(CSpaceship)
+			//}}AFX_ODL_METHOD
+
+	};
+
+	//  Class information for CSpaceship
+
+	[ uuid(12CC71F1-1091-46DF-94B2-1822B877A9B8) ]
+	coclass Spaceship
+	{
+		[default] dispinterface ISpaceship;
+	};
+
+	//{{AFX_APPEND_ODL}}
+	//}}AFX_APPEND_ODL}}
+};
