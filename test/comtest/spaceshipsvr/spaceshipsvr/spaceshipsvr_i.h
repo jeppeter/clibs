@@ -456,7 +456,7 @@ ATLSpaceship;
 
 /* Additional Prototypes for ALL interfaces */
 
-unsigned long             __RPC_USER  BSTR_UserSize( unsigned long *, unsigned long            , BSTR * );
+unsigned long             __RPC_USER  BSTR_UserSize(     unsigned long *, unsigned long            , BSTR * ); 
 unsigned char * __RPC_USER  BSTR_UserMarshal(  unsigned long *, unsigned char *, BSTR * ); 
 unsigned char * __RPC_USER  BSTR_UserUnmarshal(unsigned long *, unsigned char *, BSTR * ); 
 void                      __RPC_USER  BSTR_UserFree(     unsigned long *, BSTR * ); 
