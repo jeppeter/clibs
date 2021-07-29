@@ -2114,7 +2114,7 @@ fail:
             curlen = ret;                                                                         \
             if (curlen > 0) {                                                                     \
                 if ((memsize - memlen) < curlen) {                                                \
-                    memsize = memsize - memlen + curlen;                                          \
+                    memsize = (memlen + curlen+100);                                              \
                     ptmpbuf = (char*)malloc((size_t)(memsize));                                   \
                     if (ptmpbuf == NULL) {                                                        \
                         GETERRNO(ret);                                                            \
