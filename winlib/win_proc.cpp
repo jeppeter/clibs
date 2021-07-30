@@ -2256,7 +2256,7 @@ int __inner_run(pproc_handle_t pproc, HANDLE hevt, char* pin, int insize, char**
 					ERROR_INFO("interrupted");
 					goto fail;
 				} else if (hprocsync != NULL && hd == hprocsync) {
-					ERROR_INFO("hprocsync event");
+					DEBUG_INFO("hprocsync event");
 					ret = get_proc_exit(pproc,NULL);
 					if (ret >= 0) {
 						break;	

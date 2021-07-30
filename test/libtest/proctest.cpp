@@ -94,6 +94,7 @@ int runv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt
     char** pperrbuf = NULL;
     int *perrsize = NULL;
     pargs_options_t pargs = (pargs_options_t) popt;
+    void* pstdout = NULL, *pstderr = NULL;
     init_log_level(pargs);
 
     argc = argc;
@@ -132,34 +133,72 @@ int runv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt
         goto out;
     }
 
-    fprintf(stdout, "run cmd [");
-    for (i = 0; parsestate->leftargs[i] != NULL; i++) {
-        if (i > 0) {
-            fprintf(stdout, ",");
+    pstdout = open_file(pargs->m_output, READ_MODE);
+    pstderr = open_file(pargs->m_errout, READ_MODE);
+    if (pstdout != NULL || pstderr != NULL) {
+        if (pstdout != NULL) {
+            close_file(&pstdout);
+            pstdout = open_file(pargs->m_output, WRITE_MODE);
+            if (pstdout == NULL) {
+                GETERRNO(ret);
+                goto out;
+            }
+            ret = write_file(pstdout, 0, outbuf, (uint32_t)outsize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto out;
+            }
+            close_file(&pstdout);
         }
-        fprintf(stdout, "%s", parsestate->leftargs[i]);
-    }
-    fprintf(stdout, "] succ [%d]\n",exitcode);
-    if (pargs->m_input != NULL) {
-        fprintf(stdout, "input --------------------\n");
-        __debug_buf(stdout, inbuf, insize);
-        fprintf(stdout, "input ++++++++++++++++++++\n");
-    }
 
-    if (pargs->m_output != NULL) {
-        fprintf(stdout, "output --------------------\n");
-        __debug_buf(stdout, outbuf, outsize);
-        fprintf(stdout, "output ++++++++++++++++++++\n");
-    }
 
-    if (pargs->m_errout != NULL) {
-        fprintf(stdout, "errout --------------------\n");
-        __debug_buf(stdout, errbuf, errsize);
-        fprintf(stdout, "errout ++++++++++++++++++++\n");
+        if (pstderr != NULL) {
+            close_file(&pstderr);
+            pstderr = open_file(pargs->m_errout, WRITE_MODE);
+            if (pstderr == NULL) {
+                GETERRNO(ret);
+                goto out;
+            }
+
+            ret = write_file(pstderr, 0, errbuf, (uint32_t)errsize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto out;
+            }
+            close_file(&pstderr);
+        }
+    } else {
+        fprintf(stdout, "run cmd [");
+        for (i = 0; parsestate->leftargs[i] != NULL; i++) {
+            if (i > 0) {
+                fprintf(stdout, ",");
+            }
+            fprintf(stdout, "%s", parsestate->leftargs[i]);
+        }
+        fprintf(stdout, "] succ [%d]\n", exitcode);
+        if (pargs->m_input != NULL) {
+            fprintf(stdout, "input --------------------\n");
+            __debug_buf(stdout, inbuf, insize);
+            fprintf(stdout, "input ++++++++++++++++++++\n");
+        }
+
+        if (pargs->m_output != NULL) {
+            fprintf(stdout, "output --------------------\n");
+            __debug_buf(stdout, outbuf, outsize);
+            fprintf(stdout, "output ++++++++++++++++++++\n");
+        }
+
+        if (pargs->m_errout != NULL) {
+            fprintf(stdout, "errout --------------------\n");
+            __debug_buf(stdout, errbuf, errsize);
+            fprintf(stdout, "errout ++++++++++++++++++++\n");
+        }
     }
 
     ret = 0;
 out:
+    close_file(&pstdout);
+    close_file(&pstderr);
     run_cmd_outputv(NULL, 0, &outbuf, &outsize, &errbuf, &errsize, &exitcode, -1, NULL);
     read_file_whole(NULL, &inbuf, &insize);
     SETERRNO(ret);
@@ -2313,10 +2352,10 @@ int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     }
 
 
-    pnp = connect_namedpipe_timeout(pipename,pargs->m_timeout);
+    pnp = connect_namedpipe_timeout(pipename, pargs->m_timeout);
     if (pnp == NULL) {
         GETERRNO(ret);
-        ERROR_INFO("can not connect [%s] timeout[%d] error[%d]", pipename,pargs->m_timeout, ret);
+        ERROR_INFO("can not connect [%s] timeout[%d] error[%d]", pipename, pargs->m_timeout, ret);
         goto out;
     }
 
@@ -2841,7 +2880,7 @@ int procsecget_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 
     for (i = 0; parsestate->leftargs && parsestate->leftargs[i] != NULL ; i ++) {
         pid = atoi(parsestate->leftargs[i]);
-        ret = dump_process_security(stdout,pid);
+        ret = dump_process_security(stdout, pid);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
@@ -2863,7 +2902,7 @@ int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     char* maskstr;
     char* modestr;
     char* inheritstr;
-    char* username=NULL;
+    char* username = NULL;
 
 
     REFERENCE_ARG(argv);
@@ -2882,14 +2921,14 @@ int procsecset_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     inheritstr = parsestate->leftargs[3];
     username = parsestate->leftargs[4];
 
-    ret = proc_dacl_set(NULL,pid,maskstr,modestr,inheritstr,username);
+    ret = proc_dacl_set(NULL, pid, maskstr, modestr, inheritstr, username);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
     }
     fprintf(stdout, "set [%s] mask [%s] mode[%s] inherit [%s] user[%s] succ\n",
-    parsestate->leftargs[0],parsestate->leftargs[1],parsestate->leftargs[2],parsestate->leftargs[3],
-    parsestate->leftargs[4]);
+            parsestate->leftargs[0], parsestate->leftargs[1], parsestate->leftargs[2], parsestate->leftargs[3],
+            parsestate->leftargs[4]);
     ret = 0;
 out:
     fini_nt_envop_funcs();
@@ -2901,9 +2940,9 @@ int getprocwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 {
     pargs_options_t pargs = (pargs_options_t)popt;
     int ret;
-    HANDLE *phds=NULL;
-    int hdsize=0;
-    int hdlen=0;
+    HANDLE *phds = NULL;
+    int hdsize = 0;
+    int hdlen = 0;
     int i;
     int j;
     int pid;
@@ -2912,29 +2951,29 @@ int getprocwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     REFERENCE_ARG(argv);
     init_log_level(pargs);
 
-    for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
         pid = atoi(parsestate->leftargs[i]);
         if (pid != 0) {
-            ret = get_window_from_pid(pid,&phds,&hdsize);
+            ret = get_window_from_pid(pid, &phds, &hdsize);
             if (ret < 0) {
                 GETERRNO(ret);
                 goto out;
             }
             hdlen = ret;
-            fprintf(stdout,"[%d] windows",pid);
-            for (j=0;j<hdlen;j++) {
-                if ((j%5) == 0){
-                    fprintf(stdout,"\n");
+            fprintf(stdout, "[%d] windows", pid);
+            for (j = 0; j < hdlen; j++) {
+                if ((j % 5) == 0) {
+                    fprintf(stdout, "\n");
                 }
-                fprintf(stdout," %p",phds[j]);
+                fprintf(stdout, " %p", phds[j]);
             }
-            fprintf(stdout,"\n");
+            fprintf(stdout, "\n");
         }
     }
 
-    ret=  0;
+    ret =  0;
 out:
-    get_window_from_pid(0,&phds,&hdsize);
+    get_window_from_pid(0, &phds, &hdsize);
     hdlen = 0;
     SETERRNO(ret);
     return ret;
@@ -2951,10 +2990,10 @@ int existproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     REFERENCE_ARG(argv);
     init_log_level(pargs);
 
-    for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
         pid = atoi(parsestate->leftargs[i]);
         ret = process_exist(pid);
-        fprintf(stdout,"[%d] %s\n",pid, ret > 0 ? "exist" : "not exist");
+        fprintf(stdout, "[%d] %s\n", pid, ret > 0 ? "exist" : "not exist");
     }
     ret = 0;
     SETERRNO(ret);
@@ -2966,8 +3005,8 @@ int waitexit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     pargs_options_t pargs = (pargs_options_t)popt;
     int ret;
     int i;
-    int *ppid=NULL;
-    HANDLE *pproc=NULL;
+    int *ppid = NULL;
+    HANDLE *pproc = NULL;
     int argcnt = 0;
     DWORD dret;
     int d;
@@ -2978,43 +3017,43 @@ int waitexit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     REFERENCE_ARG(argv);
     init_log_level(pargs);
 
-    for(argcnt = 0;parsestate->leftargs && parsestate->leftargs[argcnt];argcnt ++) {
+    for (argcnt = 0; parsestate->leftargs && parsestate->leftargs[argcnt]; argcnt ++) {
 
     }
 
-    ppid =(int*) malloc(sizeof(ppid[0]) * argcnt);
+    ppid = (int*) malloc(sizeof(ppid[0]) * argcnt);
     if (ppid == NULL) {
         GETERRNO(ret);
         goto out;
     }
-    memset(ppid,0,sizeof(ppid[0]) * argcnt);
+    memset(ppid, 0, sizeof(ppid[0]) * argcnt);
     pproc = (HANDLE*)malloc(sizeof(pproc[0]) * argcnt);
     if (pproc == NULL) {
         GETERRNO(ret);
         goto out;
     }
-    memset(pproc,0,sizeof(pproc[0]) * argcnt);
+    memset(pproc, 0, sizeof(pproc[0]) * argcnt);
 
-    for (i=0;i < argcnt;i++) {
+    for (i = 0; i < argcnt; i++) {
         ppid[i] = atoi(parsestate->leftargs[i]);
-        pproc[i] = OpenProcess(SYNCHRONIZE |PROCESS_QUERY_LIMITED_INFORMATION ,FALSE,(DWORD)ppid[i]);
+        pproc[i] = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION , FALSE, (DWORD)ppid[i]);
         if (pproc[i] == NULL) {
             GETERRNO(ret);
-            ERROR_INFO("open [%d] error[%d]", ppid[i],ret);
+            ERROR_INFO("open [%d] error[%d]", ppid[i], ret);
             goto out;
         }
         DEBUG_INFO("[%d]open [%d]", i , ppid[i]);
     }
 
-    while(1) {
-        dret = WaitForMultipleObjectsEx((DWORD)argcnt,pproc,FALSE,1000,TRUE);
+    while (1) {
+        dret = WaitForMultipleObjectsEx((DWORD)argcnt, pproc, FALSE, 1000, TRUE);
         if (dret < (WAIT_OBJECT_0 + argcnt)) {
             d = (int)(dret - WAIT_OBJECT_0);
-            bret = GetExitCodeProcess(pproc[d],&exitcode);
+            bret = GetExitCodeProcess(pproc[d], &exitcode);
             if (bret) {
-                fprintf(stdout,"[%d] exit [%ld]\n",ppid[d],exitcode);
+                fprintf(stdout, "[%d] exit [%ld]\n", ppid[d], exitcode);
                 break;
-            }else {
+            } else {
                 GETERRNO(ret);
                 DEBUG_INFO("wait [%d] error[%d]", ppid[i], ret);
             }
@@ -3023,14 +3062,14 @@ int waitexit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             continue;
         } else {
             GETERRNO(ret);
-            ERROR_INFO("wait error [%ld] [%d]", dret,ret);
+            ERROR_INFO("wait error [%ld] [%d]", dret, ret);
             goto out;
         }
     }
-    ret=  0;
+    ret =  0;
 out:
     if (pproc) {
-        for (i=0;i<argcnt;i++) {
+        for (i = 0; i < argcnt; i++) {
             if (pproc[i] != NULL) {
                 CloseHandle(pproc[i]);
                 pproc[i] = NULL;
@@ -3050,7 +3089,7 @@ out:
 
 int sendctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    int ret=0;
+    int ret = 0;
     int curpid = 0;
     int argcnt = 0;
     pargs_options_t pargs = (pargs_options_t) popt;
@@ -3071,15 +3110,15 @@ int sendctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         goto out;
     }
 
-    for (i=0;i<argcnt;i++) {
+    for (i = 0; i < argcnt; i++) {
         curpid = atoi(parsestate->leftargs[i]);
-        ret= send_ctrlc(curpid);
+        ret = send_ctrlc(curpid);
         if (ret < 0) {
             GETERRNO(ret);
             ERROR_INFO("send_ctrlc [%d]", ret);
             goto out;
         }
-        fprintf(stdout,"send_ctrlc [%d] succ\n",curpid);
+        fprintf(stdout, "send_ctrlc [%d] succ\n", curpid);
     }
 
     ret = 0;

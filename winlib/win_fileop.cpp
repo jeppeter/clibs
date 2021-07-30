@@ -989,6 +989,12 @@ void*  open_file(const char* file,int mode)
     int ret;
     DWORD accmode=0,sharemode=0,createmode=0,attrmode=0;
 
+    if (file == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return NULL;
+    }
+
     pfile = __init_file(file);
     if (pfile == NULL){
         GETERRNO(ret);
@@ -1013,7 +1019,7 @@ void*  open_file(const char* file,int mode)
         attrmode = FILE_ATTRIBUTE_NORMAL;
     }
 
-    ERROR_INFO("will open [%s]", file);
+    DEBUG_INFO("will open [%s]", file);
 
     pfile->m_hFile = CreateFile(pfile->m_pfname,accmode,sharemode,NULL,createmode,attrmode,NULL);
     if (pfile->m_hFile == INVALID_HANDLE_VALUE){
