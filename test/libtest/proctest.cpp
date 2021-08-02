@@ -3135,3 +3135,53 @@ int waitctrlc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     REFERENCE_ARG(popt);
     return 0;
 }
+
+int dllproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    HMODULE hmod=NULL;
+    char* dllname = NULL;
+    char* procname = NULL;
+    void* procfunc=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        dllname = parsestate->leftargs[0];
+    }
+
+    if (parsestate->leftargs && parsestate->leftargs[1]) {
+        procname = parsestate->leftargs[1];
+    }
+
+    if (dllname && procname) {
+        hmod = LoadLibraryA(dllname);
+        if (hmod == NULL ){
+            GETERRNO(ret);
+            fprintf(stderr,"can not load [%s] error[%d]\n",dllname,ret);
+            goto out;
+        }
+
+        procfunc = GetProcAddress(hmod,procname);
+        if (procfunc) {
+            fprintf(stdout,"[%s].[%s] %p\n", dllname,procname,procfunc);
+        } else {
+            GETERRNO(ret);
+            fprintf(stderr,"[%s].[%s] error[%d]\n",dllname,procname,ret);
+            goto out;
+        }
+    }
+
+    ret = 0;
+
+out:
+    if (hmod != NULL) {
+        FreeLibrary(hmod);
+    }
+    hmod = NULL;
+    SETERRNO(ret);
+    return ret;
+}

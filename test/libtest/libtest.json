@@ -338,6 +338,9 @@
     },
     "idvtooloutput<idvtooloutput_handler>## to make idvtooloutput output##" : {
         "$" : "?"
+    },
+    "dllproc<dllproc_handler>## dllname procname to get dll function name  ##" : {
+        "$" : 2
     }
 
 }

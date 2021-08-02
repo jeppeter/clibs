@@ -220,6 +220,7 @@ int aesdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int sha256sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int outputdebug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int idvtooloutput_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int dllproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -259,6 +260,7 @@ do{                                                                             
 int init_log_level(pargs_options_t pargs)
 {
     int loglvl = BASE_LOG_ERROR;
+    output_debug_cfg_t cfg={0};
     if (pargs->m_verbose <= 0) {
         loglvl = BASE_LOG_ERROR;
     } else if (pargs->m_verbose == 1) {
@@ -271,7 +273,23 @@ int init_log_level(pargs_options_t pargs)
         loglvl = BASE_LOG_TRACE;
     }
     //fprintf(stdout, "verbose [%d]\n", pargs->m_verbose);
-    return INIT_LOG(loglvl);
+
+    cfg.m_disableflag = 0;
+    if (pargs->m_disabledb) {
+        cfg.m_disableflag |= WINLIB_DBWIN_DISABLED;
+    }
+    if (pargs->m_disablefile) {
+        cfg.m_disableflag |= WINLIB_FILE_DISABLED;
+    }
+
+    if (pargs->m_disablecon) {
+        cfg.m_disableflag |= WINLIB_CONSOLE_DISABLED;
+    }
+
+    cfg.m_ppoutcreatefile = pargs->m_outfiles;
+    cfg.m_ppoutappendfile = pargs->m_appfiles;
+
+    return InitOutputEx(loglvl,&cfg);
 }
 
 int parse_get_hex_val(unsigned char ch)
