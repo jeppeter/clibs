@@ -3,6 +3,7 @@
 #include <win_err.h>
 #include <win_output_debug.h>
 #include <win_uniansi.h>
+#include <win_priv.h>
 
 #if _MSC_VER >= 1929
 #pragma warning(disable:5045)
@@ -154,7 +155,7 @@ int __map_file(pmap_buffer_t pmap, int flag, uint64_t size)
         GETERRNO(ret);
         goto fail;
     }
-    
+
     pmap->m_mapbuf = MapViewOfFile(pmap->m_hfile, rwflag, 0 , (DWORD)((size >> 32) & 0xffffffff), (DWORD)(size & 0xffffffff));
     if (pmap->m_mapbuf == NULL) {
         GETERRNO(ret);
@@ -174,6 +175,7 @@ int __map_memory_name(pmap_buffer_t pmap, int flag, uint64_t size)
     int ret;
     DWORD prot = 0;
     DWORD rwflag = 0;
+    int enabled = 0;
     if (pmap->m_name != NULL) {
         ret = AnsiToTchar(pmap->m_name, &ptname, &tnamesize);
         if (ret < 0) {
@@ -197,7 +199,27 @@ int __map_memory_name(pmap_buffer_t pmap, int flag, uint64_t size)
     if (ptname != NULL && (flag & WINLIB_MAP_CREATE) == 0) {
         pmap->m_maphd = OpenFileMapping(rwflag, FALSE, ptname);
     } else if (ptname != NULL && (flag & WINLIB_MAP_CREATE)) {
-        pmap->m_maphd = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, prot, 0, (DWORD)size, ptname);
+        ret = enable_create_global_priv();
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        enabled = 1;
+        if (flag & WINLIB_MAP_FORALL) {
+            SECURITY_ATTRIBUTES sa;
+            SECURITY_DESCRIPTOR sd;
+            InitializeSecurityDescriptor(&sd, SECURITY_DESCRIPTOR_REVISION);
+            SetSecurityDescriptorDacl(&sd, TRUE, (PACL) NULL, FALSE);
+            sa.nLength = (DWORD) sizeof(SECURITY_ATTRIBUTES);
+            sa.lpSecurityDescriptor = (LPVOID) &sd;
+            sa.bInheritHandle = TRUE;
+            DEBUG_INFO("creat for everyone [%s]", pmap->m_name);
+            pmap->m_maphd = CreateFileMapping(INVALID_HANDLE_VALUE, &sa, prot, 0, (DWORD)size, ptname);
+        } else {
+            DEBUG_INFO("creat not for everyone [%s]", pmap->m_name);
+            pmap->m_maphd = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, prot, 0, (DWORD)size, ptname);
+        }
+
     }
 
     if (pmap->m_maphd == NULL) {
@@ -206,10 +228,19 @@ int __map_memory_name(pmap_buffer_t pmap, int flag, uint64_t size)
         goto fail;
     }
 
+    if (enabled) {
+        disable_create_global_priv();
+        enabled = 0;
+    }
+
 
     AnsiToTchar(NULL, &ptname, &tnamesize);
     return 0;
 fail:
+    if (enabled) {
+        disable_create_global_priv();
+        enabled = 0;
+    }
     AnsiToTchar(NULL, &ptname, &tnamesize);
     SETERRNO(ret);
     return ret;

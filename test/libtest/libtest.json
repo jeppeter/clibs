@@ -350,6 +350,12 @@
     },
     "writememmap<writememmap_handler>## mapname size offset writestr ##" : {
         "$" : 4
+    },
+    "svrcreatememmap<svrcreatememmap_handler>## mapname size##" : {
+        "$" : 2
+    },
+    "svrunmapmemmap<svrunmapmemmap_handler>## to unmap mem##" : {
+        "$" : "*"
     }
 
 }

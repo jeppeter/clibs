@@ -7,6 +7,8 @@
 #include <win_evt.h>
 #include <win_user.h>
 #include <win_prn.h>
+#include <win_map.h>
+#include <win_args.h>
 
 
 #include <tchar.h>
@@ -864,7 +866,67 @@ fail:
     return ret;
 }
 
+int map_mem_cmd(HANDLE exitevt, ppipe_hdr_t phdr, int hdrlen,void** ppmap)
+{
+    char* pcurptr = NULL;
+    int i;
+    int passlen = 0;
+    int curlen = 0;
+    int totallen = (int)(hdrlen - sizeof(pipe_hdr_t));
+    int ret;
+    char* memname = NULL;
+    uint64_t memsize=0;
+    char* pendptr = NULL;
 
+    REFERENCE_ARG(exitevt);
+
+    pcurptr = (char*) phdr;
+    pcurptr += sizeof(pipe_hdr_t);
+    for (passlen = 0, i = 0; passlen < (totallen - 1); i++) {
+        if (i == 0) {
+            memname = pcurptr;
+        } else if (i == 1) {
+            ret = parse_number(pcurptr,&memsize,&pendptr);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+        }
+        curlen = (int)(strlen(pcurptr) + 1);
+        passlen += curlen;
+        pcurptr += curlen;
+    }
+
+    unmap_buffer(ppmap);
+
+    if (memname == NULL || memsize == 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    ret= map_buffer(memname,WINLIB_MAP_FILE_READ|WINLIB_MAP_FILE_WRITE|WINLIB_MAP_FILE_EXEC|WINLIB_MAP_CREATE | WINLIB_MAP_FORALL,memsize,ppmap);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("map [%s] [0x%llx] succ", memname,memsize);
+
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int unmap_mem_cmd(HANDLE exitevt, ppipe_hdr_t phdr, int hdrlen,void** ppmap)
+{
+    REFERENCE_ARG(exitevt);
+    REFERENCE_ARG(phdr);
+    REFERENCE_ARG(hdrlen);
+    unmap_buffer(ppmap);
+    return 0;
+}
 
 static DWORD st_EXITED_MODE = 0;
 
@@ -880,6 +942,7 @@ int main_loop(HANDLE exitevt, char* pipename, int maxmills)
     DWORD waitnum = 0;
     DWORD dret;
     ppipe_hdr_t phdr = NULL;
+    void* pmap=NULL;
 
 
 bind_pipe_again:
@@ -888,7 +951,7 @@ bind_pipe_again:
         ret = -ERROR_CONTROL_C_EXIT;
         goto fail;
     }
-    run_powershell(exitevt);
+    //run_powershell(exitevt);
     bind_pipe(NULL, exitevt, &hpipe, &prdov, &pwrov);
     ret = bind_pipe(pipename, exitevt, &hpipe, &prdov, &pwrov);
     if (ret < 0) {
@@ -910,7 +973,7 @@ bind_pipe_again:
 
 
     while (1) {
-        run_powershell(exitevt);
+        //run_powershell(exitevt);
         ret = read_pipe_data(exitevt, hpipe, prdov, maxmills, &pindata, &indatasize);
         if (ret < 0) {
             GETERRNO(ret);
@@ -1001,6 +1064,22 @@ bind_pipe_again:
                 }
                 goto bind_pipe_again;
             }
+        } else if (phdr->m_cmd == MAP_MEM_CMD) {
+            ret = map_mem_cmd(exitevt,phdr,indatalen,&pmap);
+            if (ret < 0) {
+                if (ret == -ERROR_CONTROL_C_EXIT) {
+                    break;
+                }
+                goto bind_pipe_again;
+            }
+        } else if (phdr->m_cmd == UNMAP_MEM_CMD) {
+            ret = unmap_mem_cmd(exitevt,phdr,indatalen,&pmap);
+            if (ret < 0) {
+                if (ret == -ERROR_CONTROL_C_EXIT) {
+                    break;
+                }
+                goto bind_pipe_again;
+            }
         }
 
     }
@@ -1008,11 +1087,13 @@ bind_pipe_again:
 
     bind_pipe(NULL, exitevt, &hpipe, &prdov, &pwrov);
     read_pipe_data(NULL, NULL, NULL, 0, &pindata, &indatasize);
+    unmap_buffer(&pmap);
     return 0;
 
 fail:
     bind_pipe(NULL, exitevt, &hpipe, &prdov, &pwrov);
     read_pipe_data(NULL, NULL, NULL, 0, &pindata, &indatasize);
+    unmap_buffer(&pmap);
     SETERRNO(ret);
     return ret;
 }

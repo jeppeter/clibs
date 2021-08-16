@@ -54,7 +54,9 @@ WINLIB_API int enable_shutdown_priv(void);
 WINLIB_API int disable_shutdown_priv(void);
 WINLIB_API int is_shutdown_priv(void);
 
-
+WINLIB_API int enable_create_global_priv(void);
+WINLIB_API int disable_create_global_priv(void);
+WINLIB_API int is_create_global_priv(void);
 
 
 #ifdef __cplusplus

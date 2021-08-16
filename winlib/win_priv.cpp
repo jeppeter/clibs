@@ -371,3 +371,18 @@ int is_shutdown_priv(void)
 {
     return __get_priv_value("SeShutdownPrivilege");   
 }
+
+int enable_create_global_priv(void)
+{
+    return __handle_priv("SeCreateGlobalPrivilege",1);
+}
+
+int disable_create_global_priv(void)
+{
+    return __handle_priv("SeCreateGlobalPrivilege",0);   
+}
+
+int is_create_global_priv(void)
+{
+    return __get_priv_value("SeCreateGlobalPrivilege");      
+}

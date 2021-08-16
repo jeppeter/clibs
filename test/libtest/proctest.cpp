@@ -1728,6 +1728,49 @@ out:
     return ret;
 }
 
+int svrcreatememmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    init_log_level(pargs);
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    ret = __send_svr_pipe(MAP_MEM_CMD, parsestate, pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int svrunmapmemmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    init_log_level(pargs);
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    ret = __send_svr_pipe(UNMAP_MEM_CMD, parsestate, pargs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+
 
 int chgpass_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {

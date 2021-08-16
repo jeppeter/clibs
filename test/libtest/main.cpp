@@ -225,6 +225,8 @@ int dllproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int creatememmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int readmemmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int writememmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svrcreatememmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int svrunmapmemmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
