@@ -904,7 +904,7 @@ int map_mem_cmd(HANDLE exitevt, ppipe_hdr_t phdr, int hdrlen,void** ppmap)
         goto fail;
     }
 
-    ret= map_buffer(memname,WINLIB_MAP_FILE_READ|WINLIB_MAP_FILE_WRITE|WINLIB_MAP_FILE_EXEC|WINLIB_MAP_CREATE | WINLIB_MAP_FORALL,memsize,ppmap);
+    ret= map_buffer(memname,WINLIB_MAP_FILE_READ|WINLIB_MAP_FILE_WRITE|WINLIB_MAP_FILE_EXEC|WINLIB_MAP_CREATE | WINLIB_MAP_FORALL | WINLIB_MAP_GLOBAL,memsize,ppmap);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;

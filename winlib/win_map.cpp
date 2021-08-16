@@ -199,12 +199,14 @@ int __map_memory_name(pmap_buffer_t pmap, int flag, uint64_t size)
     if (ptname != NULL && (flag & WINLIB_MAP_CREATE) == 0) {
         pmap->m_maphd = OpenFileMapping(rwflag, FALSE, ptname);
     } else if (ptname != NULL && (flag & WINLIB_MAP_CREATE)) {
-        ret = enable_create_global_priv();
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto fail;
+        if (flag & WINLIB_MAP_GLOBAL) {
+            ret = enable_create_global_priv();
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            enabled = 1;
         }
-        enabled = 1;
         if (flag & WINLIB_MAP_FORALL) {
             SECURITY_ATTRIBUTES sa;
             SECURITY_DESCRIPTOR sd;
