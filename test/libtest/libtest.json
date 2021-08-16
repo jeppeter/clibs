@@ -341,6 +341,15 @@
     },
     "dllproc<dllproc_handler>## dllname procname to get dll function name  ##" : {
         "$" : 2
+    },
+    "creatememmap<creatememmap_handler>## mapname size ##" : {
+        "$" : 2
+    },
+    "readmemmap<readmemmap_handler>## mapname size offset readsize##" : {
+        "$" : 4
+    },
+    "writememmap<writememmap_handler>## mapname size offset writestr ##" : {
+        "$" : 4
     }
 
 }

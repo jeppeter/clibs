@@ -41,6 +41,7 @@
 #include <win_namedpipe.h>
 #include <win_prn.h>
 #include <win_evt.h>
+#include <win_map.h>
 
 
 #include <jvalue.h>
@@ -221,6 +222,9 @@ int sha256sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int outputdebug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int idvtooloutput_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int dllproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int creatememmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int readmemmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int writememmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -519,6 +523,46 @@ BOOL WINAPI HandlerConsoleRunOk(DWORD dwCtrlType)
     return bret;
 }
 
+HANDLE set_ctrlc_handle()
+{
+    BOOL bret;
+    int ret;
+    if (st_ExitEvt != NULL) {
+        return st_ExitEvt;
+    }
+
+    st_ExitEvt = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (st_ExitEvt == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create exit event %d\n", ret);
+        goto fail;
+    }
+    bret = SetConsoleCtrlHandler(HandlerConsoleRoutine, TRUE);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("SetControlCtrlHandler Error(%d)", ret);
+        goto fail;
+    }
+
+    return st_ExitEvt;
+fail:
+    if (st_ExitEvt != NULL) {
+        CloseHandle(st_ExitEvt);
+    }
+    st_ExitEvt = NULL;
+    SETERRNO(ret);
+    return NULL;
+}
+
+void close_ctrlc_handle()
+{
+    if (st_ExitEvt != NULL) {
+        CloseHandle(st_ExitEvt);
+    }
+    st_ExitEvt = NULL;
+}
+
+
 
 #include "filetest.cpp"
 #include "proctest.cpp"
@@ -533,6 +577,7 @@ BOOL WINAPI HandlerConsoleRunOk(DWORD dwCtrlType)
 #include "prntest.cpp"
 #include "crypttest.cpp"
 #include "privtest.cpp"
+#include "maptest.cpp"
 #include "protectkill.cpp"
 #include "pipecmd.cpp"
 

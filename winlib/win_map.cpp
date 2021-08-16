@@ -88,7 +88,7 @@ int __get_map_prot(int flag, DWORD *pprot)
 {
     DWORD prot = 0;
     int ret;
-    switch ((flag & WINLIB_MAP_FILE_FLAGS)) {
+    switch ((flag & (WINLIB_MAP_FILE_WRITE | WINLIB_MAP_FILE_READ | WINLIB_MAP_FILE_EXEC))) {
     case (WINLIB_MAP_FILE_READ|WINLIB_MAP_FILE_WRITE):
     case (WINLIB_MAP_FILE_WRITE):
         prot |= PAGE_READWRITE;
@@ -167,7 +167,7 @@ fail:
     return ret;
 }
 
-int __map_memory_name(pmap_buffer_t pmap, int flag, int size)
+int __map_memory_name(pmap_buffer_t pmap, int flag, uint64_t size)
 {
     TCHAR* ptname = NULL;
     int tnamesize = 0;
@@ -194,13 +194,12 @@ int __map_memory_name(pmap_buffer_t pmap, int flag, int size)
         goto fail;
     }
 
-    if (ptname != NULL) {
+    if (ptname != NULL && (flag & WINLIB_MAP_CREATE) == 0) {
         pmap->m_maphd = OpenFileMapping(rwflag, FALSE, ptname);
-    }
-
-    if (pmap->m_maphd == NULL) {
+    } else if (ptname != NULL && (flag & WINLIB_MAP_CREATE)) {
         pmap->m_maphd = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, prot, 0, (DWORD)size, ptname);
     }
+
     if (pmap->m_maphd == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not open or create map [%s] error[%d]", pmap->m_name ? pmap->m_name : "NULL", ret);
@@ -243,7 +242,7 @@ fail:
     return NULL;
 }
 
-int map_buffer(char* name, int flag, int size, void** ppmap)
+int map_buffer(char* name, int flag, uint64_t size, void** ppmap)
 {
     pmap_buffer_t pmap = NULL;
     int ret;
@@ -265,13 +264,13 @@ int map_buffer(char* name, int flag, int size, void** ppmap)
         goto fail;
     }
 
-    ret = __map_buffer(pmap, flag, (uint64_t)size);
+    ret = __map_buffer(pmap, flag, size);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    pmap->m_size = (uint64_t)size;
+    pmap->m_size = size;
 
 
     *ppmap = pmap;

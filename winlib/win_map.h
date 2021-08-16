@@ -12,10 +12,11 @@
 #define   WINLIB_MAP_FILE_WRITE               0x4
 #define   WINLIB_MAP_FILE_READ                0x2
 #define   WINLIB_MAP_FILE_EXEC                0x1
+#define   WINLIB_MAP_CREATE                   0x80
 
-#define   WINLIB_MAP_FILE_FLAGS               (WINLIB_MAP_FILE_WRITE | WINLIB_MAP_FILE_READ | WINLIB_MAP_FILE_EXEC)
+#define   WINLIB_MAP_FILE_FLAGS               (WINLIB_MAP_FILE_WRITE | WINLIB_MAP_FILE_READ | WINLIB_MAP_FILE_EXEC | WINLIB_MAP_CREATE)
 
-WINLIB_API int map_buffer(char* name,int flag,int size,void** ppmap);
+WINLIB_API int map_buffer(char* name,int flag,uint64_t size,void** ppmap);
 WINLIB_API int map_file(char* name, int flag, uint64_t* psize,void** ppmap);
 WINLIB_API int write_buffer(void* pmap1, uint64_t offset, void* pbuf, int size);
 WINLIB_API int read_buffer(void* pmap1, uint64_t offset, void* pbuf, int size);
