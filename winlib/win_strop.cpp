@@ -1019,6 +1019,25 @@ fail:
     return ret;
 }
 
+void str_to_normalize_name(const char* pstr)
+{
+    char* pcur = (char*)pstr;
+
+    while(*pcur != 0x0) {
+        if (*pcur >= '0' && *pcur <= '9') {
+
+        } else if (*pcur >= 'a' && *pcur <= 'z') {
+
+        } else if (*pcur >= 'A' && *pcur <= 'Z' || *pcur == '_') {
+
+        } else {
+            *pcur = '_';
+        }
+        pcur ++;
+    }
+    return;
+}
+
 #if _MSC_VER >= 1910
 #pragma warning(pop)
 #endif

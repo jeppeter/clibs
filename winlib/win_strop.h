@@ -20,6 +20,7 @@ WINLIB_API int append_vsnprintf_safe(char** ppbuf,int *pbufsize,const char* fmt,
 WINLIB_API int append_snprintf_safe(char**ppbuf,int*pbufsize,const char* fmt,...);
 WINLIB_API int str_match_wildcard(const char* regpat,const char* str);
 WINLIB_API void str_lower_case(const char* pstr);
+WINLIB_API void str_to_normalize_name(const char* pstr);
 WINLIB_API char* str_in_str(const char* pstr,const char *search);
 WINLIB_API int quote_string(char** ppquotestr,int *psize,const char* pstr,...);
 WINLIB_API int quote_stringv(char** ppquotestr,int *psize,const char* pstr,va_list ap);
