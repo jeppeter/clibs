@@ -148,6 +148,7 @@ int dumpsacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int dumpdacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int utf8toansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int simpleansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int windbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int execdbg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int startdetach_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);

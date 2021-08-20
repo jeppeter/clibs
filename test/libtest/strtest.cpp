@@ -346,6 +346,21 @@ out:
     return ret;
 }
 
+int simpleansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int i;
+    char* cstr = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        cstr = parsestate->leftargs[i];
+        __debug_buf(stdout,cstr,(int)strlen(cstr) + 1);
+    }
+    return 0;
+}
+
 int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     pargs_options_t pargs = (pargs_options_t) popt;
