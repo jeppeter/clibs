@@ -1,5 +1,6 @@
 #include "hashtable.h"
 #include "util.h"
+#include <stdlib.h>
 
 #define JHASHTABLE_INITIAL_SIZE   128
 

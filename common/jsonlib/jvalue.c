@@ -2,6 +2,7 @@
  * This is free and unencumbered software released into the public domain.
  */
 
+#include <stdlib.h>
 #include <jvalue.h>
 #include "jstring.h"
 #include "util.h"
@@ -87,7 +88,6 @@ static void jobject_clone_object(jobject *table, jentry *entry)
 {
   char *key;
   jvalue *value;
-  int res;
   if (table == 0 || entry == 0) return;
   key = entry->key;
   value = entry->value;
@@ -98,7 +98,7 @@ static void jobject_clone_object(jobject *table, jentry *entry)
     jobject_put_bool((jvalue *) table, key, v->value);
   } if (value->type == JINT) {
     jint *v = (jint *) value;
-    res = jobject_put_int((jvalue *) table, key, v->value);    
+    jobject_put_int((jvalue *) table, key, v->value);    
   } if (value->type == JINT64) {
     jint64 *v = (jint64 *) value;
     jobject_put_int64((jvalue *) table, key, v->value);
@@ -107,7 +107,7 @@ static void jobject_clone_object(jobject *table, jentry *entry)
     jobject_put_real((jvalue *) table, key, v->value);
   } if (value->type == JSTRING) {
     jstring *v = (jstring *) value;
-    res = jobject_put_string((jvalue *) table, key, v->value);
+    jobject_put_string((jvalue *) table, key, v->value);
   } if (value->type == JOBJECT) {
     jobject *v = (jobject *) value;
     jobject *t = jobject_clone(v);

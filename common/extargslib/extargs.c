@@ -5,6 +5,8 @@
 #include <assert.h>
 #include <jvalue.h>
 #include <cmn_strop.h>
+#include <cmn_err.h>
+#include <cmn_output_debug.h>
 
 #ifdef EXTARGS_VERBOSE
 #include <debug_jvalue.h>
