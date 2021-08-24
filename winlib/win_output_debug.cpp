@@ -5,6 +5,7 @@
 #pragma warning(disable:4668)
 
 #include <win_output_debug.h>
+#include <win_output_debug_cfg.h>
 #include <win_uniansi.h>
 #include <stdio.h>
 #include <time.h>
@@ -23,6 +24,8 @@ static int st_output_inited = 0;
 static HANDLE* st_output_hds = NULL; /**/
 static int st_output_cnt = 0;
 static int st_disableflag = 0;
+
+#include "win_output_debug_cfg.cpp"
 
 #if 0
 #define _OUTPUT_DEBUG_ERROR(...)  do{fprintf(stderr,"[%s:%d]:",__FILE__,__LINE__); fprintf(stderr,__VA_ARGS__); fprintf(stderr,"\n");fflush(stderr);}while(0)

@@ -39,6 +39,7 @@ typedef struct __output_debug_cfg {
 	int m_reserv1;
 } output_debug_cfg_t, *poutput_debug_cfg_t;
 
+
 WINLIB_API int  InitOutput(int loglvl);
 WINLIB_API int  InitOutputEx(int loglvl,poutput_debug_cfg_t pcfg);
 WINLIB_API void FiniOutput(void);
