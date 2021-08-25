@@ -32,6 +32,9 @@ public:
 	int set_file_type(const char* fname,int type,uint64_t size,int maxfiles);
 	int set_level(int level);
 	int set_format(int fmtflag);
+	int get_file_type(const char*& fname, int& type, uint64_t& size, int& maxfiles);
+	int get_level();
+	int get_format();
 	OutfileCfg* clone();
 private:
 	char* m_fname;

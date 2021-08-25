@@ -26,6 +26,7 @@ static int st_output_cnt = 0;
 static int st_disableflag = 0;
 
 #include "win_output_debug_cfg.cpp"
+#include "win_output_debug_file.cpp"
 
 #if 0
 #define _OUTPUT_DEBUG_ERROR(...)  do{fprintf(stderr,"[%s:%d]:",__FILE__,__LINE__); fprintf(stderr,__VA_ARGS__); fprintf(stderr,"\n");fflush(stderr);}while(0)

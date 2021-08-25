@@ -87,6 +87,25 @@ fail:
 	return ret;
 }
 
+int OutfileCfg::get_file_type(const char*& fname, int& type, uint64_t& size, int& maxfiles)
+{
+	fname = this->m_fname;
+	type = this->m_type;
+	size = this->m_size;
+	maxfiles = this->m_maxfiles;
+	return 0;
+}
+
+int OutfileCfg::get_level()
+{
+	return this->m_level;
+}
+
+int OutfileCfg::get_format()
+{
+	return this->m_fmtflag;
+}
+
 OutfileCfg* OutfileCfg::clone()
 {
 	OutfileCfg* pret = new OutfileCfg();
