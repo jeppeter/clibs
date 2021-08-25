@@ -17,6 +17,13 @@
 
 #define  WINLIB_OUTPUT_ALL_MASK             (WINLIB_OUTPUT_LOCATION | WINLIB_OUTPUT_TIMESTAMP |WINLIB_OUTPUT_LEVEL |WINLIB_OUTPUT_MSG)
 
+
+#pragma warning(push)
+#pragma warning(disable:4577)
+#pragma warning(disable:4530)
+#include <vector>
+#pragma warning(pop)
+
 class OutfileCfg
 {
 public:
@@ -25,6 +32,7 @@ public:
 	int set_file_type(const char* fname,int type,uint64_t size,int maxfiles);
 	int set_level(int level);
 	int set_format(int fmtflag);
+	OutfileCfg* clone();
 private:
 	char* m_fname;
 	int m_level;
@@ -32,6 +40,17 @@ private:
 	int m_maxfiles;
 	uint64_t m_size;
 	int m_type;
+};
+
+class OutputCfg
+{
+public:
+	OutputCfg();
+	~OutputCfg();
+	int insert_config(OutfileCfg& cfg);
+	OutfileCfg* get_config(int idx);
+private:
+	std::vector<OutfileCfg*> m_cfgs;
 };
 
 #endif /* __WIN_OUTPUT_DEBUG_CFG_H_34271879EF5F24AB1FD4CF1BDFD9DC92__ */

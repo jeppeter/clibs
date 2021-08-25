@@ -86,3 +86,68 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+OutfileCfg* OutfileCfg::clone()
+{
+	OutfileCfg* pret = new OutfileCfg();
+	int ret;
+	ret = pret->set_file_type(this->m_fname,this->m_type,this->m_size, this->m_maxfiles);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = pret->set_level(this->m_level);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ret = pret->set_format(this->m_fmtflag);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return pret;
+fail:
+	if (pret) {
+		delete pret;
+	}
+	pret = NULL;
+	SETERRNO(ret);
+	return NULL;
+}
+
+OutputCfg::OutputCfg()
+{	
+}
+
+OutputCfg::~OutputCfg()
+{
+	while(this->m_cfgs.size() > 0) {
+		OutfileCfg* pcfg = this->m_cfgs.at(0);
+		this->m_cfgs.erase(this->m_cfgs.begin());
+		delete pcfg;
+		pcfg = NULL;
+	}
+}
+
+int OutputCfg::insert_config(OutfileCfg& cfg)
+{
+	OutfileCfg* pret = cfg.clone();
+	int ret = -ERROR_INVALID_PARAMETER;
+	if (pret != NULL) {
+		this->m_cfgs.push_back(pret);
+		ret = 0;
+	}
+	return ret;	
+}
+
+OutfileCfg* OutputCfg::get_config(int idx)
+{
+	OutfileCfg* pret = NULL;
+	if ((int)this->m_cfgs.size() > idx) {
+		pret = this->m_cfgs.at((uint64_t)idx);
+	}
+	return pret;
+}
