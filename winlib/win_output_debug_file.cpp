@@ -520,6 +520,87 @@ public:
 	virtual int set_cfg(OutfileCfg* pcfg);
 };
 
+DebugOutBackground::DebugOutBackground()
+{
+	this->m_level = BASE_LOG_ERROR;
+	this->m_fmtflag = WINLIB_OUTPUT_ALL_MASK;
+}
+
+DebugOutBackground::~DebugOutBackground()
+{	
+}
+
+void DebugOutBackground::flush()
+{
+	return;
+}
+
+int DebugOutBackground::write_buffer(char* pbuffer, int buflen)
+{
+#ifdef UNICODE
+    LPWSTR pWide = NULL;
+    int len;
+    BOOL bret;
+    len = (int) strlen(pbuffer) + 1;
+    pWide = (wchar_t*)malloc((size_t)((len + 1) * 2));
+    if (pWide == NULL) {
+        return 0;
+    }
+    //pWide = new wchar_t[(len+1) * 2];
+    bret = MultiByteToWideChar(CP_ACP, NULL, pbuffer, -1, pWide, len * 2);
+    if (bret) {
+        OutputDebugStringW(pWide);
+    } else {
+        OutputDebugString(L"can not change fmt string");
+    }
+    //delete [] pWide;
+    free(pWide);
+#else
+    //fprintf(stderr,"%s",pFmtStr);
+    OutputDebugStringA(pbuffer);
+    //fprintf(stderr,"Out %s",pFmtStr);
+#endif
+    return buflen;
+}
+
+int DebugOutBackground::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
+{
+	return this->DebugOutBuffer::write_log(level,locstr,timestr,tagstr,msgstr);
+}
+
+int DebugOutBackground::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
+{
+	return this->DebugOutBuffer::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
+}
+
+int DebugOutBackground::set_cfg(OutfileCfg* pcfg)
+{
+	const char* fname = NULL;
+	int maxfiles = 0;
+	int type = 0;
+	uint64_t size = 0;
+	int ret;
+
+	ret = pcfg->get_file_type(fname, type, size, maxfiles);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (fname != NULL || type != WINLIB_FILE_BACKGROUND || size != 0 || maxfiles != 0) {
+		ret = -ERROR_INVALID_PARAMETER;
+		goto fail;
+	}
+
+	this->m_level = pcfg->get_level();
+	this->m_fmtflag = pcfg->get_format();
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 
 class DebugOutFileTrunc : public DebugOutIO
 {
