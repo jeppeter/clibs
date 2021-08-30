@@ -249,6 +249,7 @@ int DebugOutBuffer::write_log(int level, char* locstr, char* timestr, char* tags
 		}
 		format_out_string(-1, 0, &outstr, &outsize, NULL, NULL, NULL, NULL);
 	}
+	this->flush();
 	return retlen;
 fail:
 	format_out_string(-1, 0, &outstr, &outsize, NULL, NULL, NULL, NULL);
@@ -374,6 +375,7 @@ int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr, cha
 			retlen += ret;
 		}
 	}
+	this->flush();
 
 	str_append_snprintf_safe(&bufstr, &bufsize, NULL);
 	format_out_string(-1, 0, &outstr, &outsize, NULL, NULL, NULL, NULL);
@@ -602,13 +604,14 @@ fail:
 }
 
 
-class DebugOutFileTrunc : public DebugOutIO
+class DebugOutFileTrunc : public DebugOutBuffer
 {
 public:
 	DebugOutFileTrunc();
 	virtual ~DebugOutFileTrunc();
 	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
 	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_buffer(char* pbuffer ,int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
 private:
@@ -617,6 +620,151 @@ private:
 	uint64_t m_size;
 	uint64_t m_filesize;
 };
+
+DebugOutFileTrunc::DebugOutFileTrunc()
+{
+	this->m_hfile = NULL;
+	this->m_name = NULL;
+	this->m_size = 0;
+	this->m_filesize = 0;
+}
+
+DebugOutFileTrunc::~DebugOutFileTrunc()
+{
+	if (this->m_hfile != NULL) {
+		CloseHandle(this->m_hfile);
+	}
+	this->m_hfile = NULL;
+	if (this->m_name != NULL) {
+		free(this->m_name);
+	}
+	this->m_name = NULL;
+	this->m_size = 0;
+	this->m_filesize = 0;
+}
+
+int DebugOutFileTrunc::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
+{
+	return this->DebugOutBuffer::write_log(level,locstr,timestr,tagstr,msgstr);
+}
+
+int DebugOutFileTrunc::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
+{
+	return this->DebugOutBuffer::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
+}
+
+int DebugOutFileTrunc::write_buffer(char* pbuffer ,int buflen)
+{
+	int ret=-1;
+	BOOL bret;
+	DWORD wlen;
+	if (this->m_hfile == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	bret = WriteFile(this->m_hfile,pbuffer,(DWORD)buflen,&wlen,NULL);
+	if (!bret) {
+		GETERRNO(ret);		
+		SETERRNO(ret);
+		return ret;
+	}
+
+	this->m_filesize += buflen;
+	return buflen;
+}
+
+void DebugOutFileTrunc::flush()
+{
+	if (this->m_size > 0 && this->m_filesize >= this->m_size) {
+		char* nname = NULL;
+		int nsize=0;
+		int ret;
+		BOOL bret;
+		/*this means we exceed the file limited size, so we should change */
+		if (this->m_hfile != NULL)  {
+			CloseHandle(this->m_hfile);
+		}
+		this->m_hfile = NULL;
+		/*now to give the name copy*/
+		if (this->m_name != NULL) {
+			ret = str_append_snprintf_safe(&nname,&nsize,"%s.1",this->m_name);
+			if (ret >= 0)	 {
+				bret = CopyFileA(this->m_name,nname,FALSE);
+				if (bret) {
+					/*now to create new file*/
+					this->m_hfile = CreateFileA(this->m_name,GENERIC_WRITE,FILE_SHARE_READ,NULL,TRUNCATE_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+					if (this->m_hfile == INVALID_HANDLE_VALUE) {
+						this->m_hfile = NULL;
+					} else {
+						/*to reset filesize to zero*/
+						this->m_filesize = 0;
+					}
+				}
+			}
+			str_append_snprintf_safe(&nname,&nsize,NULL);
+		}
+	}
+	return;
+}
+
+int DebugOutFileTrunc::set_cfg(OutfileCfg* pcfg)
+{
+	const char* fname = NULL;
+	int maxfiles = 0;
+	int type = 0;
+	uint64_t size = 0;
+	int ret;
+
+	ret = pcfg->get_file_type(fname, type, size, maxfiles);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (fname == NULL || type != WINLIB_FILE_TRUNC ||  maxfiles != 0) {
+		ret = -ERROR_INVALID_PARAMETER;
+		goto fail;
+	}
+
+	this->m_level = pcfg->get_level();
+	this->m_fmtflag = pcfg->get_format();
+	this->m_name = _strdup(fname);
+	this->m_size = size;
+	if (this->m_name == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	this->m_hfile = CreateFileA(this->m_name,GENERIC_WRITE,FILE_SHARE_READ,NULL,TRUNCATE_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+	if (this->m_hfile == INVALID_HANDLE_VALUE) {
+		GETERRNO(ret);
+		if (ret == -ERROR_FILE_NOT_FOUND) {
+			this->m_hfile = CreateFileA(this->m_name,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+		}
+	}
+
+	if (this->m_hfile == INVALID_HANDLE_VALUE) {
+		GETERRNO(ret);
+		this->m_hfile = NULL;
+		goto fail;
+	}
+	/*to make write file size 0 start ok*/
+	this->m_filesize = 0;
+	return 0;
+fail:
+	if (this->m_hfile != NULL) {
+		CloseHandle(this->m_hfile);
+	}
+	this->m_hfile = NULL;
+	if (this->m_name) {
+		free(this->m_name);
+	}
+	this->m_name = NULL;
+	SETERRNO(ret);
+	return ret;
+}
 
 
 class DebugOutFileAppend : public DebugOutIO
