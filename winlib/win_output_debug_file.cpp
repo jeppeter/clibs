@@ -614,7 +614,7 @@ public:
 	virtual int write_buffer(char* pbuffer ,int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
-private:
+protected:
 	HANDLE m_hfile;
 	char* m_name;
 	uint64_t m_size;
@@ -767,13 +767,14 @@ fail:
 }
 
 
-class DebugOutFileAppend : public DebugOutIO
+class DebugOutFileAppend : public DebugOutFileTrunc
 {
 public:
 	DebugOutFileAppend();
 	virtual ~DebugOutFileAppend();
 	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
 	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_buffer(char* pbuffer ,int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
 private:
@@ -783,8 +784,108 @@ private:
 	uint64_t m_filesize;
 };
 
+DebugOutFileAppend::DebugOutFileAppend()
+{
+	this->m_hfile = NULL;
+	this->m_name = NULL;
+	this->m_size = 0;
+	this->m_filesize = 0;
+}
 
-class DebugOutFileRotate : public DebugOutIO
+DebugOutFileAppend::~DebugOutFileAppend()
+{
+	if (this->m_hfile != NULL) {
+		CloseHandle(this->m_hfile);
+	}
+	this->m_hfile = NULL;
+	if (this->m_name != NULL) {
+		free(this->m_name);
+	}
+	this->m_name = NULL;
+	this->m_size = 0;
+	this->m_filesize = 0;
+}
+
+
+int DebugOutFileAppend::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
+{
+	return this->DebugOutFileTrunc::write_log(level,locstr,timestr,tagstr,msgstr);
+}
+
+int DebugOutFileAppend::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
+{
+	return this->DebugOutFileTrunc::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
+}
+
+int DebugOutFileAppend::write_buffer(char* pbuffer ,int buflen)
+{
+	return this->DebugOutFileTrunc::write_buffer(pbuffer,buflen);
+}
+
+void DebugOutFileAppend::flush()
+{
+	this->DebugOutFileTrunc::flush();
+	return;
+}
+
+int DebugOutFileAppend::set_cfg(OutfileCfg* pcfg)
+{
+	const char* fname = NULL;
+	int maxfiles = 0;
+	int type = 0;
+	uint64_t size = 0;
+	int ret;
+	LARGE_INTEGER fsize;
+	BOOL bret;
+
+	ret = pcfg->get_file_type(fname, type, size, maxfiles);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (fname == NULL || type != WINLIB_FILE_APPEND ||  maxfiles != 0) {
+		ret = -ERROR_INVALID_PARAMETER;
+		goto fail;
+	}
+
+	this->m_level = pcfg->get_level();
+	this->m_fmtflag = pcfg->get_format();
+	this->m_name = _strdup(fname);
+	this->m_size = size;
+	if (this->m_name == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	this->m_hfile = CreateFileA(this->m_name,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+	if (this->m_hfile == INVALID_HANDLE_VALUE) {
+		GETERRNO(ret);
+		this->m_hfile = NULL;
+		goto fail;
+	}
+	bret = GetFileSizeEx(this->m_hfile,&fsize);
+	if (!bret) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	this->m_filesize = (uint64_t)fsize.QuadPart;
+	return 0;
+fail:
+	if (this->m_hfile != NULL) {
+		CloseHandle(this->m_hfile);
+	}
+	this->m_hfile = NULL;
+	if (this->m_name) {
+		free(this->m_name);
+	}
+	this->m_name = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+
+class DebugOutFileRotate : public DebugOutBuffer
 {
 public:
 	DebugOutFileRotate();
