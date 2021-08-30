@@ -5,7 +5,7 @@ public:
 	virtual ~DebugOutIO() {};
 	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr) = 0;
 	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen) = 0;
-	virtual int write_buffer(char* pbuf,int buflen)=0;
+	virtual int write_buffer(char* pbuf, int buflen) = 0;
 	virtual void flush() = 0;
 	virtual int set_cfg(OutfileCfg* pcfg) = 0;
 };
@@ -17,7 +17,7 @@ public:
 	virtual ~DebugOutBuffer();
 	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
 	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
-	virtual int write_buffer(char* pbuf,int buflen);
+	virtual int write_buffer(char* pbuf, int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
 protected:
@@ -242,7 +242,7 @@ int DebugOutBuffer::write_log(int level, char* locstr, char* timestr, char* tags
 		}
 
 		retlen = ret;
-		ret = this->write_buffer(outstr,retlen);
+		ret = this->write_buffer(outstr, retlen);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -277,7 +277,7 @@ int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr, cha
 		}
 
 		retlen = ret;
-		ret = this->write_buffer(outstr,retlen);
+		ret = this->write_buffer(outstr, retlen);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -288,7 +288,7 @@ int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr, cha
 		for (i = 0; i < buflen; i++) {
 
 			if (outlen > 2000) {
-				ret = this->write_buffer(bufstr,outlen);
+				ret = this->write_buffer(bufstr, outlen);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
@@ -367,7 +367,7 @@ int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr, cha
 				goto fail;
 			}
 			outlen = (int)strlen(bufstr);
-			ret = this->write_buffer(bufstr,outlen);
+			ret = this->write_buffer(bufstr, outlen);
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
@@ -441,7 +441,7 @@ public:
 	virtual ~DebugOutStderr();
 	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
 	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
-	virtual int write_buffer(char* pbuffer ,int buflen);
+	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
 };
@@ -495,13 +495,13 @@ fail:
 
 int DebugOutStderr::write_buffer(char* pbuffer, int buflen)
 {
-	fprintf(stderr,"%s",pbuffer);
+	fprintf(stderr, "%s", pbuffer);
 	return buflen;
 }
 
 int DebugOutStderr::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
 {
-	return this->DebugOutBuffer::write_log(level,locstr,timestr,tagstr,msgstr);
+	return this->DebugOutBuffer::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
 int DebugOutStderr::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
@@ -517,7 +517,7 @@ public:
 	virtual ~DebugOutBackground();
 	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
 	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
-	virtual int write_buffer(char* pbuffer ,int buflen);
+	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
 };
@@ -529,7 +529,7 @@ DebugOutBackground::DebugOutBackground()
 }
 
 DebugOutBackground::~DebugOutBackground()
-{	
+{
 }
 
 void DebugOutBackground::flush()
@@ -540,34 +540,34 @@ void DebugOutBackground::flush()
 int DebugOutBackground::write_buffer(char* pbuffer, int buflen)
 {
 #ifdef UNICODE
-    LPWSTR pWide = NULL;
-    int len;
-    BOOL bret;
-    len = (int) strlen(pbuffer) + 1;
-    pWide = (wchar_t*)malloc((size_t)((len + 1) * 2));
-    if (pWide == NULL) {
-        return 0;
-    }
-    //pWide = new wchar_t[(len+1) * 2];
-    bret = MultiByteToWideChar(CP_ACP, NULL, pbuffer, -1, pWide, len * 2);
-    if (bret) {
-        OutputDebugStringW(pWide);
-    } else {
-        OutputDebugString(L"can not change fmt string");
-    }
-    //delete [] pWide;
-    free(pWide);
+	LPWSTR pWide = NULL;
+	int len;
+	BOOL bret;
+	len = (int) strlen(pbuffer) + 1;
+	pWide = (wchar_t*)malloc((size_t)((len + 1) * 2));
+	if (pWide == NULL) {
+		return 0;
+	}
+	//pWide = new wchar_t[(len+1) * 2];
+	bret = MultiByteToWideChar(CP_ACP, NULL, pbuffer, -1, pWide, len * 2);
+	if (bret) {
+		OutputDebugStringW(pWide);
+	} else {
+		OutputDebugString(L"can not change fmt string");
+	}
+	//delete [] pWide;
+	free(pWide);
 #else
-    //fprintf(stderr,"%s",pFmtStr);
-    OutputDebugStringA(pbuffer);
-    //fprintf(stderr,"Out %s",pFmtStr);
+	//fprintf(stderr,"%s",pFmtStr);
+	OutputDebugStringA(pbuffer);
+	//fprintf(stderr,"Out %s",pFmtStr);
 #endif
-    return buflen;
+	return buflen;
 }
 
 int DebugOutBackground::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
 {
-	return this->DebugOutBuffer::write_log(level,locstr,timestr,tagstr,msgstr);
+	return this->DebugOutBuffer::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
 int DebugOutBackground::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
@@ -611,7 +611,7 @@ public:
 	virtual ~DebugOutFileTrunc();
 	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
 	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
-	virtual int write_buffer(char* pbuffer ,int buflen);
+	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
 protected:
@@ -645,7 +645,7 @@ DebugOutFileTrunc::~DebugOutFileTrunc()
 
 int DebugOutFileTrunc::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
 {
-	return this->DebugOutBuffer::write_log(level,locstr,timestr,tagstr,msgstr);
+	return this->DebugOutBuffer::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
 int DebugOutFileTrunc::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
@@ -653,9 +653,9 @@ int DebugOutFileTrunc::write_buffer_log(int level, char* locstr, char* timestr, 
 	return this->DebugOutBuffer::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
 }
 
-int DebugOutFileTrunc::write_buffer(char* pbuffer ,int buflen)
+int DebugOutFileTrunc::write_buffer(char* pbuffer , int buflen)
 {
-	int ret=-1;
+	int ret = -1;
 	BOOL bret;
 	DWORD wlen;
 	if (this->m_hfile == NULL) {
@@ -664,9 +664,9 @@ int DebugOutFileTrunc::write_buffer(char* pbuffer ,int buflen)
 		return ret;
 	}
 
-	bret = WriteFile(this->m_hfile,pbuffer,(DWORD)buflen,&wlen,NULL);
+	bret = WriteFile(this->m_hfile, pbuffer, (DWORD)buflen, &wlen, NULL);
 	if (!bret) {
-		GETERRNO(ret);		
+		GETERRNO(ret);
 		SETERRNO(ret);
 		return ret;
 	}
@@ -679,7 +679,7 @@ void DebugOutFileTrunc::flush()
 {
 	if (this->m_size > 0 && this->m_filesize >= this->m_size) {
 		char* nname = NULL;
-		int nsize=0;
+		int nsize = 0;
 		int ret;
 		BOOL bret;
 		/*this means we exceed the file limited size, so we should change */
@@ -689,12 +689,12 @@ void DebugOutFileTrunc::flush()
 		this->m_hfile = NULL;
 		/*now to give the name copy*/
 		if (this->m_name != NULL) {
-			ret = str_append_snprintf_safe(&nname,&nsize,"%s.1",this->m_name);
+			ret = str_append_snprintf_safe(&nname, &nsize, "%s.1", this->m_name);
 			if (ret >= 0)	 {
-				bret = CopyFileA(this->m_name,nname,FALSE);
+				bret = CopyFileA(this->m_name, nname, FALSE);
 				if (bret) {
 					/*now to create new file*/
-					this->m_hfile = CreateFileA(this->m_name,GENERIC_WRITE,FILE_SHARE_READ,NULL,TRUNCATE_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+					this->m_hfile = CreateFileA(this->m_name, GENERIC_WRITE, FILE_SHARE_READ, NULL, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 					if (this->m_hfile == INVALID_HANDLE_VALUE) {
 						this->m_hfile = NULL;
 					} else {
@@ -703,7 +703,7 @@ void DebugOutFileTrunc::flush()
 					}
 				}
 			}
-			str_append_snprintf_safe(&nname,&nsize,NULL);
+			str_append_snprintf_safe(&nname, &nsize, NULL);
 		}
 	}
 	return;
@@ -737,11 +737,11 @@ int DebugOutFileTrunc::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	this->m_hfile = CreateFileA(this->m_name,GENERIC_WRITE,FILE_SHARE_READ,NULL,TRUNCATE_EXISTING,FILE_ATTRIBUTE_NORMAL,NULL);
+	this->m_hfile = CreateFileA(this->m_name, GENERIC_WRITE, FILE_SHARE_READ, NULL, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (this->m_hfile == INVALID_HANDLE_VALUE) {
 		GETERRNO(ret);
 		if (ret == -ERROR_FILE_NOT_FOUND) {
-			this->m_hfile = CreateFileA(this->m_name,GENERIC_WRITE,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+			this->m_hfile = CreateFileA(this->m_name, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 		}
 	}
 
@@ -774,14 +774,9 @@ public:
 	virtual ~DebugOutFileAppend();
 	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
 	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
-	virtual int write_buffer(char* pbuffer ,int buflen);
+	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
-private:
-	HANDLE m_hfile;
-	char* m_name;
-	uint64_t m_size;
-	uint64_t m_filesize;
 };
 
 DebugOutFileAppend::DebugOutFileAppend()
@@ -809,7 +804,7 @@ DebugOutFileAppend::~DebugOutFileAppend()
 
 int DebugOutFileAppend::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
 {
-	return this->DebugOutFileTrunc::write_log(level,locstr,timestr,tagstr,msgstr);
+	return this->DebugOutFileTrunc::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
 int DebugOutFileAppend::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
@@ -817,9 +812,9 @@ int DebugOutFileAppend::write_buffer_log(int level, char* locstr, char* timestr,
 	return this->DebugOutFileTrunc::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
 }
 
-int DebugOutFileAppend::write_buffer(char* pbuffer ,int buflen)
+int DebugOutFileAppend::write_buffer(char* pbuffer , int buflen)
 {
-	return this->DebugOutFileTrunc::write_buffer(pbuffer,buflen);
+	return this->DebugOutFileTrunc::write_buffer(pbuffer, buflen);
 }
 
 void DebugOutFileAppend::flush()
@@ -858,13 +853,13 @@ int DebugOutFileAppend::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	this->m_hfile = CreateFileA(this->m_name,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+	this->m_hfile = CreateFileA(this->m_name, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (this->m_hfile == INVALID_HANDLE_VALUE) {
 		GETERRNO(ret);
 		this->m_hfile = NULL;
 		goto fail;
 	}
-	bret = GetFileSizeEx(this->m_hfile,&fsize);
+	bret = GetFileSizeEx(this->m_hfile, &fsize);
 	if (!bret) {
 		GETERRNO(ret);
 		goto fail;
@@ -885,20 +880,306 @@ fail:
 }
 
 
-class DebugOutFileRotate : public DebugOutBuffer
+class DebugOutFileRotate : public DebugOutFileAppend
 {
 public:
 	DebugOutFileRotate();
 	virtual ~DebugOutFileRotate();
 	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
 	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_buffer(char* pbuffer, int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
-private:
-	HANDLE m_hfile;
-	char* m_name;
-	uint64_t m_size;
-	uint64_t m_filesize;
+protected:
+	int rotate_file(int appmode);
+
 	int m_maxfiles;
 	int m_rsv1;
 };
+
+
+DebugOutFileRotate::DebugOutFileRotate()
+{
+	this->m_hfile = NULL;
+	this->m_name = NULL;
+	this->m_filesize = 0;
+	this->m_size = 0;
+	this->m_maxfiles = 0;
+	this->m_rsv1 = 0;
+}
+
+DebugOutFileRotate::~DebugOutFileRotate()
+{
+	if (this->m_hfile != NULL) {
+		CloseHandle(this->m_hfile);
+	}
+	this->m_hfile = NULL;
+	if (this->m_name != NULL) {
+		free(this->m_name);
+	}
+	this->m_name = NULL;
+	this->m_size = 0;
+	this->m_filesize = 0;
+	this->m_maxfiles = 0;
+	this->m_rsv1 = 0;
+}
+
+int DebugOutFileRotate::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
+{
+	return this->DebugOutBuffer::write_log(level, locstr, timestr, tagstr, msgstr);
+}
+
+int DebugOutFileRotate::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
+{
+	return this->DebugOutBuffer::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
+}
+
+int DebugOutFileRotate::write_buffer(char* pbuffer , int buflen)
+{
+	return this->DebugOutFileTrunc::write_buffer(pbuffer, buflen);
+}
+
+int DebugOutFileRotate::rotate_file(int appmode)
+{
+	HANDLE hd = NULL;
+	char* nname = NULL;
+	int nsize = 0;
+	char* oname = NULL;
+	int osize = 0;
+	int i;
+	int ret;
+	LARGE_INTEGER fsize;
+	BOOL bret;
+	/*now to make sure */
+	if (this->m_maxfiles > 0) {
+		for (i = (this->m_maxfiles - 1); i > 0; i--) {
+			/*now to make sure it is exist*/
+			str_append_snprintf_safe(&nname, &nsize, NULL);
+			ret = str_append_snprintf_safe(&nname, &nsize, "%s.%d", this->m_name, i + 1);
+			if (ret < 0) {
+				goto fail;
+			}
+			str_append_snprintf_safe(&oname, &osize, NULL);
+			ret =  str_append_snprintf_safe(&oname, &osize, "%s.%d", this->m_name, i);
+			if (ret < 0) {
+				goto fail;
+			}
+
+			/*now to open existing*/
+			hd = CreateFileA(oname, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (hd == INVALID_HANDLE_VALUE) {
+				continue;
+			}
+
+			/*now to copy the file*/
+			CloseHandle(hd);
+			hd = NULL;
+
+			bret = CopyFileA(oname, nname, FALSE);
+			if (!bret) {
+				goto fail;
+			}
+		}
+
+
+
+		/*now copy file*/
+		str_append_snprintf_safe(&nname, &nsize, NULL);
+		str_append_snprintf_safe(&oname, &osize, NULL);
+		ret = str_append_snprintf_safe(&nname, &nsize, "%s.1", this->m_name);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		hd = CreateFileA(this->m_name, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (hd != INVALID_HANDLE_VALUE) {
+			CloseHandle(hd);
+			hd = NULL;
+			/*this means we have some files*/
+			bret = CopyFileA(this->m_name, nname, FALSE);
+			if (!bret) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		} else {
+			hd = NULL;
+		}
+
+
+	} else {
+		int maxfiles = 1;
+
+		for (maxfiles = 1;; maxfiles++) {
+			str_append_snprintf_safe(&nname, &nsize, NULL);
+			ret = str_append_snprintf_safe(&nname, &nsize, "%s.%d", this->m_name, maxfiles);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			hd = CreateFileA(oname, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+			if (hd == INVALID_HANDLE_VALUE) {
+				break;
+			}
+			CloseHandle(hd);
+			hd = NULL;
+		}
+		if (maxfiles > 1) {
+			for (i = (maxfiles); i > 1; i--) {
+				str_append_snprintf_safe(&nname, &nsize, NULL);
+				str_append_snprintf_safe(&oname, &osize, NULL);
+				ret = str_append_snprintf_safe(&nname, &nsize, "%s.%d", this->m_name, i);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+
+				ret = str_append_snprintf_safe(&oname, &osize, "%s.%d", this->m_name, i - 1);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+
+				bret = CopyFileA(oname, nname, FALSE);
+				if (!bret) {
+					GETERRNO(ret);
+					goto fail;
+				}
+			}
+		}
+
+		str_append_snprintf_safe(&nname, &nsize, NULL);
+		str_append_snprintf_safe(&oname, &osize, NULL);
+		ret = str_append_snprintf_safe(&nname, &nsize, "%s.1", this->m_name);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = str_append_snprintf_safe(&oname, &osize, "%s", this->m_name);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		hd = CreateFileA(oname, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (hd != INVALID_HANDLE_VALUE) {
+			CloseHandle(hd);
+			hd = NULL;
+			bret = CopyFileA(oname, nname, FALSE);
+			if (!bret) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		} else {
+			hd = NULL;
+		}
+
+	}
+
+	ASSERT_IF(this->m_hfile == NULL);
+	/*now to open the truncation file*/
+	if (appmode) {
+		this->m_hfile = CreateFileA(this->m_name, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (this->m_hfile == INVALID_HANDLE_VALUE) {
+			GETERRNO(ret);
+			this->m_hfile = NULL;
+			goto fail;
+		}
+		bret = GetFileSizeEx(this->m_hfile, &fsize);
+		if (!bret) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		this->m_filesize = (uint64_t)fsize.QuadPart;
+	} else {
+		this->m_hfile = CreateFileA(this->m_name, GENERIC_WRITE, FILE_SHARE_READ, NULL, TRUNCATE_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		if (this->m_hfile == INVALID_HANDLE_VALUE) {
+			GETERRNO(ret);
+			this->m_hfile = NULL;
+			goto fail;
+		}
+
+		/*to set for null*/
+		this->m_filesize = 0;
+	}
+
+	if (hd != NULL && hd != INVALID_HANDLE_VALUE)  {
+		CloseHandle(hd);
+	}
+	hd = NULL;
+	str_append_snprintf_safe(&nname, &nsize, NULL);
+	str_append_snprintf_safe(&oname, &osize, NULL);
+
+	return 0;
+fail:
+	if (hd != NULL && hd != INVALID_HANDLE_VALUE)  {
+		CloseHandle(hd);
+	}
+	hd = NULL;
+	str_append_snprintf_safe(&nname, &nsize, NULL);
+	str_append_snprintf_safe(&oname, &osize, NULL);
+	SETERRNO(ret);
+	return ret;
+}
+
+void DebugOutFileRotate::flush()
+{
+	if (this->m_size > 0 && this->m_filesize >= this->m_size) {
+		if (this->m_hfile != NULL) {
+			CloseHandle(this->m_hfile);
+		}
+		this->m_hfile = NULL;
+		this->rotate_file(0);
+	}
+	return;
+}
+
+int DebugOutFileRotate::set_cfg(OutfileCfg* pcfg)
+{
+	const char* fname = NULL;
+	int maxfiles = 0;
+	int type = 0;
+	uint64_t size = 0;
+	int ret;
+
+	ret = pcfg->get_file_type(fname, type, size, maxfiles);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (fname == NULL || type != WINLIB_FILE_ROTATE ) {
+		ret = -ERROR_INVALID_PARAMETER;
+		goto fail;
+	}
+
+	this->m_level = pcfg->get_level();
+	this->m_fmtflag = pcfg->get_format();
+	this->m_name = _strdup(fname);
+	this->m_size = size;
+	if (this->m_name == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	this->m_maxfiles = maxfiles;
+
+	ret = this->rotate_file(1);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	if (this->m_hfile != NULL) {
+		CloseHandle(this->m_hfile);
+	}
+	this->m_hfile = NULL;
+	if (this->m_name) {
+		free(this->m_name);
+	}
+	this->m_name = NULL;
+	SETERRNO(ret);
+	return ret;
+}
