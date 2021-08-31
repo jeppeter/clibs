@@ -3,8 +3,8 @@ class DebugOutIO
 {
 public:
 	virtual ~DebugOutIO() {};
-	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr) = 0;
-	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen) = 0;
+	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr) = 0;
+	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen) = 0;
 	virtual int write_buffer(char* pbuf, int buflen) = 0;
 	virtual void flush() = 0;
 	virtual int set_cfg(OutfileCfg* pcfg) = 0;
@@ -15,8 +15,8 @@ class DebugOutBuffer : public DebugOutIO
 public:
 	DebugOutBuffer();
 	virtual ~DebugOutBuffer();
-	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
-	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr);
+	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen);
 	virtual int write_buffer(char* pbuf, int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
@@ -142,7 +142,7 @@ int str_append_snprintf_safe(char**ppbuf, int*pbufsize, const char* fmt, ...)
 }
 
 
-int format_out_string(int fmtflag, int addline, char** ppoutstr, int* psize, char* locstr, char* timestr, char* tagstr, char* msgstr)
+int format_out_string(int fmtflag, int addline, char** ppoutstr, int* psize, char* locstr, char* timestr,const char* tagstr, char* msgstr)
 {
 	int ret;
 	int retlen = 0;
@@ -228,7 +228,7 @@ fail:
 	return ret;
 }
 
-int DebugOutBuffer::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
+int DebugOutBuffer::write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr)
 {
 	int retlen = 0;
 	int ret;
@@ -257,7 +257,7 @@ fail:
 	return ret;
 }
 
-int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
+int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen)
 {
 	int retlen = 0;
 	int ret;
@@ -439,8 +439,8 @@ class DebugOutStderr : public DebugOutBuffer
 public:
 	DebugOutStderr();
 	virtual ~DebugOutStderr();
-	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
-	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr);
+	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen);
 	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
@@ -502,12 +502,12 @@ int DebugOutStderr::write_buffer(char* pbuffer, int buflen)
 	return buflen;
 }
 
-int DebugOutStderr::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
+int DebugOutStderr::write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr)
 {
 	return this->DebugOutBuffer::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
-int DebugOutStderr::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
+int DebugOutStderr::write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen)
 {
 	return this->DebugOutBuffer::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
 }
@@ -518,8 +518,8 @@ class DebugOutBackground : public DebugOutBuffer
 public:
 	DebugOutBackground();
 	virtual ~DebugOutBackground();
-	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
-	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr);
+	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen);
 	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
@@ -568,12 +568,12 @@ int DebugOutBackground::write_buffer(char* pbuffer, int buflen)
 	return buflen;
 }
 
-int DebugOutBackground::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
+int DebugOutBackground::write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr)
 {
 	return this->DebugOutBuffer::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
-int DebugOutBackground::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
+int DebugOutBackground::write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen)
 {
 	return this->DebugOutBuffer::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
 }
@@ -616,8 +616,8 @@ class DebugOutFileTrunc : public DebugOutBuffer
 public:
 	DebugOutFileTrunc();
 	virtual ~DebugOutFileTrunc();
-	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
-	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr);
+	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen);
 	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
@@ -650,12 +650,12 @@ DebugOutFileTrunc::~DebugOutFileTrunc()
 	this->m_filesize = 0;
 }
 
-int DebugOutFileTrunc::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
+int DebugOutFileTrunc::write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr)
 {
 	return this->DebugOutBuffer::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
-int DebugOutFileTrunc::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
+int DebugOutFileTrunc::write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen)
 {
 	return this->DebugOutBuffer::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
 }
@@ -792,8 +792,8 @@ class DebugOutFileAppend : public DebugOutFileTrunc
 public:
 	DebugOutFileAppend();
 	virtual ~DebugOutFileAppend();
-	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
-	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr);
+	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen);
 	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
@@ -822,12 +822,12 @@ DebugOutFileAppend::~DebugOutFileAppend()
 }
 
 
-int DebugOutFileAppend::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
+int DebugOutFileAppend::write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr)
 {
 	return this->DebugOutFileTrunc::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
-int DebugOutFileAppend::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
+int DebugOutFileAppend::write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen)
 {
 	return this->DebugOutFileTrunc::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
 }
@@ -918,8 +918,8 @@ class DebugOutFileRotate : public DebugOutFileAppend
 public:
 	DebugOutFileRotate();
 	virtual ~DebugOutFileRotate();
-	virtual int write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr);
-	virtual int write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr);
+	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen);
 	virtual int write_buffer(char* pbuffer, int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
@@ -957,12 +957,12 @@ DebugOutFileRotate::~DebugOutFileRotate()
 	this->m_rsv1 = 0;
 }
 
-int DebugOutFileRotate::write_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr)
+int DebugOutFileRotate::write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr)
 {
 	return this->DebugOutBuffer::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
-int DebugOutFileRotate::write_buffer_log(int level, char* locstr, char* timestr, char* tagstr, char* msgstr, void* pbuffer, int buflen)
+int DebugOutFileRotate::write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen)
 {
 	return this->DebugOutBuffer::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
 }

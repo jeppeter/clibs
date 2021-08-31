@@ -56,4 +56,15 @@ private:
 	std::vector<OutfileCfg*> m_cfgs;
 };
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+int InitOutputEx2(OutputCfg* pcfgs);
+#ifdef __cplusplus
+};
+#endif
+
+
+
 #endif /* __WIN_OUTPUT_DEBUG_CFG_H_34271879EF5F24AB1FD4CF1BDFD9DC92__ */
