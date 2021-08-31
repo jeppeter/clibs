@@ -8,12 +8,12 @@
 #define  WINLIB_OUTPUT_LEVEL                0x4
 #define  WINLIB_OUTPUT_MSG                  0x8
 
-#define  WINLIB_FILE_STDERR                 0x1
-#define  WINLIB_FILE_APPEND                 0x2
-#define  WINLIB_FILE_TRUNC                  0x3
-#define  WINLIB_FILE_BACKGROUND             0x4
-#define  WINLIB_FILE_MASK                   0xff
-#define  WINLIB_FILE_ROTATE                 0x100
+#define  WINLIB_DEBUGOUT_FILE_STDERR                 0x1
+#define  WINLIB_DEBUGOUT_FILE_APPEND                 0x2
+#define  WINLIB_DEBUGOUT_FILE_TRUNC                  0x3
+#define  WINLIB_DEBUGOUT_FILE_BACKGROUND             0x4
+#define  WINLIB_DEBUGOUT_FILE_ROTATE                 0x5
+#define  WINLIB_DEBUGOUT_FILE_MASK                   0xff
 
 #define  WINLIB_OUTPUT_ALL_MASK             (WINLIB_OUTPUT_LOCATION | WINLIB_OUTPUT_TIMESTAMP |WINLIB_OUTPUT_LEVEL |WINLIB_OUTPUT_MSG)
 

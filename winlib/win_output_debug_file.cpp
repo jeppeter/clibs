@@ -479,13 +479,16 @@ int DebugOutStderr::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	if (fname != NULL || type != WINLIB_FILE_STDERR || size != 0 || maxfiles != 0) {
+	if (fname != NULL || (type & WINLIB_DEBUGOUT_FILE_MASK ) != WINLIB_DEBUGOUT_FILE_STDERR || size != 0 || maxfiles != 0) {
 		ret = -ERROR_INVALID_PARAMETER;
 		goto fail;
 	}
 
-	this->m_level = pcfg->get_level();
-	this->m_fmtflag = pcfg->get_format();
+	ret = this->DebugOutBuffer::set_cfg(pcfg);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
 
 	return 0;
 fail:
@@ -589,13 +592,17 @@ int DebugOutBackground::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	if (fname != NULL || type != WINLIB_FILE_BACKGROUND || size != 0 || maxfiles != 0) {
+	if (fname != NULL || (type & WINLIB_DEBUGOUT_FILE_MASK) != WINLIB_DEBUGOUT_FILE_BACKGROUND || size != 0 || maxfiles != 0) {
 		ret = -ERROR_INVALID_PARAMETER;
 		goto fail;
 	}
 
-	this->m_level = pcfg->get_level();
-	this->m_fmtflag = pcfg->get_format();
+	ret = this->DebugOutBuffer::set_cfg(pcfg);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
 
 	return 0;
 fail:
@@ -723,13 +730,26 @@ int DebugOutFileTrunc::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	if (fname == NULL || type != WINLIB_FILE_TRUNC ||  maxfiles != 0) {
+	if (fname == NULL || (type & WINLIB_DEBUGOUT_FILE_MASK) != WINLIB_DEBUGOUT_FILE_TRUNC ||  maxfiles != 0) {
 		ret = -ERROR_INVALID_PARAMETER;
 		goto fail;
 	}
 
-	this->m_level = pcfg->get_level();
-	this->m_fmtflag = pcfg->get_format();
+	if (this->m_hfile != NULL) {
+		CloseHandle(this->m_hfile);
+	}
+	this->m_hfile = NULL;
+	if (this->m_name != NULL ) {
+		free(this->m_name);
+	}
+	this->m_name = NULL;
+
+	ret= this->DebugOutBuffer::set_cfg(pcfg);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
 	this->m_name = _strdup(fname);
 	this->m_size = size;
 	if (this->m_name == NULL) {
@@ -839,13 +859,26 @@ int DebugOutFileAppend::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	if (fname == NULL || type != WINLIB_FILE_APPEND ||  maxfiles != 0) {
+	if (fname == NULL || (type & WINLIB_DEBUGOUT_FILE_MASK ) != WINLIB_DEBUGOUT_FILE_APPEND ||  maxfiles != 0) {
 		ret = -ERROR_INVALID_PARAMETER;
 		goto fail;
 	}
 
-	this->m_level = pcfg->get_level();
-	this->m_fmtflag = pcfg->get_format();
+	if (this->m_hfile != NULL) {
+		CloseHandle(this->m_hfile);
+	}
+	this->m_hfile = NULL;
+	if (this->m_name != NULL ) {
+		free(this->m_name);
+	}
+	this->m_name = NULL;
+
+	ret= this->DebugOutBuffer::set_cfg(pcfg);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
 	this->m_name = _strdup(fname);
 	this->m_size = size;
 	if (this->m_name == NULL) {
@@ -1149,13 +1182,26 @@ int DebugOutFileRotate::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	if (fname == NULL || type != WINLIB_FILE_ROTATE ) {
+	if (fname == NULL || (type & WINLIB_DEBUGOUT_FILE_MASK ) != WINLIB_DEBUGOUT_FILE_ROTATE ) {
 		ret = -ERROR_INVALID_PARAMETER;
 		goto fail;
 	}
 
-	this->m_level = pcfg->get_level();
-	this->m_fmtflag = pcfg->get_format();
+	if (this->m_hfile != NULL) {
+		CloseHandle(this->m_hfile);
+	}
+	this->m_hfile = NULL;
+	if (this->m_name != NULL ) {
+		free(this->m_name);
+	}
+	this->m_name = NULL;
+
+	ret = this->DebugOutBuffer::set_cfg(pcfg);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
 	this->m_name = _strdup(fname);
 	this->m_size = size;
 	if (this->m_name == NULL) {
@@ -1182,4 +1228,56 @@ fail:
 	this->m_name = NULL;
 	SETERRNO(ret);
 	return ret;
+}
+
+
+DebugOutIO* get_cfg_out(OutfileCfg* pcfg)
+{
+	const char* fname=NULL;
+	int type=0;
+	int maxfiles=0;
+	uint64_t size;
+	int ret;
+	DebugOutIO* pout=NULL;
+
+	ret = pcfg->get_file_type(fname,type,size,maxfiles);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	switch(type & WINLIB_DEBUGOUT_FILE_MASK) {
+	case WINLIB_DEBUGOUT_FILE_STDERR:
+		pout =  new DebugOutStderr();
+		break;
+	case WINLIB_DEBUGOUT_FILE_APPEND:
+		pout =  new DebugOutFileAppend();
+		break;
+	case WINLIB_DEBUGOUT_FILE_TRUNC:
+		pout = new DebugOutFileTrunc();
+		break;
+	case WINLIB_DEBUGOUT_FILE_BACKGROUND:
+		pout = new DebugOutBackground();
+		break;
+	case WINLIB_DEBUGOUT_FILE_ROTATE:
+		pout = new DebugOutFileRotate();
+		break;
+	default:
+		ret=  -ERROR_NOT_SUPPORTED;
+		goto fail;
+	}
+
+	ret = pout->set_cfg(pcfg);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	return pout;
+fail:
+	if (pout) {
+		delete pout;
+	}
+	pout = NULL;
+	SETERRNO(ret);
+	return NULL;
 }

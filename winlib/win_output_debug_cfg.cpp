@@ -5,7 +5,7 @@ OutfileCfg::OutfileCfg()
 	this->m_fmtflag = WINLIB_OUTPUT_ALL_MASK;
 	this->m_maxfiles = 0;
 	this->m_size = 0;
-	this->m_type = WINLIB_FILE_STDERR;
+	this->m_type = WINLIB_DEBUGOUT_FILE_STDERR;
 }
 
 OutfileCfg::~OutfileCfg()
@@ -18,7 +18,7 @@ OutfileCfg::~OutfileCfg()
 	this->m_fmtflag = WINLIB_OUTPUT_ALL_MASK;
 	this->m_maxfiles = 0;
 	this->m_size = 0;
-	this->m_type = WINLIB_FILE_STDERR;
+	this->m_type = WINLIB_DEBUGOUT_FILE_STDERR;
 }
 
 int OutfileCfg::set_level(int level)
@@ -46,9 +46,9 @@ int OutfileCfg::set_file_type(const char* fname,int type,uint64_t size,int maxfi
 	int masktype =0;
 	int ret;
 	if (fname == NULL ) {
-		masktype = (type & WINLIB_FILE_MASK);
-		if ((masktype == WINLIB_FILE_BACKGROUND || masktype == WINLIB_FILE_STDERR) &&
-			(size == 0) && maxfiles == 0 && (type & WINLIB_FILE_ROTATE) == 0) {
+		masktype = (type & WINLIB_DEBUGOUT_FILE_MASK);
+		if ((masktype == WINLIB_DEBUGOUT_FILE_BACKGROUND || masktype == WINLIB_DEBUGOUT_FILE_STDERR) &&
+			(size == 0) && maxfiles == 0 && (type & WINLIB_DEBUGOUT_FILE_ROTATE) == 0) {
 			if (this->m_fname) {
 				free(this->m_fname);
 			}
@@ -61,8 +61,8 @@ int OutfileCfg::set_file_type(const char* fname,int type,uint64_t size,int maxfi
 			goto fail;
 		}
 	} else {
-		masktype = (type & WINLIB_FILE_MASK);
-		if (masktype == WINLIB_FILE_APPEND || masktype == WINLIB_FILE_TRUNC) {
+		masktype = (type & WINLIB_DEBUGOUT_FILE_MASK);
+		if (masktype == WINLIB_DEBUGOUT_FILE_APPEND || masktype == WINLIB_DEBUGOUT_FILE_TRUNC) {
 			if (this->m_fname) {
 				free(this->m_fname);
 			}
