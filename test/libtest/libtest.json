@@ -15,6 +15,7 @@
     "disablecon<m_disablecon>" : false,
     "disablefile<m_disablefile>" : false,
     "disabledb<m_disabledb>" : false,
+    "exlogs<m_exlogs>" : [],
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },
@@ -358,6 +359,9 @@
         "$" : 2
     },
     "svrunmapmemmap<svrunmapmemmap_handler>## to unmap mem##" : {
+        "$" : "*"
+    },
+    "outputdebugex<outputdebugex_handler>## [times] [appsize] to make debug info output for files times default 10 appsize default 1M ##" : {
         "$" : "*"
     }
 

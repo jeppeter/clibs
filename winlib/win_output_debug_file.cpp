@@ -222,7 +222,8 @@ int DebugOutBuffer::write_log(int level, char* locstr, char* timestr,const char*
 	int ret;
 	char* outstr = NULL;
 	int outsize = 0;
-	if (this->m_level <= level) {
+	_OUTPUT_DEBUG_ERROR("level [%d] this level [%d]", level, this->m_level);
+	if (this->m_level >=  level) {
 		ret = format_out_string(this->m_fmtflag, 1, &outstr, &outsize, locstr, timestr, tagstr, msgstr);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -257,7 +258,8 @@ int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr,cons
 	int i, lasti;
 
 	uint8_t* pcurptr;
-	if (this->m_level <= level) {
+	_OUTPUT_DEBUG_ERROR("level [%d] this level [%d]", level, this->m_level);
+	if (this->m_level >= level) {
 		ret = format_out_string(this->m_fmtflag, 0, &outstr, &outsize, locstr, timestr, tagstr, msgstr);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -406,11 +408,13 @@ int DebugOutBuffer::set_cfg(OutfileCfg* pcfg)
 {
 	int ret;
 	this->m_level = pcfg->get_level();
+	_OUTPUT_DEBUG_ERROR("get level [%d]" , this->m_level);
 	if (this->m_level < 0) {
 		ret = -ERROR_INVALID_PARAMETER;
 		goto fail;
 	}
 	this->m_fmtflag = pcfg->get_format();
+	_OUTPUT_DEBUG_ERROR("get fmtflag [%d]" , this->m_fmtflag);
 	if (this->m_fmtflag < 0) {
 		ret = -ERROR_INVALID_PARAMETER;
 		goto fail;
@@ -667,7 +671,6 @@ int DebugOutFileTrunc::write_buffer(char* pbuffer , int buflen)
 	}
 
 	this->m_filesize += buflen;
-	_OUTPUT_DEBUG_ERROR("[%s]file size [0x%llx:%lld]",this->m_name,this->m_filesize, this->m_filesize);
 	return buflen;
 }
 
@@ -760,7 +763,6 @@ int DebugOutFileTrunc::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	_OUTPUT_DEBUG_ERROR("open file [%s]", this->m_name);
 	/*to make write file size 0 start ok*/
 	this->m_filesize = 0;
 	return 0;
@@ -843,8 +845,6 @@ int DebugOutFileAppend::set_cfg(OutfileCfg* pcfg)
 	int ret;
 	LARGE_INTEGER fsize;
 	BOOL bret;
-	TCHAR* ptname=NULL;
-	int tnamesize=0;
 
 	ret = pcfg->get_file_type(fname, type, size, maxfiles);
 	if (ret < 0) {
@@ -879,31 +879,21 @@ int DebugOutFileAppend::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	ret = AnsiToTchar(this->m_name,&ptname,&tnamesize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
 
-	this->m_hfile = CreateFile(ptname,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+	this->m_hfile = CreateFileA(this->m_name,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
 	if (this->m_hfile == INVALID_HANDLE_VALUE) {
 		GETERRNO(ret);
 		this->m_hfile = NULL;
 		goto fail;
 	}
-	SetFilePointer(this->m_hfile,0,NULL,FILE_END);
-	_OUTPUT_DEBUG_ERROR("append open file [%s]", this->m_name);
 	bret = GetFileSizeEx(this->m_hfile, &fsize);
 	if (!bret) {
 		GETERRNO(ret);
 		goto fail;
 	}
 	this->m_filesize = (uint64_t)fsize.QuadPart;
-	_OUTPUT_DEBUG_ERROR("append file [%s] size [0x%llx:%lld]",this->m_name, this->m_filesize,this->m_filesize);
-	AnsiToTchar(NULL,&ptname,&tnamesize);
 	return 0;
 fail:
-	AnsiToTchar(NULL,&ptname,&tnamesize);
 	if (this->m_hfile != NULL) {
 		CloseHandle(this->m_hfile);
 	}

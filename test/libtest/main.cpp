@@ -94,6 +94,7 @@ typedef struct __args_options {
     char** m_outfiles;
     int m_disablefile;
     int m_disabledb;
+    char** m_exlogs;
 } args_options_t, *pargs_options_t;
 
 #pragma comment(lib,"user32.lib")
@@ -228,7 +229,7 @@ int readmemmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int writememmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrcreatememmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrunmapmemmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-
+int outputdebugex_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
