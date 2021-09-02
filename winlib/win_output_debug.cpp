@@ -19,7 +19,7 @@
 #endif
 
 
-#if 0
+#if 1
 #define _OUTPUT_DEBUG_ERROR(...)  do{fprintf(stderr,"[%s:%d]:",__FILE__,__LINE__); fprintf(stderr,__VA_ARGS__); fprintf(stderr,"\n");fflush(stderr);}while(0)
 #else
 #define _OUTPUT_DEBUG_ERROR(...)  do{}while(0)
@@ -161,14 +161,14 @@ int __inner_output_console(int loglvl, const char* file, int lineno, const char*
     int retsize = 0;
     char* fmttime = NULL;
     size_t timesize = 0;
-    char* msg=NULL;
-    int msgsize=0;
-    char* locstr=NULL;
-    int locsize=0;
-    char* timestr=NULL;
-    int tmsize=0;
+    char* msg = NULL;
+    int msgsize = 0;
+    char* locstr = NULL;
+    int locsize = 0;
+    char* timestr = NULL;
+    int tmsize = 0;
     uint32_t i;
-    DebugOutIO* pout=NULL;
+    DebugOutIO* pout = NULL;
 
 
     ret = __inner_time_format(0, &fmttime, &timesize);
@@ -177,28 +177,28 @@ int __inner_output_console(int loglvl, const char* file, int lineno, const char*
         goto fail;
     }
 
-    ret = str_append_vsnprintf_safe(&msg,&msgsize,fmt,ap);
+    ret = str_append_vsnprintf_safe(&msg, &msgsize, fmt, ap);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    ret = str_append_snprintf_safe(&locstr,&locsize,"[%s:%d]",file,lineno);
+    ret = str_append_snprintf_safe(&locstr, &locsize, "[%s:%d]", file, lineno);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    ret = str_append_snprintf_safe(&timestr,&tmsize,"time(0x%08x):%s",(unsigned int)GetTickCount(), fmttime);
+    ret = str_append_snprintf_safe(&timestr, &tmsize, "time(0x%08x):%s", (unsigned int)GetTickCount(), fmttime);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
     EnterCriticalSection(&st_outputcs);
-    for(i=0;i<st_debugout_ios->size();i++) {
+    for (i = 0; i < st_debugout_ios->size(); i++) {
         pout = st_debugout_ios->at(i);
-        ret = pout->write_log(loglvl,locstr,timestr,_get_loglevel_note(loglvl),msg);
+        ret = pout->write_log(loglvl, locstr, timestr, _get_loglevel_note(loglvl), msg);
         if (ret < 0) {
             GETERRNO(ret);
             LeaveCriticalSection(&st_outputcs);
@@ -214,15 +214,15 @@ int __inner_output_console(int loglvl, const char* file, int lineno, const char*
     LeaveCriticalSection(&st_outputcs);
 
 
-    str_append_vsnprintf_safe(&msg,&msgsize,NULL,NULL);
-    str_append_snprintf_safe(&locstr,&locsize,NULL);
-    str_append_snprintf_safe(&timestr,&tmsize,NULL);
+    str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
+    str_append_snprintf_safe(&locstr, &locsize, NULL);
+    str_append_snprintf_safe(&timestr, &tmsize, NULL);
     __inner_time_format(1, &fmttime, &timesize);
     return retsize;
 fail:
-    str_append_vsnprintf_safe(&msg,&msgsize,NULL,NULL);
-    str_append_snprintf_safe(&locstr,&locsize,NULL);
-    str_append_snprintf_safe(&timestr,&tmsize,NULL);
+    str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
+    str_append_snprintf_safe(&locstr, &locsize, NULL);
+    str_append_snprintf_safe(&timestr, &tmsize, NULL);
     __inner_time_format(1, &fmttime, &timesize);
     SETERRNO(ret);
     return ret;
@@ -246,14 +246,14 @@ int __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char* 
     int retsize = 0;
     char* fmttime = NULL;
     size_t timesize = 0;
-    char* msg=NULL;
-    int msgsize=0;
-    char* locstr=NULL;
-    int locsize=0;
-    char* timestr=NULL;
-    int tmsize=0;
+    char* msg = NULL;
+    int msgsize = 0;
+    char* locstr = NULL;
+    int locsize = 0;
+    char* timestr = NULL;
+    int tmsize = 0;
     uint32_t i;
-    DebugOutIO* pout=NULL;
+    DebugOutIO* pout = NULL;
 
 
     ret = __inner_time_format(0, &fmttime, &timesize);
@@ -262,36 +262,50 @@ int __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char* 
         goto fail;
     }
 
-    ret = str_append_vsnprintf_safe(&msg,&msgsize,fmt,ap);
+    ret = str_append_snprintf_safe(&msg,&msgsize,"buffer[0x%p] size[%d:0x%x]",pBuffer,buflen,buflen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    if (fmt != NULL) {        
+        ret = str_append_vsnprintf_safe(&msg, &msgsize, " ", ap);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        ret = str_append_vsnprintf_safe(&msg, &msgsize, fmt, ap);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    ret = str_append_snprintf_safe(&locstr, &locsize, "[%s:%d]", file, lineno);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    ret = str_append_snprintf_safe(&locstr,&locsize,"[%s:%d]",file,lineno);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = str_append_snprintf_safe(&timestr,&tmsize,"time(0x%08x):%s",(unsigned int)GetTickCount(), fmttime);
+    ret = str_append_snprintf_safe(&timestr, &tmsize, "time(0x%08x):%s", (unsigned int)GetTickCount(), fmttime);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
     EnterCriticalSection(&st_outputcs);
-    for(i=0;i<st_debugout_ios->size();i++) {
-        pout = st_debugout_ios->at(i);
-        ret = pout->write_buffer_log(loglvl,locstr,timestr,_get_loglevel_note(loglvl),msg,pBuffer,buflen);
-        if (ret < 0) {
-            GETERRNO(ret);
-            LeaveCriticalSection(&st_outputcs);
-            goto fail;
-        }
+    if (st_debugout_ios != NULL) {
+        for (i = 0; i < st_debugout_ios->size(); i++) {
+            pout = st_debugout_ios->at(i);
+            ret = pout->write_buffer_log(loglvl, locstr, timestr, _get_loglevel_note(loglvl), msg, pBuffer, buflen);
+            if (ret < 0) {
+                GETERRNO(ret);
+                LeaveCriticalSection(&st_outputcs);
+                goto fail;
+            }
 
-        if (retsize < ret) {
-            retsize = ret;
+            if (retsize < ret) {
+                retsize = ret;
+            }
         }
     }
 
@@ -299,15 +313,15 @@ int __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char* 
     LeaveCriticalSection(&st_outputcs);
 
 
-    str_append_vsnprintf_safe(&msg,&msgsize,NULL,NULL);
-    str_append_snprintf_safe(&locstr,&locsize,NULL);
-    str_append_snprintf_safe(&timestr,&tmsize,NULL);
+    str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
+    str_append_snprintf_safe(&locstr, &locsize, NULL);
+    str_append_snprintf_safe(&timestr, &tmsize, NULL);
     __inner_time_format(1, &fmttime, &timesize);
     return retsize;
 fail:
-    str_append_vsnprintf_safe(&msg,&msgsize,NULL,NULL);
-    str_append_snprintf_safe(&locstr,&locsize,NULL);
-    str_append_snprintf_safe(&timestr,&tmsize,NULL);
+    str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
+    str_append_snprintf_safe(&locstr, &locsize, NULL);
+    str_append_snprintf_safe(&timestr, &tmsize, NULL);
     __inner_time_format(1, &fmttime, &timesize);
     SETERRNO(ret);
     return ret;
@@ -360,7 +374,7 @@ int __init_output_cfg(poutput_debug_cfg_t pcfg)
     EnterCriticalSection(&st_outputcs);
     __free_output_hds();
 
-    ASSERT_IF(st_debugout_ios==NULL);
+    ASSERT_IF(st_debugout_ios == NULL);
     st_debugout_ios = new std::vector<DebugOutIO*>();
 
     if (pcfg != NULL) {
@@ -563,14 +577,14 @@ fail:
 int InitOutputEx2(OutputCfg* pcfgs)
 {
     int ret;
-    OutfileCfg* pcfg=NULL;
+    OutfileCfg* pcfg = NULL;
     int i;
-    DebugOutIO* pout=NULL;
+    DebugOutIO* pout = NULL;
     InitializeCriticalSection(&st_outputcs);
     EnterCriticalSection(&st_outputcs);
     __free_output_hds();
     st_debugout_ios =  new std::vector<DebugOutIO*>();
-    for (i=0;;i++) {
+    for (i = 0;; i++) {
         pcfg = pcfgs->get_config(i);
         if (pcfg == NULL) {
             break;

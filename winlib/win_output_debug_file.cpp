@@ -184,18 +184,6 @@ int format_out_string(int fmtflag, int addline, char** ppoutstr, int* psize, cha
 		cnt ++;
 	}
 
-	if (fmtflag & WINLIB_OUTPUT_LEVEL) {
-		if (cnt > 0) {
-			ret = str_append_snprintf_safe(ppoutstr, psize, " ");
-		}
-		ret = str_append_snprintf_safe(ppoutstr, psize, "%s", tagstr);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-		cnt ++;
-	}
-
 	if (fmtflag & WINLIB_OUTPUT_MSG) {
 		if (cnt > 0) {
 			ret = str_append_snprintf_safe(ppoutstr, psize, " ");
@@ -336,14 +324,14 @@ int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr,cons
 
 		if (lasti != buflen) {
 			while ((i % 16) != 0) {
-				ret =  str_append_snprintf_safe(&bufstr, &buflen, "     ");
+				ret =  str_append_snprintf_safe(&bufstr, &bufsize, "     ");
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
 				}
 				i ++;
 			}
-			ret = str_append_snprintf_safe(&bufstr, &buflen, "    ");
+			ret = str_append_snprintf_safe(&bufstr, &bufsize, "    ");
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
@@ -361,7 +349,7 @@ int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr,cons
 				}
 				lasti ++;
 			}
-			ret = str_append_snprintf_safe(&bufstr, &buflen, "\n");
+			ret = str_append_snprintf_safe(&bufstr, &bufsize, "\n");
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
@@ -679,6 +667,7 @@ int DebugOutFileTrunc::write_buffer(char* pbuffer , int buflen)
 	}
 
 	this->m_filesize += buflen;
+	_OUTPUT_DEBUG_ERROR("[%s]file size [0x%llx:%lld]",this->m_name,this->m_filesize, this->m_filesize);
 	return buflen;
 }
 
@@ -770,6 +759,8 @@ int DebugOutFileTrunc::set_cfg(OutfileCfg* pcfg)
 		this->m_hfile = NULL;
 		goto fail;
 	}
+
+	_OUTPUT_DEBUG_ERROR("open file [%s]", this->m_name);
 	/*to make write file size 0 start ok*/
 	this->m_filesize = 0;
 	return 0;
@@ -852,6 +843,8 @@ int DebugOutFileAppend::set_cfg(OutfileCfg* pcfg)
 	int ret;
 	LARGE_INTEGER fsize;
 	BOOL bret;
+	TCHAR* ptname=NULL;
+	int tnamesize=0;
 
 	ret = pcfg->get_file_type(fname, type, size, maxfiles);
 	if (ret < 0) {
@@ -886,20 +879,31 @@ int DebugOutFileAppend::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	this->m_hfile = CreateFileA(this->m_name, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	ret = AnsiToTchar(this->m_name,&ptname,&tnamesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	this->m_hfile = CreateFile(ptname,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
 	if (this->m_hfile == INVALID_HANDLE_VALUE) {
 		GETERRNO(ret);
 		this->m_hfile = NULL;
 		goto fail;
 	}
+	SetFilePointer(this->m_hfile,0,NULL,FILE_END);
+	_OUTPUT_DEBUG_ERROR("append open file [%s]", this->m_name);
 	bret = GetFileSizeEx(this->m_hfile, &fsize);
 	if (!bret) {
 		GETERRNO(ret);
 		goto fail;
 	}
 	this->m_filesize = (uint64_t)fsize.QuadPart;
+	_OUTPUT_DEBUG_ERROR("append file [%s] size [0x%llx:%lld]",this->m_name, this->m_filesize,this->m_filesize);
+	AnsiToTchar(NULL,&ptname,&tnamesize);
 	return 0;
 fail:
+	AnsiToTchar(NULL,&ptname,&tnamesize);
 	if (this->m_hfile != NULL) {
 		CloseHandle(this->m_hfile);
 	}

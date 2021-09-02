@@ -48,7 +48,7 @@ int OutfileCfg::set_file_type(const char* fname,int type,uint64_t size,int maxfi
 	if (fname == NULL ) {
 		masktype = (type & WINLIB_DEBUGOUT_FILE_MASK);
 		if ((masktype == WINLIB_DEBUGOUT_FILE_BACKGROUND || masktype == WINLIB_DEBUGOUT_FILE_STDERR) &&
-			(size == 0) && maxfiles == 0 && (type & WINLIB_DEBUGOUT_FILE_ROTATE) == 0) {
+			(size == 0) && maxfiles == 0 ) {
 			if (this->m_fname) {
 				free(this->m_fname);
 			}
