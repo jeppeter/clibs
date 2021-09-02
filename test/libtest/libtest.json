@@ -15,7 +15,7 @@
     "disablecon<m_disablecon>" : false,
     "disablefile<m_disablefile>" : false,
     "disabledb<m_disabledb>" : false,
-    "exlogs<m_exlogs>" : [],
+    "exlogs<m_exlogs>##name;type;level;fmtflag;size;maxfiles##" : [],
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },

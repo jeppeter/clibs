@@ -389,7 +389,6 @@ int __init_output_cfg(poutput_debug_cfg_t pcfg)
                     goto fail;
                 }
 
-                _OUTPUT_DEBUG_ERROR("set [%s] level [%d]", pcfg->m_ppoutcreatefile[i], st_output_loglvl);
                 ret = poutcfg->set_level(st_output_loglvl);
                 if (ret < 0) {
                     GETERRNO(ret);
@@ -423,7 +422,6 @@ int __init_output_cfg(poutput_debug_cfg_t pcfg)
                     goto fail;
                 }
 
-                _OUTPUT_DEBUG_ERROR("set [%s] level [%d]", pcfg->m_ppoutappendfile[i], st_output_loglvl);
                 ret = poutcfg->set_level(st_output_loglvl);
                 if (ret < 0) {
                     GETERRNO(ret);

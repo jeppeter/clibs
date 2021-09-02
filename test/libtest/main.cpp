@@ -42,6 +42,7 @@
 #include <win_prn.h>
 #include <win_evt.h>
 #include <win_map.h>
+#include <win_output_debug_cfg.h>
 
 
 #include <jvalue.h>

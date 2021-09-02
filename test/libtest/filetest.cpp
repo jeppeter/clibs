@@ -406,6 +406,128 @@ out:
     return ret;
 }
 
+#define PARSE_VALUE(vnum,typev)                                                                   \
+do{                                                                                               \
+    if (pcurptr != NULL) {                                                                        \
+        ret = parse_number(pcurptr,&num,&pendptr);                                                \
+        if (ret < 0) {                                                                            \
+            GETERRNO(ret);                                                                        \
+            fprintf(stderr,"parse [%s:%d] [%s] error[%d]\n",__FILE__,__LINE__,pcurptr,ret);       \
+            goto fail;                                                                            \
+        }                                                                                         \
+        vnum = (typev) num;                                                                       \
+        pcurptr = pendptr;                                                                        \
+        if (*pcurptr == ';') {                                                                    \
+            pcurptr ++;                                                                           \
+        }                                                                                         \
+        if (*pcurptr == '\0') {                                                                   \
+            pcurptr = NULL;                                                                       \
+        }                                                                                         \
+        fprintf(stderr,"parse [%s:%d] [%s]\n",__FILE__,__LINE__,pcurptr != NULL ? pcurptr : "NULL" );\
+    }                                                                                             \
+} while(0)
+
+int parse_cfgs(OutputCfg& cfgs, const char* line)
+{
+    OutfileCfg* pcfg=NULL;
+    char* fname=NULL;
+    int level = BASE_LOG_ERROR;
+    int fmtflag = WINLIB_OUTPUT_ALL_MASK;
+    int type = WINLIB_DEBUGOUT_FILE_TRUNC;
+    int maxfiles = 0;
+    uint64_t size = 0;
+    char* pcurptr = (char*)line;
+    int len=0;
+    uint64_t num;
+    char* pendptr=NULL;
+    int ret;
+    pcfg = new OutfileCfg();
+    if (strncmp(line,"stderr;",7)==0) {
+        pcurptr += 7;
+        type = WINLIB_DEBUGOUT_FILE_STDERR;
+        if (*pcurptr == '\0') {
+            pcurptr = NULL;
+        }
+    } else if (strncmp(line,"background;",11) == 0) {
+        pcurptr += 11;
+        type = WINLIB_DEBUGOUT_FILE_BACKGROUND;
+        if (*pcurptr == '\0') {
+            pcurptr = NULL;
+        }
+    }  else {
+        pcurptr = strchr((char*)line,';');
+        if (pcurptr != NULL) {
+            pcurptr ++;
+        }
+
+        if (pcurptr == NULL) {
+            fname = _strdup(line);
+        } else {
+            len = (int)(pcurptr - line);
+            fname = (char*)malloc((size_t)len);
+            if (fname == NULL) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            memset(fname,0,(size_t)len);
+            memcpy(fname, line, (size_t)(len-1));
+        }        
+
+        if (*pcurptr == '\0') {
+            pcurptr = NULL;
+        }
+    }
+
+    PARSE_VALUE(type,int);
+    PARSE_VALUE(level,int);
+    PARSE_VALUE(fmtflag,int);
+    PARSE_VALUE(size,uint64_t);
+    PARSE_VALUE(maxfiles,int);
+
+    ret = pcfg->set_file_type(fname,type,size,maxfiles);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    ret = pcfg->set_level(level);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    ret = pcfg->set_format(fmtflag);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = cfgs.insert_config(*pcfg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (fname) {
+        free(fname);
+    }
+    fname = NULL;
+    if (pcfg){
+        delete pcfg;
+    }
+    pcfg = NULL;
+    return 0;
+fail:
+    if (fname) {
+        free(fname);
+    }
+    fname = NULL;
+    if (pcfg){
+        delete pcfg;
+    }
+    pcfg = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
 
 int outputdebugex_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -413,50 +535,30 @@ int outputdebugex_handler(int argc, char* argv[], pextargs_state_t parsestate, v
     int ret;
     int idx = 0;
     int times = 10;
-    uint64_t appsize = (1ULL << 20);
-    output_debug_cfg_t cfg = {0};
-    int loglevel = BASE_LOG_DEFAULT;
     int i;
+    OutputCfg cfgs;
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
     GET_OPT_INT(times, "times");
-    GET_OPT_NUM64(appsize, "appsize");
-    cfg.m_ppoutcreatefile = pargs->m_outfiles;
-    cfg.m_ppoutappendfile = pargs->m_appfiles;
 
-    if (pargs->m_verbose <= 0) {
-        loglevel = BASE_LOG_FATAL;
-    } else if (pargs->m_verbose == 1) {
-        loglevel = BASE_LOG_ERROR;
-    } else if (pargs->m_verbose == 2) {
-        loglevel = BASE_LOG_WARN;
-    } else if (pargs->m_verbose == 3) {
-        loglevel = BASE_LOG_INFO;
-    } else if (pargs->m_verbose == 4) {
-        loglevel = BASE_LOG_DEBUG;
-    } else {
-        loglevel = BASE_LOG_TRACE;
+    for(i=0;pargs->m_exlogs && pargs->m_exlogs[i];i++) {
+        ret = parse_cfgs(cfgs,pargs->m_exlogs[i]);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "parse [%d] [%s] error[%d]\n",i, pargs->m_exlogs[i], ret);
+            goto out;
+        }
     }
 
-
-    if (pargs->m_disablecon != 0) {
-        cfg.m_disableflag |= WINLIB_CONSOLE_DISABLED;
-    }
-    if (pargs->m_disablefile != 0) {
-        cfg.m_disableflag |= WINLIB_FILE_DISABLED;
-    }
-
-    if (pargs->m_disabledb != 0) {
-        cfg.m_disableflag |= WINLIB_DBWIN_DISABLED;
-    }
-
-    ret = InitOutputEx(loglevel, &cfg);
+    ret = InitOutputEx2(&cfgs);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr, "init output error[%d]\n", ret);
         goto out;
     }
+
+
+
 
     for (i = 0; i < times; i++) {
         FATAL_INFO("debug line[%d]", i);
@@ -465,18 +567,18 @@ int outputdebugex_handler(int argc, char* argv[], pextargs_state_t parsestate, v
         INFO_INFO("debug line[%d]", i);
         DEBUG_INFO("debug line[%d]", i);
         TRACE_INFO("debug line[%d]", i);
-        FATAL_BUFFER(&cfg, sizeof(cfg));
-        FATAL_BUFFER_FMT(&cfg, sizeof(cfg), "cfg [%p]", &cfg);
-        ERROR_BUFFER(&cfg, sizeof(cfg));
-        ERROR_BUFFER_FMT(&cfg, sizeof(cfg), "cfg [%p]", &cfg);
-        WARN_BUFFER(&cfg, sizeof(cfg));
-        WARN_BUFFER_FMT(&cfg, sizeof(cfg), "cfg [%p]", &cfg);
-        INFO_BUFFER(&cfg, sizeof(cfg));
-        INFO_BUFFER_FMT(&cfg, sizeof(cfg), "cfg [%p]", &cfg);
-        DEBUG_BUFFER(&cfg, sizeof(cfg));
-        DEBUG_BUFFER_FMT(&cfg, sizeof(cfg), "cfg [%p]", &cfg);
-        TRACE_BUFFER(&cfg, sizeof(cfg));
-        TRACE_BUFFER_FMT(&cfg, sizeof(cfg), "cfg [%p]", &cfg);
+        FATAL_BUFFER(pargs, sizeof(*pargs));
+        FATAL_BUFFER_FMT(pargs, sizeof(*pargs), "cfg [%p]", pargs);
+        ERROR_BUFFER(pargs, sizeof(*pargs));
+        ERROR_BUFFER_FMT(pargs, sizeof(*pargs), "cfg [%p]", pargs);
+        WARN_BUFFER(pargs, sizeof(*pargs));
+        WARN_BUFFER_FMT(pargs, sizeof(*pargs), "cfg [%p]", pargs);
+        INFO_BUFFER(pargs, sizeof(*pargs));
+        INFO_BUFFER_FMT(pargs, sizeof(*pargs), "cfg [%p]", pargs);
+        DEBUG_BUFFER(pargs, sizeof(*pargs));
+        DEBUG_BUFFER_FMT(pargs, sizeof(*pargs), "cfg [%p]", pargs);
+        TRACE_BUFFER(pargs, sizeof(*pargs));
+        TRACE_BUFFER_FMT(pargs, sizeof(*pargs), "cfg [%p]", pargs);
     }
 
     /**/

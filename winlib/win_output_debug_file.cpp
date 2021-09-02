@@ -222,7 +222,6 @@ int DebugOutBuffer::write_log(int level, char* locstr, char* timestr,const char*
 	int ret;
 	char* outstr = NULL;
 	int outsize = 0;
-	_OUTPUT_DEBUG_ERROR("level [%d] this level [%d]", level, this->m_level);
 	if (this->m_level >=  level) {
 		ret = format_out_string(this->m_fmtflag, 1, &outstr, &outsize, locstr, timestr, tagstr, msgstr);
 		if (ret < 0) {
@@ -258,7 +257,6 @@ int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr,cons
 	int i, lasti;
 
 	uint8_t* pcurptr;
-	_OUTPUT_DEBUG_ERROR("level [%d] this level [%d]", level, this->m_level);
 	if (this->m_level >= level) {
 		ret = format_out_string(this->m_fmtflag, 0, &outstr, &outsize, locstr, timestr, tagstr, msgstr);
 		if (ret < 0) {
@@ -408,13 +406,11 @@ int DebugOutBuffer::set_cfg(OutfileCfg* pcfg)
 {
 	int ret;
 	this->m_level = pcfg->get_level();
-	_OUTPUT_DEBUG_ERROR("get level [%d]" , this->m_level);
 	if (this->m_level < 0) {
 		ret = -ERROR_INVALID_PARAMETER;
 		goto fail;
 	}
 	this->m_fmtflag = pcfg->get_format();
-	_OUTPUT_DEBUG_ERROR("get fmtflag [%d]" , this->m_fmtflag);
 	if (this->m_fmtflag < 0) {
 		ret = -ERROR_INVALID_PARAMETER;
 		goto fail;
