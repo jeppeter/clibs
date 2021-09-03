@@ -62,7 +62,8 @@ int OutfileCfg::set_file_type(const char* fname,int type,uint64_t size,int maxfi
 		}
 	} else {
 		masktype = (type & WINLIB_DEBUGOUT_FILE_MASK);
-		if (masktype == WINLIB_DEBUGOUT_FILE_APPEND || masktype == WINLIB_DEBUGOUT_FILE_TRUNC) {
+		if (masktype == WINLIB_DEBUGOUT_FILE_APPEND || masktype == WINLIB_DEBUGOUT_FILE_TRUNC || 
+			masktype == WINLIB_DEBUGOUT_FILE_ROTATE) {
 			if (this->m_fname) {
 				free(this->m_fname);
 			}

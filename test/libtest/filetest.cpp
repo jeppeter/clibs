@@ -406,7 +406,7 @@ out:
     return ret;
 }
 
-#define PARSE_VALUE(vnum,typev)                                                                   \
+#define PARSE_VALUE(vnum,typev,note)                                                              \
 do{                                                                                               \
     if (pcurptr != NULL) {                                                                        \
         ret = parse_number(pcurptr,&num,&pendptr);                                                \
@@ -423,7 +423,7 @@ do{                                                                             
         if (*pcurptr == '\0') {                                                                   \
             pcurptr = NULL;                                                                       \
         }                                                                                         \
-        fprintf(stderr,"parse [%s:%d] [%s]\n",__FILE__,__LINE__,pcurptr != NULL ? pcurptr : "NULL" );\
+        fprintf(stderr,"parse [%s:%d] [%s] [%s]\n",__FILE__,__LINE__,note,pcurptr != NULL ? pcurptr : "NULL" );\
     }                                                                                             \
 } while(0)
 
@@ -478,25 +478,28 @@ int parse_cfgs(OutputCfg& cfgs, const char* line)
         }
     }
 
-    PARSE_VALUE(type,int);
-    PARSE_VALUE(level,int);
-    PARSE_VALUE(fmtflag,int);
-    PARSE_VALUE(size,uint64_t);
-    PARSE_VALUE(maxfiles,int);
+    PARSE_VALUE(type,int,"type");
+    PARSE_VALUE(level,int,"level");
+    PARSE_VALUE(fmtflag,int,"fmtflag");
+    PARSE_VALUE(size,uint64_t,"size");
+    PARSE_VALUE(maxfiles,int,"maxfiles");
 
     ret = pcfg->set_file_type(fname,type,size,maxfiles);
     if (ret < 0) {
         GETERRNO(ret);
+        fprintf(stderr,"[%s:%d] set file type error[%d]\n",__FILE__,__LINE__,ret);
         goto fail;
     }
     ret = pcfg->set_level(level);
     if (ret < 0) {
         GETERRNO(ret);
+        fprintf(stderr,"[%s:%d] set level error[%d]\n",__FILE__,__LINE__,ret);
         goto fail;
     }
     ret = pcfg->set_format(fmtflag);
     if (ret < 0) {
         GETERRNO(ret);
+        fprintf(stderr,"[%s:%d] set format error[%d]\n",__FILE__,__LINE__,ret);
         goto fail;
     }
 

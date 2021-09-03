@@ -3,8 +3,8 @@ class DebugOutIO
 {
 public:
 	virtual ~DebugOutIO() {};
-	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr) = 0;
-	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen) = 0;
+	virtual int write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr) = 0;
+	virtual int write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen) = 0;
 	virtual int write_buffer(char* pbuf, int buflen) = 0;
 	virtual void flush() = 0;
 	virtual int set_cfg(OutfileCfg* pcfg) = 0;
@@ -15,8 +15,8 @@ class DebugOutBuffer : public DebugOutIO
 public:
 	DebugOutBuffer();
 	virtual ~DebugOutBuffer();
-	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr);
-	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr);
+	virtual int write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen);
 	virtual int write_buffer(char* pbuf, int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
@@ -142,7 +142,7 @@ int str_append_snprintf_safe(char**ppbuf, int*pbufsize, const char* fmt, ...)
 }
 
 
-int format_out_string(int fmtflag, int addline, char** ppoutstr, int* psize, char* locstr, char* timestr,const char* tagstr, char* msgstr)
+int format_out_string(int fmtflag, int addline, char** ppoutstr, int* psize, char* locstr, char* timestr, const char* tagstr, char* msgstr)
 {
 	int ret;
 	int retlen = 0;
@@ -216,7 +216,7 @@ fail:
 	return ret;
 }
 
-int DebugOutBuffer::write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr)
+int DebugOutBuffer::write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr)
 {
 	int retlen = 0;
 	int ret;
@@ -230,10 +230,12 @@ int DebugOutBuffer::write_log(int level, char* locstr, char* timestr,const char*
 		}
 
 		retlen = ret;
-		ret = this->write_buffer(outstr, retlen);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
+		if (retlen > 0) {
+			ret = this->write_buffer(outstr, retlen);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
 		}
 		format_out_string(-1, 0, &outstr, &outsize, NULL, NULL, NULL, NULL);
 	}
@@ -245,7 +247,7 @@ fail:
 	return ret;
 }
 
-int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen)
+int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen)
 {
 	int retlen = 0;
 	int ret;
@@ -265,102 +267,117 @@ int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr,cons
 		}
 
 		retlen = ret;
-		ret = this->write_buffer(outstr, retlen);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
+		if (retlen > 0) {
+			ret = this->write_buffer(outstr, retlen);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
 		}
 		format_out_string(-1, 0, &outstr, &outsize, NULL, NULL, NULL, NULL);
-		pcurptr = (uint8_t*)pbuffer;
-		lasti = 0;
-		for (i = 0; i < buflen; i++) {
+		if ((this->m_fmtflag & WINLIB_OUTPUT_MSG ) != 0) {
+			pcurptr = (uint8_t*)pbuffer;
+			lasti = 0;
+			for (i = 0; i < buflen; i++) {
 
-			if (outlen > 2000) {
+				if (outlen > 2000) {
+					ret = this->write_buffer(bufstr, outlen);
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					retlen += ret;
+					outlen = 0;
+					str_append_snprintf_safe(&bufstr, &bufsize, NULL);
+				}
+
+				if ((i % 16) == 0) {
+					if (i > 0) {
+						ret = str_append_snprintf_safe(&bufstr, &bufsize, "    ");
+						if (ret < 0) {
+							GETERRNO(ret);
+							goto fail;
+						}
+
+						while (lasti != i) {
+							if (pcurptr[lasti] >= ' ' && pcurptr[lasti] <= '~') {
+								ret = str_append_snprintf_safe(&bufstr, &bufsize, "%c", pcurptr[lasti]);
+							} else {
+								ret = str_append_snprintf_safe(&bufstr, &bufsize, ".");
+							}
+							if (ret < 0) {
+								GETERRNO(ret);
+								goto fail;
+							}
+							lasti ++;
+						}
+					}
+					ret = str_append_snprintf_safe(&bufstr, &bufsize, "\n0x%08x:", i);
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
+				}
+
+				ret = str_append_snprintf_safe(&bufstr, &bufsize, " 0x%02x", pcurptr[i]);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				outlen = (int)strlen(bufstr);
+			}
+
+			if (lasti != buflen) {
+				while ((i % 16) != 0) {
+					ret =  str_append_snprintf_safe(&bufstr, &bufsize, "     ");
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					i ++;
+				}
+				ret = str_append_snprintf_safe(&bufstr, &bufsize, "    ");
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+
+				while (lasti < buflen) {
+					if (pcurptr[lasti] >= ' ' && pcurptr[lasti] <= '~') {
+						ret = str_append_snprintf_safe(&bufstr, &bufsize, "%c", pcurptr[lasti]);
+					} else {
+						ret = str_append_snprintf_safe(&bufstr, &bufsize, ".");
+					}
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					lasti ++;
+				}
+				outlen = (int)strlen(bufstr);
 				ret = this->write_buffer(bufstr, outlen);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
 				}
 				retlen += ret;
-				outlen = 0;
-				str_append_snprintf_safe(&bufstr, &bufsize, NULL);
 			}
 
-			if ((i % 16) == 0) {
-				if (i > 0) {
-					ret = str_append_snprintf_safe(&bufstr, &bufsize, "    ");
-					if (ret < 0) {
-						GETERRNO(ret);
-						goto fail;
-					}
-
-					while (lasti != i) {
-						if (pcurptr[lasti] >= ' ' && pcurptr[lasti] <= '~') {
-							ret = str_append_snprintf_safe(&bufstr, &bufsize, "%c", pcurptr[lasti]);
-						} else {
-							ret = str_append_snprintf_safe(&bufstr, &bufsize, ".");
-						}
-						if (ret < 0) {
-							GETERRNO(ret);
-							goto fail;
-						}
-						lasti ++;
-					}
-				}
-				ret = str_append_snprintf_safe(&bufstr, &bufsize, "\n0x%08x:", i);
-				if (ret < 0) {
-					GETERRNO(ret);
-					goto fail;
-				}
-			}
-
-			ret = str_append_snprintf_safe(&bufstr, &bufsize, " 0x%02x", pcurptr[i]);
-			if (ret < 0) {
-				GETERRNO(ret);
-				goto fail;
-			}
-			outlen = (int)strlen(bufstr);
 		}
-
-		if (lasti != buflen) {
-			while ((i % 16) != 0) {
-				ret =  str_append_snprintf_safe(&bufstr, &bufsize, "     ");
-				if (ret < 0) {
-					GETERRNO(ret);
-					goto fail;
-				}
-				i ++;
-			}
-			ret = str_append_snprintf_safe(&bufstr, &bufsize, "    ");
+		if (retlen > 0) {
+			str_append_snprintf_safe(&outstr, &outsize, NULL);
+			ret = str_append_snprintf_safe(&outstr, &outsize, "\n");
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
 			}
-
-			while (lasti < buflen) {
-				if (pcurptr[lasti] >= ' ' && pcurptr[lasti] <= '~') {
-					ret = str_append_snprintf_safe(&bufstr, &bufsize, "%c", pcurptr[lasti]);
-				} else {
-					ret = str_append_snprintf_safe(&bufstr, &bufsize, ".");
-				}
-				if (ret < 0) {
-					GETERRNO(ret);
-					goto fail;
-				}
-				lasti ++;
-			}
-			ret = str_append_snprintf_safe(&bufstr, &bufsize, "\n");
+			outlen = (int) strlen(outstr);
+			ret = this->write_buffer(outstr, outlen);
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
 			}
-			outlen = (int)strlen(bufstr);
-			ret = this->write_buffer(bufstr, outlen);
-			if (ret < 0) {
-				GETERRNO(ret);
-				goto fail;
-			}
-			retlen += ret;
+			retlen += outlen;
 		}
 	}
 	this->flush();
@@ -427,8 +444,8 @@ class DebugOutStderr : public DebugOutBuffer
 public:
 	DebugOutStderr();
 	virtual ~DebugOutStderr();
-	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr);
-	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr);
+	virtual int write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen);
 	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
@@ -490,12 +507,12 @@ int DebugOutStderr::write_buffer(char* pbuffer, int buflen)
 	return buflen;
 }
 
-int DebugOutStderr::write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr)
+int DebugOutStderr::write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr)
 {
 	return this->DebugOutBuffer::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
-int DebugOutStderr::write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen)
+int DebugOutStderr::write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen)
 {
 	return this->DebugOutBuffer::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
 }
@@ -506,8 +523,8 @@ class DebugOutBackground : public DebugOutBuffer
 public:
 	DebugOutBackground();
 	virtual ~DebugOutBackground();
-	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr);
-	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr);
+	virtual int write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen);
 	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
@@ -556,12 +573,12 @@ int DebugOutBackground::write_buffer(char* pbuffer, int buflen)
 	return buflen;
 }
 
-int DebugOutBackground::write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr)
+int DebugOutBackground::write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr)
 {
 	return this->DebugOutBuffer::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
-int DebugOutBackground::write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen)
+int DebugOutBackground::write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen)
 {
 	return this->DebugOutBuffer::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
 }
@@ -604,8 +621,8 @@ class DebugOutFileTrunc : public DebugOutBuffer
 public:
 	DebugOutFileTrunc();
 	virtual ~DebugOutFileTrunc();
-	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr);
-	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr);
+	virtual int write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen);
 	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
@@ -638,12 +655,12 @@ DebugOutFileTrunc::~DebugOutFileTrunc()
 	this->m_filesize = 0;
 }
 
-int DebugOutFileTrunc::write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr)
+int DebugOutFileTrunc::write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr)
 {
 	return this->DebugOutBuffer::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
-int DebugOutFileTrunc::write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen)
+int DebugOutFileTrunc::write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen)
 {
 	return this->DebugOutBuffer::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
 }
@@ -732,7 +749,7 @@ int DebugOutFileTrunc::set_cfg(OutfileCfg* pcfg)
 	}
 	this->m_name = NULL;
 
-	ret= this->DebugOutBuffer::set_cfg(pcfg);
+	ret = this->DebugOutBuffer::set_cfg(pcfg);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -781,8 +798,8 @@ class DebugOutFileAppend : public DebugOutFileTrunc
 public:
 	DebugOutFileAppend();
 	virtual ~DebugOutFileAppend();
-	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr);
-	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr);
+	virtual int write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen);
 	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
@@ -811,12 +828,12 @@ DebugOutFileAppend::~DebugOutFileAppend()
 }
 
 
-int DebugOutFileAppend::write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr)
+int DebugOutFileAppend::write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr)
 {
 	return this->DebugOutFileTrunc::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
-int DebugOutFileAppend::write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen)
+int DebugOutFileAppend::write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen)
 {
 	return this->DebugOutFileTrunc::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
 }
@@ -862,7 +879,7 @@ int DebugOutFileAppend::set_cfg(OutfileCfg* pcfg)
 	}
 	this->m_name = NULL;
 
-	ret= this->DebugOutBuffer::set_cfg(pcfg);
+	ret = this->DebugOutBuffer::set_cfg(pcfg);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -876,7 +893,7 @@ int DebugOutFileAppend::set_cfg(OutfileCfg* pcfg)
 	}
 
 
-	this->m_hfile = CreateFileA(this->m_name,FILE_APPEND_DATA,FILE_SHARE_READ,NULL,OPEN_ALWAYS,FILE_ATTRIBUTE_NORMAL,NULL);
+	this->m_hfile = CreateFileA(this->m_name, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (this->m_hfile == INVALID_HANDLE_VALUE) {
 		GETERRNO(ret);
 		this->m_hfile = NULL;
@@ -908,8 +925,8 @@ class DebugOutFileRotate : public DebugOutFileAppend
 public:
 	DebugOutFileRotate();
 	virtual ~DebugOutFileRotate();
-	virtual int write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr);
-	virtual int write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen);
+	virtual int write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr);
+	virtual int write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen);
 	virtual int write_buffer(char* pbuffer, int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
@@ -947,12 +964,12 @@ DebugOutFileRotate::~DebugOutFileRotate()
 	this->m_rsv1 = 0;
 }
 
-int DebugOutFileRotate::write_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr)
+int DebugOutFileRotate::write_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr)
 {
 	return this->DebugOutBuffer::write_log(level, locstr, timestr, tagstr, msgstr);
 }
 
-int DebugOutFileRotate::write_buffer_log(int level, char* locstr, char* timestr,const char* tagstr, char* msgstr, void* pbuffer, int buflen)
+int DebugOutFileRotate::write_buffer_log(int level, char* locstr, char* timestr, const char* tagstr, char* msgstr, void* pbuffer, int buflen)
 {
 	return this->DebugOutBuffer::write_buffer_log(level, locstr, timestr, tagstr, msgstr, pbuffer, buflen);
 }
@@ -1223,20 +1240,20 @@ fail:
 
 DebugOutIO* get_cfg_out(OutfileCfg* pcfg)
 {
-	const char* fname=NULL;
-	int type=0;
-	int maxfiles=0;
+	const char* fname = NULL;
+	int type = 0;
+	int maxfiles = 0;
 	uint64_t size;
 	int ret;
-	DebugOutIO* pout=NULL;
+	DebugOutIO* pout = NULL;
 
-	ret = pcfg->get_file_type(fname,type,size,maxfiles);
+	ret = pcfg->get_file_type(fname, type, size, maxfiles);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	switch(type & WINLIB_DEBUGOUT_FILE_MASK) {
+	switch (type & WINLIB_DEBUGOUT_FILE_MASK) {
 	case WINLIB_DEBUGOUT_FILE_STDERR:
 		pout =  new DebugOutStderr();
 		break;
@@ -1253,7 +1270,7 @@ DebugOutIO* get_cfg_out(OutfileCfg* pcfg)
 		pout = new DebugOutFileRotate();
 		break;
 	default:
-		ret=  -ERROR_NOT_SUPPORTED;
+		ret =  -ERROR_NOT_SUPPORTED;
 		goto fail;
 	}
 
