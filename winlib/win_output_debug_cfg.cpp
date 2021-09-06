@@ -144,12 +144,7 @@ OutputCfg::OutputCfg()
 
 OutputCfg::~OutputCfg()
 {
-	while(this->m_cfgs.size() > 0) {
-		OutfileCfg* pcfg = this->m_cfgs.at(0);
-		this->m_cfgs.erase(this->m_cfgs.begin());
-		delete pcfg;
-		pcfg = NULL;
-	}
+	this->clear_configs();
 }
 
 int OutputCfg::insert_config(OutfileCfg& cfg)
@@ -170,4 +165,15 @@ OutfileCfg* OutputCfg::get_config(int idx)
 		pret = this->m_cfgs.at((uint64_t)idx);
 	}
 	return pret;
+}
+
+void OutputCfg::clear_configs()
+{
+	while(this->m_cfgs.size() > 0) {
+		OutfileCfg* pcfg = this->m_cfgs.at(0);
+		this->m_cfgs.erase(this->m_cfgs.begin());
+		delete pcfg;
+		pcfg = NULL;
+	}
+	return;
 }

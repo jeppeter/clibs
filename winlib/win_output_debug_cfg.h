@@ -52,6 +52,7 @@ public:
 	~OutputCfg();
 	int insert_config(OutfileCfg& cfg);
 	OutfileCfg* get_config(int idx);
+	void clear_configs();
 private:
 	std::vector<OutfileCfg*> m_cfgs;
 };
