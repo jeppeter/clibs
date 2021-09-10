@@ -369,6 +369,9 @@
     },
     "regenumvalue<regenumvalue_handler>## regpath ... to enumerate regpath ##" : {
         "$" : "+"
+    },
+    "netservnames<netservnames_handler>## to get net interface service names##" : {
+        "$" : 0
     }
 
 }

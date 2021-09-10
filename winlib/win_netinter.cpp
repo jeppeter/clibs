@@ -15,6 +15,8 @@
 #include <win_strop.h>
 #include <win_uniansi.h>
 #include <win_types.h>
+#include <win_regop.h>
+#include <win_args.h>
 
 #pragma warning(pop)
 
@@ -60,7 +62,7 @@ get_ip4_addr_again:
                 goto fail;
             }
             if (ipaddrsize == 0) {
-                ipaddrsize = 32*sizeof(TCHAR);
+                ipaddrsize = 32 * sizeof(TCHAR);
             } else {
                 ipaddrsize <<= 1;
             }
@@ -93,7 +95,7 @@ get_ip6_addr_again:
                 goto fail;
             }
             if (ipaddrsize == 0) {
-                ipaddrsize = 64*sizeof(TCHAR);
+                ipaddrsize = 64 * sizeof(TCHAR);
             } else {
                 ipaddrsize <<= 1;
             }
@@ -113,7 +115,7 @@ get_ip6_addr_again:
         if (ret < 0) {
             goto fail;
         }
-        strncpy_s(pbuf, (size_t)bufsize,pcipaddr, (size_t)bufsize);
+        strncpy_s(pbuf, (size_t)bufsize, pcipaddr, (size_t)bufsize);
     } else {
         memset(pbuf, 0, (size_t)bufsize);
     }
@@ -336,7 +338,7 @@ fill_again:
                 if (ret < 0) {
                     goto fail;
                 }
-                strncpy_s(pRetInfo[curidx].m_adapternickname, sizeof(pRetInfo[curidx].m_adapternickname),pansibuf, sizeof(pRetInfo[curidx].m_adapternickname));
+                strncpy_s(pRetInfo[curidx].m_adapternickname, sizeof(pRetInfo[curidx].m_adapternickname), pansibuf, sizeof(pRetInfo[curidx].m_adapternickname));
             }
 
             memset(pRetInfo[curidx].m_adaptermac, 0, sizeof(pRetInfo[curidx].m_adaptermac));
@@ -355,7 +357,7 @@ fill_again:
                 }
             }
 
-            strncpy_s(pRetInfo[curidx].m_adaptermac,  sizeof(pRetInfo[curidx].m_adaptermac),pformatbuf, sizeof(pRetInfo[curidx].m_adaptermac));
+            strncpy_s(pRetInfo[curidx].m_adaptermac,  sizeof(pRetInfo[curidx].m_adaptermac), pformatbuf, sizeof(pRetInfo[curidx].m_adaptermac));
             pRetInfo[curidx].m_mtu = (int)pcuraddr->Mtu;
             if (pcuraddr->FirstUnicastAddress) {
                 PIP_ADAPTER_UNICAST_ADDRESS pcuruni = pcuraddr->FirstUnicastAddress;
@@ -471,7 +473,7 @@ alloc_infos:
     }
     memset(pRetInfo, 0, (size_t)retsize);
     goto fill_again;
-#if 0    
+#if 0
     ret = -ERROR_INVALID_DATA;
     SETERRNO(-ret);
     return ret;
@@ -480,7 +482,7 @@ alloc_infos:
 
 
 
-int __set_adapter(pnet_inter_info_t pinfo, int idx,int forced)
+int __set_adapter(pnet_inter_info_t pinfo, int idx, int forced)
 {
     /*now we should give the */
     pinfo = pinfo;
@@ -493,27 +495,191 @@ int __set_adapter(pnet_inter_info_t pinfo, int idx,int forced)
 int set_adapter_info(pnet_inter_info_t pinfo)
 {
 #if 0
-    pnet_inter_info_t pinfos=NULL;
-    int infosize=0;
-    int infonum=0;
-    int infoidx=-1, adpidx=-1;
+    pnet_inter_info_t pinfos = NULL;
+    int infosize = 0;
+    int infonum = 0;
+    int infoidx = -1, adpidx = -1;
     int ret;
 
 
-    get_all_adapter_info(1,NULL,&pinfos,&infosize);    
+    get_all_adapter_info(1, NULL, &pinfos, &infosize);
     return 0;
 fail_reset:
     if (infoidx >= 0) {
         /*now we should give the set*/
-        __set_adapter(&(pinfos[infoidx]),adpidx,1);
+        __set_adapter(&(pinfos[infoidx]), adpidx, 1);
     }
 fail:
-    get_all_adapter_info(1,NULL,&pinfos,&infosize);
+    get_all_adapter_info(1, NULL, &pinfos, &infosize);
     SETERRNO(ret);
     return ret;
 #endif
     pinfo = pinfo;
     return 0;
+}
+
+#define  NETWORK_CARDS_PATH   "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\NetworkCards"
+#define  CARD_SERVICENAME_VALUE "ServiceName"
+
+int get_adapter_servicenames(int freed, char*** pppsvcnames, int *psize)
+{
+    void* pregop = NULL;
+    int ret;
+    int i;
+    char** ppretsvcnames = NULL;
+    int retsize = 0;
+    char** subkeys=NULL;
+    int subkeysize=0;
+    int subkeylen=0;
+    uint64_t num;
+    char* pendptr=NULL;
+    char* servpath = NULL;
+    int servsize=0;
+    void* pservreg=NULL;
+    char* servname=NULL;
+    int servnamesize=0;
+    int retlen = 0;
+    char** pptmp=NULL;
+
+    if (freed > 0) {
+        if (pppsvcnames && *pppsvcnames) {
+            char** ppsvcnames = *pppsvcnames;
+            for (i = 0; ppsvcnames[i]; i++) {
+                free(ppsvcnames[i]);
+                ppsvcnames[i] = NULL;
+            }
+            free(ppsvcnames);
+            *pppsvcnames = NULL;
+        }
+
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (pppsvcnames == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ppretsvcnames = *pppsvcnames;
+    retsize = *psize;
+
+    for (i = 0; i < retsize && ppretsvcnames != NULL; i++) {
+        if (ppretsvcnames[i] != NULL) {
+            free(ppretsvcnames[i]);
+            ppretsvcnames[i] = NULL;
+        }
+    }
+
+    pregop = open_hklm(NETWORK_CARDS_PATH,ACCESS_KEY_READ);
+    if (pregop == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = enum_hklm_keys(pregop,&subkeys,&subkeysize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    subkeylen = ret;
+
+    for(i=0;i < subkeylen;i++) {
+        ret = parse_number(subkeys[i],&num,&pendptr);
+        if (ret >= 0 && *pendptr == '\0') {
+            ret = snprintf_safe(&servpath,&servsize,"%s\\%d",NETWORK_CARDS_PATH,(int)num);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            close_hklm(&pservreg);
+            pservreg = open_hklm(servpath,ACCESS_KEY_READ);
+            if (pservreg == NULL) {
+                GETERRNO(ret);
+                goto fail;
+            }
+
+            query_hklm_string(NULL,NULL,&servname,&servnamesize);
+            ret = query_hklm_string(pservreg,CARD_SERVICENAME_VALUE,&servname,&servnamesize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+
+            if (retsize <= retlen) {
+                if (retsize == 0) {
+                    retsize = 4;
+                } else {
+                    retsize <<= 1;
+                }
+                ASSERT_IF(pptmp == NULL);
+                pptmp = (char**)malloc(sizeof(pptmp[0]) * retsize);
+                if (pptmp == NULL){
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                memset(pptmp,0,sizeof(pptmp[0]) * retsize);
+                if (retlen > 0) {
+                    memcpy(pptmp, ppretsvcnames, sizeof(pptmp[0]) * retlen);
+                }
+
+                if (ppretsvcnames != NULL && ppretsvcnames != *pppsvcnames) {
+                    free(ppretsvcnames);
+                }
+                ppretsvcnames = pptmp;
+                pptmp = NULL;
+            }
+
+            ppretsvcnames[retlen] = _strdup(servname);
+            if (ppretsvcnames[retlen] == NULL) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            retlen ++;
+        }
+    }
+    query_hklm_string(NULL,NULL,&servname,&servnamesize);
+    close_hklm(&pservreg);
+    snprintf_safe(&servpath,&servsize,NULL);
+    enum_hklm_keys(NULL,&subkeys,&subkeysize);
+    close_hklm(&pregop);
+
+    if (*pppsvcnames && *pppsvcnames != ppretsvcnames) {
+        free(*pppsvcnames);
+    }
+
+    *pppsvcnames = ppretsvcnames;
+    *psize = retsize;
+    return retlen;
+fail:
+    query_hklm_string(NULL,NULL,&servname,&servnamesize);
+    close_hklm(&pservreg);
+    snprintf_safe(&servpath,&servsize,NULL);
+    enum_hklm_keys(NULL,&subkeys,&subkeysize);
+    close_hklm(&pregop);
+    if (pptmp) {
+        free(pptmp);
+    }
+    pptmp = NULL;
+
+    if (ppretsvcnames != NULL) {
+        for (i = 0; i < retsize; i++) {
+            if (ppretsvcnames[i] != NULL) {
+                free(ppretsvcnames[i]);
+                ppretsvcnames[i] = NULL;
+            }
+        }
+    }
+
+    if (ppretsvcnames != NULL && ppretsvcnames != *pppsvcnames) {
+        free(ppretsvcnames);
+    }
+    ppretsvcnames = NULL;
+    SETERRNO(ret);
+    return ret;
 }
 
 #if _MSC_VER >= 1910

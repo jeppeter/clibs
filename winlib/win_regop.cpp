@@ -527,7 +527,7 @@ int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize)
     ppretitems = *pppitems;
     retsize = *psize;
 
-    for(i=0;i<retsize;i++) {
+    for(i=0;i<retsize && ppretitems != NULL;i++) {
         if (ppretitems[i] != NULL) {
             free(ppretitems[i]);
             ppretitems[i] = NULL;
@@ -711,7 +711,7 @@ int enum_hklm_values(void* pregop1, char*** pppitems, int* psize)
     ppretitems = *pppitems;
     retsize = *psize;
 
-    for(i=0;i<retsize;i++) {
+    for(i=0;i<retsize && ppretitems != NULL;i++) {
         if (ppretitems[i] != NULL) {
             free(ppretitems[i]);
             ppretitems[i] = NULL;

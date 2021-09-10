@@ -87,3 +87,34 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int netservnames_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char** servnames = NULL;
+    int servsize=0;
+    int servlen=0;
+    int i;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(parsestate);
+    init_log_level(pargs);
+
+    ret = get_adapter_servicenames(0,&servnames,&servsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    servlen = ret;
+
+    for(i=0;i < servlen;i++) {
+        fprintf(stdout,"[%d]=%s\n",i,servnames[i]);
+    }
+    ret = 0;
+out:
+    get_adapter_servicenames(1,&servnames,&servsize);
+    SETERRNO(ret);
+    return ret;
+}
