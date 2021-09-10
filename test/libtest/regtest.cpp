@@ -205,3 +205,99 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int regenumkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void*popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    char* path;
+    void* pregop = NULL;
+    int idx = 0;
+    char** items=NULL;
+    int itemsize=0;
+    int itemlen=0;
+    int i;
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
+
+    for (idx = 0; parsestate->leftargs && parsestate->leftargs[idx] ; idx++) {
+        path = parsestate->leftargs[idx];
+        pregop = open_hklm(path, ACCESS_KEY_READ);
+        if (pregop == NULL) {
+            GETERRNO(ret);
+            fprintf(stderr, "can not open [%s] for write [%d]\n", path, ret);
+            goto out;
+        }
+
+        ret = enum_hklm_keys(pregop,&items,&itemsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr,"can not enum [%s] error[%d]\n",path,ret);
+            goto out;
+        }
+        itemlen = ret;
+
+        fprintf(stdout,"%s\n",path);
+        for(i=0;i<itemlen;i++) {
+            fprintf(stdout,"    [%d]%s\n",i,items[i]);
+        }
+        close_hklm(&pregop);
+    }
+
+    ret = 0;
+out:
+    enum_hklm_keys(NULL,&items,&itemsize);
+    close_hklm(&pregop);
+    SETERRNO(ret);
+    return ret;    
+}
+
+int regenumvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, void*popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    char* path;
+    void* pregop = NULL;
+    int idx = 0;
+    char** items=NULL;
+    int itemsize=0;
+    int itemlen=0;
+    int i;
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+
+
+    for (idx = 0; parsestate->leftargs && parsestate->leftargs[idx] ; idx++) {
+        path = parsestate->leftargs[idx];
+        pregop = open_hklm(path, ACCESS_KEY_READ);
+        if (pregop == NULL) {
+            GETERRNO(ret);
+            fprintf(stderr, "can not open [%s] for write [%d]\n", path, ret);
+            goto out;
+        }
+
+        ret = enum_hklm_values(pregop,&items,&itemsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr,"can not enum [%s] error[%d]\n",path,ret);
+            goto out;
+        }
+        itemlen = ret;
+
+        fprintf(stdout,"%s\n",path);
+        for(i=0;i<itemlen;i++) {
+            fprintf(stdout,"    [%d]%s\n",i,items[i]);
+        }
+        close_hklm(&pregop);
+    }
+
+    ret = 0;
+out:
+    enum_hklm_values(NULL,&items,&itemsize);
+    close_hklm(&pregop);
+    SETERRNO(ret);
+    return ret;    
+}

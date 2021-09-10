@@ -363,6 +363,12 @@
     },
     "outputdebugex<outputdebugex_handler>## [times] [appsize] to make debug info output for files times default 10 appsize default 1M ##" : {
         "$" : "*"
+    },
+    "regenumkey<regenumkey_handler>## regpath ... to enumerate regpath ##" : {
+        "$" : "+"
+    },
+    "regenumvalue<regenumvalue_handler>## regpath ... to enumerate regpath ##" : {
+        "$" : "+"
     }
 
 }

@@ -22,6 +22,8 @@ WINLIB_API int query_hklm_binary(void* pregop,const char* path,void** ppdata,int
 WINLIB_API int set_hklm_binary(void* pregop, const char* path, void* pdata, int size);
 WINLIB_API int set_hklm_string(void* pregop, const char* path, char* valstr);
 WINLIB_API int set_hklm_sz(void* pregop1, const char* path, char* valstr);
+WINLIB_API int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize);
+WINLIB_API int enum_hklm_values(void* pregop1, char*** pppitems, int* psize);
 WINLIB_API void close_hklm(void** ppregop);
 
 #ifdef __cplusplus

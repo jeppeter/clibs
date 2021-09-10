@@ -231,6 +231,8 @@ int writememmap_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int svrcreatememmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int svrunmapmemmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int outputdebugex_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int regenumkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int regenumvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -281,7 +283,7 @@ int init_log_level(pargs_options_t pargs)
     } else {
         loglvl = BASE_LOG_TRACE;
     }
-    //fprintf(stdout, "verbose [%d]\n", pargs->m_verbose);
+    fprintf(stdout, "verbose [%d]\n", pargs->m_verbose);
 
     cfg.m_disableflag = 0;
     if (pargs->m_disabledb) {

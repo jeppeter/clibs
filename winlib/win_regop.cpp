@@ -16,6 +16,7 @@ typedef struct _regop_t {
     uint32_t m_magic;
     uint32_t m_reserv1;
     HKEY m_reghdl;
+    char* m_name;
 } regop_t, *pregop_t;
 
 #define GETLRET(ret,lret) do{ ret = lret; if (ret > 0) { ret = -ret ;} if (ret == 0 ){ret = -1;} } while(0)
@@ -33,6 +34,10 @@ void __close_regop(pregop_t* ppregop)
                 }
                 pregop->m_reghdl = NULL;
             }
+            if (pregop->m_name) {
+                free(pregop->m_name);
+            }
+            pregop->m_name = NULL;
             free(pregop);
         } else {
             ERROR_INFO("0x%p not valid regop", pregop);
@@ -63,6 +68,12 @@ void* __open_reg(HKEY hkey, const char* psubkey, REGSAM keyaccess)
     memset(pregop, 0, sizeof(*pregop));
     pregop->m_magic = REG_OP_MAGIC;
     pregop->m_reghdl = NULL;
+    pregop->m_name = NULL;
+    pregop->m_name = _strdup(psubkey);
+    if (pregop->m_name == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
     ret = AnsiToTchar(psubkey, &ptsub, &tsubsize);
     if (ret < 0) {
         goto fail;
@@ -466,6 +477,374 @@ int set_hklm_sz(void* pregop1, const char* path, char* valstr)
     return nret;
 fail:
     AnsiToTchar(NULL,&ptval,&valsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize)
+{
+    int i;
+    pregop_t pregop = (pregop_t) pregop1;
+    char** ppretitems=NULL;
+    char** pptmp=NULL;
+    int retsize=0;
+    TCHAR* ptname=NULL;
+    int tnamesize=2;
+    DWORD retnamesize=0;
+    LSTATUS status;
+    DWORD di;
+    char* ansistr=NULL;
+    int ansisize=0;
+    int ret;
+    int retlen = 0;
+    TCHAR* clsname=NULL;
+    DWORD clssize=0,retclssize=0;
+    DWORD keysize=0,maxkeylen=0,maxclslen=0,valsize=0,maxvalnamelen=0,maxvallen=0;
+
+
+    if (pregop1 == NULL) {
+        if (pppitems && *pppitems) {
+            char** ppitmes = (*pppitems);
+            for(i=0;ppitmes[i] != NULL ; i++) {
+                free(ppitmes[i]);
+                ppitmes[i] = NULL;
+            }
+            free(*pppitems);
+            *pppitems = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (pppitems == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ppretitems = *pppitems;
+    retsize = *psize;
+
+    for(i=0;i<retsize;i++) {
+        if (ppretitems[i] != NULL) {
+            free(ppretitems[i]);
+            ppretitems[i] = NULL;
+        }
+    }
+
+    clssize = MAX_PATH;
+    clsname = (TCHAR*) malloc(sizeof(clsname[0]) * clssize);
+    if (clsname == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    retclssize = clssize;
+    status = RegQueryInfoKey(pregop->m_reghdl,clsname,&retclssize,
+            NULL,&keysize,&maxkeylen,&maxclslen,&valsize,&maxvalnamelen,&maxvallen,NULL,NULL);
+    if (status != ERROR_SUCCESS) {
+        GETERRNO(ret);
+        ERROR_INFO("query info error[%ld][%d]", status,ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("[%s] keysize[%ld] maxkeylen [%ld] maxclslen [%ld] valsize [%ld] maxvalnamelen [%ld] maxvallen [%ld]",
+            pregop->m_name,keysize,maxkeylen,maxclslen,valsize,maxvalnamelen,maxvallen);
+
+    tnamesize = (int)(maxkeylen + 1);
+    ptname = (TCHAR*)malloc(sizeof(ptname[0]) * tnamesize);
+    if (ptname == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    for(di=0;di<keysize;di++) {
+        retnamesize = (DWORD)tnamesize;
+        status = RegEnumKeyEx(pregop->m_reghdl,
+                di,ptname,&retnamesize,NULL,NULL,NULL,NULL);
+        if (status != ERROR_SUCCESS) {
+            GETERRNO(ret);
+            ERROR_INFO("enum [%d] error[%d]", di,ret);
+            goto fail;
+        }
+
+        /*now to get the name */
+        if (retsize <= (int)di) {
+            if (retsize == 0) {
+                retsize = 4;
+            } else {
+                retsize <<= 1;
+            }
+
+            pptmp = (char**) malloc(sizeof(pptmp[0]) * retsize);
+            if (pptmp == NULL) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            memset(pptmp,0, sizeof(pptmp[0]) * retsize);
+            if (retlen > 0) {
+                memcpy(pptmp,ppretitems,sizeof(pptmp[0]) * retlen);
+            }
+
+            if (ppretitems != NULL && ppretitems != *pppitems) {
+                free(ppretitems);
+            }
+            ppretitems = pptmp;
+            pptmp = NULL;
+        }
+
+        ret = TcharToAnsi(ptname,&ansistr,&ansisize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        ASSERT_IF(ppretitems[retlen] == NULL) ;
+        ppretitems[retlen] = _strdup(ansistr);
+        if (ppretitems[retlen] == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        retlen ++;
+    }
+
+    TcharToAnsi(NULL,&ansistr,&ansisize);
+    if (pptmp) {
+        free(pptmp);
+    }
+    pptmp = NULL;
+
+    if (ptname) {
+        free(ptname);
+    }
+    ptname = NULL;
+
+    if (clsname) {
+        free(clsname);
+    }
+    clsname = NULL;
+
+    if (*pppitems && *pppitems != ppretitems) {
+        free(*pppitems);
+    }
+
+    *pppitems = ppretitems;
+    *psize = retsize;
+    return retlen;
+fail:
+    TcharToAnsi(NULL,&ansistr,&ansisize);
+    if (pptmp) {
+        free(pptmp);
+    }
+    pptmp = NULL;
+
+    if (ptname) {
+        free(ptname);
+    }
+    ptname = NULL;
+
+    if (clsname) {
+        free(clsname);
+    }
+    clsname = NULL;
+
+    if (ppretitems) {
+        for(i=0;ppretitems[i]!=NULL;i++) {
+            free(ppretitems[i]);
+            ppretitems[i] = NULL;
+        }
+    }
+    if (ppretitems != NULL && ppretitems != *pppitems)  {
+        free(ppretitems);
+    }
+    ppretitems = NULL;
+
+    SETERRNO(ret);
+    return ret;
+}
+
+int enum_hklm_values(void* pregop1, char*** pppitems, int* psize)
+{
+    int i;
+    pregop_t pregop = (pregop_t) pregop1;
+    char** ppretitems=NULL;
+    char** pptmp=NULL;
+    int retsize=0;
+    TCHAR* ptname=NULL;
+    int tnamesize=2;
+    DWORD retnamesize=0;
+    LSTATUS status;
+    DWORD di;
+    char* ansistr=NULL;
+    int ansisize=0;
+    int ret;
+    int retlen = 0;
+    TCHAR* clsname=NULL;
+    DWORD clssize=0,retclssize=0;
+    DWORD keysize=0,maxkeylen=0,maxclslen=0,valsize=0,maxvalnamelen=0,maxvallen=0;
+
+
+    if (pregop1 == NULL) {
+        if (pppitems && *pppitems) {
+            char** ppitmes = (*pppitems);
+            for(i=0;ppitmes[i] != NULL ; i++) {
+                free(ppitmes[i]);
+                ppitmes[i] = NULL;
+            }
+            free(*pppitems);
+            *pppitems = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (pppitems == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ppretitems = *pppitems;
+    retsize = *psize;
+
+    for(i=0;i<retsize;i++) {
+        if (ppretitems[i] != NULL) {
+            free(ppretitems[i]);
+            ppretitems[i] = NULL;
+        }
+    }
+
+    clssize = MAX_PATH;
+    clsname = (TCHAR*) malloc(sizeof(clsname[0]) * clssize);
+    if (clsname == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    retclssize = clssize;
+    status = RegQueryInfoKey(pregop->m_reghdl,clsname,&retclssize,
+            NULL,&keysize,&maxkeylen,&maxclslen,&valsize,&maxvalnamelen,&maxvallen,NULL,NULL);
+    if (status != ERROR_SUCCESS) {
+        GETERRNO(ret);
+        ERROR_INFO("query info error[%ld][%d]", status,ret);
+        goto fail;
+    }
+
+    DEBUG_INFO("[%s] keysize[%ld] maxkeylen [%ld] maxclslen [%ld] valsize [%ld] maxvalnamelen [%ld] maxvallen [%ld]",
+            pregop->m_name,keysize,maxkeylen,maxclslen,valsize,maxvalnamelen,maxvallen);
+
+    tnamesize = (int)(maxvalnamelen + 1);
+    ptname = (TCHAR*)malloc(sizeof(ptname[0]) * tnamesize);
+    if (ptname == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    for(di=0;di<valsize;di++) {
+        retnamesize = (DWORD)tnamesize;
+        status = RegEnumValue(pregop->m_reghdl,
+                di,ptname,&retnamesize,NULL,NULL,NULL,NULL);
+        if (status != ERROR_SUCCESS) {
+            GETERRNO(ret);
+            ERROR_INFO("enum [%d] error[%d]", di,ret);
+            goto fail;
+        }
+
+        /*now to get the name */
+        if (retsize <= (int)di) {
+            if (retsize == 0) {
+                retsize = 4;
+            } else {
+                retsize <<= 1;
+            }
+
+            pptmp = (char**) malloc(sizeof(pptmp[0]) * retsize);
+            if (pptmp == NULL) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            memset(pptmp,0, sizeof(pptmp[0]) * retsize);
+            if (retlen > 0) {
+                memcpy(pptmp,ppretitems,sizeof(pptmp[0]) * retlen);
+            }
+
+            if (ppretitems != NULL && ppretitems != *pppitems) {
+                free(ppretitems);
+            }
+            ppretitems = pptmp;
+            pptmp = NULL;
+        }
+
+        ret = TcharToAnsi(ptname,&ansistr,&ansisize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        ASSERT_IF(ppretitems[retlen] == NULL) ;
+        ppretitems[retlen] = _strdup(ansistr);
+        if (ppretitems[retlen] == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        retlen ++;
+    }
+
+    TcharToAnsi(NULL,&ansistr,&ansisize);
+    if (pptmp) {
+        free(pptmp);
+    }
+    pptmp = NULL;
+
+    if (ptname) {
+        free(ptname);
+    }
+    ptname = NULL;
+
+    if (clsname) {
+        free(clsname);
+    }
+    clsname = NULL;
+
+    if (*pppitems && *pppitems != ppretitems) {
+        free(*pppitems);
+    }
+
+    *pppitems = ppretitems;
+    *psize = retsize;
+    return retlen;
+fail:
+    TcharToAnsi(NULL,&ansistr,&ansisize);
+    if (pptmp) {
+        free(pptmp);
+    }
+    pptmp = NULL;
+
+    if (ptname) {
+        free(ptname);
+    }
+    ptname = NULL;
+
+    if (clsname) {
+        free(clsname);
+    }
+    clsname = NULL;
+
+    if (ppretitems) {
+        for(i=0;ppretitems[i]!=NULL;i++) {
+            free(ppretitems[i]);
+            ppretitems[i] = NULL;
+        }
+    }
+    if (ppretitems != NULL && ppretitems != *pppitems)  {
+        free(ppretitems);
+    }
+    ppretitems = NULL;
+
     SETERRNO(ret);
     return ret;
 }
