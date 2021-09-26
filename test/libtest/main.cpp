@@ -234,6 +234,7 @@ int outputdebugex_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 int regenumkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regenumvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int netservnames_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int arpreq_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1

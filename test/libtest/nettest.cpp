@@ -118,3 +118,45 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int arpreq_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* srcip=NULL;
+    char* dstip=NULL;
+    int macsize=0;
+    unsigned char* macaddr=NULL;
+    int i;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    srcip = parsestate->leftargs[0];
+    dstip = parsestate->leftargs[1];
+
+    macaddr = (unsigned char*)get_arp_request(srcip,dstip,&macsize);
+    if (macaddr == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr,"get [%s]:[%s] error[%d]\n",srcip,dstip,ret);
+        goto out;
+    }
+
+    for(i=0;i<macsize;i++) {
+        if (i > 0) {
+            fprintf(stdout," ");
+        }
+        fprintf(stdout,"0x%02x",macaddr[i]);
+    }
+    fprintf(stdout,"\n");
+
+    ret = 0;
+out:
+    if (macaddr) {
+        free(macaddr);
+    }
+    macaddr = NULL;
+    SETERRNO(ret);
+    return ret;
+}

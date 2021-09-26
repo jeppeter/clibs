@@ -682,6 +682,58 @@ fail:
     return ret;
 }
 
+void* get_arp_request(const char* srcip,const char* destip,int *psize)
+{
+    int ret;
+    IPAddr srcaddr=0;
+    IPAddr dstaddr=0;
+    DWORD dret;
+    void* macaddr=NULL;
+    ULONG macsize=0;
+
+    ret = inet_pton(AF_INET,srcip,&srcaddr);
+    if (ret != 1) {
+        GETERRNO(ret);
+        ERROR_INFO("can not get [%s] error[%d]",srcip,ret);
+        goto fail;
+    }
+
+    ret = inet_pton(AF_INET,destip,&dstaddr);
+    if (ret != 1) {
+        GETERRNO(ret);
+        ERROR_INFO("can not get [%s] error[%d]",destip,ret);
+        goto fail;
+    }
+
+    macsize = 12;
+
+    macaddr = malloc(macsize);
+    if (macaddr == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    dret = SendARP(dstaddr,srcaddr,macaddr,&macsize);
+    if (dret != NO_ERROR) {
+        GETERRNO(ret);
+        ERROR_INFO("can not get src[%s]dst[%s] error[%ld] [%d]", srcip,destip,dret,ret);
+        goto fail;
+    }
+
+    if (psize) {
+        *psize = (int)macsize;
+    }
+
+    return macaddr;
+fail:
+    if (macaddr) {
+        free(macaddr);
+    }
+    macaddr = NULL;
+    SETERRNO(ret);
+    return NULL;
+}
+
 #if _MSC_VER >= 1910
 #pragma warning(pop)
 #endif
