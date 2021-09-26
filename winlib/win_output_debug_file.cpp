@@ -629,6 +629,7 @@ public:
 protected:
 	HANDLE m_hfile;
 	char* m_name;
+	uint8_t m_rsv1[4];
 	uint64_t m_size;
 	uint64_t m_filesize;
 };
