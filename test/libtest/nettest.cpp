@@ -136,12 +136,14 @@ int arpreq_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     srcip = parsestate->leftargs[0];
     dstip = parsestate->leftargs[1];
 
-    macaddr = (unsigned char*)get_arp_request(srcip,dstip,&macsize);
-    if (macaddr == NULL) {
+    ret = get_arp_request(srcip,dstip,(void**)&macaddr);
+    if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr,"get [%s]:[%s] error[%d]\n",srcip,dstip,ret);
         goto out;
     }
+
+    macsize = ret;    
 
     for(i=0;i<macsize;i++) {
         if (i > 0) {
@@ -153,10 +155,7 @@ int arpreq_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     ret = 0;
 out:
-    if (macaddr) {
-        free(macaddr);
-    }
-    macaddr = NULL;
+    get_arp_request(NULL,NULL,(void**)&macaddr);
     SETERRNO(ret);
     return ret;
 }

@@ -682,7 +682,7 @@ fail:
     return ret;
 }
 
-void* get_arp_request(const char* srcip,const char* destip,int *psize)
+int get_arp_request(const char* srcip,const char* destip,void** ppmacaddr)
 {
     int ret;
     IPAddr srcaddr=0;
@@ -690,6 +690,20 @@ void* get_arp_request(const char* srcip,const char* destip,int *psize)
     DWORD dret;
     void* macaddr=NULL;
     ULONG macsize=0;
+
+    if (srcip == NULL || destip == NULL) {
+        if (ppmacaddr && *ppmacaddr) {
+            free(*ppmacaddr);
+            *ppmacaddr = NULL;
+        }
+        return 0;
+    }
+
+    if (ppmacaddr == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
 
     ret = inet_pton(AF_INET,srcip,&srcaddr);
     if (ret != 1) {
@@ -720,18 +734,19 @@ void* get_arp_request(const char* srcip,const char* destip,int *psize)
         goto fail;
     }
 
-    if (psize) {
-        *psize = (int)macsize;
+    if (ppmacaddr && *ppmacaddr) {
+        free(*ppmacaddr);
     }
+    *ppmacaddr = macaddr;
 
-    return macaddr;
+    return (int)macsize;
 fail:
     if (macaddr) {
         free(macaddr);
     }
     macaddr = NULL;
     SETERRNO(ret);
-    return NULL;
+    return ret;
 }
 
 #if _MSC_VER >= 1910

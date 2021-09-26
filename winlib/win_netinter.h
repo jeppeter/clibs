@@ -37,7 +37,7 @@ extern "C" {
 WINLIB_API int get_all_adapter_info(int freed,char* pfilter,pnet_inter_info_t* ppinfos,int *pinfonum);
 WINLIB_API int set_adapter_info(pnet_inter_info_t pinfo);
 WINLIB_API int get_adapter_servicenames(int freed, char*** pppsvcnames,int *psize);
-WINLIB_API void* get_arp_request(const char* srcip,const char* destip,int *psize);
+WINLIB_API int get_arp_request(const char* srcip,const char* destip,void** ppmacaddr);
 
 #ifdef __cplusplus
 };
