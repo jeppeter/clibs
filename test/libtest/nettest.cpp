@@ -133,8 +133,10 @@ int arpreq_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     REFERENCE_ARG(argv);
     init_log_level(pargs);
 
-    srcip = parsestate->leftargs[0];
-    dstip = parsestate->leftargs[1];
+    dstip = parsestate->leftargs[0];
+    if (parsestate->leftargs && parsestate->leftargs[1] != NULL) {
+        srcip = parsestate->leftargs[1];
+    }
 
     ret = get_arp_request(srcip,dstip,(void**)&macaddr);
     if (ret < 0) {

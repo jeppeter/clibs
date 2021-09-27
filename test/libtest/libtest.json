@@ -373,8 +373,8 @@
     "netservnames<netservnames_handler>## to get net interface service names##" : {
         "$" : 0
     },
-    "arpreq<arpreq_handler>##srcip dstip to handle##" : {
-        "$" : 2
+    "arpreq<arpreq_handler>##dstip [srcip] to handle##" : {
+        "$" : "+"
     }
 
 }

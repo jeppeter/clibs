@@ -691,7 +691,7 @@ int get_arp_request(const char* srcip,const char* destip,void** ppmacaddr)
     void* macaddr=NULL;
     ULONG macsize=0;
 
-    if (srcip == NULL || destip == NULL) {
+    if (destip == NULL) {
         if (ppmacaddr && *ppmacaddr) {
             free(*ppmacaddr);
             *ppmacaddr = NULL;
@@ -705,11 +705,13 @@ int get_arp_request(const char* srcip,const char* destip,void** ppmacaddr)
         return ret;
     }
 
-    ret = inet_pton(AF_INET,srcip,&srcaddr);
-    if (ret != 1) {
-        GETERRNO(ret);
-        ERROR_INFO("can not get [%s] error[%d]",srcip,ret);
-        goto fail;
+    if (srcip != NULL) {
+        ret = inet_pton(AF_INET,srcip,&srcaddr);
+        if (ret != 1) {
+            GETERRNO(ret);
+            ERROR_INFO("can not get [%s] error[%d]",srcip,ret);
+            goto fail;
+        }        
     }
 
     ret = inet_pton(AF_INET,destip,&dstaddr);
