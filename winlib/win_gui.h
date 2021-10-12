@@ -16,8 +16,8 @@ typedef struct __display_name {
 
 typedef struct __display_mode {
 	char m_name[256];
-	int m_x;
-	int m_y;
+	int m_width;
+	int m_height;
 	int m_refresh;
 } display_mode_t,*pdisplay_mode_t;
 
