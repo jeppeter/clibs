@@ -235,3 +235,38 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int set_display_mode(pdisplay_mode_t pmode)
+{
+	PDEVMODEA pdevmode=NULL;
+	BOOL bret;
+	int ret;
+
+	pdevmode = (PDEVMODEA) malloc(sizeof(*pdevmode));
+	if (pdevmode == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	memset(pdevmode,0,sizeof(*pdevmode));
+	pdevmode->dmSize = sizeof(*pdevmode);
+	pdevmode->dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
+	pdevmode->dmPelsWidth = (DWORD) pmode->m_width;
+	pdevmode->dmPelsHeight = (DWORD) pmode->m_height;
+	pdevmode->dmDisplayFrequency = (DWORD) pmode->m_refresh;
+
+
+	if (pdevmode) {
+		free(pdevmode);
+	}
+	pdevmode = NULL;
+	return 0;
+fail:
+	if (pdevmode) {
+		free(pdevmode);
+	}
+	pdevmode = NULL;
+	SETERRNO(ret);
+	return ret;
+
+}
