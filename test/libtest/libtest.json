@@ -375,6 +375,9 @@
     },
     "arpreq<arpreq_handler>##dstip [srcip] to handle##" : {
         "$" : "+"
+    },
+    "enumdisplay<enumdisplay_handler>## to display enum mode ##" : {
+        "$" : 0
     }
 
 }

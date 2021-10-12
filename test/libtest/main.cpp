@@ -43,6 +43,7 @@
 #include <win_evt.h>
 #include <win_map.h>
 #include <win_output_debug_cfg.h>
+#include <win_gui.h>
 
 
 #include <jvalue.h>
@@ -235,6 +236,7 @@ int regenumkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int regenumvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int netservnames_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int arpreq_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int enumdisplay_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -589,6 +591,7 @@ void close_ctrlc_handle()
 #include "maptest.cpp"
 #include "protectkill.cpp"
 #include "pipecmd.cpp"
+#include "guitest.cpp"
 
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {

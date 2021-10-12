@@ -66,7 +66,7 @@ LIB_SOURCE = win_output_debug.cpp win_uniansi.cpp win_args.cpp win_strop.cpp \
 	win_verify.cpp win_netinter.cpp win_time.cpp win_regex.cpp win_svc.cpp \
     win_regop.cpp win_ver.cpp win_acl.cpp win_priv.cpp win_dbg.cpp win_com.cpp \
     win_base64.cpp win_evt.cpp win_thread.cpp win_map.cpp win_libev.cpp win_user.cpp \
-    win_namedpipe.cpp win_memop.cpp win_prn.cpp
+    win_namedpipe.cpp win_memop.cpp win_prn.cpp win_gui.cpp
 LIB_OBJECTS = $(LIB_SOURCE:.cpp=.obj)
 OBJECTS = $(LIB_OBJECTS)
 
