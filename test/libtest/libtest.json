@@ -378,6 +378,9 @@
     },
     "enumdisplay<enumdisplay_handler>## to display enum mode ##" : {
         "$" : 0
+    },
+    "setdisplay<setdisplay_handler>##devname width height freq [flags] to set##" : {
+        "$" : "+"
     }
 
 }

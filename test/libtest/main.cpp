@@ -237,6 +237,7 @@ int regenumvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int netservnames_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int arpreq_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int enumdisplay_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int setdisplay_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1

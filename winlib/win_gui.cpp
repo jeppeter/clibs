@@ -207,7 +207,9 @@ int enum_display_mode(char* devname, pdisplay_mode_t* ppmode, int *psize)
 		pretmode[retlen].m_height = (int)pmode->dmPelsHeight;
 		pretmode[retlen].m_refresh = (int)pmode->dmDisplayFrequency;
 		// DEBUG_BUFFER_FMT(pmode->dmDeviceName,sizeof(pmode->dmDeviceName),"[%s].[%d].dmDeviceName", devname,retlen);
+		DEBUG_BUFFER_FMT(pmode,sizeof(*pmode),"[%d] mode",retlen);
 		strncpy_s(pretmode[retlen].m_name, sizeof(pretmode[retlen].m_name) - 1, devname, sizeof(pretmode[retlen].m_name));
+		strncpy_s(pretmode[retlen].m_devname, sizeof(pretmode[retlen].m_devname), (char*)pmode->dmDeviceName, sizeof(pretmode[retlen].m_devname));
 		retlen ++;
 	}
 
@@ -236,10 +238,10 @@ fail:
 	return ret;
 }
 
-int set_display_mode(pdisplay_mode_t pmode)
+int set_display_mode(pdisplay_mode_t pmode,DWORD flags)
 {
 	PDEVMODEA pdevmode=NULL;
-	BOOL bret;
+	LONG lret;
 	int ret;
 
 	pdevmode = (PDEVMODEA) malloc(sizeof(*pdevmode));
@@ -250,10 +252,26 @@ int set_display_mode(pdisplay_mode_t pmode)
 
 	memset(pdevmode,0,sizeof(*pdevmode));
 	pdevmode->dmSize = sizeof(*pdevmode);
+	strncpy_s((char*)pdevmode->dmDeviceName, sizeof(pdevmode->dmDeviceName), pmode->m_devname, sizeof(pdevmode->dmDeviceName));
 	pdevmode->dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
 	pdevmode->dmPelsWidth = (DWORD) pmode->m_width;
 	pdevmode->dmPelsHeight = (DWORD) pmode->m_height;
 	pdevmode->dmDisplayFrequency = (DWORD) pmode->m_refresh;
+
+	lret = ChangeDisplaySettingsA(pdevmode,flags);
+	if (lret != DISP_CHANGE_SUCCESSFUL) {
+		GETERRNO(ret);
+		ERROR_INFO("DISP_CHANGE_BADDUALVIEW [%d]", DISP_CHANGE_BADDUALVIEW);
+		ERROR_INFO("DISP_CHANGE_SUCCESSFUL [%d]",DISP_CHANGE_SUCCESSFUL);
+		ERROR_INFO("DISP_CHANGE_BADFLAGS [%d]", DISP_CHANGE_BADFLAGS);
+		ERROR_INFO("DISP_CHANGE_BADMODE [%d]", DISP_CHANGE_BADMODE);
+		ERROR_INFO("DISP_CHANGE_BADPARAM [%d]", DISP_CHANGE_BADPARAM);
+		ERROR_INFO("DISP_CHANGE_FAILED [%d]", DISP_CHANGE_FAILED);
+		ERROR_INFO("DISP_CHANGE_NOTUPDATED [%d]", DISP_CHANGE_NOTUPDATED);
+		ERROR_INFO("DISP_CHANGE_RESTART [%d]", DISP_CHANGE_RESTART);
+		ERROR_INFO("can not set [%s] flags[0x%x] error[%d] lret[%d]", pmode->m_name, flags,ret,lret);
+		goto fail;
+	}
 
 
 	if (pdevmode) {
@@ -268,5 +286,4 @@ fail:
 	pdevmode = NULL;
 	SETERRNO(ret);
 	return ret;
-
 }

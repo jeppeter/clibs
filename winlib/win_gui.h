@@ -8,6 +8,7 @@
 
 typedef struct __display_name {
 	char m_name[256];
+	char m_devname[256];
 	char m_id[256];
 	char m_key[256];
 	char m_devstr[256];
@@ -16,6 +17,7 @@ typedef struct __display_name {
 
 typedef struct __display_mode {
 	char m_name[256];
+	char m_devname[256];
 	int m_width;
 	int m_height;
 	int m_refresh;
@@ -27,7 +29,7 @@ extern "C" {
 
 WINLIB_API int enum_display_devices(int freed,pdisplay_name_t* ppdevices, int *psize);
 WINLIB_API int enum_display_mode(char* devname, pdisplay_mode_t* ppmode, int *psize);
-WINLIB_API int set_display_mode(pdisplay_mode_t pmode);
+WINLIB_API int set_display_mode(pdisplay_mode_t pmode,DWORD flags);
 
 #ifdef __cplusplus
 };
