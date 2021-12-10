@@ -109,10 +109,13 @@ static const char *parse_json_number(jvalue **parent, const char* src)
         if (number_characters[*pp & 0xFF] >= 3) {
           if (number_characters[*pp & 0xFF] == 4) type = JREAL;
         } else {
-          UTIL_DEBUG("*pp %c 0x%02x",*pp,(unsigned char)*pp);
-          /* not a number character */
-          type = JNONE;
-          break;
+          if (*pp != ' ') {
+            /*we skip white space ok*/
+            UTIL_DEBUG("*pp %c 0x%02x",*pp,(unsigned char)*pp);
+            /* not a number character */
+            type = JNONE;
+            break;            
+          }
         }
         pp++;
       }
