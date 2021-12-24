@@ -227,7 +227,7 @@ int regenumkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void
         pregop = open_hklm(path, ACCESS_KEY_READ);
         if (pregop == NULL) {
             GETERRNO(ret);
-            fprintf(stderr, "can not open [%s] for write [%d]\n", path, ret);
+            fprintf(stderr, "can not open [%s] for read [%d]\n", path, ret);
             goto out;
         }
 
@@ -239,7 +239,7 @@ int regenumkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void
         }
         itemlen = ret;
 
-        fprintf(stdout,"%s\n",path);
+        fprintf(stdout,"%s size[%d]\n",path,itemsize);
         for(i=0;i<itemlen;i++) {
             fprintf(stdout,"    [%d]%s\n",i,items[i]);
         }
@@ -287,7 +287,7 @@ int regenumvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
         }
         itemlen = ret;
 
-        fprintf(stdout,"%s\n",path);
+        fprintf(stdout,"%s size [%d] %p\n",path,itemsize,items);
         for(i=0;i<itemlen;i++) {
             fprintf(stdout,"    [%d]%s\n",i,items[i]);
         }
