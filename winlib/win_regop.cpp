@@ -762,8 +762,11 @@ int enum_hklm_values(void* pregop1, char*** pppitems, int* psize)
             goto fail;
         }
 
-        /*now to get the name */
-        if (retsize <= (int)di) {
+        /*
+            now to get the name 
+            to plus 1 for it will make SURE the last one is NULL
+        */
+        if (retsize <= (int)(di+1)) {
             if (retsize == 0) {
                 retsize = 4;
             } else {
