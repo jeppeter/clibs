@@ -571,8 +571,11 @@ int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize)
             goto fail;
         }
 
-        /*now to get the name */
-        if (retsize <= (int)di) {
+        /*
+            now to get the name 
+            to make di + 1 for it will let the last element NULL
+        */
+        if (retsize <= (int)(di+1)) {
             if (retsize == 0) {
                 retsize = 4;
             } else {
@@ -609,6 +612,10 @@ int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize)
         }
         retlen ++;
     }
+
+
+
+
 
     TcharToAnsi(NULL,&ansistr,&ansisize);
     if (pptmp) {
