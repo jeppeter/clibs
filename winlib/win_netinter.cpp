@@ -308,6 +308,7 @@ get_addr_again:
         goto get_addr_again;
     }
 
+
 fill_again:
     curidx = 0;
     pcuraddr = pAddress;
@@ -357,7 +358,9 @@ fill_again:
                 }
             }
 
-            strncpy_s(pRetInfo[curidx].m_adaptermac,  sizeof(pRetInfo[curidx].m_adaptermac), pformatbuf, sizeof(pRetInfo[curidx].m_adaptermac));
+            if (pformatbuf) {
+                strncpy_s(pRetInfo[curidx].m_adaptermac,  sizeof(pRetInfo[curidx].m_adaptermac), pformatbuf, sizeof(pRetInfo[curidx].m_adaptermac));    
+            }            
             pRetInfo[curidx].m_mtu = (int)pcuraddr->Mtu;
             if (pcuraddr->FirstUnicastAddress) {
                 PIP_ADAPTER_UNICAST_ADDRESS pcuruni = pcuraddr->FirstUnicastAddress;
