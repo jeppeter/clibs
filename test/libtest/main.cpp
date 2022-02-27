@@ -238,6 +238,7 @@ int netservnames_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int arpreq_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int enumdisplay_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setdisplay_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int jsonlist_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -593,6 +594,7 @@ void close_ctrlc_handle()
 #include "protectkill.cpp"
 #include "pipecmd.cpp"
 #include "guitest.cpp"
+#include "tstjson.cpp"
 
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {

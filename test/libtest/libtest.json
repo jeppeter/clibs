@@ -381,6 +381,8 @@
     },
     "setdisplay<setdisplay_handler>##devname width height freq [flags] to set##" : {
         "$" : "+"
+    },
+    "jsonlist<jsonlist_handler>## jsonfile [keys]... to list json key value##" : {
+        "$" : "+"
     }
-
 }
