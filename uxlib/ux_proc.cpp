@@ -1100,20 +1100,12 @@ int run_cmd_event_output(int evtfd, char* pin,  int insize, char** ppout, int *p
 	return run_cmd_event_outputa(evtfd,pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog,ap);
 }
 
-int run_cmd_event_output_single(int evtfd, char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
-{
-	return run_cmd_event_outputa(evtfd,pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog,NULL);
-}
 
 int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
 {
 	return run_cmd_event_outputv(-1, pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog);
 }
 
-int run_cmd_output_single(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog)
-{
-	return run_cmd_event_output_single(-1, pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog);
-}
 
 int run_cmd_outputa(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, va_list ap)
 {

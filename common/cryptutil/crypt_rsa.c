@@ -8,6 +8,7 @@
 #include <crypt_rsa.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 #if 0
 #define RSA_DEBUG(...)
