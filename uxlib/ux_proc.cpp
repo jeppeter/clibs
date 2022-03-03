@@ -297,9 +297,9 @@ pproc_comm_t __start_proc(int flags, char* prog[])
         int cmdsize = 0;
         int i;
         /*this is child*/
-        if (flags & STDIN_NULL || 
-        	flags & STDOUT_NULL || 
-        	flags & STDERR_NULL) {
+        if (flags & STDIN_NULL ||
+                flags & STDOUT_NULL ||
+                flags & STDERR_NULL) {
             stdnull = __open_nullfd(O_RDONLY);
             if (stdnull < 0) {
                 ERROR_INFO("can not open [%s] for READ ONLY", NULL_FILE);
@@ -351,7 +351,7 @@ pproc_comm_t __start_proc(int flags, char* prog[])
         }
 
         if (flags & STDIN_NULL) {
-        	ret = dup2(stdnull, STDIN_FILENO);
+            ret = dup2(stdnull, STDIN_FILENO);
             if (ret < 0) {
                 GETERRNO(ret);
                 ERROR_INFO("can not dup2 stdin null [%d] error[%d]", stdnull, ret);
@@ -360,7 +360,7 @@ pproc_comm_t __start_proc(int flags, char* prog[])
         }
 
         if (flags & STDOUT_NULL) {
-        	ret = dup2(stdnull, STDOUT_FILENO);
+            ret = dup2(stdnull, STDOUT_FILENO);
             if (ret < 0) {
                 GETERRNO(ret);
                 ERROR_INFO("can not dup2 stdout null [%d] error[%d]", stdnull, ret);
@@ -369,7 +369,7 @@ pproc_comm_t __start_proc(int flags, char* prog[])
         }
 
         if (flags & STDERR_NULL) {
-        	ret = dup2(stdnull, STDERR_FILENO);
+            ret = dup2(stdnull, STDERR_FILENO);
             if (ret < 0) {
                 GETERRNO(ret);
                 ERROR_INFO("can not dup2 stderr null [%d] error[%d]", stdnull, ret);
@@ -378,8 +378,8 @@ pproc_comm_t __start_proc(int flags, char* prog[])
         }
 
         if (stdnull >= 0) {
-        	close(stdnull);
-        	stdnull = -1;
+            close(stdnull);
+            stdnull = -1;
         }
 
         /*now exec call*/
@@ -405,16 +405,16 @@ pproc_comm_t __start_proc(int flags, char* prog[])
     }
 
     if (pproc->m_stdin[CHLD_IDX] >= 0) {
-    	close(pproc->m_stdin[CHLD_IDX]);
-    	pproc->m_stdin[CHLD_IDX] = -1;
+        close(pproc->m_stdin[CHLD_IDX]);
+        pproc->m_stdin[CHLD_IDX] = -1;
     }
     if (pproc->m_stdout[CHLD_IDX] >= 0) {
-    	close(pproc->m_stdout[CHLD_IDX]);
-    	pproc->m_stdout[CHLD_IDX] = -1;
+        close(pproc->m_stdout[CHLD_IDX]);
+        pproc->m_stdout[CHLD_IDX] = -1;
     }
-    if (pproc->m_stderr[CHLD_IDX] >= 0){
-    	close(pproc->m_stderr[CHLD_IDX]);
-    	pproc->m_stderr[CHLD_IDX] = -1;
+    if (pproc->m_stderr[CHLD_IDX] >= 0) {
+        close(pproc->m_stderr[CHLD_IDX]);
+        pproc->m_stderr[CHLD_IDX] = -1;
     }
 
     return pproc;
@@ -499,84 +499,84 @@ int get_min(int a, int b)
 }
 
 #define  WRITE_WAIT(fdmem,ptrmem,memlen,memsize,sigpend)                               \
-	do {                                                                               \
-		if (pproc->fdmem[PARENT_IDX] >= 0 && sigpend == 0) {                           \
-			ret = __write_nonblock(pproc->fdmem[PARENT_IDX],&(ptrmem[memlen]),         \
-				(memsize - memlen), &sigpend);                                         \
-			if (ret < 0) {                                                             \
-				GETERRNO(ret);                                                         \
-				ERROR_INFO("write %s error[%d]", #fdmem, ret);                         \
-				goto fail;                                                             \
-			}                                                                          \
-			memlen += ret;                                                             \
-			if (sigpend == 0) {                                                        \
-				ASSERT_IF(memlen == memsize);                                          \
-				__close_pipefd(pproc->fdmem);                                          \
-			}                                                                          \
-		}                                                                              \
+    do {                                                                               \
+        if (pproc->fdmem[PARENT_IDX] >= 0 && sigpend == 0) {                           \
+            ret = __write_nonblock(pproc->fdmem[PARENT_IDX],&(ptrmem[memlen]),         \
+                (memsize - memlen), &sigpend);                                         \
+            if (ret < 0) {                                                             \
+                GETERRNO(ret);                                                         \
+                ERROR_INFO("write %s error[%d]", #fdmem, ret);                         \
+                goto fail;                                                             \
+            }                                                                          \
+            memlen += ret;                                                             \
+            if (sigpend == 0) {                                                        \
+                ASSERT_IF(memlen == memsize);                                          \
+                __close_pipefd(pproc->fdmem);                                          \
+            }                                                                          \
+        }                                                                              \
         if (pproc->fdmem[PARENT_IDX] >=0 && sigpend != 0) {                            \
             fd[fdnum] = pproc->fdmem[PARENT_IDX];                                      \
             fdnum ++;                                                                  \
             FD_SET(pproc->fdmem[PARENT_IDX],&wset);                                    \
         }                                                                              \
-	} while(0)
+    } while(0)
 
 #define STDIN_WRITE_WAIT()  WRITE_WAIT(m_stdin,pin,inlen,insize,stdinpending)
 
 #define  READ_EXPAND(fdmem,ptrmem,pptrmem, memlen,memsize,sigpend,gotolabel)           \
-	do {                                                                               \
-		if (pproc->fdmem[PARENT_IDX] >= 0 && sigpend == 0) {                           \
-		gotolabel:                                                                     \
-			ret = __read_nonbloc(pproc->fdmem[PARENT_IDX],&(ptrmem[memlen]),           \
-					(memsize - memlen), &sigpend);                                     \
-			if (ret < 0) {                                                             \
-				GETERRNO(ret);                                                         \
-				ERROR_INFO("read %s error[%d]", #fdmem, ret);                          \
-				goto fail;                                                             \
-			}                                                                          \
+    do {                                                                               \
+        if (pproc->fdmem[PARENT_IDX] >= 0 && sigpend == 0) {                           \
+        gotolabel:                                                                     \
+            ret = __read_nonbloc(pproc->fdmem[PARENT_IDX],&(ptrmem[memlen]),           \
+                    (memsize - memlen), &sigpend);                                     \
+            if (ret < 0) {                                                             \
+                GETERRNO(ret);                                                         \
+                ERROR_INFO("read %s error[%d]", #fdmem, ret);                          \
+                goto fail;                                                             \
+            }                                                                          \
             DEBUG_BUFFER_FMT(&(ptrmem[memlen]), ret, "%s read sigpend %d",             \
                 #fdmem,sigpend);                                                       \
-			memlen += ret;                                                             \
-			if (sigpend == 0) {                                                        \
-				if (memlen < memsize ) {                                               \
-					/*it mean all over*/                                               \
-					__close_pipefd(pproc->fdmem);                                      \
+            memlen += ret;                                                             \
+            if (sigpend == 0) {                                                        \
+                if (memlen < memsize ) {                                               \
+                    /*it mean all over*/                                               \
+                    __close_pipefd(pproc->fdmem);                                      \
                     sigpend = 0;                                                       \
                     DEBUG_INFO("%s[PARENT_IDX] %d", #fdmem,pproc->fdmem[PARENT_IDX]);  \
-				} else {                                                               \
-					ASSERT_IF(memlen == memsize);                                      \
-					memsize <<= 1;                                                     \
-					ptmpbuf = (char*)malloc(memsize);                                  \
-					if (ptmpbuf == NULL) {                                             \
-						GETERRNO(ret);                                                 \
-						ERROR_INFO("alloc %d error[%d]", memsize, ret);                \
-						goto fail;                                                     \
-					}                                                                  \
-					memset(ptmpbuf, 0 ,memsize);                                       \
-					if (memlen >0) {                                                   \
-						memcpy(ptmpbuf, ptrmem, memlen);                               \
-					}                                                                  \
-					if (ptrmem != NULL && ptrmem != *pptrmem) {                        \
-						free(ptrmem);                                                  \
-					}                                                                  \
-					ptrmem = ptmpbuf;                                                  \
-					ptmpbuf = NULL;                                                    \
-					goto gotolabel;                                                    \
-				}                                                                      \
-			}                                                                          \
-		}                                                                              \
+                } else {                                                               \
+                    ASSERT_IF(memlen == memsize);                                      \
+                    memsize <<= 1;                                                     \
+                    ptmpbuf = (char*)malloc(memsize);                                  \
+                    if (ptmpbuf == NULL) {                                             \
+                        GETERRNO(ret);                                                 \
+                        ERROR_INFO("alloc %d error[%d]", memsize, ret);                \
+                        goto fail;                                                     \
+                    }                                                                  \
+                    memset(ptmpbuf, 0 ,memsize);                                       \
+                    if (memlen >0) {                                                   \
+                        memcpy(ptmpbuf, ptrmem, memlen);                               \
+                    }                                                                  \
+                    if (ptrmem != NULL && ptrmem != *pptrmem) {                        \
+                        free(ptrmem);                                                  \
+                    }                                                                  \
+                    ptrmem = ptmpbuf;                                                  \
+                    ptmpbuf = NULL;                                                    \
+                    goto gotolabel;                                                    \
+                }                                                                      \
+            }                                                                          \
+        }                                                                              \
         if (pproc->fdmem[PARENT_IDX] >= 0 && sigpend != 0) {                           \
             fd[fdnum] = pproc->fdmem[PARENT_IDX];                                      \
             fdnum ++;                                                                  \
             FD_SET(pproc->fdmem[PARENT_IDX],&rset);                                    \
         }                                                                              \
-	} while(0)
+    } while(0)
 
 #define  STDOUT_READ_EXPAND(gotolabel)                                                 \
-	READ_EXPAND(m_stdout, pretout,ppout, outlen, outsize, stdoutpending, gotolabel)
+    READ_EXPAND(m_stdout, pretout,ppout, outlen, outsize, stdoutpending, gotolabel)
 
 #define  STDERR_READ_EXPAND(gotolabel)                                                 \
-	READ_EXPAND(m_stderr, preterr,pperr, errlen, errsize, stderrpending, gotolabel)
+    READ_EXPAND(m_stderr, preterr,pperr, errlen, errsize, stderrpending, gotolabel)
 
 
 int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** ppout, int *poutsize , char** pperr, int *perrsize, int *pexitcode, int timeout)
@@ -598,9 +598,9 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
     int timemills = 0;
     int maxmills = 0;
     int i;
-    int stdinpending=0;
-    int stdoutpending=0;
-    int stderrpending=0;
+    int stdinpending = 0;
+    int stdoutpending = 0;
+    int stderrpending = 0;
     fd_set rset;
     fd_set wset;
 
@@ -620,7 +620,7 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
     if (ppout != NULL) {
         pretout = *ppout;
         outsize = *poutsize;
-        if (pretout == NULL || outsize < MINI_BUFSIZE)	 {
+        if (pretout == NULL || outsize < MINI_BUFSIZE)   {
             if (outsize < MINI_BUFSIZE) {
                 outsize = MINI_BUFSIZE;
             }
@@ -670,13 +670,13 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
             if (WIFSIGNALED(status) ) {
                 /**/
                 exitcode = WTERMSIG(status);
-                DEBUG_INFO("signaled %d exitcode %d status %d", WIFSIGNALED(status),exitcode, status);
+                DEBUG_INFO("signaled %d exitcode %d status %d", WIFSIGNALED(status), exitcode, status);
                 break;
             } else if (WIFEXITED(status)) {
                 exitcode = WEXITSTATUS(status);
-                DEBUG_INFO("exited %d exitcode %d status %d", WIFEXITED(status),exitcode, status);
+                DEBUG_INFO("exited %d exitcode %d status %d", WIFEXITED(status), exitcode, status);
                 break;
-            }            
+            }
         }
 
         STDIN_WRITE_WAIT();
@@ -699,8 +699,8 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
             maxmills = get_min(maxmills, timemills);
         }
 
-        if ((evtfd < 0 && fdnum == 0) || 
-            (evtfd >= 0 && fdnum == 1)) {
+        if ((evtfd < 0 && fdnum == 0) ||
+                (evtfd >= 0 && fdnum == 1)) {
             /*we need just one test*/
             maxmills = get_min(maxmills, 10);
         }
@@ -733,15 +733,15 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
                 ERROR_INFO("manually stopped");
                 goto fail;
             }
-            if (stdinpending != 0 && FD_ISSET(pproc->m_stdin[PARENT_IDX],&wset)) {
+            if (stdinpending != 0 && FD_ISSET(pproc->m_stdin[PARENT_IDX], &wset)) {
                 stdinpending = 0;
             }
 
-            if (stdoutpending != 0 && FD_ISSET(pproc->m_stdout[PARENT_IDX],&rset)) {
+            if (stdoutpending != 0 && FD_ISSET(pproc->m_stdout[PARENT_IDX], &rset)) {
                 stdoutpending = 0;
             }
 
-            if (stderrpending != 0 && FD_ISSET(pproc->m_stderr[PARENT_IDX],&rset)) {
+            if (stderrpending != 0 && FD_ISSET(pproc->m_stderr[PARENT_IDX], &rset)) {
                 stderrpending = 0;
             }
         } else {
@@ -821,15 +821,15 @@ int __inner_run(int evtfd, pproc_comm_t pproc, char* pin , int insize, char** pp
                 goto fail;
             }
 
-            if (stdinpending != 0 && FD_ISSET(pproc->m_stdin[PARENT_IDX],&wset)) {
+            if (stdinpending != 0 && FD_ISSET(pproc->m_stdin[PARENT_IDX], &wset)) {
                 stdinpending = 0;
             }
 
-            if (stdoutpending != 0 && FD_ISSET(pproc->m_stdout[PARENT_IDX],&rset)) {
+            if (stdoutpending != 0 && FD_ISSET(pproc->m_stdout[PARENT_IDX], &rset)) {
                 stdoutpending = 0;
             }
 
-            if (stderrpending != 0 && FD_ISSET(pproc->m_stderr[PARENT_IDX],&rset)) {
+            if (stderrpending != 0 && FD_ISSET(pproc->m_stderr[PARENT_IDX], &rset)) {
                 stderrpending = 0;
             }
         }
@@ -885,24 +885,24 @@ int run_cmd_event_outputv(int evtfd, char* pin, int insize, char** ppout, int *p
     int flags = 0;
 
     if (prog == NULL) {
-    	if (ppout && *ppout) {
-    		free(*ppout);
-    		*ppout = NULL;
-    	}
-    	if (poutsize) {
-    		*poutsize = 0;
-    	}
-    	if (pperr && *pperr) {
-    		free(*pperr);
-    		*pperr = NULL;
-    	}
-    	if (perrsize) {
-    		*perrsize = 0;
-    	}
-    	if (exitcode) {
-    		*exitcode = 0;
-    	}
-    	return 0;
+        if (ppout && *ppout) {
+            free(*ppout);
+            *ppout = NULL;
+        }
+        if (poutsize) {
+            *poutsize = 0;
+        }
+        if (pperr && *pperr) {
+            free(*pperr);
+            *pperr = NULL;
+        }
+        if (perrsize) {
+            *perrsize = 0;
+        }
+        if (exitcode) {
+            *exitcode = 0;
+        }
+        return 0;
     }
 
     if (pin) {
@@ -940,6 +940,25 @@ fail:
     return ret;
 }
 
+void __free_progs(char** ppprogs[], int* psize)
+{
+    int i;
+    char** ppretprogs=NULL;;
+    if (ppprogs && *ppprogs) {
+        ppretprogs = *ppprogs;
+        for (i = 0; ppretprogs[i]; i++) {
+            free(ppretprogs[i]);
+            ppretprogs[i] = NULL;
+        }
+        free(ppretprogs);
+        *ppprogs = NULL;
+    }
+    if (psize) {
+        *psize = 0;
+    }
+    return;
+}
+
 int __get_progs(char* prog, va_list ap, char** ppprogs[], int *psize)
 {
     int i;
@@ -950,21 +969,6 @@ int __get_progs(char* prog, va_list ap, char** ppprogs[], int *psize)
     char** ppretprogs = NULL;
     va_list oldap;
     char* curarg;
-    if (prog == NULL) {
-        if (ppprogs && *ppprogs) {
-            ppretprogs = *ppprogs;
-            for (i = 0; ppretprogs[i]; i++) {
-                free(ppretprogs[i]);
-                ppretprogs[i] = NULL;
-            }
-            free(ppretprogs);
-            *ppprogs = NULL;
-        }
-        if (psize) {
-            *psize = 0;
-        }
-        return 0;
-    }
 
     if (ppprogs == NULL || psize == NULL) {
         ret = -EINVAL;
@@ -985,20 +989,19 @@ int __get_progs(char* prog, va_list ap, char** ppprogs[], int *psize)
     }
 
     cnt = 1;
-    if (ap != NULL) {
-        va_copy(oldap, ap);
-        while (1) {
-            curarg = va_arg(ap, char*);
-            if (curarg == NULL) {
-                break;
-            }
-            cnt ++;
+    /*ap != NULL asserted for compile ok for arm compilter*/
+    va_copy(oldap, ap);
+    while (1) {
+        curarg = va_arg(ap, char*);
+        if (curarg == NULL) {
+            break;
         }
+        cnt ++;
     }
 
     if (size <= cnt || ppretprogs == NULL) {
         if (size <= cnt) {
-            size = cnt+1;
+            size = cnt + 1;
         }
         ppretprogs = (char**)malloc(sizeof(*ppretprogs) * size);
         if (ppretprogs == NULL) {
@@ -1016,27 +1019,26 @@ int __get_progs(char* prog, va_list ap, char** ppprogs[], int *psize)
         goto fail;
     }
 
-    if (ap != NULL) {
-    	va_copy(ap,oldap);
-    	i = 1;
-        while (1) {
-            curarg = va_arg(ap, char*);
-            if (curarg == NULL) {
-                break;
-            }
-            ppretprogs[i] = strdup(curarg);
-            if (ppretprogs[i] == NULL) {
-            	GETERRNO(ret);
-            	ERROR_INFO("strdup [%d] [%s] error[%d]", i, curarg, ret);
-            	goto fail;
-            }
-            i++;
+    /*ap != NULL asserted for compile ok for arm compilter*/
+    va_copy(ap, oldap);
+    i = 1;
+    while (1) {
+        curarg = va_arg(ap, char*);
+        if (curarg == NULL) {
+            break;
         }
-        ASSERT_IF(cnt == i);
+        ppretprogs[i] = strdup(curarg);
+        if (ppretprogs[i] == NULL) {
+            GETERRNO(ret);
+            ERROR_INFO("strdup [%d] [%s] error[%d]", i, curarg, ret);
+            goto fail;
+        }
+        i++;
     }
+    ASSERT_IF(cnt == i);
 
     if (*ppprogs && *ppprogs != ppretprogs) {
-    	free(*ppprogs);
+        free(*ppprogs);
     }
     *ppprogs = ppretprogs;
     *psize = size;
@@ -1068,55 +1070,55 @@ int run_cmd_event_outputa(int evtfd, char* pin, int insize, char** ppout, int *p
     int ret;
 
     if (prog == NULL) {
-    	return run_cmd_event_outputv(evtfd,pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,NULL);
+        return run_cmd_event_outputv(evtfd, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, NULL);
     }
 
-    ret = __get_progs((char*)prog,ap,&progs,&progsize);
+    ret = __get_progs((char*)prog, ap, &progs, &progsize);
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
 
-    ret = run_cmd_event_outputv(evtfd,pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,progs);
+    ret = run_cmd_event_outputv(evtfd, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, progs);
     if (ret < 0) {
-    	GETERRNO(ret);
-    	goto fail;
+        GETERRNO(ret);
+        goto fail;
     }
 
-    __get_progs(NULL,NULL,&progs,&progsize);
+    __free_progs(&progs, &progsize);
     return ret;
 fail:
-	__get_progs(NULL,NULL,&progs,&progsize);
-	SETERRNO(ret);
-	return ret;
+    __free_progs(&progs, &progsize);
+    SETERRNO(ret);
+    return ret;
 }
 
 int run_cmd_event_output(int evtfd, char* pin,  int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
 {
-	va_list ap;
-	if (prog != NULL) {
-		va_start(ap,prog);
-	}
-	return run_cmd_event_outputa(evtfd,pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog,ap);
+    va_list ap;
+    if (prog != NULL) {
+        va_start(ap, prog);
+    }
+    return run_cmd_event_outputa(evtfd, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
 }
 
 
 int run_cmd_outputv(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, char* prog[])
 {
-	return run_cmd_event_outputv(-1, pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog);
+    return run_cmd_event_outputv(-1, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog);
 }
 
 
 int run_cmd_outputa(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, va_list ap)
 {
-	return run_cmd_event_outputa(-1,pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog,ap);
+    return run_cmd_event_outputa(-1, pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
 }
 
 int run_cmd_output(char* pin, int insize, char** ppout, int *poutsize, char** pperr, int *perrsize, int *exitcode, int timeout, const char* prog, ...)
 {
-	va_list ap;
-	if (prog != NULL) {
-		va_start(ap,prog);
-	}
-	return run_cmd_outputa(pin,insize,ppout,poutsize,pperr,perrsize,exitcode,timeout,prog,ap);
+    va_list ap;
+    if (prog != NULL) {
+        va_start(ap, prog);
+    }
+    return run_cmd_outputa(pin, insize, ppout, poutsize, pperr, perrsize, exitcode, timeout, prog, ap);
 }
