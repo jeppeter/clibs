@@ -64,7 +64,7 @@ $(TARGET).a: $(OBJECTS)
 
 
 %.o:%.c ${HEADERS}
-	$(call call_exec,${CC} ${CFLAGS} -c $< -o $@,"CC      $<")
+	$(call call_exec,${CC}  ${CFLAGS} ${CPU_CFLAGS} -c $< -o $@,"CC      $<")
 
 
 md5.o:md5.c ${HEADERS}

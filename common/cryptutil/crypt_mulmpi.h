@@ -21,6 +21,8 @@
 #if defined(__GNUC__)
 #if defined(__i386__)
 
+#error "gnu i386"
+
 #define MULADDC_INIT                \
     asm( "                          \
         movl   %%ebx, %0;           \
@@ -123,6 +125,8 @@
     );
 
 #else
+
+#error "gnu i386 ccc"
 
 #define MULADDC_STOP            \
         "                       \
@@ -471,6 +475,31 @@
 
 #if defined(__arm__)
 
+#define MULADDC_INIT                    \
+{                                       \
+    t_int s0, s1, b0, b1;               \
+    t_int r0, r1, rx, ry;               \
+    b0 = ( b << biH ) >> biH;           \
+    b1 = ( b >> biH );
+
+#define MULADDC_CORE                    \
+    s0 = ( *s << biH ) >> biH;          \
+    s1 = ( *s >> biH ); s++;            \
+    rx = s0 * b1; r0 = s0 * b0;         \
+    ry = s1 * b0; r1 = s1 * b1;         \
+    r1 += ( rx >> biH );                \
+    r1 += ( ry >> biH );                \
+    rx <<= biH; ry <<= biH;             \
+    r0 += rx; r1 += (r0 < rx);          \
+    r0 += ry; r1 += (r0 < ry);          \
+    r0 +=  c; r1 += (r0 <  c);          \
+    r0 += *d; r1 += (r0 < *d);          \
+    c = r1; *(d++) = r0;
+
+#define MULADDC_STOP                    \
+}
+
+/*
 #define MULADDC_INIT                            \
     asm( "ldr    r0, %0         " :: "m" (s));  \
     asm( "ldr    r1, %0         " :: "m" (d));  \
@@ -491,6 +520,8 @@
     asm( "str    r1, %0         " : "=m" (d));  \
     asm( "str    r0, %0         " : "=m" (s) :: \
     "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7" );
+
+*/
 
 #endif /* ARMv3 */
 
