@@ -72,7 +72,7 @@ $(DYNAMICDIR)/libjson.so:
 
 
 %.o:%.c ${HEADERS}
-	$(call call_exec,${CC} ${CFLAGS} -o $@ -c $<,"CC      $<")
+	$(call call_exec,${CC} ${CFLAGS} ${CPU_CFLAGS} -o $@ -c $<,"CC      $<")
 
 extargs.o:extargs.c ${HEADERS}
 

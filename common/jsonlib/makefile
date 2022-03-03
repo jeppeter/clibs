@@ -69,7 +69,7 @@ $(STATICDIR)/libuxlib.a:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"MAKE    uxlib(static)")
 
 %.o:%.c ${HEADERS}
-	$(call call_exec,${CC} ${CFLAGS} -c $< -o $@,"CC      $<")
+	$(call call_exec,${CC} ${CFLAGS} ${CPU_CFLAGS} -c $< -o $@,"CC      $<")
 
 
 jvalue.o:jvalue.c ${HEADERS}
