@@ -15,6 +15,9 @@
     "run<run_handler>" : {
         "$" : "+"
     },
+    "runsingle<runsingle_handler>" : {
+        "$" : "+"
+    },
     "mntdir<mntdir_handler>" : {
         "$" : "+"
     },
