@@ -44,6 +44,7 @@
 #include <win_map.h>
 #include <win_output_debug_cfg.h>
 #include <win_gui.h>
+#include <win_sock.h>
 
 
 #include <jvalue.h>
@@ -239,6 +240,7 @@ int arpreq_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int enumdisplay_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setdisplay_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int jsonlist_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int tstsockconn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -595,6 +597,7 @@ void close_ctrlc_handle()
 #include "pipecmd.cpp"
 #include "guitest.cpp"
 #include "tstjson.cpp"
+#include "tstsock.cpp"
 
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {

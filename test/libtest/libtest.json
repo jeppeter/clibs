@@ -384,5 +384,8 @@
     },
     "jsonlist<jsonlist_handler>## jsonfile [keys]... to list json key value##" : {
         "$" : "+"
+    },
+    "tstsockconn<tstsockconn_handler>## ip port to connect test with timeout mills ##" : {
+        "$" : 2
     }
 }
