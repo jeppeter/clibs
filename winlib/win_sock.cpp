@@ -365,7 +365,7 @@ int __inner_make_read_write(psock_data_priv_t psock)
 		}
 		memset(&(psock->m_wrov),0,sizeof(psock->m_wrov));
 		psock->m_wrov.hEvent = psock->m_wrevt;
-		psock->m_wrov = 0;
+		psock->m_inwr = 0;
 	}
 
 	return 0;
@@ -553,6 +553,7 @@ int complete_tcp_connect(void* ptcp)
 			GETERRNO(ret);
 			goto fail;
 		}
+
 
 		ret = __inner_make_read_write(psock);
 		if (ret < 0) {
@@ -809,19 +810,29 @@ int __inner_start_read(psock_data_priv_t psock)
 	DWORD dret;
 	int ret;
 	DWORD flags;
+	WSABUF rdbuf;
+	psock->m_inrd = 1;
 try_read_again:
-	ret = WSARecv(psock->m_sock, psock->m_prdbuf, psock->m_rdleft,&(dret),&flags,&(psock->m_rdov),NULL);
+	flags = 0;
+	memset(&rdbuf,0, sizeof(rdbuf));
+	rdbuf.len = psock->m_rdleft;
+	rdbuf.buf = (CHAR*)psock->m_prdbuf;
+	ret = WSARecv(psock->m_sock, &rdbuf, 1,&(dret),&flags,&(psock->m_rdov),NULL);
 	if (ret == 0) {
 		psock->m_rdleft -= dret;
 		psock->m_prdbuf += dret;
 		if (psock->m_rdleft == 0) {
 			psock->m_prdbuf = NULL;
+			psock->m_inrd = 0;
 			return 1;
 		}
 		goto try_read_again;
 	} 
 	WSA_GETERRNO(ret);
-	ERROR_INFO("read [%s:%s] => [%s:%d] left [%d] error[%d]", psock->m_peeraddr,
+	if (ret == -WSA_IO_PENDING) {
+		return 0;
+	}
+	ERROR_INFO("read [%s:%d] => [%s:%d] left [%d] error[%d]", psock->m_peeraddr,
 			psock->m_peerport,psock->m_selfaddr,psock->m_selfport,psock->m_rdleft,ret);
 	SETERRNO(ret);
 	return ret;
@@ -832,20 +843,29 @@ int __inner_start_write(psock_data_priv_t psock)
 	DWORD dret;
 	int ret;
 	DWORD flags;
+	WSABUF wrbuf;
+	psock->m_inwr = 1;
 try_write_again:
 	flags = 0;
-	ret = WSASend(psock->m_sock, psock->m_pwrbuf, psock->m_wrleft,&(dret),&flags,&(psock->m_wrov),NULL);
+	memset(&wrbuf,0,sizeof(wrbuf));
+	wrbuf.len = psock->m_wrleft;
+	wrbuf.buf = (CHAR*)psock->m_pwrbuf;
+	ret = WSASend(psock->m_sock, &wrbuf, 1,&(dret),0,&(psock->m_wrov),NULL);
 	if (ret == 0) {
 		psock->m_wrleft -= dret;
 		psock->m_pwrbuf += dret;
 		if (psock->m_wrleft == 0) {
 			psock->m_pwrbuf = NULL;
+			psock->m_inwr = 0;
 			return 1;
 		}
 		goto try_write_again;
 	} 
 	WSA_GETERRNO(ret);
-	ERROR_INFO("write [%s:%s] => [%s:%d] left [%d] error[%d]", psock->m_selfaddr,
+	if (ret == -WSA_IO_PENDING) {
+		return 0;
+	}
+	ERROR_INFO("write [%s:%d] => [%s:%d] left [%d] error[%d]", psock->m_selfaddr,
 			psock->m_selfport,psock->m_peeraddr,psock->m_peerport,psock->m_wrleft,ret);
 	SETERRNO(ret);
 	return ret;
@@ -937,6 +957,7 @@ fail:
 
 int read_tcp_socket(void* ptcp, uint8_t* pbuf,int bufsize)
 {
+	int ret;
 	psock_data_priv_t psock = (psock_data_priv_t)ptcp;
 	if (psock == NULL || psock->m_inrd > 0 || psock->m_rdevt == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
@@ -945,13 +966,14 @@ int read_tcp_socket(void* ptcp, uint8_t* pbuf,int bufsize)
 	}
 
 	psock->m_prdbuf = pbuf;
-	psock->m_rdleft = bufsize;
+	psock->m_rdleft = (uint32_t)bufsize;
 
 	return __inner_start_read(psock);
 }
 
 int write_tcp_socket(void* ptcp, uint8_t* pbuf,int bufsize)
 {
+	int ret;
 	psock_data_priv_t psock = (psock_data_priv_t)ptcp;
 	if (psock == NULL || psock->m_inwr > 0 || psock->m_wrevt == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
@@ -960,7 +982,7 @@ int write_tcp_socket(void* ptcp, uint8_t* pbuf,int bufsize)
 	}
 
 	psock->m_pwrbuf = pbuf;
-	psock->m_wrleft = bufsize;
+	psock->m_wrleft = (uint32_t)bufsize;
 
 	return __inner_start_write(psock);
 }

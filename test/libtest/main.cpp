@@ -242,6 +242,8 @@ int setdisplay_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int jsonlist_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tstsockconn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tstsockacc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int tstclisockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int tstclisockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1

@@ -390,5 +390,11 @@
     },
     "tstsockacc<tstsockacc_handler>## port backlog bindip to listen on port for timeout mills accept socket##" : {
         "$" : "+"
+    },
+    "tstclisockrd<tstclisockrd_handler>## ip port [numread] to read in timeout  default [1024] ##" : {
+        "$" : "+"
+    },
+    "tstclisockwr<tstclisockwr_handler>## ip port file to write in timeout for file ##" : {
+        "$" : 3
     }
 }
