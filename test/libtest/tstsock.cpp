@@ -367,3 +367,135 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int tstsvrsockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	void* psock=NULL, *paccsock=NULL;
+	int port = 0;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	int ret;
+	char* ip = "0.0.0.0";
+	int backlog = 5;
+	HANDLE hd;
+	DWORD dret;
+	int numread = 1024;
+	uint8_t* pbuf=NULL;
+	uint64_t sticks,cticks;
+	int leftmills;
+	HANDLE hread=NULL;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+
+	init_log_level(pargs);
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		port = atoi(parsestate->leftargs[0]);
+		if (parsestate->leftargs[1]) {
+			numread = atoi(parsestate->leftargs[1]);
+		}
+	}
+
+	if (port <= 0 || port >= (1 << 16)) {
+		ret= -ERROR_INVALID_PARAMETER;
+		fprintf(stderr,"[port] %d not valid\n",port);
+		goto out;
+	}
+
+	ret = init_socket();
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "init socket error[%d]\n", ret);
+		goto out;
+	}
+
+	psock = bind_tcp_socket(ip,port,backlog);
+	if (psock == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not bind [%s:%d] backlog[%d] error[%d]\n", ip,port, backlog,ret);
+		goto out;
+	}
+
+	hd = get_tcp_accept_handle(psock);
+	if (hd != NULL) {
+		dret = WaitForSingleObject(hd,INFINITE);
+		if (dret != WAIT_OBJECT_0) {
+			GETERRNO(ret);
+			fprintf(stderr, "wait [%s:%d] time [%d] error [%d] [%ld]\n",ip,port , pargs->m_timeout,ret,dret);
+			goto out;
+		}		
+	}
+
+	ret = complete_tcp_accept(psock);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "complete accept [%s:%d] error[%d]\n", ip,port ,ret);
+		goto out;
+	}
+
+	paccsock = accept_tcp_socket(psock);
+	if (paccsock == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr,"can not accept [%s:%d] error[%d]", ip,port,ret);
+		goto out;
+	}
+
+	pbuf = (uint8_t*)malloc((size_t)numread);
+	if (pbuf == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+	memset(pbuf,0,(size_t)numread);
+
+	ret = read_tcp_socket(paccsock,pbuf,numread);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "read [%d] error[%d]\n",port, ret );
+		goto out;
+	}
+
+	hread = get_tcp_read_handle(paccsock);
+	if (hread != NULL) {
+		sticks = get_current_ticks();
+		while(1){
+			cticks = get_current_ticks();
+			leftmills = need_wait_times(sticks,cticks,pargs->m_timeout);
+			if (leftmills < 0) {
+				ret = -ERROR_INVALID_PARAMETER;
+				fprintf(stderr, "timed out\n" );
+				goto out;
+			}
+
+			dret = WaitForSingleObject(hread, (DWORD)leftmills);
+			if (dret != WAIT_OBJECT_0) {
+				GETERRNO(ret);
+				fprintf(stderr, "wait error[%d] [%ld]\n", ret,dret);
+				goto out;
+			}
+
+			ret = complete_tcp_read(paccsock);
+			if (ret < 0) {
+				GETERRNO(ret);
+				fprintf(stderr, "read complete error[%d]\n",ret );
+				goto out;
+			}
+			if (ret > 0) {
+				break;
+			}			
+		}
+	}
+
+
+
+	fprintf(stdout,"read [%s:%d] in [%d] succ\n",ip,port ,pargs->m_timeout);
+	ret = 0;
+out:
+	free_socket(&paccsock);
+	free_socket(&psock);
+	fini_socket();
+	if (pbuf) {
+		free(pbuf);
+	}
+	pbuf = NULL;
+	SETERRNO(ret);
+	return ret;	
+}

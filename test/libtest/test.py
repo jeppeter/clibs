@@ -197,6 +197,30 @@ def svrrd_handler(args,parser):
     sys.exit(0)
     return
 
+def cliwr_handler(args,parser):
+    set_logging(args)
+    port = int(args.subnargs[1])
+    host = args.subnargs[0]
+    fname = args.subnargs[2]
+    wbytes = read_file_bytes(fname)
+    sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    logging.info('connect [%s:%d]'%(host,port))
+
+    sock.connect((host,port))
+    wlen = 0
+    while wlen < len(wbytes):
+        curlen = len(wbytes) - wlen
+        if curlen > args.block:
+            curlen = args.block
+        sock.sendto(wbytes[wlen:(wlen+curlen)], sock.getpeername())
+        wlen += curlen
+        time.sleep(args.interval)
+    sock.close()
+    sock = None        
+    sys.exit(0)
+    return
+
+
 def main():
     commandline='''
     {
@@ -210,6 +234,9 @@ def main():
         },
         "svrrd<svrrd_handler>## port ##" : {
             "$" : 1
+        },
+        "cliwr<cliwr_handler>## ip port file##" : {
+            "$" : 3
         }
     }
     '''

@@ -148,7 +148,9 @@ void __free_socket(psock_data_priv_t* pptcp)
 			bret = CancelIoEx((HANDLE)psock1->m_sock, &(psock1->m_rdov));
 			if (!bret) {
 				GETERRNO(ret);
-				ERROR_INFO("can not cancel socket [%d] read ov error[%d]", psock1->m_sock, ret);
+				if (ret != -ERROR_NOT_FOUND) {
+					ERROR_INFO("can not cancel socket [%d] read ov error[%d]", psock1->m_sock, ret);
+				}
 			}			
 		}
 		psock1->m_inrd = 0;
@@ -767,7 +769,7 @@ void* accept_tcp_socket(void* ptcp)
 		goto fail;
 	}
 
-	DEBUG_BUFFER_FMT(psvrsock->m_paccbuf,psvrsock->m_accbuflen,"accept buffer size");
+	//DEBUG_BUFFER_FMT(psvrsock->m_paccbuf,psvrsock->m_accbuflen,"accept buffer size");
 
 	ret= __get_peer_name(psock);
 	if (ret < 0) {
@@ -819,6 +821,11 @@ try_read_again:
 	rdbuf.buf = (CHAR*)psock->m_prdbuf;
 	ret = WSARecv(psock->m_sock, &rdbuf, 1,&(dret),&flags,&(psock->m_rdov),NULL);
 	if (ret == 0) {
+		DEBUG_INFO("dret %ld",dret);
+		if (dret == 0) {
+			ret = -WSAESHUTDOWN;
+			goto fail;
+		}
 		psock->m_rdleft -= dret;
 		psock->m_prdbuf += dret;
 		if (psock->m_rdleft == 0) {
@@ -830,8 +837,10 @@ try_read_again:
 	} 
 	WSA_GETERRNO(ret);
 	if (ret == -WSA_IO_PENDING) {
+		DEBUG_INFO("rdleft %d",psock->m_rdleft);
 		return 0;
 	}
+fail:	
 	ERROR_INFO("read [%s:%d] => [%s:%d] left [%d] error[%d]", psock->m_peeraddr,
 			psock->m_peerport,psock->m_selfaddr,psock->m_selfport,psock->m_rdleft,ret);
 	SETERRNO(ret);
@@ -852,17 +861,19 @@ try_write_again:
 	wrbuf.buf = (CHAR*)psock->m_pwrbuf;
 	ret = WSASend(psock->m_sock, &wrbuf, 1,&(dret),0,&(psock->m_wrov),NULL);
 	if (ret == 0) {
+		DEBUG_INFO("dret %ld",dret);
 		psock->m_wrleft -= dret;
 		psock->m_pwrbuf += dret;
 		if (psock->m_wrleft == 0) {
 			psock->m_pwrbuf = NULL;
-			psock->m_inwr = 0;
+			psock->m_inwr = 0;		
 			return 1;
 		}
 		goto try_write_again;
 	} 
 	WSA_GETERRNO(ret);
 	if (ret == -WSA_IO_PENDING) {
+		DEBUG_INFO("wrleft [%ld]", psock->m_wrleft);
 		return 0;
 	}
 	ERROR_INFO("write [%s:%d] => [%s:%d] left [%d] error[%d]", psock->m_selfaddr,
