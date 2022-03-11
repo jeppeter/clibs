@@ -399,5 +399,8 @@
     },
     "tstsvrsockrd<tstsvrsockrd_handler>## port [numread] to read timeout default [1024]##" : {
         "$" : "+"
+    },
+    "tstsvrsockwr<tstsvrsockwr_handler>## port file to write in timeout for file ##" : {
+        "$" : 2
     }
 }

@@ -45,7 +45,7 @@ typedef struct __sock_data_priv {
 	/*these are connect functions*/
 	LPFN_CONNECTEX  m_connexfunc;
 	int m_inconn;
-	uint32_t m_reserv1;
+	int m_ooaccrd;
 	HANDLE m_connevt;
 	OVERLAPPED m_connov;
 
@@ -59,6 +59,9 @@ typedef struct __sock_data_priv {
 
 	int m_inwr;
 	uint32_t m_wrleft;
+	uint8_t* m_poordbuf;
+	int m_oordsize;
+	int m_oordlen;
 	HANDLE m_wrevt;
 	OVERLAPPED m_wrov;
 	uint8_t* m_pwrbuf;
@@ -205,6 +208,14 @@ void __free_socket(psock_data_priv_t* pptcp)
 		}
 		psock1->m_paccbuf = NULL;
 		psock1->m_accbuflen = 0;
+
+		if (psock1->m_poordbuf) {
+			free(psock1->m_poordbuf);
+		}
+		psock1->m_poordbuf= NULL;
+		psock1->m_oordlen = 0;
+		psock1->m_oordsize = 0;
+		psock1->m_ooaccrd = 0;
 
 
 
@@ -589,6 +600,8 @@ int __inner_accept(psock_data_priv_t psock)
 		ERROR_INFO("make accept socket for [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
 		goto fail;
 	}
+	/*to make not */
+	psock->m_ooaccrd = 0;
 
 	psock->m_inacc = 0;
 	memset(&nameaddr,0,sizeof(nameaddr));
@@ -732,6 +745,10 @@ int complete_tcp_accept(void* ptcp)
 			goto fail;
 		}
 		DEBUG_INFO("accept dret [%ld]", dret);
+		psock->m_ooaccrd = (int)dret;
+		if (dret > 0) {
+			DEBUG_BUFFER_FMT(psock->m_paccbuf,psock->m_accbuflen,"dret [%ld]",dret);
+		}
 		psock->m_inacc = 0;
 	}
 
@@ -767,6 +784,20 @@ void* accept_tcp_socket(void* ptcp)
 		WSA_GETERRNO(ret);
 		ERROR_INFO("can not get [%s:%d] update accept context error[%d]", psock->m_selfaddr,psock->m_selfport,ret);
 		goto fail;
+	}
+
+	if (psvrsock->m_ooaccrd > 0) {
+		/*to copy the buffer*/
+		psock->m_oordsize = psvrsock->m_ooaccrd;
+		psock->m_oordlen = 0;
+		ASSERT_IF(psock->m_poordbuf == NULL);
+		psock->m_poordbuf = (uint8_t*) malloc((size_t)psock->m_oordsize);
+		if (psock->m_poordbuf == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		memset(psock->m_poordbuf, 0, (size_t)psock->m_oordsize);
+		memcpy(psock->m_poordbuf, psvrsock->m_paccbuf, (size_t)psock->m_oordsize);
 	}
 
 	//DEBUG_BUFFER_FMT(psvrsock->m_paccbuf,psvrsock->m_accbuflen,"accept buffer size");
@@ -969,6 +1000,7 @@ fail:
 int read_tcp_socket(void* ptcp, uint8_t* pbuf,int bufsize)
 {
 	int ret;
+	uint32_t cpylen;
 	psock_data_priv_t psock = (psock_data_priv_t)ptcp;
 	if (psock == NULL || psock->m_inrd > 0 || psock->m_rdevt == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
@@ -978,6 +1010,36 @@ int read_tcp_socket(void* ptcp, uint8_t* pbuf,int bufsize)
 
 	psock->m_prdbuf = pbuf;
 	psock->m_rdleft = (uint32_t)bufsize;
+
+	if (psock->m_poordbuf != NULL) {
+		if (psock->m_oordsize > psock->m_oordlen) {
+			/*now we should copy the memory*/
+			cpylen = (uint32_t)(psock->m_oordsize - psock->m_oordlen);
+			if (cpylen > psock->m_rdleft) {
+				cpylen = psock->m_rdleft;
+			}
+
+			memcpy(psock->m_prdbuf, &(psock->m_poordbuf[psock->m_oordlen]), cpylen);
+			psock->m_oordlen += cpylen;
+			psock->m_prdbuf += cpylen;
+			psock->m_rdleft -= cpylen;
+		}
+
+		if (psock->m_oordsize == psock->m_oordlen) {
+			/*all read out*/
+			free(psock->m_poordbuf);
+			psock->m_poordbuf = NULL;
+			psock->m_oordlen = 0;
+			psock->m_oordsize = 0;
+		}
+
+		if (psock->m_rdleft == 0) {
+			/*nothing to read ,so just give */
+			psock->m_prdbuf = NULL;
+			psock->m_rdleft = 0;
+			return 1;
+		}
+	}
 
 	return __inner_start_read(psock);
 }
