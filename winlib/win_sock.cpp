@@ -36,10 +36,9 @@ typedef struct __sock_data_priv {
 	uint32_t m_magic;
 	int m_type;
 	char* m_peeraddr;
-	int m_peerport;
 	char* m_selfaddr;
+	int m_peerport;
 	int m_selfport;
-	uint32_t m_reserv5;
 	SOCKET m_sock;
 	SOCKET m_accsock;
 
@@ -51,9 +50,10 @@ typedef struct __sock_data_priv {
 	OVERLAPPED m_connov;
 
 	/*these are bind functions*/
+	uint8_t* m_paccbuf;
 	LPFN_ACCEPTEX m_acceptexfunc;
 	int m_inacc;
-	uint32_t m_reserv2;
+	uint32_t m_accbuflen;
 	HANDLE m_accevt;
 	OVERLAPPED m_accov;
 
@@ -192,6 +192,12 @@ void __free_socket(psock_data_priv_t* pptcp)
 		psock1->m_selfaddr = NULL;
 		psock1->m_selfport = 0;
 
+		if (psock1->m_paccbuf != NULL) {
+			free(psock1->m_paccbuf);
+		}
+		psock1->m_paccbuf = NULL;
+		psock1->m_accbuflen = 0;
+
 		free(psock1);
 		*pptcp = NULL;
 	}
@@ -249,6 +255,7 @@ int __get_self_name(psock_data_priv_t psock)
 	struct sockaddr_in* name;
 	int namelen = 0;
 	int ret;
+	int rc;
 	namelen = sizeof(nameaddr);
 	rc = getsockname(psock->m_sock, &nameaddr, &namelen);
 	if (rc != 0) {
@@ -276,8 +283,8 @@ int __get_self_name(psock_data_priv_t psock)
 		goto fail;
 	}
 	memset(psock->m_selfaddr, 0, INET_ADDRSTRLEN);
-	inet_ntop(AF_INET, &(name.sin_addr), psock->m_selfaddr, INET_ADDRSTRLEN);
-	psock->m_selfport = ntohs(name.sin_port);
+	inet_ntop(AF_INET, &(name->sin_addr), psock->m_selfaddr, INET_ADDRSTRLEN);
+	psock->m_selfport = ntohs(name->sin_port);
 
 	return 0;
 fail:
@@ -289,21 +296,21 @@ int __get_peer_name(psock_data_priv_t psock)
 {
 	struct sockaddr nameaddr;
 	struct sockaddr_in* name;
-	int namelen = 0;
 	int ret;
+	int namelen;
+
 	namelen = sizeof(nameaddr);
-	rc = getpeername(psock->m_sock, &nameaddr, &namelen);
-	if (rc != 0) {
-		GETERRNO(ret);
-		ERROR_INFO("get socket name for connect [%s:%d] error[%d]", psock->m_peeraddr, psock->m_peerport, ret);
+	ret = getpeername(psock->m_sock,&nameaddr,&namelen);
+	if (ret != 0) {
+		WSA_GETERRNO(ret);
+		ERROR_INFO("get peername [%s:%d] error[%d]", psock->m_selfaddr,psock->m_selfport,ret);
 		goto fail;
 	}
 
-	name = (struct sockaddr_in*)&nameaddr;
-
+	name = (struct sockaddr_in*) &nameaddr;
 	if (name->sin_family != AF_INET) {
 		ret = -ERROR_INVALID_PARAMETER;
-		ERROR_INFO("socket name [%s:%d] not valid [%d]", psock->m_peeraddr, psock->m_peerport, name->sin_family);
+		ERROR_INFO("socket name [%s:%d] not valid [%d]", psock->m_selfaddr, psock->m_selfport, name->sin_family);
 		goto fail;
 	}
 
@@ -317,8 +324,8 @@ int __get_peer_name(psock_data_priv_t psock)
 		goto fail;
 	}
 	memset(psock->m_peeraddr, 0, INET_ADDRSTRLEN);
-	inet_ntop(AF_INET, &(name.sin_addr), psock->m_peeraddr, INET_ADDRSTRLEN);
-	psock->m_peerport = ntohs(name.sin_port);
+	inet_ntop(AF_INET, &(name->sin_addr), psock->m_peeraddr, INET_ADDRSTRLEN);
+	psock->m_peerport = ntohs(name->sin_port);
 	return 0;
 fail:
 	SETERRNO(ret);
@@ -474,12 +481,10 @@ HANDLE get_tcp_connect_handle(void* ptcp)
 
 int complete_tcp_connect(void* ptcp)
 {
-	int ret = 1, rc;
+	int ret = 1;
 	psock_data_priv_t psock = (psock_data_priv_t)ptcp;
 	DWORD dret;
 	BOOL bret;
-	struct sockaddr_in name;
-	int namelen;
 	if (psock && psock->m_inconn > 0)  {
 		bret = GetOverlappedResult((HANDLE) psock->m_sock, &(psock->m_connov), &dret, NULL);
 		if (!bret) {
@@ -505,6 +510,9 @@ fail:
 int __inner_accept(psock_data_priv_t psock)
 {
 	int ret;
+	BOOL bret;
+	struct sockaddr nameaddr;
+	DWORD dret;
 
 	if (psock->m_accsock != INVALID_SOCKET) {
 		ret= -ERROR_INVALID_PARAMETER;
@@ -519,11 +527,19 @@ int __inner_accept(psock_data_priv_t psock)
 	}
 
 	psock->m_inacc = 0;
-	bret = psock->m_acceptexfunc(psock->m_sock, psock->m_accsock, NULL, 0, sizeof(nameaddr), sizeof(nameaddr), &dret, &(psock->m_accov));
+	memset(&nameaddr,0,sizeof(nameaddr));
+	memset(psock->m_paccbuf,0, psock->m_accbuflen);
+	//bret = psock->m_acceptexfunc(psock->m_sock, psock->m_accsock, NULL, 0, sizeof(nameaddr), sizeof(nameaddr), &dret, &(psock->m_accov));
+	bret = psock->m_acceptexfunc(psock->m_sock, psock->m_accsock, psock->m_paccbuf, psock->m_accbuflen, sizeof(nameaddr)+16, sizeof(nameaddr)+16, &dret, &(psock->m_accov));
 	if (!bret) {
 		WSA_GETERRNO(ret);
-		ERROR_INFO("acceptex [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
-		goto fail;
+		if (ret != -WSA_IO_PENDING) {
+			ERROR_INFO("acceptex [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
+			goto fail;			
+		}
+		psock->m_inacc = 1;
+	} else {
+		psock->m_inacc = 0;
 	}
 
 	return psock->m_inacc;
@@ -536,12 +552,12 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 {
 	psock_data_priv_t psock = NULL;
 	int ret;
-	struct sockaddr_in name;
+	struct sockaddr_in* name;
 	struct sockaddr nameaddr;
 	int namelen;
 	DWORD dret;
 	GUID GuidAcceptEx = WSAID_ACCEPTEX;
-	BOOL bret;
+	u_long block;
 
 	psock = __alloc_sock_priv(SOCKET_SERVER_TYPE, ipaddr, port);
 	if (psock == NULL) {
@@ -560,17 +576,19 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 	ret = ioctlsocket(psock->m_sock, FIONBIO, &block);
 	if (ret == SOCKET_ERROR) {
 		WSA_GETERRNO(ret);
-		ERROR_INFO("set bind [%s:%d] non-block error[%d]", psock->m_selfaddr, psock->m_sel, ret);
+		ERROR_INFO("set bind [%s:%d] non-block error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
 		goto fail;
 	}
 
-	memset(&name, 0, sizeof(name));
-	name.sin_family = AF_INET;
-	inet_pton(AF_INET, ipaddr, &(name.sin_addr));
-	name.sin_port = htons((uint16_t)port);
 
-	namelen = sizeof(name);
-	ret = bind(psock->m_sock, (const struct sockaddr*)&name, namelen);
+	memset(&nameaddr, 0, sizeof(nameaddr));
+	name = (struct sockaddr_in*) &nameaddr;
+	name->sin_family = AF_INET;
+	inet_pton(AF_INET, ipaddr, &(name->sin_addr));
+	name->sin_port = htons((uint16_t)port);
+
+	namelen = sizeof(nameaddr);
+	ret = bind(psock->m_sock, &nameaddr, namelen);
 	if (ret != 0) {
 		WSA_GETERRNO(ret);
 		ERROR_INFO("bind address[%s:%d] error[%d]", ipaddr, port, ret);
@@ -604,6 +622,13 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 	memset(&(psock->m_accov), 0 , sizeof(psock->m_accov));
 	psock->m_accov.hEvent = psock->m_accevt;
 
+	psock->m_accbuflen = 1024;
+	psock->m_paccbuf = (uint8_t*) malloc(psock->m_accbuflen);
+	if (psock->m_paccbuf == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
 	ret = __inner_accept(psock);
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -632,14 +657,17 @@ int complete_tcp_accept(void* ptcp)
 	int ret = 1;
 	BOOL bret;
 	psock_data_priv_t psock = (psock_data_priv_t) ptcp;
+	DWORD dret;
 
 	if (psock && psock->m_inacc > 0) {
-		bret = GetOverlappedResult((HANDLE)psock->m_sock, &(psock->m_accov));
+		dret = 0;
+		bret = GetOverlappedResult((HANDLE)psock->m_sock, &(psock->m_accov),&dret,NULL);
 		if (!bret) {
 			GETERRNO(ret);
 			ERROR_INFO("get accept [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
 			goto fail;
 		}
+		DEBUG_INFO("accept dret [%ld]", dret);
 		psock->m_inacc = 0;
 	}
 
@@ -669,6 +697,15 @@ void* accept_tcp_socket(void* ptcp)
 
 	psock->m_sock = psvrsock->m_accsock;
 	psvrsock->m_accsock = INVALID_SOCKET;
+
+	ret = setsockopt(psock->m_sock,SOL_SOCKET,SO_UPDATE_ACCEPT_CONTEXT,(char*)&(psvrsock->m_sock),sizeof(psvrsock->m_sock));
+	if (ret != 0) {
+		WSA_GETERRNO(ret);
+		ERROR_INFO("can not get [%s:%d] update accept context error[%d]", psock->m_selfaddr,psock->m_selfport,ret);
+		goto fail;
+	}
+
+	DEBUG_BUFFER_FMT(psvrsock->m_paccbuf,psvrsock->m_accbuflen,"accept buffer size");
 
 	ret= __get_peer_name(psock);
 	if (ret < 0) {

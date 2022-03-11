@@ -241,6 +241,7 @@ int enumdisplay_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int setdisplay_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int jsonlist_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tstsockconn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int tstsockacc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1

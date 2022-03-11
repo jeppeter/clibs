@@ -387,5 +387,8 @@
     },
     "tstsockconn<tstsockconn_handler>## ip port to connect test with timeout mills ##" : {
         "$" : 2
+    },
+    "tstsockacc<tstsockacc_handler>## port backlog bindip to listen on port for timeout mills accept socket##" : {
+        "$" : "+"
     }
 }
