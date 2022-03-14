@@ -207,6 +207,7 @@ def cliwr_handler(args,parser):
     logging.info('connect [%s:%d]'%(host,port))
 
     sock.connect((host,port))
+    sock.setblocking(0)
     wlen = 0
     while wlen < len(wbytes):
         curlen = len(wbytes) - wlen
@@ -220,6 +221,27 @@ def cliwr_handler(args,parser):
     sys.exit(0)
     return
 
+
+def clird_handler(args,parser):
+    set_logging(args)
+    port = int(args.subnargs[1])
+    host = args.subnargs[0]
+    sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    logging.info('connect [%s:%d]'%(host,port))
+
+    sock.connect((host,port))
+    logging.info('connected')
+    wlen = 0
+    while True:
+        curlen = args.block
+        rdata  = sock.recv(curlen)
+        logging.info('recv [%d]'%(len(rdata)))
+        wlen += len(rdata)
+        time.sleep(args.interval)
+    sock.close()
+    sock = None        
+    sys.exit(0)
+    return
 
 def main():
     commandline='''
@@ -237,6 +259,9 @@ def main():
         },
         "cliwr<cliwr_handler>## ip port file##" : {
             "$" : 3
+        },
+        "clird<clird_handler>## ip port ##" : {
+            "$" : 2
         }
     }
     '''

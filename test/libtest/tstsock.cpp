@@ -192,6 +192,10 @@ int tstclisockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 		goto out;
 	}
 
+	DEBUG_INFO(" ");
+	hread = get_tcp_connect_handle(psock);
+	ASSERT_IF(hread == NULL);
+
 
 	pbuf = (uint8_t*)malloc((size_t)numread);
 	if (pbuf == NULL) {
@@ -200,6 +204,7 @@ int tstclisockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 	}
 	memset(pbuf, 0, (size_t)numread);
 	ret = read_tcp_socket(psock, pbuf, numread);
+	DEBUG_INFO("read [%d] return %d", numread,ret);
 	if (ret < 0) {
 		GETERRNO(ret);
 		fprintf(stderr, "read [%s:%d] error[%d]\n", ip, port, ret);
@@ -226,7 +231,7 @@ wait_again:
 		dret = WaitForSingleObject(hread, (DWORD)pargs->m_timeout);
 		if (dret != WAIT_OBJECT_0) {
 			GETERRNO(ret);
-			fprintf(stderr, "wait [%s:%d] error[%d] [%ld]\n", ip, port, ret, dret);
+			ERROR_INFO("wait [%s:%d] error[%d] [%ld]", ip, port, ret, dret);
 			goto out;
 		}
 
@@ -567,7 +572,9 @@ int tstsvrsockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 
 	hd = get_tcp_accept_handle(psock);
 	if (hd != NULL) {
+		DEBUG_INFO("listen on [%d]", port);
 		dret = WaitForSingleObject(hd, INFINITE);
+		DEBUG_INFO("dret %ld", dret);
 		if (dret != WAIT_OBJECT_0) {
 			GETERRNO(ret);
 			fprintf(stderr, "wait [%s:%d] time [%d] error [%d] [%ld]\n", ip, port , pargs->m_timeout, ret, dret);
@@ -581,6 +588,7 @@ int tstsvrsockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 		fprintf(stderr, "complete accept [%s:%d] error[%d]\n", ip, port , ret);
 		goto out;
 	}
+	DEBUG_INFO("complete tcp accept [%d]", port);
 
 	paccsock = accept_tcp_socket(psock);
 	if (paccsock == NULL) {
@@ -588,6 +596,8 @@ int tstsvrsockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 		fprintf(stderr, "can not accept [%s:%d] error[%d]", ip, port, ret);
 		goto out;
 	}
+
+	DEBUG_INFO("accept socket write [%d]", buflen);
 
 
 	ret = write_tcp_socket(paccsock, (uint8_t*)pbuf, buflen);

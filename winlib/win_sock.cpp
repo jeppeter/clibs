@@ -474,7 +474,9 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 	}
 
 	namelen = sizeof(name);
+	DEBUG_INFO(" before connect [%s:%d]", psock->m_peeraddr, psock->m_peerport);
 	bret = psock->m_connexfunc(psock->m_sock, (const struct sockaddr*) &name, namelen, NULL, 0, &dret, &(psock->m_connov));
+	DEBUG_INFO("connect %s", bret ? "TRUE" : "FALSE");
 	if (bret) {
 		ret = __get_self_name(psock);
 		if (ret < 0) {
@@ -606,8 +608,7 @@ int __inner_accept(psock_data_priv_t psock)
 	psock->m_inacc = 0;
 	memset(&nameaddr,0,sizeof(nameaddr));
 	memset(psock->m_paccbuf,0, psock->m_accbuflen);
-	//bret = psock->m_acceptexfunc(psock->m_sock, psock->m_accsock, NULL, 0, sizeof(nameaddr), sizeof(nameaddr), &dret, &(psock->m_accov));
-	bret = psock->m_acceptexfunc(psock->m_sock, psock->m_accsock, psock->m_paccbuf, psock->m_accbuflen, sizeof(nameaddr)+16, sizeof(nameaddr)+16, &dret, &(psock->m_accov));
+	bret = psock->m_acceptexfunc(psock->m_sock, psock->m_accsock, psock->m_paccbuf, 0, sizeof(nameaddr)+16, sizeof(nameaddr)+16, &dret, &(psock->m_accov));
 	if (!bret) {
 		WSA_GETERRNO(ret);
 		if (ret != -WSA_IO_PENDING) {
@@ -617,6 +618,7 @@ int __inner_accept(psock_data_priv_t psock)
 		psock->m_inacc = 1;
 	} else {
 		psock->m_inacc = 0;
+		psock->m_ooaccrd = (int)dret;
 	}
 
 	return psock->m_inacc;
@@ -850,6 +852,7 @@ try_read_again:
 	memset(&rdbuf,0, sizeof(rdbuf));
 	rdbuf.len = psock->m_rdleft;
 	rdbuf.buf = (CHAR*)psock->m_prdbuf;
+	flags = MSG_PARTIAL;
 	ret = WSARecv(psock->m_sock, &rdbuf, 1,&(dret),&flags,&(psock->m_rdov),NULL);
 	if (ret == 0) {
 		DEBUG_INFO("dret %ld",dret);
@@ -868,6 +871,7 @@ try_read_again:
 	} 
 	WSA_GETERRNO(ret);
 	if (ret == -WSA_IO_PENDING) {
+		DEBUG_INFO("dret %ld", dret);
 		DEBUG_INFO("rdleft %d",psock->m_rdleft);
 		return 0;
 	}
@@ -890,7 +894,7 @@ try_write_again:
 	memset(&wrbuf,0,sizeof(wrbuf));
 	wrbuf.len = psock->m_wrleft;
 	wrbuf.buf = (CHAR*)psock->m_pwrbuf;
-	ret = WSASend(psock->m_sock, &wrbuf, 1,&(dret),0,&(psock->m_wrov),NULL);
+	ret = WSASend(psock->m_sock, &wrbuf, 1,&(dret),MSG_PARTIAL,&(psock->m_wrov),NULL);
 	if (ret == 0) {
 		DEBUG_INFO("dret %ld",dret);
 		psock->m_wrleft -= dret;
