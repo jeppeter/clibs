@@ -157,7 +157,7 @@ int getmsepoch_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	REFERENCE_ARG(parsestate);
 	REFERENCE_ARG(popt);
 
-	lret = get_ms_from_epock();
+	lret = get_ms_from_epoch();
 	fprintf(stdout,"epoch ms %lld\n",lret);
 	ret = 0;
 	SETERRNO(ret);

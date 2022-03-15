@@ -45,7 +45,7 @@ int sleep_mill(int mills)
 
 #define  EPOCH_SUBSTRACT             116444736000000000LL
 
-uint64_t get_ms_from_epock(void)
+uint64_t get_ms_from_epoch(void)
 {
 	uint64_t lret;
 	FILETIME  ft;
