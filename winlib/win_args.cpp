@@ -412,6 +412,72 @@ fail:
     return ret;
 }
 
+char** copy_argv(char** argv)
+{
+    char** retargv=NULL , **pptmp=NULL;
+    int i,llen=0;
+    int size=4;
+    int ret;
+
+    retargv = (char**) malloc(sizeof(*retargv) * size);
+    if (retargv == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(retargv, 0 , sizeof(*retargv) * size);
+
+    for (i=0;argv[i] != NULL;i++) {
+        if (llen >= (size - 1)){
+            size <<= 1;
+            pptmp = (char**) malloc(sizeof(*pptmp) * size);
+            if (pptmp == NULL) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            memset(pptmp, 0, sizeof(*pptmp) *size);
+            if (llen > 0) {
+                memcpy(pptmp, retargv, sizeof(*pptmp) * llen);
+            }
+            if (retargv != NULL) {
+                free(retargv);
+            }
+            retargv = pptmp;
+            pptmp = NULL;
+        }
+        retargv[i] = _strdup(argv[i]);
+        if (retargv[i] == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        llen ++;
+    }
+    return retargv;
+fail:
+    if (pptmp) {
+        free(pptmp);
+    }
+    pptmp = NULL;
+    free_argv(&retargv);
+    SETERRNO(ret);
+    return NULL;
+}
+
+void free_argv(char*** pppargv)
+{
+    char** argv;
+    int i;
+    if (pppargv && *pppargv != NULL) {
+        argv = *pppargv;
+        for(i=0;argv[i] != NULL;i++) {
+            free(argv[i]);
+            argv[i] = NULL;
+        }
+        free(argv);
+        *pppargv = NULL;
+    }
+    return;
+}
+
 #if _MSC_VER >= 1910
 #pragma warning(pop)
 #endif

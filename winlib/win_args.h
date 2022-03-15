@@ -23,6 +23,8 @@ WINLIB_API void free_args(char*** pppargs);
 #endif
 
 WINLIB_API char** copy_args(int argc,TCHAR *argv[]);
+WINLIB_API char** copy_argv(char** argv);
+WINLIB_API void free_argv(char*** pppargv);
 WINLIB_API int  parse_number(char* str,uint64_t *pnum,char** ppend);
 WINLIB_API int  parse_int(char* str,int64_t* pnum,char**ppend);
 WINLIB_API int  parse_long_double(char* str, long double *pdbl, char** ppend);
