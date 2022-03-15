@@ -402,5 +402,8 @@
     },
     "tstsvrsockwr<tstsvrsockwr_handler>## port file to write in timeout for file ##" : {
         "$" : 2
+    },
+    "getmsepoch<getmsepoch_handler>## to get ms from epoch ##" : {
+        "$" : 0
     }
 }

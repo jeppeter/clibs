@@ -42,3 +42,22 @@ int sleep_mill(int mills)
 	Sleep((DWORD)mills);
 	return 0;
 }
+
+#define  EPOCH_SUBSTRACT             116444736000000000LL
+
+uint64_t get_ms_from_epock(void)
+{
+	uint64_t lret;
+	FILETIME  ft;
+	ULARGE_INTEGER li;
+	GetSystemTimeAsFileTime(&ft);
+	li.LowPart = ft.dwLowDateTime;
+	li.HighPart = ft.dwHighDateTime;
+
+	lret = li.QuadPart;
+
+	lret -= EPOCH_SUBSTRACT;
+	lret /= 10000;
+
+	return lret;
+}
