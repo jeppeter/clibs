@@ -397,7 +397,7 @@
     "tstclisockwr<tstclisockwr_handler>## ip port file to write in timeout for file ##" : {
         "$" : 3
     },
-    "tstsvrsockrd<tstsvrsockrd_handler>## port [numread] to read timeout default [1024]##" : {
+    "tstsvrsockrd<tstsvrsockrd_handler>## port [numread] [ipbind] to read timeout default [1024] default [0.0.0.0]##" : {
         "$" : "+"
     },
     "tstsvrsockwr<tstsvrsockwr_handler>## port file to write in timeout for file ##" : {

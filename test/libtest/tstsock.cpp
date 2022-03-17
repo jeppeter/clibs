@@ -398,6 +398,9 @@ int tstsvrsockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 		port = atoi(parsestate->leftargs[0]);
 		if (parsestate->leftargs[1]) {
 			numread = atoi(parsestate->leftargs[1]);
+			if (parsestate->leftargs[2]) {
+				ip = parsestate->leftargs[2];
+			}
 		}
 	}
 
