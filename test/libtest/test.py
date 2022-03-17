@@ -243,6 +243,103 @@ def clird_handler(args,parser):
     sys.exit(0)
     return
 
+def svrrdwr_handler(args,parser):
+    set_logging(args)
+    port = int(args.subnargs[0])
+    fname = args.subnargs[1]
+    numread = 1024
+    partwrite = 1024
+    if len(args.subnargs) > 2:
+        numread = int(args.subnargs[2])
+    if len(args.subnargs) > 3:
+        partwrite = int(args.subnargs[3])
+    sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    sock.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR, 1 )
+    sock.bind(('0.0.0.0',port))
+    logging.info('listen on [%s]'%(port))
+    sock.listen(5)
+    sock.setblocking(0)
+    totalwr = 0
+    wbytes = read_file_bytes(fname)
+    clisock = None
+    while True:
+        try:
+            rds = []
+            rds.append(sock)
+            logging.info('before select')
+            retrds , _, _ =  select.select(rds,[],[])
+            logging.info('after select')
+            if len(retrds) > 0:
+                clisock, cliaddr = sock.accept()
+                logging.info('come %s'%(repr(cliaddr)))
+                wlen = 0
+                while wlen < len(wbytes):
+                    curlen = partwrite
+                    if curlen > (len(wbytes) - wlen):
+                        curlen = len(wbytes) - wlen
+                    nret = clisock.sendto(wbytes[totalwr:(totalwr+curlen)])
+                    totalwr += nret
+                    logging.info('write [%d] [%d]'%(nret,totalwr))
+                    curlen = numread
+                    rbytes = clisock.recv(curlen)
+                    logging.info('read [%d] '%(len(rbytes)))
+                    time.sleep(args.interval)
+                clisock.close()
+                clisock = None
+        except KeyboardInterrupt:
+            logging.warn('interrupted')
+            break
+        except:
+            if clisock is not None:
+                clisock.close()
+            clisock = None
+            logging.warn('%s'%(traceback.format_exc()))
+        
+    sys.exit(0)
+    return
+
+def clirdwr_handler(args,parser):
+    set_logging(args)
+    port = int(args.subnargs[1])
+    host = args.subnargs[0]
+    fname = args.subnargs[2]
+    numread = 1024
+    partwrite = 1024
+    if len(args.subnargs) > 3:
+        numread = int(args.subnargs[3])
+    if len(args.subnargs) > 4:
+        partwrite = int(args.subnargs[4])
+    wbytes = read_file_bytes(fname)
+    sock = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    logging.info('connect [%s:%d]'%(host,port))
+
+    sock.connect((host,port))
+    sock.setblocking(0)
+    wlen = 0
+    rlen = 0
+    while wlen < len(wbytes):
+        curlen = partwrite
+        if curlen > (len(wbytes) - wlen):
+            curlen = len(wbytes) - wlen
+        nret = sock.send(wbytes[wlen:(wlen+curlen)])
+        wlen += nret
+        logging.info('send [%d] [%d]'%(curlen,wlen))
+        curlen = numread
+        rds = [sock]
+        retrds , _, _ = select.select(rds,[],[],args.interval)
+        if len(retrds) > 0:
+            rdata = sock.recv(curlen)
+            rlen += len(rdata)
+            logging.info('read [%d] [%d]'%(len(rdata), rlen))
+        else:
+            logging.info('no data in [%d]'%(wlen))
+        time.sleep(args.interval)
+    sock.close()
+    sock = None        
+    sys.exit(0)
+    return
+
+
 def main():
     commandline='''
     {
@@ -262,6 +359,12 @@ def main():
         },
         "clird<clird_handler>## ip port ##" : {
             "$" : 2
+        },
+        "svrrdwr<svrrdwr_handler>## port file [numread] [partwrite]##" : {
+            "$" : "+"
+        },
+        "clirdwr<clirdwr_handler>## ipaddr port file [numread] [partwrite]##" : {
+            "$" : "+"
         }
     }
     '''

@@ -247,6 +247,8 @@ int tstclisockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int tstsvrsockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tstsvrsockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getmsepoch_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int tstsvrsockrdwr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int tstclisockrdwr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1

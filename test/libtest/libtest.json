@@ -405,5 +405,11 @@
     },
     "getmsepoch<getmsepoch_handler>## to get ms from epoch ##" : {
         "$" : 0
+    },
+    "tstsvrsockrdwr<tstsvrsockrdwr_handler>## lport file [numread] [ipaddr] [partwrite] to make server listen on lport and write file with numread ##" : {
+        "$" : "+"
+    },
+    "tstclisockrdwr<tstclisockrdwr_handler>## ipaddr port file [numread] [partwrite] to make client connect read and write ##" : {
+        "$" : "+"
     }
 }
