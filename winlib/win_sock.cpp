@@ -169,7 +169,9 @@ void __free_socket(psock_data_priv_t* pptcp)
 			bret = CancelIoEx((HANDLE)psock1->m_sock, &(psock1->m_wrov));
 			if (!bret) {
 				GETERRNO(ret);
-				ERROR_INFO("can not cancel socket [%d] write ov error[%d]", psock1->m_sock, ret);
+				if (ret != -ERROR_NOT_FOUND) {
+					ERROR_INFO("can not cancel socket [%d] write ov error[%d]", psock1->m_sock, ret);	
+				}				
 			}
 		}
 		psock1->m_inwr = 0;
