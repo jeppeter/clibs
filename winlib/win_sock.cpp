@@ -639,6 +639,7 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 	DWORD dret;
 	GUID GuidAcceptEx = WSAID_ACCEPTEX;
 	u_long block;
+	int opt;
 
 	psock = __alloc_sock_priv(SOCKET_SERVER_TYPE, ipaddr, port);
 	if (psock == NULL) {
@@ -652,6 +653,15 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 		ERROR_INFO("make socket for server [%s:%d] error[%d]", ipaddr, port, ret);
 		goto fail;
 	}
+
+	opt = 1;
+	ret = setsockopt(psock->m_sock, SOL_SOCKET, SO_REUSEADDR,(char*)&opt,sizeof(opt));
+	if (ret == SOCKET_ERROR) {
+		WSA_GETERRNO(ret);
+		ERROR_INFO("SO_REUSEADDR on [%s:%d] error[%d]", psock->m_selfaddr,psock->m_selfport, ret);
+		goto fail;
+	}
+
 
 	block = 1;
 	ret = ioctlsocket(psock->m_sock, FIONBIO, &block);
