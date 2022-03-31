@@ -263,6 +263,9 @@ psock_data_priv_t __alloc_sock_priv(int typeval, char* ipaddr, int port)
 			goto fail;
 		}
 		psock->m_selfport = port;
+	} else {
+		ret = -ERROR_INVALID_PARAMETER;
+		goto fail;
 	}
 
 	return psock;
