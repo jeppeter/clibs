@@ -46,6 +46,7 @@ int writeoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int readlines_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int exists_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int md5_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int tstsockconn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
 do{                                                                               \
@@ -101,6 +102,7 @@ int init_log_verbose(pargs_options_t pargs)
 #include "tstdev.cpp"
 #include "tststr.cpp"
 #include "tstfile.cpp"
+#include "tstsock.cpp"
 
 int main(int argc, char* argv[])
 {
