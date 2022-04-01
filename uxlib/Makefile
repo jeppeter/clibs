@@ -11,7 +11,7 @@ include ../baseop.mak
 
 TARGET:=libuxlib
 
-LIBUX_SRCS=ux_output_debug.cpp ux_strop.cpp ux_args.cpp ux_time_op.cpp ux_fileop.cpp ux_proc.cpp ux_regex.cpp
+LIBUX_SRCS=ux_output_debug.cpp ux_strop.cpp ux_args.cpp ux_time_op.cpp ux_fileop.cpp ux_proc.cpp ux_regex.cpp ux_sock.cpp
 LIBUX_OFILES=$(patsubst %.cpp,%.o,${LIBUX_SRCS})
 
 ifeq (${STATICLIB},)
