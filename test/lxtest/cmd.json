@@ -68,5 +68,8 @@
     },
     "tstsockacc<tstsockacc_handler>##port [bindip] [backlog] to wait on accept default bindip 0.0.0.0 default backlog 5##" : {
         "$" : "+"
+    },
+    "tstclisockrd<tstclisockrd_handler>##host ip [length] to read socket in client mode default length 1000##" : {
+        "$" : "+"
     }
 }

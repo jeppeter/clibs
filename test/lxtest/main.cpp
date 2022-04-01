@@ -50,6 +50,7 @@ int exists_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int md5_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tstsockconn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tstsockacc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int tstclisockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
 do{                                                                               \
