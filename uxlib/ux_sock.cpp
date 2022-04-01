@@ -1,4 +1,13 @@
 #include <ux_sock.h>
+#include <ux_output_debug.h>
+
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <string.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <fcntl.h>
 
 
 #define  SOCKET_DATA_MAGIC   0x410129de
@@ -41,7 +50,7 @@ void fini_socket(void)
 	return;
 }
 
-void free_socket(void** pptcp)
+void __free_socket(psock_data_priv_t* pptcp)
 {
 	psock_data_priv_t psock = NULL;
 	if (pptcp && *pptcp) {
@@ -81,14 +90,20 @@ void free_socket(void** pptcp)
 
 		free(psock);
 		*pptcp = NULL;
-	}
+	}	
+}
+
+void free_socket(void** pptcp)
+{
+	__free_socket((psock_data_priv_t*)pptcp);
+	return;
 }
 
 psock_data_priv_t __alloc_sock_priv(int typeval, char* ipaddr, int port)
 {
 	psock_data_priv_t psock = NULL;
 	int ret;
-	psock = malloc(sizeof(*psock));
+	psock = (psock_data_priv_t)malloc(sizeof(*psock));
 	if (psock == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -123,7 +138,7 @@ psock_data_priv_t __alloc_sock_priv(int typeval, char* ipaddr, int port)
 
 	return psock;
 fail:
-	free_socket(&psock);
+	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
 }
@@ -132,9 +147,9 @@ int __get_sock_name(psock_data_priv_t psock)
 {
 	int ret;
 	struct sockaddr saddr;
-	struct sockaddr_in* paddr;
+	struct sockaddr_in* paddr=NULL;
 	socklen_t slen;
-	char* pret = NULL;
+	const char* pret = NULL;
 	slen = sizeof(saddr);
 	ret = getsockname(psock->m_sock, &saddr, &slen);
 	if (ret < 0) {
@@ -143,22 +158,23 @@ int __get_sock_name(psock_data_priv_t psock)
 		goto fail;
 	}
 
-	paddr = (struct sockaddr_in*) &saddr;
-	if (paddr->sin_family != AF_INET) {
+	paddr = (struct sockaddr_in*)&saddr;
+	if (saddr.sa_family != AF_INET) {
 		ret = -EINVAL;
 		ERROR_INFO("getsockname [%s:%d] sin_family[%d] != AF_INET[%d]", psock->m_peeraddr, psock->m_peerport,
-		           paddr->sin_family, AF_INET);
+		           saddr.sa_family, AF_INET);
 		goto fail;
 	}
 
 	if (psock->m_selfaddr == NULL) {
-		psock->m_selfaddr = malloc(IPADDR_LENGTH);
+		psock->m_selfaddr = (char*)malloc(IPADDR_LENGTH);
 		if (psock->m_selfaddr == NULL) {
 			GETERRNO(ret);
 			goto fail;
 		}
 	}
-	pret = inet_ntop(AF_INET, &(paddr->sin_addr), psock->m_selfaddr);
+	memset(psock->m_selfaddr, 0,IPADDR_LENGTH);
+	pret = inet_ntop(AF_INET, &(paddr->sin_addr), psock->m_selfaddr, IPADDR_LENGTH-1);
 	if (pret == NULL) {
 		GETERRNO(ret);
 		ERROR_INFO("inet_ntop [%s:%d] error[%d]", psock->m_peeraddr, psock->m_peerport, ret);
@@ -179,7 +195,7 @@ int __get_peer_name(psock_data_priv_t psock)
 	struct sockaddr saddr;
 	struct sockaddr_in* paddr;
 	socklen_t slen;
-	char* pret = NULL;
+	const char* pret = NULL;
 	slen = sizeof(saddr);
 	ret = getpeername(psock->m_sock, &saddr, &slen);
 	if (ret < 0) {
@@ -197,13 +213,14 @@ int __get_peer_name(psock_data_priv_t psock)
 	}
 
 	if (psock->m_peeraddr == NULL) {
-		psock->m_peeraddr = malloc(IPADDR_LENGTH);
+		psock->m_peeraddr = (char*)malloc(IPADDR_LENGTH);
 		if (psock->m_peeraddr == NULL) {
 			GETERRNO(ret);
 			goto fail;
 		}
 	}
-	pret = inet_ntop(AF_INET, &(paddr->sin_addr), psock->m_peeraddr);
+	memset(psock->m_peeraddr, 0 , IPADDR_LENGTH);
+	pret = inet_ntop(AF_INET, &(paddr->sin_addr), psock->m_peeraddr, IPADDR_LENGTH - 1);
 	if (pret == NULL) {
 		GETERRNO(ret);
 		ERROR_INFO("inet_ntop [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
@@ -364,7 +381,7 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 	psock->m_inconn = inconn;
 	return psock;
 fail:
-	free_socket(&psock);
+	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
 }
@@ -386,8 +403,6 @@ int complete_tcp_connect(void* ptcp)
 	int completed = 0;
 	int error;
 	socklen_t errlen;
-	struct sockaddr sockaddr;
-	struct sockaddr_in* paddr;
 
 	if (psock == NULL || psock->m_inconn == 0) {
 		ret = -EINVAL;
@@ -426,8 +441,10 @@ fail:
 int __accept_inner(psock_data_priv_t psock)
 {
 	int ret;
+	socklen_t slen;
 	ASSERT_IF(psock->m_accsock < 0);
-	ret = accept(psock->m_sock, &(psock->m_accaddr), sizeof(psock->m_accaddr));
+	slen = sizeof(psock->m_accaddr);
+	ret = accept(psock->m_sock, &(psock->m_accaddr), &slen);
 	if (ret < 0) {
 		GETERRNO(ret);
 		if (ret != -EAGAIN && ret != -EWOULDBLOCK) {
@@ -532,7 +549,7 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 
 	return psock;
 fail:
-	free_socket(&psock);
+	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
 }
@@ -542,8 +559,6 @@ void* accept_tcp_socket(void* ptcp)
 	psock_data_priv_t psock = (psock_data_priv_t) ptcp;
 	psock_data_priv_t pretsock = NULL;
 	int ret;
-	struct sockaddr_in* paddr;
-	char* pret = NULL;
 
 	if (psock == NULL || psock->m_type != SOCKET_SERVER_TYPE) {
 		ret = -EINVAL;
@@ -551,14 +566,16 @@ void* accept_tcp_socket(void* ptcp)
 	}
 
 	if (psock->m_inacc > 0) {
-		ret = accept(psock->m_sock, &(psock->m_accaddr), sizeof(psock->m_accaddr));
+		ret = __accept_inner(psock);
 		if (ret < 0) {
 			GETERRNO(ret);
-			ERROR_INFO("accept [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
 			goto fail;
 		}
-		psock->m_accsock = ret;
-		psock->m_inacc = 0;
+		if (psock->m_accsock < 0) {
+			ret = -EAGAIN;
+			ERROR_INFO("no accsock for [%s:%d]", psock->m_selfaddr,psock->m_selfport);
+			goto fail;
+		}
 	}
 
 	ASSERT_IF(psock->m_accsock >= 0);
@@ -584,7 +601,7 @@ void* accept_tcp_socket(void* ptcp)
 	}
 	return pretsock;
 fail:
-	free_socket(&pretsock);
+	__free_socket(&pretsock);
 	SETERRNO(ret);
 	return NULL;
 }
@@ -707,6 +724,7 @@ int complete_tcp_read(void* ptcp)
 {
 	psock_data_priv_t psock = (psock_data_priv_t) ptcp;
 	int completed = 1;
+	int ret;
 
 	if (psock && psock->m_inrd > 0) {
 		ret = __inner_read(psock);
