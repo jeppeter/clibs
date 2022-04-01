@@ -7,11 +7,13 @@
 #include <ux_fileop.h>
 #include <ux_regex.h>
 #include <ux_strop.h>
+#include <ux_sock.h>
 
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
 #include <sys/eventfd.h>
+#include <sys/epoll.h>
 #include <ctype.h>
 
 #include <crypt_md5.h>

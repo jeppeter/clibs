@@ -12,8 +12,10 @@ int tstsockconn_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 	int connected = 0;
 	int evfd = -1;
 	int connectfd = -1;
+	struct epoll_event evt;
+	struct epoll_event getevt;
 
-	init_log_level(pargs);
+	init_log_verbose(pargs);
 
 	ret = init_socket();
 	if (ret < 0) {
@@ -27,7 +29,7 @@ int tstsockconn_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 		if (parsestate->leftargs[1]) {
 			port = atoi(parsestate->leftargs[1]);
 			if (parsestate->leftargs[2]) {
-				if (strcmp(parsestate->leftargs[2],"NULL") != NULL) {
+				if (strcmp(parsestate->leftargs[2],"NULL") != 0) {
 					bindip = parsestate->leftargs[2];
 				}
 				if (parsestate->leftargs[3]) {
@@ -63,13 +65,46 @@ int tstsockconn_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 
 	connectfd = get_tcp_connect_handle(psock);
 	if (connectfd >= 0) {
-		
+		memset(&evt,0,sizeof(evt));
+		evt.events = (EPOLLIN | EPOLLOUT | EPOLLET);
+		evt.data.fd = connectfd;
+		ret = epoll_ctl(evfd,EPOLL_CTL_ADD,connectfd,&evt);
+		if (ret < 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not add connectfd [%d] error[%d]\n", connectfd, ret);
+			goto out;
+		}
+		ret = epoll_wait(evfd,&getevt,1,pargs->m_timeout);
+		if (ret < 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "epoll_wait error[%d]\n", ret);
+			goto out;
+		} else if (ret == 0) {
+			ret = -ETIMEDOUT;
+			fprintf(stderr, "epoll_wait timeout\n");
+			goto out;
+		}
+
+		if (getevt.data.fd != connectfd) {
+			ret = -EINVAL;
+			fprintf(stderr, "getevt.data.fd [%d] != connectfd [%d]\n", getevt.data.fd, connectfd);
+			goto out;
+		}
+		ret = complete_tcp_connect(psock);
+		if (ret < 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "complete [%s:%d] error[%d]\n",ipaddr,port,ret);
+			goto out;
+		} else if (ret == 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not complete [%s:%d]\n", ipaddr,port);
+			goto out;
+		}
 	}
 
-
-
-
-
+	fprintf(stdout, "connect [%s:%d] bind[%s:%d] connected[%d] succ\n", ipaddr,port,
+			bindip ? bindip: "NULL", bindport, connected);
+	ret = 0;
 out:
 	if (evfd >= 0) {
 		close(evfd);

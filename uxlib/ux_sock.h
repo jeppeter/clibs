@@ -10,10 +10,10 @@ extern "C" {
 int init_socket(void);
 void fini_socket(void);
 void free_socket(void** pptcp);
-void* connect_tcp_socket(char* ipaddr,int port,char* bindip,int bindport,int connected);
+void* connect_tcp_socket(const char* ipaddr,int port,const char* bindip,int bindport,int connected);
 int complete_tcp_connect(void* ptcp);
 int complete_tcp_accept(void* ptcp);
-void* bind_tcp_socket(char* ipaddr,int port,int backlog);
+void* bind_tcp_socket(const char* ipaddr,int port,int backlog);
 void* accept_tcp_socket(void* ptcp);
 int read_tcp_socket(void* ptcp, uint8_t* pbuf,int bufsize);
 int write_tcp_socket(void* ptcp, uint8_t* pbuf,int bufsize);

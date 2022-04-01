@@ -90,7 +90,7 @@ void __free_socket(psock_data_priv_t* pptcp)
 
 		free(psock);
 		*pptcp = NULL;
-	}	
+	}
 }
 
 void free_socket(void** pptcp)
@@ -147,7 +147,7 @@ int __get_sock_name(psock_data_priv_t psock)
 {
 	int ret;
 	struct sockaddr saddr;
-	struct sockaddr_in* paddr=NULL;
+	struct sockaddr_in* paddr = NULL;
 	socklen_t slen;
 	const char* pret = NULL;
 	slen = sizeof(saddr);
@@ -173,8 +173,8 @@ int __get_sock_name(psock_data_priv_t psock)
 			goto fail;
 		}
 	}
-	memset(psock->m_selfaddr, 0,IPADDR_LENGTH);
-	pret = inet_ntop(AF_INET, &(paddr->sin_addr), psock->m_selfaddr, IPADDR_LENGTH-1);
+	memset(psock->m_selfaddr, 0, IPADDR_LENGTH);
+	pret = inet_ntop(AF_INET, &(paddr->sin_addr), psock->m_selfaddr, IPADDR_LENGTH - 1);
 	if (pret == NULL) {
 		GETERRNO(ret);
 		ERROR_INFO("inet_ntop [%s:%d] error[%d]", psock->m_peeraddr, psock->m_peerport, ret);
@@ -234,7 +234,7 @@ fail:
 	return ret;
 }
 
-void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int connected)
+void* connect_tcp_socket(const char* ipaddr, int port, const char* bindip, int bindport, int connected)
 {
 	psock_data_priv_t psock = NULL;
 	int ret;
@@ -251,7 +251,7 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 		goto fail;
 	}
 
-	psock = __alloc_sock_priv(SOCKET_CLIENT_TYPE, ipaddr, port);
+	psock = __alloc_sock_priv(SOCKET_CLIENT_TYPE, (char*)ipaddr, port);
 	if (psock == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -314,8 +314,10 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 	ret = setsockopt(psock->m_sock, SOL_SOCKET, SO_ERROR, &error, sizeof(error));
 	if (ret < 0) {
 		GETERRNO(ret);
-		ERROR_INFO("setsockopt [%s:%d] SO_ERROR error[%d]", psock->m_peeraddr, psock->m_peerport, ret);
-		goto fail;
+		if (ret != -ENOPROTOOPT) {
+			ERROR_INFO("setsockopt [%s:%d] SO_ERROR error[%d]", psock->m_peeraddr, psock->m_peerport, ret);
+			goto fail;
+		}
 	}
 
 	memset(&saddr, 0, sizeof(saddr));
@@ -463,7 +465,7 @@ fail:
 	return ret;
 }
 
-void* bind_tcp_socket(char* ipaddr, int port, int backlog)
+void* bind_tcp_socket(const char* ipaddr, int port, int backlog)
 {
 	psock_data_priv_t psock = NULL;
 	int ret;
@@ -478,7 +480,7 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 	}
 
 
-	psock = __alloc_sock_priv(SOCKET_SERVER_TYPE, ipaddr, port);
+	psock = __alloc_sock_priv(SOCKET_SERVER_TYPE, (char*)ipaddr, port);
 	if (psock == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -573,7 +575,7 @@ void* accept_tcp_socket(void* ptcp)
 		}
 		if (psock->m_accsock < 0) {
 			ret = -EAGAIN;
-			ERROR_INFO("no accsock for [%s:%d]", psock->m_selfaddr,psock->m_selfport);
+			ERROR_INFO("no accsock for [%s:%d]", psock->m_selfaddr, psock->m_selfport);
 			goto fail;
 		}
 	}

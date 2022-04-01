@@ -63,7 +63,7 @@
     "md5<md5_handler>" : {
         "$" : "+"
     },
-    "tstsockconn<tstsockconn_handler>## host ip [bindip] [bindport] [connected]##" : {
+    "tstsockconn<tstsockconn_handler>##host ip [bindip] [bindport] [connected] default bindip NULL bindport 0 connected 0##" : {
         "$" : "+"
     }
 }
