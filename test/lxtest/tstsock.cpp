@@ -634,7 +634,7 @@ int tstclisockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 	int bufsize = 0, buflen = 0;
 	int perlength = 1024;
 	int wrlen = 0;
-	int curlen,wrinserted=0;
+	int curlen, wrinserted = 0;
 	int wrfd = -1;
 
 	init_log_verbose(pargs);
@@ -674,7 +674,7 @@ int tstclisockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 		goto out;
 	}
 
-	ret = read_file_whole(fname,&pbuf,&bufsize);
+	ret = read_file_whole(fname, &pbuf, &bufsize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		fprintf(stderr, "read [%s] error[%d]\n", fname, ret);
@@ -802,8 +802,8 @@ int tstclisockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 
 			if (getevt.data.fd != wrfd || getevt.events != EPOLLOUT) {
 				ret = -EINVAL;
-				fprintf(stderr, "getevt.data.fd [%d] != wrfd [%d] or getevt.events [%d] != EPOLLOUT [%d]\n", 
-					getevt.data.fd,wrfd, getevt.events, EPOLLOUT);
+				fprintf(stderr, "getevt.data.fd [%d] != wrfd [%d] or getevt.events [%d] != EPOLLOUT [%d]\n",
+				        getevt.data.fd, wrfd, getevt.events, EPOLLOUT);
 				goto out;
 			}
 
@@ -827,8 +827,194 @@ out:
 	}
 	evfd = -1;
 	free_socket(&psock);
-	read_file_whole(NULL,&pbuf,&bufsize);
+	read_file_whole(NULL, &pbuf, &bufsize);
 	buflen = 0;
+	fini_socket();
+	SETERRNO(ret);
+	return ret;
+}
+
+int tstsvrsockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int ret;
+	void* psock = NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	const char* bindip = "0.0.0.0";
+	int bindport = 0;
+	int backlog = 5;
+	int evfd = -1;
+	int bindfd = -1;
+	struct epoll_event evt;
+	struct epoll_event getevt;
+	void* paccsock = NULL;
+	uint8_t* pbuf = NULL;
+	int length = 1024;
+	int readfd = -1;
+	int insertread = 0;
+	int cnt = 0;
+
+	init_log_verbose(pargs);
+
+	DEBUG_INFO(" ");
+
+	ret = init_socket();
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not init_socket [%d]\n", ret);
+		goto out;
+	}
+
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		bindport = atoi(parsestate->leftargs[0]);
+		if (parsestate->leftargs[1]) {
+			length = atoi(parsestate->leftargs[1]);
+			if (parsestate->leftargs[2]) {
+				bindip = parsestate->leftargs[2];
+				if (parsestate->leftargs[3]) {
+					backlog = atoi(parsestate->leftargs[3]);
+				}
+			}
+		}
+	}
+
+
+	psock = bind_tcp_socket(bindip, bindport, backlog);
+	if (psock == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "bind [%s:%d] error[%d]\n", bindip, bindport, ret);
+		goto out;
+	}
+
+	evfd = epoll_create(1);
+	if (evfd < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "epoll_create [%d]\n", ret);
+		goto out;
+	}
+
+	bindfd = get_tcp_accept_handle(psock);
+	if (bindfd >= 0) {
+		memset(&evt, 0, sizeof(evt));
+		evt.events = (EPOLLIN | EPOLLET);
+		evt.data.fd = bindfd;
+		ret = epoll_ctl(evfd, EPOLL_CTL_ADD, bindfd, &evt);
+		if (ret < 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not add bindfd [%d] error[%d]\n", bindfd, ret);
+			goto out;
+		}
+		while (1) {
+			ret = epoll_wait(evfd, &getevt, 1, pargs->m_timeout);
+			if (ret < 0) {
+				GETERRNO(ret);
+				fprintf(stderr, "epoll_wait error[%d]\n", ret);
+				goto out;
+			} else if (ret > 0) {
+				break;
+			}
+			DEBUG_INFO("wait on [%d]", cnt);
+			cnt ++;
+		}
+
+		if (getevt.data.fd != bindfd || getevt.events != EPOLLIN) {
+			ret = -EINVAL;
+			fprintf(stderr, "getevt.data.fd [%d] != bindfd [%d] or getevt.events [%d] != EPOLLIN [%d]\n", getevt.data.fd, bindfd,
+			        getevt.events, EPOLLIN);
+			goto out;
+		}
+		DEBUG_INFO("getevt.events [%d]", getevt.events);
+		ret = epoll_ctl(evfd, EPOLL_CTL_DEL, bindfd, &evt);
+		if (ret < 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "delete accept event error[%d]\n", ret);
+			goto out;
+		}
+	}
+
+	paccsock = accept_tcp_socket(psock);
+	if (paccsock == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not accept [%s:%d] error[%d]\n", bindip, bindport, ret);
+		goto out;
+	}
+	pbuf = (uint8_t*) malloc(length);
+	if (pbuf == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = read_tcp_socket(paccsock,pbuf,length);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "read [%s:%d] error[%d]\n", bindip, bindport, ret);
+		goto out;
+	} 
+
+	if (ret == 0) {
+		readfd = get_tcp_read_handle(paccsock);
+		if (readfd < 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not get readfd [%d]\n", ret);
+			goto out;
+		}
+		while(1) {
+			if (insertread == 0) {
+				memset(&evt,0,sizeof(evt));
+				evt.events = (EPOLLIN | EPOLLET);
+				evt.data.fd = readfd;
+				ret = epoll_ctl(evfd,EPOLL_CTL_ADD,readfd,&evt);
+				if (ret < 0) {
+					GETERRNO(ret);
+					fprintf(stderr, "add readfd [%d]\n", ret);
+					goto out;
+				}
+				insertread = 1;
+			}
+
+			ret = epoll_wait(evfd,&getevt,1,pargs->m_timeout);
+			if (ret < 0) {
+				GETERRNO(ret);
+				fprintf(stderr, "epoll_wait error[%d]\n", ret);
+				goto out;
+			} else if (ret == 0) {
+				ret = -ETIMEDOUT;
+				fprintf(stderr, "epoll_wait timeout\n");
+				goto out;
+			}
+
+			if (getevt.events != EPOLLIN || getevt.data.fd != readfd) {
+				ret = -EINVAL;
+				fprintf(stderr, "events [%d] != EPOLLIN[%d] or data.fd [%d] != readfd [%d]\n",
+					getevt.events, EPOLLIN, getevt.data.fd , readfd);
+				goto out;
+			}
+
+			ret = complete_tcp_read(paccsock);
+			if (ret < 0) {
+				GETERRNO(ret);
+				fprintf(stderr, "complete read error[%d]\n", ret);
+				goto out;
+			} else if (ret > 0) {
+				break;
+			}
+		}
+	}
+
+	DEBUG_BUFFER_FMT(pbuf, length, "read [%s:%d] succ",bindip,bindport);
+
+
+	ret = 0;
+out:
+	if (evfd >= 0) {
+		close(evfd);
+	}
+	evfd = -1;
+	free_socket(&paccsock);
+	free_socket(&psock);
+	if (pbuf) {
+		free(pbuf);
+	}
+	pbuf = NULL;
 	fini_socket();
 	SETERRNO(ret);
 	return ret;

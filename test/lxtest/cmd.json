@@ -77,5 +77,8 @@
     },
     "tstclisockwr<tstclisockwr_handler>##host port file [perlength] [bindip] [bindport] [connected] to write in client mode default perlength 1024 default bindip NULL default bindport 0 default connected 0 ##" : {
         "$" : "+"
+    },
+    "tstsvrsockrd<tstsvrsockrd_handler>##port [length] [host] [backlog] to read socket in server mode default length 1024 default host 0.0.0.0 backlog 5##" : {
+        "$" : "+"
     }
 }
