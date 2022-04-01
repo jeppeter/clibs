@@ -65,5 +65,8 @@
     },
     "tstsockconn<tstsockconn_handler>##host ip [bindip] [bindport] [connected] default bindip NULL bindport 0 connected 0##" : {
         "$" : "+"
+    },
+    "tstsockacc<tstsockacc_handler>##port [bindip] [backlog] to wait on accept default bindip 0.0.0.0 default backlog 5##" : {
+        "$" : "+"
     }
 }

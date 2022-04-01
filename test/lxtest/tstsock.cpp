@@ -115,3 +115,103 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int tstsockacc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int ret;
+	void* psock = NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	const char* bindip = "0.0.0.0";
+	int bindport = 0;
+	int backlog = 5;
+	int evfd = -1;
+	int bindfd = -1;
+	struct epoll_event evt;
+	struct epoll_event getevt;
+	void* paccsock= NULL;
+
+	init_log_verbose(pargs);
+
+	ret = init_socket();
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not init_socket [%d]\n", ret);
+		goto out;
+	}
+
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		bindport = atoi(parsestate->leftargs[0]);
+		if (parsestate->leftargs[1]) {
+			bindip = parsestate->leftargs[1];
+			if (parsestate->leftargs[2]) {
+				backlog = atoi(parsestate->leftargs[2]);
+			}
+		}
+	}
+
+
+	psock = bind_tcp_socket(bindip,bindport,backlog);
+	if (psock == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "bind [%s:%d] error[%d]\n", bindip,bindport, ret);
+		goto out;
+	}
+
+
+
+	evfd = epoll_create(1);
+	if (evfd < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "epoll_create [%d]\n", ret);
+		goto out;
+	}
+
+	bindfd = get_tcp_accept_handle(psock);
+	if (bindfd >= 0) {
+		memset(&evt,0,sizeof(evt));
+		evt.events = (EPOLLIN | EPOLLOUT | EPOLLET);
+		evt.data.fd = bindfd;
+		ret = epoll_ctl(evfd,EPOLL_CTL_ADD,bindfd,&evt);
+		if (ret < 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not add bindfd [%d] error[%d]\n", bindfd, ret);
+			goto out;
+		}
+		ret = epoll_wait(evfd,&getevt,1,pargs->m_timeout);
+		if (ret < 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "epoll_wait error[%d]\n", ret);
+			goto out;
+		} else if (ret == 0) {
+			ret = -ETIMEDOUT;
+			fprintf(stderr, "epoll_wait timeout\n");
+			goto out;
+		}
+
+		if (getevt.data.fd != bindfd) {
+			ret = -EINVAL;
+			fprintf(stderr, "getevt.data.fd [%d] != bindfd [%d]\n", getevt.data.fd, bindfd);
+			goto out;
+		}
+	}
+
+	paccsock = accept_tcp_socket(psock);
+	if (paccsock == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not accept [%s:%d] error[%d]\n", bindip,bindport, ret);
+		goto out;
+	}
+
+	fprintf(stdout, "bind [%s:%d] accept succ\n",bindip , bindport);
+	ret = 0;
+out:
+	if (evfd >= 0) {
+		close(evfd);
+	}
+	evfd = -1;
+	free_socket(&paccsock);
+	free_socket(&psock);
+	fini_socket();
+	SETERRNO(ret);
+	return ret;
+}
