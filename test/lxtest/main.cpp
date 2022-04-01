@@ -52,6 +52,7 @@ int tstsockconn_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int tstsockacc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tstclisockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tstsvrsockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int tstclisockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
 do{                                                                               \

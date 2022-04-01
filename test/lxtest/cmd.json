@@ -63,7 +63,7 @@
     "md5<md5_handler>" : {
         "$" : "+"
     },
-    "tstsockconn<tstsockconn_handler>##host ip [bindip] [bindport] [connected] default bindip NULL bindport 0 connected 0##" : {
+    "tstsockconn<tstsockconn_handler>##host port [bindip] [bindport] [connected] default bindip NULL bindport 0 connected 0##" : {
         "$" : "+"
     },
     "tstsockacc<tstsockacc_handler>##port [bindip] [backlog] to wait on accept default bindip 0.0.0.0 default backlog 5##" : {
@@ -73,6 +73,9 @@
         "$" : "+"
     },
     "tstsvrsockwr<tstsvrsockwr_handler>##port file  [perlength] [host] [backlog] to write socket in server mode host default 0.0.0.0 perlength default 1024 backlog default 5##" : {
+        "$" : "+"
+    },
+    "tstclisockwr<tstclisockwr_handler>##host port file [perlength] [bindip] [bindport] [connected] to write in client mode default perlength 1024 default bindip NULL default bindport 0 default connected 0 ##" : {
         "$" : "+"
     }
 }
