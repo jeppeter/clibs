@@ -139,12 +139,14 @@ fail:
 }
 
 OutputCfg::OutputCfg()
-{	
+{
+	this->m_cfgs  = new std::vector<OutfileCfg*>();
 }
 
 OutputCfg::~OutputCfg()
 {
 	this->clear_configs();
+	delete this->m_cfgs;
 }
 
 int OutputCfg::insert_config(OutfileCfg& cfg)
@@ -152,7 +154,7 @@ int OutputCfg::insert_config(OutfileCfg& cfg)
 	OutfileCfg* pret = cfg.clone();
 	int ret = -ERROR_INVALID_PARAMETER;
 	if (pret != NULL) {
-		this->m_cfgs.push_back(pret);
+		this->m_cfgs->push_back(pret);
 		ret = 0;
 	}
 	return ret;	
@@ -161,17 +163,17 @@ int OutputCfg::insert_config(OutfileCfg& cfg)
 OutfileCfg* OutputCfg::get_config(int idx)
 {
 	OutfileCfg* pret = NULL;
-	if ((int)this->m_cfgs.size() > idx) {
-		pret = this->m_cfgs.at((uint64_t)idx);
+	if ((int)this->m_cfgs->size() > idx) {
+		pret = this->m_cfgs->at((uint64_t)idx);
 	}
 	return pret;
 }
 
 void OutputCfg::clear_configs()
 {
-	while(this->m_cfgs.size() > 0) {
-		OutfileCfg* pcfg = this->m_cfgs.at(0);
-		this->m_cfgs.erase(this->m_cfgs.begin());
+	while(this->m_cfgs != NULL && this->m_cfgs->size() > 0) {
+		OutfileCfg* pcfg = this->m_cfgs->at(0);
+		this->m_cfgs->erase(this->m_cfgs->begin());
 		delete pcfg;
 		pcfg = NULL;
 	}

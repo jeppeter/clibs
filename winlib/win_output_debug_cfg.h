@@ -3,6 +3,12 @@
 
 #include <win_types.h>
 
+#undef __WINLIB_INNER_INCLUDE__
+#define __WINLIB_INNER_INCLUDE__
+#include <win_inner.h>
+#undef __WINLIB_INNER_INCLUDE__
+
+
 #define  WINLIB_OUTPUT_LOCATION             0x1
 #define  WINLIB_OUTPUT_TIMESTAMP            0x2
 #define  WINLIB_OUTPUT_LEVEL                0x4
@@ -24,7 +30,7 @@
 #include <vector>
 #pragma warning(pop)
 
-class OutfileCfg
+class WINLIB_API OutfileCfg
 {
 public:
 	OutfileCfg();
@@ -45,7 +51,7 @@ private:
 	int m_type;
 };
 
-class OutputCfg
+class WINLIB_API OutputCfg
 {
 public:
 	OutputCfg();
@@ -54,18 +60,19 @@ public:
 	OutfileCfg* get_config(int idx);
 	void clear_configs();
 private:
-	std::vector<OutfileCfg*> m_cfgs;
+	std::vector<OutfileCfg*> *m_cfgs;
 };
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-int InitOutputEx2(OutputCfg* pcfgs);
+
+WINLIB_API int InitOutputEx2(OutputCfg* pcfgs);
+
 #ifdef __cplusplus
 };
 #endif
-
 
 
 #endif /* __WIN_OUTPUT_DEBUG_CFG_H_34271879EF5F24AB1FD4CF1BDFD9DC92__ */
