@@ -227,6 +227,46 @@ fail:
 	return ret;
 }
 
+#define   EXPAND_POS()                                                                             \
+do{                                                                                                \
+            if (retlen >= retsize) {                                                               \
+                retsize <<= 1;                                                                     \
+                if (retsize == 0) {                                                                \
+                    retsize = 4;                                                                   \
+                }                                                                                  \
+                ASSERT_IF(ptmpstart == NULL);                                                      \
+                ASSERT_IF(ptmpend == NULL);                                                        \
+                ptmpstart = (int*) malloc(sizeof(*ptmpstart) * retsize);                           \
+                if (ptmpstart == NULL) {                                                           \
+                    GETERRNO(ret);                                                                 \
+                    goto fail;                                                                     \
+                }                                                                                  \
+                memset(ptmpstart, 0 ,sizeof(*ptmpstart) * retsize);                                \
+                ptmpend = (int*) malloc(sizeof(*ptmpend) * retsize);                               \
+                if (ptmpend == NULL) {                                                             \
+                    GETERRNO(ret);                                                                 \
+                    goto fail;                                                                     \
+                }                                                                                  \
+                memset(ptmpend, 0, sizeof(*ptmpend) * retsize);                                    \
+                if (retlen > 0) {                                                                  \
+                    memcpy(ptmpstart, pretstartpos, sizeof(*ptmpstart) * retlen);                  \
+                    memcpy(ptmpend, pretendpos, sizeof(*ptmpend) * retlen);                        \
+                }                                                                                  \
+                if (pretstartpos != NULL && pretstartpos != *ppstartpos) {                         \
+                    free(pretstartpos);                                                            \
+                }                                                                                  \
+                pretstartpos = NULL;                                                               \
+                if (pretendpos != NULL && pretendpos != *ppendpos) {                               \
+                    free(pretendpos);                                                              \
+                }                                                                                  \
+                pretendpos = NULL;                                                                 \
+                pretstartpos = ptmpstart;                                                          \
+                pretendpos = ptmpend;                                                              \
+                ptmpstart = NULL;                                                                  \
+                ptmpend = NULL;                                                                    \
+            }                                                                                      \
+} while(0)
+
 int regex_split(void* preg1, const char* instr, int** ppstartpos, int **ppendpos, int *psize)
 {
     int *pretstartpos = NULL;
@@ -288,48 +328,7 @@ int regex_split(void* preg1, const char* instr, int** ppstartpos, int **ppendpos
                 /*nothing to match*/
                 break;
             }
-            if (retlen >= retsize) {
-                retsize <<= 1;
-                if (retsize == 0) {
-                    retsize = 4;
-                }
-                ASSERT_IF(ptmpstart == NULL);
-                ASSERT_IF(ptmpend == NULL);
-                ptmpstart = (int*) malloc(sizeof(*ptmpstart) * retsize);
-                if (ptmpstart == NULL) {
-                    GETERRNO(ret);
-                    goto fail;
-                }
-                memset(ptmpstart, 0 ,sizeof(*ptmpstart) * retsize);
-
-                ptmpend = (int*) malloc(sizeof(*ptmpend) * retsize);
-                if (ptmpend == NULL) {
-                    GETERRNO(ret);
-                    goto fail;
-                }
-                memset(ptmpend, 0, sizeof(*ptmpend) * retsize);
-
-                if (retlen > 0) {
-                    memcpy(ptmpstart, pretstartpos, sizeof(*ptmpstart) * retlen);
-                    memcpy(ptmpend, pretendpos, sizeof(*ptmpend) * retlen);
-                }
-
-                if (pretstartpos != NULL && pretstartpos != *ppstartpos) {
-                    free(pretstartpos);
-                }
-                pretstartpos = NULL;
-
-                if (pretendpos != NULL && pretendpos != *ppendpos) {
-                    free(pretendpos);
-                }
-                pretendpos = NULL;
-
-                pretstartpos = ptmpstart;
-                pretendpos = ptmpend;
-
-                ptmpstart = NULL;
-                ptmpend = NULL;
-            }
+            EXPAND_POS();
 
             pretstartpos[retlen] = startidx;
             pretendpos[retlen] = (startidx + curstart);
@@ -338,49 +337,7 @@ int regex_split(void* preg1, const char* instr, int** ppstartpos, int **ppendpos
             DEBUG_INFO("startidx [%d]", startidx);
         } else {
             /*that the end of the string, so we should give this*/
-            if (retlen >= retsize) {
-                retsize <<= 1;
-                if (retsize == 0) {
-                    retsize = 4;
-                }
-                ASSERT_IF(ptmpstart == NULL);
-                ASSERT_IF(ptmpend == NULL);
-                ptmpstart = (int*) malloc(sizeof(*ptmpstart) * retsize);
-                if (ptmpstart == NULL) {
-                    GETERRNO(ret);
-                    goto fail;
-                }
-                memset(ptmpstart, 0 ,sizeof(*ptmpstart) * retsize);
-
-                ptmpend = (int*) malloc(sizeof(*ptmpend) * retsize);
-                if (ptmpend == NULL) {
-                    GETERRNO(ret);
-                    goto fail;
-                }
-                memset(ptmpend, 0, sizeof(*ptmpend) * retsize);
-
-                if (retlen > 0) {
-                    memcpy(ptmpstart, pretstartpos, sizeof(*ptmpstart) * retlen);
-                    memcpy(ptmpend, pretendpos, sizeof(*ptmpend) * retlen);
-                }
-
-                if (pretstartpos != NULL && pretstartpos != *ppstartpos) {
-                    free(pretstartpos);
-                }
-                pretstartpos = NULL;
-
-                if (pretendpos != NULL && pretendpos != *ppendpos) {
-                    free(pretendpos);
-                }
-                pretendpos = NULL;
-
-                pretstartpos = ptmpstart;
-                pretendpos = ptmpend;
-
-                ptmpstart = NULL;
-                ptmpend = NULL;
-            }
-
+            EXPAND_POS();
             pretstartpos[retlen] = startidx;
             pretendpos[retlen] = endidx;
             retlen ++;
