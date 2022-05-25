@@ -1979,7 +1979,71 @@ fail:
 #define  STDIN_WRITE_WAIT()        \
     WRITE_WAIT(m_stdinpipe,pin, inlen, insize)
 
-
+#if 1
+#define  READ_EXPAND(vpipename,ptrmem, ppmemptr, memlen,memsize,gotolabel)                        \
+    do{                                                                                           \
+        if (pproc->vpipename != NULL) {                                                           \
+            if (pproc->vpipename->m_state == PIPE_WAIT_CONNECT ||                                 \
+                pproc->vpipename->m_state == PIPE_WAIT_READ) {                                    \
+                waithds[waitnum] = pproc->vpipename->m_evt;                                       \
+                waitnum ++;                                                                       \
+                DEBUG_INFO("add %s", #vpipename);                                                 \
+            } else if (pproc->vpipename->m_state == PIPE_READY) {                                 \
+        gotolabel:                                                                                \
+                if (ptrmem == NULL || memsize == memlen) {                                        \
+                    if (memsize < MIN_BUF_SIZE) {                                                 \
+                        memsize = MIN_BUF_SIZE;                                                   \
+                    } else {                                                                      \
+                        memsize <<= 1;                                                            \
+                    }                                                                             \
+                    ASSERT_IF(ptmpbuf == NULL);                                                   \
+                    ptmpbuf = (char*)malloc((size_t)(memsize));                                   \
+                    if (ptmpbuf == NULL) {                                                        \
+                        GETERRNO(ret);                                                            \
+                        ERROR_INFO("alloc %d error[%d]", memsize, ret);                           \
+                        goto fail;                                                                \
+                    }                                                                             \
+                    memset(ptmpbuf, 0, (size_t)(memsize));                                        \
+                    if (memlen > 0) {                                                             \
+                        memcpy(ptmpbuf, ptrmem, (size_t)(memlen));                                \
+                    }                                                                             \
+                    if (ptrmem != NULL && ptrmem != *ppmemptr) {                                  \
+                        free(ptrmem);                                                             \
+                    }                                                                             \
+                    ptrmem = ptmpbuf;                                                             \
+                    ptmpbuf = NULL;                                                               \
+                }                                                                                 \
+                pending = 0;                                                                      \
+                ret = __read_file_sync(pproc->vpipename->m_pipesvr,&(pproc->vpipename->m_ov),     \
+                        &(ptrmem[memlen]), (memsize- memlen), &pending);                          \
+                if (ret < 0) {                                                                    \
+                    GETERRNO(ret);                                                                \
+                    goto fail;                                                                    \
+                }                                                                                 \
+                memlen += ret;                                                                    \
+                if (memlen > memsize) {                                                           \
+                    ERROR_INFO("read [%s] %s len[%d] %s size [%d]",                               \
+                        pproc->vpipename->m_pipename, #vpipename ,memlen,                         \
+                        #vpipename, memsize);                                                     \
+                    memlen = memsize;                                                             \
+                }                                                                                 \
+                if (pending == 0) {                                                               \
+                    goto gotolabel;                                                               \
+                } else if (pending == 2) {                                                        \
+                    __close_handle_note(&(pproc->vpipename->m_pipesvr),"%s",                      \
+                        pproc->vpipename->m_pipename);                                            \
+                    pproc->vpipename->m_state = PIPE_NONE;                                        \
+                    DEBUG_INFO("close %s", #vpipename);                                           \
+                } else {                                                                          \
+                    waithds[waitnum] = pproc->vpipename->m_evt;                                   \
+                    waitnum ++;                                                                   \
+                    pproc->vpipename->m_state = PIPE_WAIT_READ;                                   \
+                    DEBUG_INFO("add %s",#vpipename);                                              \
+                }                                                                                 \
+            }                                                                                     \
+        }                                                                                         \
+    }while(0)
+#else
 #define  READ_EXPAND(vpipename,ptrmem, ppmemptr, memlen,memsize,gotolabel)                        \
     do{                                                                                           \
         if (pproc->vpipename != NULL) {                                                           \
@@ -2047,6 +2111,7 @@ fail:
             }                                                                                     \
         }                                                                                         \
     }while(0)
+#endif
 
 #define   STDOUT_READ_EXPAND(gotolabel)                                                           \
     READ_EXPAND(m_stdoutpipe,pretout, ppout,outlen, outsize,gotolabel)
@@ -2061,7 +2126,6 @@ fail:
             (pproc->vpipename->m_state == PIPE_WAIT_CONNECT ||                                    \
             pproc->vpipename->m_state == waitstate) &&                                            \
             hd == pproc->vpipename->m_evt) {                                                      \
-            int lastlen= (memlen);                                                                \
             DEBUG_INFO("handle %s", #vpipename);                                                  \
             ret= __get_overlapped(pproc->vpipename->m_pipesvr,&(pproc->vpipename->m_ov),          \
                     &(memlen),#vpipename" result");                                               \
