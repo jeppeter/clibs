@@ -202,6 +202,174 @@ out:
     return ret;
 }
 
+int regsplit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    void* preg = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int argcnt = 0;
+    int i, j, retlen;
+    int *pstartpos = NULL, *pendpos = NULL;
+    int possize = 0;
+    int ret;
+    char* pcurstr = NULL;
+    char* pmatchstr = NULL;
+    size_t matchsize = 0;
+    size_t matchlen = 0;
+
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+    if (parsestate->leftargs != NULL) {
+        while (parsestate->leftargs[argcnt] != NULL) {
+            argcnt ++;
+        }
+    }
+
+    if (argcnt < 2) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("arg must restr instr...");
+        goto out;
+    }
+
+    ret = regex_compile(parsestate->leftargs[0], REGEX_NONE, &preg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not compile [%s]", parsestate->leftargs[0]);
+        goto out;
+    }
+
+    for (i = 1; i < argcnt; i++) {
+        pcurstr = parsestate->leftargs[i];
+        ret = regex_split(preg, pcurstr, &pstartpos, &pendpos, &possize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not exec [%s] for [%s] error[%d]", pcurstr, parsestate->leftargs[0], ret);
+            goto out;
+        }
+        retlen = ret;
+        if (retlen > 0) {
+            fprintf(stdout, "[%s] split [%s]\n", parsestate->leftargs[0], pcurstr);
+            for (j = 0; j < retlen; j++) {
+                matchlen = (size_t)(pendpos[j] - pstartpos[j]);
+                if (matchlen >= matchsize || pmatchstr == NULL) {
+                    if (pmatchstr) {
+                        free(pmatchstr);
+                    }
+                    pmatchstr = NULL;
+                    matchsize = (matchlen + 3);
+                    pmatchstr = (char*) malloc(matchsize);
+                    if (pmatchstr == NULL) {
+                        GETERRNO(ret);
+                        ERROR_INFO("alloc %d error[%d]", matchsize, ret);
+                        goto out;
+                    }
+                }
+                memset(pmatchstr, 0 , matchsize);
+                memcpy(pmatchstr, &(pcurstr[pstartpos[j]]), matchlen);
+                fprintf(stdout, "    [%03d] %s\n", j, pmatchstr);
+            }
+        } else {
+            fprintf(stdout, "[%s] can not split [%s]\n", parsestate->leftargs[0], pcurstr);
+        }
+    }
+
+    ret = 0;
+out:
+    if (pmatchstr != NULL) {
+        free(pmatchstr);
+    }
+    pmatchstr = NULL;
+    matchsize = 0;
+    regex_split(NULL, NULL, &pstartpos, &pendpos, &possize);
+    regex_compile(NULL, REGEX_NONE, &preg);
+    SETERRNO(ret);
+    return ret;    
+}
+
+int iregsplit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    void* preg = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int argcnt = 0;
+    int i, j, retlen;
+    int *pstartpos = NULL, *pendpos = NULL;
+    int possize = 0;
+    int ret;
+    char* pcurstr = NULL;
+    char* pmatchstr = NULL;
+    size_t matchsize = 0;
+    size_t matchlen = 0;
+
+    argc = argc;
+    argv = argv;
+    init_log_level(pargs);
+    if (parsestate->leftargs != NULL) {
+        while (parsestate->leftargs[argcnt] != NULL) {
+            argcnt ++;
+        }
+    }
+
+    if (argcnt < 2) {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("arg must restr instr...");
+        goto out;
+    }
+
+    ret = regex_compile(parsestate->leftargs[0], REGEX_NONE, &preg);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not compile [%s]", parsestate->leftargs[0]);
+        goto out;
+    }
+
+    for (i = 1; i < argcnt; i++) {
+        pcurstr = parsestate->leftargs[i];
+        ret = regex_split(preg, pcurstr, &pstartpos, &pendpos, &possize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not exec [%s] for [%s] error[%d]", pcurstr, parsestate->leftargs[0], ret);
+            goto out;
+        }
+        retlen = ret;
+        if (retlen > 0) {
+            fprintf(stdout, "[%s] split [%s]\n", parsestate->leftargs[0], pcurstr);
+            for (j = 0; j < retlen; j++) {
+                matchlen = (size_t)(pendpos[j] - pstartpos[j]);
+                if (matchlen >= matchsize || pmatchstr == NULL) {
+                    if (pmatchstr) {
+                        free(pmatchstr);
+                    }
+                    pmatchstr = NULL;
+                    matchsize = (matchlen + 3);
+                    pmatchstr = (char*) malloc(matchsize);
+                    if (pmatchstr == NULL) {
+                        GETERRNO(ret);
+                        ERROR_INFO("alloc %d error[%d]", matchsize, ret);
+                        goto out;
+                    }
+                }
+                memset(pmatchstr, 0 , matchsize);
+                memcpy(pmatchstr, &(pcurstr[pstartpos[j]]), matchlen);
+                fprintf(stdout, "    [%03d] %s\n", j, pmatchstr);
+            }
+        } else {
+            fprintf(stdout, "[%s] can not split [%s]\n", parsestate->leftargs[0], pcurstr);
+        }
+    }
+
+    ret = 0;
+out:
+    if (pmatchstr != NULL) {
+        free(pmatchstr);
+    }
+    pmatchstr = NULL;
+    matchsize = 0;
+    regex_split(NULL, NULL, &pstartpos, &pendpos, &possize);
+    regex_compile(NULL, REGEX_NONE, &preg);
+    SETERRNO(ret);
+    return ret;    
+}
+
 
 int __get_code(pextargs_state_t parsestate, char** ppcode, int* psize)
 {

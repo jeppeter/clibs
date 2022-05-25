@@ -17,6 +17,7 @@ extern "C" {
 
 WINLIB_API int regex_compile(const char* restr, int flags, void**ppreg);
 WINLIB_API int regex_exec(void* preg,const char* instr, int** ppstartpos, int **ppendpos, int * psize);
+WINLIB_API int regex_split(void* preg, const char* instr, int** ppstartpos, int **ppendpos, int *psize);
 
 #ifdef __cplusplus
 };

@@ -226,3 +226,205 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int regex_split(void* preg1, const char* instr, int** ppstartpos, int **ppendpos, int *psize)
+{
+    int *pretstartpos = NULL;
+    int *pretendpos=NULL;
+    int retsize = 0;
+    int ret;
+    int retlen=0;
+    bool bret;
+    std::cmatch cm;
+    pregex_header_t preg;
+    int *ptmpstart=NULL,*ptmpend=NULL;
+    char* pcurptr;
+    int startidx = 0,endidx = 0;
+    int curstart=0,curend=0;
+
+    if (preg1 == NULL || instr == NULL) {
+        if (ppstartpos && *ppstartpos) {
+            free(*ppstartpos);
+            *ppstartpos = NULL;
+        }
+        if (ppendpos && *ppendpos) {
+            free(*ppendpos);
+            *ppendpos = NULL;
+        }
+        if (psize != NULL) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    preg = (pregex_header_t) preg1;
+    if (ppstartpos == NULL || ppendpos == NULL || psize == NULL || !CHECK_REGEX_MAGIC(preg)) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    pretstartpos = *ppstartpos;
+    pretendpos = *ppendpos;
+    retsize = *psize;
+
+    startidx = 0;
+    endidx = (int)strlen(instr);
+
+    while (startidx < endidx) {
+        pcurptr = (char*)&(instr[startidx]);
+        DEBUG_INFO("[%d]search [%s]",startidx,pcurptr);
+        bret = std::regex_search(pcurptr,cm,*(preg->m_pregex));
+        if (bret) {
+            DEBUG_INFO("pos [%d] len[%d]", cm.position(0),cm.length(0));
+            curstart = (int)cm.position(0);
+            curend = curstart + (int)cm.length(0);
+            if (curstart == 0) {
+                /*this is small*/
+                startidx += curend;
+                continue;
+            }
+
+            if (curend == 0) {
+                /*nothing to match*/
+                break;
+            }
+            if (retlen >= retsize) {
+                retsize <<= 1;
+                if (retsize == 0) {
+                    retsize = 4;
+                }
+                ASSERT_IF(ptmpstart == NULL);
+                ASSERT_IF(ptmpend == NULL);
+                ptmpstart = (int*) malloc(sizeof(*ptmpstart) * retsize);
+                if (ptmpstart == NULL) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                memset(ptmpstart, 0 ,sizeof(*ptmpstart) * retsize);
+
+                ptmpend = (int*) malloc(sizeof(*ptmpend) * retsize);
+                if (ptmpend == NULL) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                memset(ptmpend, 0, sizeof(*ptmpend) * retsize);
+
+                if (retlen > 0) {
+                    memcpy(ptmpstart, pretstartpos, sizeof(*ptmpstart) * retlen);
+                    memcpy(ptmpend, pretendpos, sizeof(*ptmpend) * retlen);
+                }
+
+                if (pretstartpos != NULL && pretstartpos != *ppstartpos) {
+                    free(pretstartpos);
+                }
+                pretstartpos = NULL;
+
+                if (pretendpos != NULL && pretendpos != *ppendpos) {
+                    free(pretendpos);
+                }
+                pretendpos = NULL;
+
+                pretstartpos = ptmpstart;
+                pretendpos = ptmpend;
+
+                ptmpstart = NULL;
+                ptmpend = NULL;
+            }
+
+            pretstartpos[retlen] = startidx;
+            pretendpos[retlen] = (startidx + curstart);
+            retlen ++;
+            startidx += curend;
+            DEBUG_INFO("startidx [%d]", startidx);
+        } else {
+            /*that the end of the string, so we should give this*/
+            if (retlen >= retsize) {
+                retsize <<= 1;
+                if (retsize == 0) {
+                    retsize = 4;
+                }
+                ASSERT_IF(ptmpstart == NULL);
+                ASSERT_IF(ptmpend == NULL);
+                ptmpstart = (int*) malloc(sizeof(*ptmpstart) * retsize);
+                if (ptmpstart == NULL) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                memset(ptmpstart, 0 ,sizeof(*ptmpstart) * retsize);
+
+                ptmpend = (int*) malloc(sizeof(*ptmpend) * retsize);
+                if (ptmpend == NULL) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                memset(ptmpend, 0, sizeof(*ptmpend) * retsize);
+
+                if (retlen > 0) {
+                    memcpy(ptmpstart, pretstartpos, sizeof(*ptmpstart) * retlen);
+                    memcpy(ptmpend, pretendpos, sizeof(*ptmpend) * retlen);
+                }
+
+                if (pretstartpos != NULL && pretstartpos != *ppstartpos) {
+                    free(pretstartpos);
+                }
+                pretstartpos = NULL;
+
+                if (pretendpos != NULL && pretendpos != *ppendpos) {
+                    free(pretendpos);
+                }
+                pretendpos = NULL;
+
+                pretstartpos = ptmpstart;
+                pretendpos = ptmpend;
+
+                ptmpstart = NULL;
+                ptmpend = NULL;
+            }
+
+            pretstartpos[retlen] = startidx;
+            pretendpos[retlen] = endidx;
+            retlen ++;
+            startidx = endidx;
+        }
+    }
+
+
+    ASSERT_IF(ptmpstart == NULL);
+    ASSERT_IF(ptmpend == NULL);
+    if (pretstartpos != *ppstartpos && *ppstartpos != NULL) {
+        free(*ppstartpos);
+    }
+
+    if (pretendpos != *ppendpos && *ppendpos != NULL) {
+        free(*ppendpos);
+    }
+
+    *ppstartpos = pretstartpos;
+    *ppendpos = pretendpos;
+    *psize = retsize;
+    return retlen;
+
+
+fail:
+    if (ptmpstart) {
+        free(ptmpstart);
+    }
+    ptmpstart = NULL;
+
+    if (ptmpend) {
+        free(ptmpend);
+    }
+    ptmpend = NULL;
+
+    if (pretstartpos && pretstartpos != *ppstartpos) {
+        free(pretstartpos);
+    }
+    pretstartpos = NULL;
+
+    if (pretendpos && pretendpos != *ppendpos) {
+        free(pretendpos);
+    }
+    pretendpos = NULL;
+    SETERRNO(ret);
+    return ret;
+}

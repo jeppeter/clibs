@@ -70,6 +70,12 @@
     "iregexec<iregexec_handler>##restr instr .... to match regular expression##" : {
         "$" : "+"
     },
+    "regsplit<regsplit_handler>##restr instr ... to split in regular expression##" : {
+        "$" : "+"
+    },
+    "iregsplit<iregsplit_handler>##restr instr ... to split in ignore regular expression##" : {
+        "$" : "+"
+    },
     "runsingle<runsingle_handler>##single ... to run output##" :{
         "$" : 1
     },

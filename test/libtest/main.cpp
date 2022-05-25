@@ -128,6 +128,8 @@ int setcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int getcompname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int regsplit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int iregsplit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int runevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int runvevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int runsevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
