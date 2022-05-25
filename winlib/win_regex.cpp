@@ -312,10 +312,10 @@ int regex_split(void* preg1, const char* instr, int** ppstartpos, int **ppendpos
 
     while (startidx < endidx) {
         pcurptr = (char*)&(instr[startidx]);
-        DEBUG_INFO("[%d]search [%s]",startidx,pcurptr);
+        //DEBUG_INFO("[%d]search [%s]",startidx,pcurptr);
         bret = std::regex_search(pcurptr,cm,*(preg->m_pregex));
         if (bret) {
-            DEBUG_INFO("pos [%d] len[%d]", cm.position(0),cm.length(0));
+            //DEBUG_INFO("pos [%d] len[%d]", cm.position(0),cm.length(0));
             curstart = (int)cm.position(0);
             curend = curstart + (int)cm.length(0);
             if (curstart == 0) {
@@ -334,7 +334,7 @@ int regex_split(void* preg1, const char* instr, int** ppstartpos, int **ppendpos
             pretendpos[retlen] = (startidx + curstart);
             retlen ++;
             startidx += curend;
-            DEBUG_INFO("startidx [%d]", startidx);
+            //DEBUG_INFO("startidx [%d]", startidx);
         } else {
             /*that the end of the string, so we should give this*/
             EXPAND_POS();
