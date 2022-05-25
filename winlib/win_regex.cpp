@@ -192,7 +192,7 @@ int regex_exec(void* preg1,const char* instr, int** ppstartpos, int **ppendpos, 
     	memset(pretendpos, 0, sizeof(int)*retsize);
 
     	for (i = 0 ;i< (int)cm.size();i++) {
-    		DEBUG_INFO("pos[%d] len[%d]", (int)cm.position((uint64_t)i),(int)cm.length((uint64_t)i));
+    		//DEBUG_INFO("pos[%d] len[%d]", (int)cm.position((uint64_t)i),(int)cm.length((uint64_t)i));
     		pretstartpos[i] = (int)cm.position((uint64_t)i);
     		pretendpos[i] = (int)(cm.position((uint64_t)i) + cm.length((uint64_t)i));
     	}

@@ -2054,7 +2054,38 @@ fail:
 #define   STDERR_READ_EXPAND(gotolabel)                                                           \
     READ_EXPAND(m_stderrpipe,preterr, pperr,errlen, errsize,gotolabel)
 
-
+#if 1
+#define  WAIT_HANDLE(vpipename,ptrmem,memlen,memsize,waitflag,waitstate)                          \
+    do{                                                                                           \
+        if (pproc->vpipename != NULL &&                                                           \
+            (pproc->vpipename->m_state == PIPE_WAIT_CONNECT ||                                    \
+            pproc->vpipename->m_state == waitstate) &&                                            \
+            hd == pproc->vpipename->m_evt) {                                                      \
+            int lastlen= (memlen);                                                                \
+            DEBUG_INFO("handle %s", #vpipename);                                                  \
+            ret= __get_overlapped(pproc->vpipename->m_pipesvr,&(pproc->vpipename->m_ov),          \
+                    &(memlen),#vpipename" result");                                               \
+            if (ret < 0) {                                                                        \
+                GETERRNO(ret);                                                                    \
+                ERROR_INFO("%s get result error",#vpipename);                                     \
+                goto fail;                                                                        \
+            }                                                                                     \
+            waitflag = ret;                                                                       \
+            if (waitflag == 0) {                                                                  \
+                if (pproc->vpipename->m_state == PIPE_WAIT_CONNECT ||                             \
+                    pproc->vpipename->m_state == waitstate) {                                     \
+                    pproc->vpipename->m_state = PIPE_READY;                                       \
+                }                                                                                 \
+                DEBUG_INFO("%s len[%d]", #vpipename, memlen);                                     \
+                if (memlen == memsize && waitstate == PIPE_WAIT_WRITE) {                          \
+                    __close_handle_note(&(pproc->vpipename->m_pipesvr),                           \
+                        "%s", pproc->vpipename->m_pipename);                                      \
+                    pproc->vpipename->m_state = PIPE_NONE;                                        \
+                }                                                                                 \
+            }                                                                                     \
+        }                                                                                         \
+    }while(0)
+#else
 #define  WAIT_HANDLE(vpipename,ptrmem,memlen,memsize,waitflag,waitstate)                          \
     do{                                                                                           \
         if (pproc->vpipename != NULL &&                                                           \
@@ -2088,6 +2119,8 @@ fail:
             }                                                                                     \
         }                                                                                         \
     }while(0)
+#endif
+
 
 #define   STDIN_WAIT_HANDLE()                                                                     \
     WAIT_HANDLE(m_stdinpipe,pin,inlen,insize,inwait,PIPE_WAIT_WRITE)

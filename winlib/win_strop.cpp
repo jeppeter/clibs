@@ -928,7 +928,7 @@ int split_lines(const char* str, char*** ppplines, int *psize)
                 goto fail;
             }
             memset(ppretlines[retlen], 0, cursize + 2);
-            DEBUG_INFO("[%d]cursize [%d]", retlen, cursize);
+            //DEBUG_INFO("[%d]cursize [%d]", retlen, cursize);
             if (cursize > 0) {
                 memcpy(ppretlines[retlen], plastptr, cursize);
             }
