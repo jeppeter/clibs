@@ -1,0 +1,6 @@
+{
+    "verbose|v<m_verbose>" : "+",
+    "peauth<peauth_handler>##pefile ... to parse pe authenticode ##" : {
+    	"$" : "+"
+    }
+}

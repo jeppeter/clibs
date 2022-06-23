@@ -14,7 +14,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#define ERROR(...)  do {} while(0)
+#define MPI_ERROR(...)  do {} while(0)
 
 #if defined(_MSC_VER)
 #if _MSC_VER >= 1500
@@ -99,9 +99,9 @@ int mpi_grow( mpi *X, int nblimbs )
         {
             memcpy( p, X->p, X->n * ciL );
             memset( X->p, 0, X->n * ciL );
-			ERROR("(%p)X->p = %p p= %p\n",X,X->p,p);
+			MPI_ERROR("(%p)X->p = %p p= %p\n",X,X->p,p);
             free( X->p );
-			ERROR("\n");
+			MPI_ERROR("\n");
         }
 
         X->n = nblimbs;
@@ -273,21 +273,21 @@ int mpi_read_string( mpi *X, int radix, const char *s )
                 continue;
             }
 
-			ERROR("\n");
+			MPI_ERROR("\n");
             MPI_CHK( mpi_get_digit( &d, radix, s[i] ) );
-			ERROR("\n");
+			MPI_ERROR("\n");
             MPI_CHK( mpi_mul_int( &T, X, radix ) );
-			ERROR("\n");
+			MPI_ERROR("\n");
 
             if( X->s == 1 )
             {
                 MPI_CHK( mpi_add_int( X, &T, d ) );
-				ERROR("\n");
+				MPI_ERROR("\n");
             }
             else
             {
                 MPI_CHK( mpi_sub_int( X, &T, d ) );
-				ERROR("\n");
+				MPI_ERROR("\n");
             }
         }
     }
@@ -936,7 +936,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
     int ret, i, n, t, k;
     mpi X, Y, Z, T1, T2;
 
-	ERROR("\n");
+	MPI_ERROR("\n");
     if( mpi_cmp_int( B, 0 ) == 0 )
         return( ERR_MPI_DIVISION_BY_ZERO );
 
@@ -949,7 +949,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
         return( 0 );
     }
 
-	ERROR("\n");
+	MPI_ERROR("\n");
     MPI_CHK( mpi_copy( &X, A ) );
     MPI_CHK( mpi_copy( &Y, B ) );
     X.s = Y.s = 1;
@@ -959,7 +959,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
     MPI_CHK( mpi_grow( &T1, 2 ) );
     MPI_CHK( mpi_grow( &T2, 3 ) );
 
-	ERROR("\n");
+	MPI_ERROR("\n");
     k = mpi_msb( &Y ) % biL;
     if( k < (int) biL - 1 )
     {
@@ -969,19 +969,19 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
     }
     else k = 0;
 
-	ERROR("\n");
+	MPI_ERROR("\n");
     n = X.n - 1;
     t = Y.n - 1;
     MPI_CHK(mpi_shift_l( &Y, biL * (n - t) ));
 
     while( mpi_cmp_mpi( &X, &Y ) >= 0 )
     {
-		ERROR("\n");
+		MPI_ERROR("\n");
         Z.p[n - t]++;
         MPI_CHK(mpi_sub_mpi( &X, &X, &Y ));
     }
     MPI_CHK(mpi_shift_r( &Y, biL * (n - t) ));
-	ERROR("n = %d\n",n);
+	MPI_ERROR("n = %d\n",n);
 
     for( i = n; i > t ; i-- )
     {
@@ -1006,7 +1006,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
             t_int q0, q1, r0, r1;
             t_int d0, d1, d, m;
 
-			ERROR("\n");
+			MPI_ERROR("\n");
             d  = Y.p[t];
             d0 = ( d << biH ) >> biH;
             d1 = ( d >> biH );
@@ -1043,7 +1043,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
 #endif
         }
 
-		ERROR("\n");
+		MPI_ERROR("\n");
         Z.p[i - t - 1]++;
         do
         {
@@ -1064,7 +1064,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
         MPI_CHK( mpi_mul_int( &T1, &Y, Z.p[i - t - 1] ) );
         MPI_CHK( mpi_shift_l( &T1,  biL * (i - t - 1) ) );
         MPI_CHK( mpi_sub_mpi( &X, &X, &T1 ) );
-		ERROR("\n");
+		MPI_ERROR("\n");
 
         if( mpi_cmp_int( &X, 0 ) < 0 )
         {
@@ -1075,14 +1075,14 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
         }
     }
 
-	ERROR("\n");
+	MPI_ERROR("\n");
     if( Q != NULL )
     {
         MPI_CHK(mpi_copy( Q, &Z ));
         Q->s = A->s * B->s;
     }
 
-	ERROR("\n");
+	MPI_ERROR("\n");
     if( R != NULL )
     {
         MPI_CHK(mpi_shift_r( &X, k ));
@@ -1092,7 +1092,7 @@ int mpi_div_mpi( mpi *Q, mpi *R, const mpi *A, const mpi *B )
         if( mpi_cmp_int( R, 0 ) == 0 )
             R->s = 1;
     }
-	ERROR("\n");
+	MPI_ERROR("\n");
 
 cleanup:
 
@@ -1127,16 +1127,17 @@ int mpi_div_int( mpi *Q, mpi *R, const mpi *A, int b )
 int mpi_mod_mpi( mpi *R, const mpi *A, const mpi *B )
 {
     int ret;
-	ERROR("\n");
-    if( mpi_cmp_int( B, 0 ) < 0 )
+	MPI_ERROR("\n");
+    if( mpi_cmp_int( B, 0 ) < 0 ){
         return ERR_MPI_NEGATIVE_VALUE;
+    }
 
-	ERROR("\n");
+	MPI_ERROR("\n");
     MPI_CHK( mpi_div_mpi( NULL, R, A, B ) );
-	ERROR("\n");
+	MPI_ERROR("\n");
 
     while( mpi_cmp_int( R, 0 ) < 0 ){
-		ERROR("\n");
+		MPI_ERROR("\n");
 		
       MPI_CHK( mpi_add_mpi( R, R, B ) );
     }
@@ -1144,7 +1145,7 @@ int mpi_mod_mpi( mpi *R, const mpi *A, const mpi *B )
     while( mpi_cmp_mpi( R, B ) >= 0 )
     	{
     	
-		ERROR("\n");
+		MPI_ERROR("\n");
       MPI_CHK( mpi_sub_mpi( R, R, B ) );
     	}
 
@@ -1289,22 +1290,23 @@ int mpi_exp_mod( mpi *X, const mpi *A, const mpi *E, const mpi *N, mpi *_RR )
     t_int ei, mm, state;
     mpi RR, T, W[64];
 
-	ERROR("\n");
+	MPI_ERROR("\n");
 
-    if( mpi_cmp_int( N, 0 ) < 0 || ( N->p[0] & 1 ) == 0 )
+    if( mpi_cmp_int( N, 0 ) < 0 || ( N->p[0] & 1 ) == 0 ){
         return( ERR_MPI_BAD_INPUT_DATA );
+    }
 
-	ERROR("\n");
+	MPI_ERROR("\n");
     /*
      * Init temps and window size
      */
-		ERROR("\n");
+		MPI_ERROR("\n");
     mpi_montg_init( &mm, N );
-	ERROR("\n");
+	MPI_ERROR("\n");
     mpi_init( &RR, &T, NULL );
-	ERROR("\n");
+	MPI_ERROR("\n");
     memset( W, 0, sizeof( W ) );
-	ERROR("\n");
+	MPI_ERROR("\n");
 
     i = mpi_msb( E );
 
@@ -1312,26 +1314,26 @@ int mpi_exp_mod( mpi *X, const mpi *A, const mpi *E, const mpi *N, mpi *_RR )
             ( i >  79 ) ? 4 : ( i >  23 ) ? 3 : 1;
 
     j = N->n + 1;
-	ERROR("\n");
+	MPI_ERROR("\n");
     MPI_CHK( mpi_grow( X, j ) );
-	ERROR("\n");
+	MPI_ERROR("\n");
     MPI_CHK( mpi_grow( &W[1],  j ) );
-	ERROR("\n");
+	MPI_ERROR("\n");
     MPI_CHK( mpi_grow( &T, j * 2 ) );
-	ERROR("\n");
+	MPI_ERROR("\n");
 
     /*
      * If 1st call, pre-compute R^2 mod N
      */
     if( _RR == NULL || _RR->p == NULL )
     {
-		ERROR("\n");
+		MPI_ERROR("\n");
         MPI_CHK( mpi_lset( &RR, 1 ) );
-		ERROR("\n");
+		MPI_ERROR("\n");
         MPI_CHK( mpi_shift_l( &RR, N->n * 2 * biL ) );
-		ERROR("\n");
+		MPI_ERROR("\n");
         MPI_CHK( mpi_mod_mpi( &RR, &RR, N ) );
-		ERROR("\n");
+		MPI_ERROR("\n");
 
         if( _RR != NULL )
             memcpy( _RR, &RR, sizeof( mpi ) );
@@ -1348,17 +1350,17 @@ int mpi_exp_mod( mpi *X, const mpi *A, const mpi *E, const mpi *N, mpi *_RR )
         MPI_CHK(mpi_copy( &W[1], A ));
     }
 
-	ERROR("\n");
+	MPI_ERROR("\n");
     mpi_montmul( &W[1], &RR, N, mm, &T );
-	ERROR("\n");
+	MPI_ERROR("\n");
 
     /*
      * X = R^2 * R^-1 mod N = R mod N
      */
     MPI_CHK( mpi_copy( X, &RR ) );
-	ERROR("\n");
+	MPI_ERROR("\n");
     mpi_montred( X, N, mm, &T );
-	ERROR("\n");
+	MPI_ERROR("\n");
 
     if( wsize > 1 )
     {
@@ -1367,11 +1369,11 @@ int mpi_exp_mod( mpi *X, const mpi *A, const mpi *E, const mpi *N, mpi *_RR )
          */
         j =  1 << (wsize - 1);
 
-		ERROR("\n");
+		MPI_ERROR("\n");
         MPI_CHK( mpi_grow( &W[j], N->n + 1 ) );
-		ERROR("\n");
+		MPI_ERROR("\n");
         MPI_CHK( mpi_copy( &W[j], &W[1]    ) );
-		ERROR("\n");
+		MPI_ERROR("\n");
 
         for( i = 0; i < wsize - 1; i++ )
             mpi_montmul( &W[j], &W[j], N, mm, &T );
@@ -1381,11 +1383,11 @@ int mpi_exp_mod( mpi *X, const mpi *A, const mpi *E, const mpi *N, mpi *_RR )
          */
         for( i = j + 1; i < (1 << wsize); i++ )
         {
-			ERROR("\n");
+			MPI_ERROR("\n");
             MPI_CHK( mpi_grow( &W[i], N->n + 1 ) );
-			ERROR("\n");
+			MPI_ERROR("\n");
             MPI_CHK( mpi_copy( &W[i], &W[i - 1] ) );
-			ERROR("\n");
+			MPI_ERROR("\n");
 
             mpi_montmul( &W[i], &W[1], N, mm, &T );
         }
@@ -1422,9 +1424,9 @@ int mpi_exp_mod( mpi *X, const mpi *A, const mpi *E, const mpi *N, mpi *_RR )
             /*
              * out of window, square X
              */
-				ERROR("\n");
+				MPI_ERROR("\n");
             mpi_montmul( X, X, N, mm, &T );
-			ERROR("\n");
+			MPI_ERROR("\n");
             continue;
         }
 
@@ -1447,9 +1449,9 @@ int mpi_exp_mod( mpi *X, const mpi *A, const mpi *E, const mpi *N, mpi *_RR )
             /*
              * X = X * W[wbits] R^-1 mod N
              */
-				ERROR("\n");
+				MPI_ERROR("\n");
             mpi_montmul( X, &W[wbits], N, mm, &T );
-			ERROR("\n");
+			MPI_ERROR("\n");
 
             state--;
             nbits = 0;
@@ -1462,9 +1464,9 @@ int mpi_exp_mod( mpi *X, const mpi *A, const mpi *E, const mpi *N, mpi *_RR )
      */
     for( i = 0; i < nbits; i++ )
     {
-		ERROR("\n");
+		MPI_ERROR("\n");
         mpi_montmul( X, X, N, mm, &T );
-		ERROR("\n");
+		MPI_ERROR("\n");
 
         wbits <<= 1;
 
@@ -1475,9 +1477,9 @@ int mpi_exp_mod( mpi *X, const mpi *A, const mpi *E, const mpi *N, mpi *_RR )
     /*
      * X = A^E * R * R^-1 mod N = A^E mod N
      */
-		ERROR("\n");
+		MPI_ERROR("\n");
     mpi_montred( X, N, mm, &T );
-	ERROR("\n");
+	MPI_ERROR("\n");
 
 cleanup:
 
