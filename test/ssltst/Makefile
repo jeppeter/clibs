@@ -8,10 +8,10 @@ endif
 include ../../baseop.mak
 
 
-LXTEST_SRCS= main.cpp
+LXTEST_SRCS= main.cpp authenticode.cpp auth_certificate.cpp auth_countersignature.cpp auth_structs.cpp auth_helper.cpp
 LXTEST_OFILES=$(patsubst %.cpp,%.o,${LXTEST_SRCS})
 
-INCLUDE_CFLAGS= -I${TOPDIR}/uxlib -I${TOPDIR}/common -I${TOPDIR}/common/jsonlib -I${TOPDIR}/common/extargslib -I${TOPDIR}/common/cryptutil
+INCLUDE_CFLAGS= -I${TOPDIR}/uxlib -I${TOPDIR}/common -I${TOPDIR}/common/jsonlib -I${TOPDIR}/common/extargslib -I${TOPDIR}/common/cryptutil -I${SRCDIR}
 
 #$(info "SRCDIR ${SRCDIR} $(MAKEFILE_LIST)")
 ifeq (${STATICLIB},)
@@ -28,7 +28,7 @@ all:dynamic
 dynamic:ssltst
 
 ssltst:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -lextargs -ljson -luxlib -lcryptutil,"LINK    $@")
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -lextargs -ljson -luxlib -lcryptutil -lssl,"LINK    $@")
 
 ${DYNAMICDIR}/libuxlib.so:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"GEN     libuxlib.so")
@@ -50,7 +50,7 @@ static:ssltst_static
 
 
 ssltst_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -lextargs -ljson -luxlib -lcryptutil,"LINK    $@")
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -lextargs -ljson -luxlib -lcryptutil -lssl -lcrypto,"LINK    $@")
 
 
 ${STATICDIR}/libuxlib.a:
