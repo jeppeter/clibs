@@ -19,6 +19,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include <ux_output_debug.h>
+
 #include <openssl/asn1.h>
 #include <openssl/evp.h>
 #include <openssl/objects.h>
@@ -302,8 +304,11 @@ AuthenticodeArray* authenticode_new(const uint8_t* data, long len)
     STACK_OF(X509)* certs =NULL;
     uint64_t version = 0;
     PKCS7_SIGNED* p7data = NULL;
+    const uint8_t* polddata = data;
     if (!data || len == 0)
         return NULL;
+
+    DEBUG_BUFFER_FMT(data,len,"authenticode");
 
     AuthenticodeArray* result = (AuthenticodeArray*)calloc(1, sizeof(*result));
     if (!result)
@@ -331,6 +336,9 @@ AuthenticodeArray* authenticode_new(const uint8_t* data, long len)
         auth->verify_flags = AUTHENTICODE_VFY_CANT_PARSE;
         goto end;
     }
+
+    DEBUG_INFO("objtype [%p] polddata [%p] data [%p] [0x%x]",p7->type, polddata, data, (uint64_t) data - (uint64_t) polddata);
+
 
     /* We expect SignedData type of PKCS7 */
     if (!PKCS7_type_is_signed(p7)) {
@@ -577,6 +585,8 @@ AuthenticodeArray* parse_authenticode(const uint8_t* pe_data, uint64_t pe_len)
     /* Use 64bit type due to the potential overflow in crafted binaries */
     uint64_t cert_addr = letoh32(*(uint32_t*)(pe_data + pe_cert_table_addr));
     uint64_t cert_len = letoh32(*(uint32_t*)(pe_data + pe_cert_table_addr + 4));
+
+    DEBUG_INFO("pe_cert_table_addr [0x%x] cert_addr [0x%llx] cert_len [0x%llx]", pe_cert_table_addr, cert_addr,cert_len);
 
     /* we need atleast 8 bytes to read dwLength, revision and certType */
     if (cert_len < 8 || pe_len < cert_addr + 8)

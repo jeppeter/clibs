@@ -14,6 +14,28 @@ void format_line(int tabs,FILE* fp, const char* fmt,...)
 	return;
 }
 
+void format_time(int tabs, FILE* fp,const time_t* tp,const char* fmt,...)
+{
+	struct tm tmsec;
+	struct tm *ptm=NULL;
+	va_list ap;
+	int i;
+	for(i=0;i<tabs;i++) {
+		fprintf(fp,"    ");
+	}
+	va_start(ap,fmt);
+	vfprintf(fp,fmt,ap);
+	ptm = localtime_r(tp,&tmsec);
+	if (ptm != NULL) {
+		fprintf(fp," %04d-%02d-%02d %02d:%02d:%02d [0x%lx]",ptm->tm_year + 1900, ptm->tm_mon + 1, ptm->tm_mday,
+				ptm->tm_hour,ptm->tm_min,ptm->tm_sec, *tp);
+	} else {
+		fprintf(fp," 0x%lx",*tp);
+	}
+	fprintf(fp,"\n");
+	return;
+}
+
 void debug_byte_array(int tabs,FILE* fp,ByteArray* pbarr, const char* fmt,...)
 {
 	int i;
@@ -112,8 +134,8 @@ void debug_cert(int tabs,FILE* fp,Certificate* cert)
 	format_line(tabs, fp,"key_alg [%s]", cert->key_alg);
 	format_line(tabs, fp,"sig_alg [%s]", cert->sig_alg);
 	format_line(tabs, fp,"sig_alg_oid [%s]", cert->sig_alg_oid);
-	format_line(tabs, fp,"not_before [0x%x]", cert->not_before);
-	format_line(tabs, fp,"not_after [0x%x]", cert->not_after);
+	format_time(tabs, fp,&(cert->not_before),"not_before");
+	format_time(tabs, fp,&(cert->not_after),"not_after");
 	format_line(tabs, fp,"key [%s]", cert->key);
 	format_line(tabs, fp,"issuer attributes");
 	debug_attributes(tabs + 1, fp, &(cert->issuer_attrs));
@@ -135,7 +157,7 @@ void debug_cert_array(int tabs,FILE* fp, CertificateArray* certarr)
 void debug_counter_signature(int tabs,FILE* fp,Countersignature* csig)
 {
 	format_line(tabs, fp, "verify_flags [0x%x]", csig->verify_flags);
-	format_line(tabs, fp, "sign_time [0x%x]", csig->sign_time);
+	format_time(tabs, fp, &(csig->sign_time),"sign_time");
 	format_line(tabs, fp, "digest_alg [%s]", csig->digest_alg);
 	debug_byte_array(tabs, fp, &(csig->digest),  "digest");
 
