@@ -2,7 +2,10 @@
 #include <extargs.h>
 #include <ux_err.h>
 #include <ux_output_debug.h>
+#include <ux_fileop.h>
 
+
+#include <authenticode.h>
 
 #include <stdlib.h>
 #include <stdio.h>
