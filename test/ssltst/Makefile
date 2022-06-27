@@ -5,6 +5,8 @@ ifeq ($(MAKECMDGOALS),static)
 STATICLIB=1
 endif
 
+EXT_LIB_PATH_2=$(shell echo "$$EXT_LIB_PATH")
+
 include ../../baseop.mak
 
 
@@ -28,7 +30,7 @@ all:dynamic
 dynamic:ssltst
 
 ssltst:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -lextargs -ljson -luxlib -lcryptutil -lssl -lcrypto,"LINK    $@")
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} ${EXT_LIB_PATH_2} -lextargs -ljson -luxlib -lcryptutil -lssl -lcrypto,"LINK    $@")
 
 ${DYNAMICDIR}/libuxlib.so:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"GEN     libuxlib.so")
@@ -50,7 +52,7 @@ static:ssltst_static
 
 
 ssltst_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -lextargs -ljson -luxlib -lcryptutil -lssl -lcrypto,"LINK    $@")
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} ${EXT_LIB_PATH_2} -lextargs -ljson -luxlib -lcryptutil -lssl -lcrypto,"LINK    $@")
 
 
 ${STATICDIR}/libuxlib.a:
