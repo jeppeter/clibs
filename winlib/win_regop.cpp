@@ -858,3 +858,42 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int delete_hklm_value(void* pregop1, const char* path)
+{
+    pregop_t pregop = (pregop_t) pregop1;
+    TCHAR* ptname=NULL;
+    int namesize=0;
+    LSTATUS lret;
+    int ret;
+
+
+    if (pregop1 == NULL || path == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = AnsiToTchar(path,&ptname,&namesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    SETERRNO(0);
+    lret = RegDeleteValue(pregop->m_reghdl,ptname);
+    if (lret != ERROR_SUCCESS) {
+        GETERRNO_DIRECT(ret);
+        if (ret != 0 && lret != 2) {
+            ERROR_INFO("can not delete [%s].[%s] error[%d] [%ld]", pregop->m_name, path, ret, lret);
+            goto fail;            
+        }
+    }
+
+    AnsiToTchar(NULL,&ptname,&namesize);
+    return 0;
+fail:
+    AnsiToTchar(NULL,&ptname,&namesize);
+    SETERRNO(ret);
+    return ret;
+}

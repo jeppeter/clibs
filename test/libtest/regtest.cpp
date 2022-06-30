@@ -301,3 +301,57 @@ out:
     SETERRNO(ret);
     return ret;    
 }
+
+int regdel_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* subkey = NULL;
+    char* path = NULL;
+    void* preg = NULL;
+    int ret;
+    int i;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+        switch (i) {
+        case 0:
+            subkey = parsestate->leftargs[i];
+            break;
+        case 1:
+            path = parsestate->leftargs[i];
+            break;
+        default:
+            break;
+        }
+    }
+
+    if (subkey == NULL || path == NULL) {
+        fprintf(stderr, "need subkey and path\n");
+        ret = -ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+
+    preg = open_hklm(subkey,ACCESS_KEY_ALL);
+    if (preg == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not open [%s] error[%d]\n",subkey, ret);
+        goto out;
+    }
+
+    ret = delete_hklm_value(preg,path);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "delete [%s].[%s] error[%d]\n", subkey,path, ret);
+        goto out;
+    }
+
+    fprintf(stdout, "delete [%s].[%s] succ\n",subkey,path);
+    ret = 0;
+out:
+    close_hklm(&preg);
+    SETERRNO(ret);
+    return ret;
+}

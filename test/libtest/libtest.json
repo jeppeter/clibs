@@ -417,5 +417,8 @@
     },
     "tstclisockrdwr<tstclisockrdwr_handler>## ipaddr port file [numread] [partwrite] to make client connect read and write ##" : {
         "$" : "+"
+    },
+    "regdel<regdel_handler>## subkey path to delete the value##" : {
+        "$" : 2
     }
 }
