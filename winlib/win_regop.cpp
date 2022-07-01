@@ -16,6 +16,7 @@ typedef struct _regop_t {
     uint32_t m_magic;
     uint32_t m_reserv1;
     HKEY m_reghdl;
+    char* m_rootname;
     char* m_name;
 } regop_t, *pregop_t;
 
@@ -38,6 +39,12 @@ void __close_regop(pregop_t* ppregop)
                 free(pregop->m_name);
             }
             pregop->m_name = NULL;
+
+            if (pregop->m_rootname) {
+                free(pregop->m_rootname);
+            }
+            pregop->m_rootname = NULL;
+
             free(pregop);
         } else {
             ERROR_INFO("0x%p not valid regop", pregop);
@@ -74,6 +81,32 @@ void* __open_reg(HKEY hkey, const char* psubkey, REGSAM keyaccess)
         GETERRNO(ret);
         goto fail;
     }
+    if (hkey == HKEY_LOCAL_MACHINE) {
+        pregop->m_rootname = _strdup("HKEY_LOCAL_MACHINE");
+    } else if (hkey == HKEY_CLASSES_ROOT) {
+        pregop->m_rootname = _strdup("HKEY_CLASSES_ROOT");
+    } else if (hkey == HKEY_CURRENT_CONFIG) {
+        pregop->m_rootname = _strdup("HKEY_CURRENT_CONFIG");
+    } else if (hkey == HKEY_CURRENT_USER) {
+        pregop->m_rootname = _strdup("HKEY_CURRENT_USER");
+    } else if (hkey == HKEY_USERS) {
+        pregop->m_rootname = _strdup("HKEY_USERS");
+    } else if (hkey == HKEY_PERFORMANCE_DATA) {
+        pregop->m_rootname = _strdup("HKEY_PERFORMANCE_DATA");
+    } else if (hkey == HKEY_PERFORMANCE_NLSTEXT) {
+        pregop->m_rootname = _strdup("HKEY_PERFORMANCE_NLSTEXT");
+    } else {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("not valid hkey [%p]", hkey);
+        goto fail;
+    }
+
+
+    if (pregop->m_rootname == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
     ret = AnsiToTchar(psubkey, &ptsub, &tsubsize);
     if (ret < 0) {
         goto fail;
@@ -94,6 +127,52 @@ fail:
     AnsiToTchar(NULL, &ptsub, &tsubsize);
     __close_regop(&pregop);
     SETERRNO(-ret);
+    return NULL;
+}
+
+void* open_reg_key(const char* pkeyname, const char* psubkey, int accessmode)
+{
+    HKEY hkey = NULL;
+    int ret;
+    REGSAM regaccess = 0;
+
+
+    if (_stricmp(pkeyname, "HKEY_LOCAL_MACHINE") == 0) {
+        hkey = HKEY_LOCAL_MACHINE;
+    } else if (_stricmp(pkeyname, "HKEY_CLASSES_ROOT") == 0) {
+        hkey = HKEY_CLASSES_ROOT;
+    } else if (_stricmp(pkeyname, "HKEY_CURRENT_CONFIG") == 0) {
+        hkey = HKEY_CURRENT_CONFIG;
+    } else if (_stricmp(pkeyname, "HKEY_CURRENT_USER") == 0) {
+        hkey = HKEY_CURRENT_USER;
+    } else if (_stricmp(pkeyname, "HKEY_USERS") == 0) {
+        hkey = HKEY_USERS;
+    } else if (_stricmp(pkeyname, "HKEY_PERFORMANCE_DATA") == 0) {
+        hkey = HKEY_PERFORMANCE_DATA;
+    } else if (_stricmp(pkeyname, "HKEY_PERFORMANCE_NLSTEXT") == 0) {
+        hkey = HKEY_PERFORMANCE_NLSTEXT;
+    } else {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("not vali keyname [%s]", pkeyname);
+        goto fail;
+    }
+
+    if (accessmode & ACCESS_KEY_READ) {
+        regaccess |= KEY_READ;
+    }
+
+    if (accessmode & ACCESS_KEY_WRITE) {
+        regaccess |= KEY_WRITE;
+    }
+
+    if (accessmode & ACCESS_KEY_ALL) {
+        regaccess = KEY_ALL_ACCESS ;
+    }
+
+
+    return __open_reg(hkey, psubkey, regaccess);
+fail:
+    SETERRNO(ret);
     return NULL;
 }
 
@@ -133,8 +212,8 @@ int __query_key_value(pregop_t pregop, const char* path, LPDWORD lptype, LPBYTE 
     if (lret != ERROR_SUCCESS) {
         GETLRET(ret, lret);
         if (ret != -ERROR_MORE_DATA) {
-            ERROR_INFO("can not query (%s) error(%d)", path, ret);    
-        }        
+            ERROR_INFO("can not query (%s) error(%d)", path, ret);
+        }
         goto fail;
     }
 
@@ -146,32 +225,32 @@ fail:
     return ret;
 }
 
-int __set_key_value(pregop_t pregop, const char* path, DWORD regtype,void* pdata,int datasize)
+int __set_key_value(pregop_t pregop, const char* path, DWORD regtype, void* pdata, int datasize)
 {
-	TCHAR* ptpath=NULL;
-	int tpathsize=0;
-	LONG lret;
-	int ret;
+    TCHAR* ptpath = NULL;
+    int tpathsize = 0;
+    LONG lret;
+    int ret;
 
-	ret = AnsiToTchar(path,&ptpath,&tpathsize);
-	if (ret < 0) {
-		goto fail;
-	}
+    ret = AnsiToTchar(path, &ptpath, &tpathsize);
+    if (ret < 0) {
+        goto fail;
+    }
 
-	lret = RegSetValueEx(pregop->m_reghdl,ptpath,0,regtype,(const BYTE*)pdata,(DWORD)datasize);
-	if (lret != ERROR_SUCCESS) {
-		GETLRET(ret,lret);
-		ERROR_INFO("set [%s] value error[%d]", path,ret);
-		goto fail;
-	}
+    lret = RegSetValueEx(pregop->m_reghdl, ptpath, 0, regtype, (const BYTE*)pdata, (DWORD)datasize);
+    if (lret != ERROR_SUCCESS) {
+        GETLRET(ret, lret);
+        ERROR_INFO("set [%s] value error[%d]", path, ret);
+        goto fail;
+    }
 
-	AnsiToTchar(NULL,&ptpath,&tpathsize);
+    AnsiToTchar(NULL, &ptpath, &tpathsize);
 
-	return datasize;
+    return datasize;
 fail:
-	AnsiToTchar(NULL,&ptpath,&tpathsize);
-	SETERRNO(ret);
-	return ret;
+    AnsiToTchar(NULL, &ptpath, &tpathsize);
+    SETERRNO(ret);
+    return ret;
 }
 
 
@@ -292,7 +371,7 @@ int query_hklm_binary(void* pregop, const char* path, void** ppdata, int *pdatas
     int ret;
 
     if (path == NULL) {
-        if (ppdata !=NULL && (*ppdata) != NULL) {
+        if (ppdata != NULL && (*ppdata) != NULL) {
             free(*ppdata);
             *ppdata = NULL;
         }
@@ -368,17 +447,17 @@ try_again:
     *pdatasize = retsize;
 
     if (ptval != NULL) {
-    	free(ptval);
+        free(ptval);
     }
     ptval = NULL;
 
     return nret;
 fail:
-	if (pretval != NULL && pretval != *ppdata) {
-		free(pretval);
-	}
-	pretval = NULL;
-	retsize = 0;
+    if (pretval != NULL && pretval != *ppdata) {
+        free(pretval);
+    }
+    pretval = NULL;
+    retsize = 0;
 
     if (ptval) {
         free(ptval);
@@ -392,22 +471,22 @@ fail:
 
 int set_hklm_binary(void* pregop1, const char* path, void* pdata, int size)
 {
-	pregop_t pregop = (pregop_t) pregop1;
-	int ret;
-	if (pdata == NULL || pregop == NULL  || pregop->m_magic != REG_OP_MAGIC || path == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
-		SETERRNO(ret);
-		return ret;
-	}
+    pregop_t pregop = (pregop_t) pregop1;
+    int ret;
+    if (pdata == NULL || pregop == NULL  || pregop->m_magic != REG_OP_MAGIC || path == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
 
-	return __set_key_value(pregop,path,REG_BINARY,pdata,size);
+    return __set_key_value(pregop, path, REG_BINARY, pdata, size);
 }
 
 int set_hklm_string(void* pregop1, const char* path, char* valstr)
 {
-    TCHAR* ptval=NULL;
-    int valsize=0;
-    int vallen=0;
+    TCHAR* ptval = NULL;
+    int valsize = 0;
+    int vallen = 0;
     int ret;
     int nret;
     pregop_t pregop = (pregop_t) pregop1;
@@ -419,14 +498,14 @@ int set_hklm_string(void* pregop1, const char* path, char* valstr)
     }
 
 
-    ret = AnsiToTchar(valstr,&ptval,&valsize);
+    ret = AnsiToTchar(valstr, &ptval, &valsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
     vallen = (int)_tcslen(ptval);
-    ret = __set_key_value(pregop,path, REG_EXPAND_SZ,ptval, (int)((vallen + 1) * sizeof(TCHAR)));
+    ret = __set_key_value(pregop, path, REG_EXPAND_SZ, ptval, (int)((vallen + 1) * sizeof(TCHAR)));
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -434,19 +513,19 @@ int set_hklm_string(void* pregop1, const char* path, char* valstr)
     nret = ret;
 
 
-    AnsiToTchar(NULL,&ptval,&valsize);
+    AnsiToTchar(NULL, &ptval, &valsize);
     return nret;
 fail:
-    AnsiToTchar(NULL,&ptval,&valsize);
+    AnsiToTchar(NULL, &ptval, &valsize);
     SETERRNO(ret);
     return ret;
 }
 
 int set_hklm_sz(void* pregop1, const char* path, char* valstr)
 {
-    TCHAR* ptval=NULL;
-    int valsize=0;
-    int vallen=0;
+    TCHAR* ptval = NULL;
+    int valsize = 0;
+    int vallen = 0;
     int ret;
     int nret;
     pregop_t pregop = (pregop_t) pregop1;
@@ -458,14 +537,14 @@ int set_hklm_sz(void* pregop1, const char* path, char* valstr)
     }
 
 
-    ret = AnsiToTchar(valstr,&ptval,&valsize);
+    ret = AnsiToTchar(valstr, &ptval, &valsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
     vallen = (int)_tcslen(ptval);
-    ret = __set_key_value(pregop,path, REG_SZ,ptval, (int)((vallen + 1) * sizeof(TCHAR)));
+    ret = __set_key_value(pregop, path, REG_SZ, ptval, (int)((vallen + 1) * sizeof(TCHAR)));
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -473,10 +552,10 @@ int set_hklm_sz(void* pregop1, const char* path, char* valstr)
     nret = ret;
 
 
-    AnsiToTchar(NULL,&ptval,&valsize);
+    AnsiToTchar(NULL, &ptval, &valsize);
     return nret;
 fail:
-    AnsiToTchar(NULL,&ptval,&valsize);
+    AnsiToTchar(NULL, &ptval, &valsize);
     SETERRNO(ret);
     return ret;
 }
@@ -485,27 +564,27 @@ int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize)
 {
     int i;
     pregop_t pregop = (pregop_t) pregop1;
-    char** ppretitems=NULL;
-    char** pptmp=NULL;
-    int retsize=0;
-    TCHAR* ptname=NULL;
-    int tnamesize=2;
-    DWORD retnamesize=0;
+    char** ppretitems = NULL;
+    char** pptmp = NULL;
+    int retsize = 0;
+    TCHAR* ptname = NULL;
+    int tnamesize = 2;
+    DWORD retnamesize = 0;
     LSTATUS status;
     DWORD di;
-    char* ansistr=NULL;
-    int ansisize=0;
+    char* ansistr = NULL;
+    int ansisize = 0;
     int ret;
     int retlen = 0;
-    TCHAR* clsname=NULL;
-    DWORD clssize=0,retclssize=0;
-    DWORD keysize=0,maxkeylen=0,maxclslen=0,valsize=0,maxvalnamelen=0,maxvallen=0;
+    TCHAR* clsname = NULL;
+    DWORD clssize = 0, retclssize = 0;
+    DWORD keysize = 0, maxkeylen = 0, maxclslen = 0, valsize = 0, maxvalnamelen = 0, maxvallen = 0;
 
 
     if (pregop1 == NULL) {
         if (pppitems && *pppitems) {
             char** ppitmes = (*pppitems);
-            for(i=0;ppitmes[i] != NULL ; i++) {
+            for (i = 0; ppitmes[i] != NULL ; i++) {
                 free(ppitmes[i]);
                 ppitmes[i] = NULL;
             }
@@ -527,7 +606,7 @@ int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize)
     ppretitems = *pppitems;
     retsize = *psize;
 
-    for(i=0;i<retsize && ppretitems != NULL;i++) {
+    for (i = 0; i < retsize && ppretitems != NULL; i++) {
         if (ppretitems[i] != NULL) {
             free(ppretitems[i]);
             ppretitems[i] = NULL;
@@ -543,16 +622,16 @@ int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize)
 
 
     retclssize = clssize;
-    status = RegQueryInfoKey(pregop->m_reghdl,clsname,&retclssize,
-            NULL,&keysize,&maxkeylen,&maxclslen,&valsize,&maxvalnamelen,&maxvallen,NULL,NULL);
+    status = RegQueryInfoKey(pregop->m_reghdl, clsname, &retclssize,
+                             NULL, &keysize, &maxkeylen, &maxclslen, &valsize, &maxvalnamelen, &maxvallen, NULL, NULL);
     if (status != ERROR_SUCCESS) {
         GETERRNO(ret);
-        ERROR_INFO("query info error[%ld][%d]", status,ret);
+        ERROR_INFO("query info error[%ld][%d]", status, ret);
         goto fail;
     }
 
     DEBUG_INFO("[%s] keysize[%ld] maxkeylen [%ld] maxclslen [%ld] valsize [%ld] maxvalnamelen [%ld] maxvallen [%ld]",
-            pregop->m_name,keysize,maxkeylen,maxclslen,valsize,maxvalnamelen,maxvallen);
+               pregop->m_name, keysize, maxkeylen, maxclslen, valsize, maxvalnamelen, maxvallen);
 
     tnamesize = (int)(maxkeylen + 1);
     ptname = (TCHAR*)malloc(sizeof(ptname[0]) * tnamesize);
@@ -561,21 +640,21 @@ int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize)
         goto fail;
     }
 
-    for(di=0;di<keysize;di++) {
+    for (di = 0; di < keysize; di++) {
         retnamesize = (DWORD)tnamesize;
         status = RegEnumKeyEx(pregop->m_reghdl,
-                di,ptname,&retnamesize,NULL,NULL,NULL,NULL);
+                              di, ptname, &retnamesize, NULL, NULL, NULL, NULL);
         if (status != ERROR_SUCCESS) {
             GETERRNO(ret);
-            ERROR_INFO("enum [%d] error[%d]", di,ret);
+            ERROR_INFO("enum [%d] error[%d]", di, ret);
             goto fail;
         }
 
         /*
-            now to get the name 
+            now to get the name
             to make di + 1 for it will let the last element NULL
         */
-        if (retsize <= (int)(di+1)) {
+        if (retsize <= (int)(di + 1)) {
             if (retsize == 0) {
                 retsize = 4;
             } else {
@@ -587,9 +666,9 @@ int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize)
                 GETERRNO(ret);
                 goto fail;
             }
-            memset(pptmp,0, sizeof(pptmp[0]) * retsize);
+            memset(pptmp, 0, sizeof(pptmp[0]) * retsize);
             if (retlen > 0) {
-                memcpy(pptmp,ppretitems,sizeof(pptmp[0]) * retlen);
+                memcpy(pptmp, ppretitems, sizeof(pptmp[0]) * retlen);
             }
 
             if (ppretitems != NULL && ppretitems != *pppitems) {
@@ -599,7 +678,7 @@ int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize)
             pptmp = NULL;
         }
 
-        ret = TcharToAnsi(ptname,&ansistr,&ansisize);
+        ret = TcharToAnsi(ptname, &ansistr, &ansisize);
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
@@ -617,7 +696,7 @@ int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize)
 
 
 
-    TcharToAnsi(NULL,&ansistr,&ansisize);
+    TcharToAnsi(NULL, &ansistr, &ansisize);
     if (pptmp) {
         free(pptmp);
     }
@@ -641,7 +720,7 @@ int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize)
     *psize = retsize;
     return retlen;
 fail:
-    TcharToAnsi(NULL,&ansistr,&ansisize);
+    TcharToAnsi(NULL, &ansistr, &ansisize);
     if (pptmp) {
         free(pptmp);
     }
@@ -658,7 +737,7 @@ fail:
     clsname = NULL;
 
     if (ppretitems) {
-        for(i=0;ppretitems[i]!=NULL;i++) {
+        for (i = 0; ppretitems[i] != NULL; i++) {
             free(ppretitems[i]);
             ppretitems[i] = NULL;
         }
@@ -676,27 +755,27 @@ int enum_hklm_values(void* pregop1, char*** pppitems, int* psize)
 {
     int i;
     pregop_t pregop = (pregop_t) pregop1;
-    char** ppretitems=NULL;
-    char** pptmp=NULL;
-    int retsize=0;
-    TCHAR* ptname=NULL;
-    int tnamesize=2;
-    DWORD retnamesize=0;
+    char** ppretitems = NULL;
+    char** pptmp = NULL;
+    int retsize = 0;
+    TCHAR* ptname = NULL;
+    int tnamesize = 2;
+    DWORD retnamesize = 0;
     LSTATUS status;
     DWORD di;
-    char* ansistr=NULL;
-    int ansisize=0;
+    char* ansistr = NULL;
+    int ansisize = 0;
     int ret;
     int retlen = 0;
-    TCHAR* clsname=NULL;
-    DWORD clssize=0,retclssize=0;
-    DWORD keysize=0,maxkeylen=0,maxclslen=0,valsize=0,maxvalnamelen=0,maxvallen=0;
+    TCHAR* clsname = NULL;
+    DWORD clssize = 0, retclssize = 0;
+    DWORD keysize = 0, maxkeylen = 0, maxclslen = 0, valsize = 0, maxvalnamelen = 0, maxvallen = 0;
 
 
     if (pregop1 == NULL) {
         if (pppitems && *pppitems) {
             char** ppitmes = (*pppitems);
-            for(i=0;ppitmes[i] != NULL ; i++) {
+            for (i = 0; ppitmes[i] != NULL ; i++) {
                 free(ppitmes[i]);
                 ppitmes[i] = NULL;
             }
@@ -718,7 +797,7 @@ int enum_hklm_values(void* pregop1, char*** pppitems, int* psize)
     ppretitems = *pppitems;
     retsize = *psize;
 
-    for(i=0;i<retsize && ppretitems != NULL;i++) {
+    for (i = 0; i < retsize && ppretitems != NULL; i++) {
         if (ppretitems[i] != NULL) {
             free(ppretitems[i]);
             ppretitems[i] = NULL;
@@ -734,16 +813,16 @@ int enum_hklm_values(void* pregop1, char*** pppitems, int* psize)
 
 
     retclssize = clssize;
-    status = RegQueryInfoKey(pregop->m_reghdl,clsname,&retclssize,
-            NULL,&keysize,&maxkeylen,&maxclslen,&valsize,&maxvalnamelen,&maxvallen,NULL,NULL);
+    status = RegQueryInfoKey(pregop->m_reghdl, clsname, &retclssize,
+                             NULL, &keysize, &maxkeylen, &maxclslen, &valsize, &maxvalnamelen, &maxvallen, NULL, NULL);
     if (status != ERROR_SUCCESS) {
         GETERRNO(ret);
-        ERROR_INFO("query info error[%ld][%d]", status,ret);
+        ERROR_INFO("query info error[%ld][%d]", status, ret);
         goto fail;
     }
 
     DEBUG_INFO("[%s] keysize[%ld] maxkeylen [%ld] maxclslen [%ld] valsize [%ld] maxvalnamelen [%ld] maxvallen [%ld]",
-            pregop->m_name,keysize,maxkeylen,maxclslen,valsize,maxvalnamelen,maxvallen);
+               pregop->m_name, keysize, maxkeylen, maxclslen, valsize, maxvalnamelen, maxvallen);
 
     tnamesize = (int)(maxvalnamelen + 1);
     ptname = (TCHAR*)malloc(sizeof(ptname[0]) * tnamesize);
@@ -752,21 +831,21 @@ int enum_hklm_values(void* pregop1, char*** pppitems, int* psize)
         goto fail;
     }
 
-    for(di=0;di<valsize;di++) {
+    for (di = 0; di < valsize; di++) {
         retnamesize = (DWORD)tnamesize;
         status = RegEnumValue(pregop->m_reghdl,
-                di,ptname,&retnamesize,NULL,NULL,NULL,NULL);
+                              di, ptname, &retnamesize, NULL, NULL, NULL, NULL);
         if (status != ERROR_SUCCESS) {
             GETERRNO(ret);
-            ERROR_INFO("enum [%d] error[%d]", di,ret);
+            ERROR_INFO("enum [%d] error[%d]", di, ret);
             goto fail;
         }
 
         /*
-            now to get the name 
+            now to get the name
             to plus 1 for it will make SURE the last one is NULL
         */
-        if (retsize <= (int)(di+1)) {
+        if (retsize <= (int)(di + 1)) {
             if (retsize == 0) {
                 retsize = 4;
             } else {
@@ -778,9 +857,9 @@ int enum_hklm_values(void* pregop1, char*** pppitems, int* psize)
                 GETERRNO(ret);
                 goto fail;
             }
-            memset(pptmp,0, sizeof(pptmp[0]) * retsize);
+            memset(pptmp, 0, sizeof(pptmp[0]) * retsize);
             if (retlen > 0) {
-                memcpy(pptmp,ppretitems,sizeof(pptmp[0]) * retlen);
+                memcpy(pptmp, ppretitems, sizeof(pptmp[0]) * retlen);
             }
 
             if (ppretitems != NULL && ppretitems != *pppitems) {
@@ -790,7 +869,7 @@ int enum_hklm_values(void* pregop1, char*** pppitems, int* psize)
             pptmp = NULL;
         }
 
-        ret = TcharToAnsi(ptname,&ansistr,&ansisize);
+        ret = TcharToAnsi(ptname, &ansistr, &ansisize);
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
@@ -804,7 +883,7 @@ int enum_hklm_values(void* pregop1, char*** pppitems, int* psize)
         retlen ++;
     }
 
-    TcharToAnsi(NULL,&ansistr,&ansisize);
+    TcharToAnsi(NULL, &ansistr, &ansisize);
     if (pptmp) {
         free(pptmp);
     }
@@ -828,7 +907,7 @@ int enum_hklm_values(void* pregop1, char*** pppitems, int* psize)
     *psize = retsize;
     return retlen;
 fail:
-    TcharToAnsi(NULL,&ansistr,&ansisize);
+    TcharToAnsi(NULL, &ansistr, &ansisize);
     if (pptmp) {
         free(pptmp);
     }
@@ -845,7 +924,7 @@ fail:
     clsname = NULL;
 
     if (ppretitems) {
-        for(i=0;ppretitems[i]!=NULL;i++) {
+        for (i = 0; ppretitems[i] != NULL; i++) {
             free(ppretitems[i]);
             ppretitems[i] = NULL;
         }
@@ -862,8 +941,8 @@ fail:
 int delete_hklm_value(void* pregop1, const char* path)
 {
     pregop_t pregop = (pregop_t) pregop1;
-    TCHAR* ptname=NULL;
-    int namesize=0;
+    TCHAR* ptname = NULL;
+    int namesize = 0;
     LSTATUS lret;
     int ret;
 
@@ -874,26 +953,70 @@ int delete_hklm_value(void* pregop1, const char* path)
         return ret;
     }
 
-    ret = AnsiToTchar(path,&ptname,&namesize);
+    ret = AnsiToTchar(path, &ptname, &namesize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
     SETERRNO(0);
-    lret = RegDeleteValue(pregop->m_reghdl,ptname);
+    lret = RegDeleteValue(pregop->m_reghdl, ptname);
     if (lret != ERROR_SUCCESS) {
         GETERRNO_DIRECT(ret);
         if (ret != 0 && lret != 2) {
             ERROR_INFO("can not delete [%s].[%s] error[%d] [%ld]", pregop->m_name, path, ret, lret);
-            goto fail;            
+            goto fail;
         }
     }
 
-    AnsiToTchar(NULL,&ptname,&namesize);
+    AnsiToTchar(NULL, &ptname, &namesize);
     return 0;
 fail:
-    AnsiToTchar(NULL,&ptname,&namesize);
+    AnsiToTchar(NULL, &ptname, &namesize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int delete_reg_value(void* pregop1, const char* path)
+{
+    return delete_hklm_value(pregop1,path);
+}
+
+int delete_reg_key(void* pregop1, const char* psubkey)
+{
+    pregop_t pregop = (pregop_t) pregop1;
+    int ret;
+    TCHAR* ptkeyname = NULL;
+    int tnamesize = 0;
+    LSTATUS lret;
+
+    if (pregop == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = AnsiToTchar(psubkey, &ptkeyname, &tnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    SETERRNO(0);
+    lret = RegDeleteTree(pregop->m_reghdl, ptkeyname);
+    if (lret != ERROR_SUCCESS) {
+        GETERRNO_DIRECT(ret);
+        DEBUG_INFO("delete [%s].[%s] lret [%ld] ret [%d]", pregop->m_rootname, psubkey, lret,ret);
+        if (lret != 2 && ret != 0) {
+            ERROR_INFO("can not delete [%s].[%s] error[%d] [%ld]", pregop->m_rootname, psubkey, ret, lret);
+            goto fail;
+        }
+    }
+
+    AnsiToTchar(NULL, &ptkeyname, &tnamesize);
+    return 1;
+fail:
+    AnsiToTchar(NULL, &ptkeyname, &tnamesize);
     SETERRNO(ret);
     return ret;
 }

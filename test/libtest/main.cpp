@@ -251,7 +251,8 @@ int tstsvrsockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int getmsepoch_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tstsvrsockrdwr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tstclisockrdwr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int regdel_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int regdelvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int regdelkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1

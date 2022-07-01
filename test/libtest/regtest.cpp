@@ -213,9 +213,9 @@ int regenumkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     char* path;
     void* pregop = NULL;
     int idx = 0;
-    char** items=NULL;
-    int itemsize=0;
-    int itemlen=0;
+    char** items = NULL;
+    int itemsize = 0;
+    int itemlen = 0;
     int i;
     argc = argc;
     argv = argv;
@@ -231,27 +231,27 @@ int regenumkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void
             goto out;
         }
 
-        ret = enum_hklm_keys(pregop,&items,&itemsize);
+        ret = enum_hklm_keys(pregop, &items, &itemsize);
         if (ret < 0) {
             GETERRNO(ret);
-            fprintf(stderr,"can not enum [%s] error[%d]\n",path,ret);
+            fprintf(stderr, "can not enum [%s] error[%d]\n", path, ret);
             goto out;
         }
         itemlen = ret;
 
-        fprintf(stdout,"%s size[%d]\n",path,itemsize);
-        for(i=0;i<itemlen;i++) {
-            fprintf(stdout,"    [%d]%s\n",i,items[i]);
+        fprintf(stdout, "%s size[%d]\n", path, itemsize);
+        for (i = 0; i < itemlen; i++) {
+            fprintf(stdout, "    [%d]%s\n", i, items[i]);
         }
         close_hklm(&pregop);
     }
 
     ret = 0;
 out:
-    enum_hklm_keys(NULL,&items,&itemsize);
+    enum_hklm_keys(NULL, &items, &itemsize);
     close_hklm(&pregop);
     SETERRNO(ret);
-    return ret;    
+    return ret;
 }
 
 int regenumvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, void*popt)
@@ -261,9 +261,9 @@ int regenumvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
     char* path;
     void* pregop = NULL;
     int idx = 0;
-    char** items=NULL;
-    int itemsize=0;
-    int itemlen=0;
+    char** items = NULL;
+    int itemsize = 0;
+    int itemlen = 0;
     int i;
     argc = argc;
     argv = argv;
@@ -279,30 +279,30 @@ int regenumvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
             goto out;
         }
 
-        ret = enum_hklm_values(pregop,&items,&itemsize);
+        ret = enum_hklm_values(pregop, &items, &itemsize);
         if (ret < 0) {
             GETERRNO(ret);
-            fprintf(stderr,"can not enum [%s] error[%d]\n",path,ret);
+            fprintf(stderr, "can not enum [%s] error[%d]\n", path, ret);
             goto out;
         }
         itemlen = ret;
 
-        fprintf(stdout,"%s size [%d] %p\n",path,itemsize,items);
-        for(i=0;i<itemlen;i++) {
-            fprintf(stdout,"    [%d]%s\n",i,items[i]);
+        fprintf(stdout, "%s size [%d] %p\n", path, itemsize, items);
+        for (i = 0; i < itemlen; i++) {
+            fprintf(stdout, "    [%d]%s\n", i, items[i]);
         }
         close_hklm(&pregop);
     }
 
     ret = 0;
 out:
-    enum_hklm_values(NULL,&items,&itemsize);
+    enum_hklm_values(NULL, &items, &itemsize);
     close_hklm(&pregop);
     SETERRNO(ret);
-    return ret;    
+    return ret;
 }
 
-int regdel_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+int regdelvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     char* subkey = NULL;
     char* path = NULL;
@@ -334,21 +334,83 @@ int regdel_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         goto out;
     }
 
-    preg = open_hklm(subkey,ACCESS_KEY_ALL);
+    preg = open_hklm(subkey, ACCESS_KEY_ALL);
     if (preg == NULL) {
         GETERRNO(ret);
-        fprintf(stderr, "can not open [%s] error[%d]\n",subkey, ret);
+        fprintf(stderr, "can not open [%s] error[%d]\n", subkey, ret);
         goto out;
     }
 
-    ret = delete_hklm_value(preg,path);
+    ret = delete_hklm_value(preg, path);
     if (ret < 0) {
         GETERRNO(ret);
-        fprintf(stderr, "delete [%s].[%s] error[%d]\n", subkey,path, ret);
+        fprintf(stderr, "delete [%s].[%s] error[%d]\n", subkey, path, ret);
         goto out;
     }
 
-    fprintf(stdout, "delete [%s].[%s] succ\n",subkey,path);
+    fprintf(stdout, "delete [%s].[%s] succ\n", subkey, path);
+    ret = 0;
+out:
+    close_hklm(&preg);
+    SETERRNO(ret);
+    return ret;
+}
+
+int regdelkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* keyname = NULL;
+    char* subkey = NULL;
+    char* path = NULL;
+    void* preg = NULL;
+    int ret;
+    int i;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+        switch (i) {
+        case 0:
+            keyname = parsestate->leftargs[i];
+            break;
+        case 1:
+            subkey = parsestate->leftargs[i];
+            break;
+        case 2:
+            path = parsestate->leftargs[i];
+            break;
+        default:
+            break;
+        }
+    }
+
+    if ( keyname == NULL || subkey == NULL || path == NULL) {
+        fprintf(stderr, "need  keyname subkey and path\n");
+        ret = -ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+
+    preg = open_reg_key( keyname ,subkey, ACCESS_KEY_ALL);
+    if (preg == NULL) {
+        GETERRNO(ret);
+        if (ret != -ERROR_FILE_NOT_FOUND) {
+            fprintf(stderr, "can not open [%s] error[%d]\n", subkey, ret);
+            goto out;            
+        } else {
+            goto succ;
+        }
+    }
+
+    ret = delete_reg_key(preg, path);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "delete [%s].[%s].[%s] error[%d]\n",keyname, subkey, path,  ret);
+        goto out;
+    }
+succ:
+    fprintf(stdout, "delete [%s].[%s].[%s] succ\n", keyname, subkey, path);
     ret = 0;
 out:
     close_hklm(&preg);

@@ -25,7 +25,10 @@ WINLIB_API int set_hklm_sz(void* pregop1, const char* path, char* valstr);
 WINLIB_API int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize);
 WINLIB_API int enum_hklm_values(void* pregop1, char*** pppitems, int* psize);
 WINLIB_API int delete_hklm_value(void* pregop1, const char* path);
+WINLIB_API int delete_reg_value(void* pregop1, const char* path);
 WINLIB_API void close_hklm(void** ppregop);
+WINLIB_API void* open_reg_key(const char* pkeyname,const char* psubkey, int accessmode);
+WINLIB_API int delete_reg_key(void* pregop1, const char* psubkey);
 
 #ifdef __cplusplus
 };
