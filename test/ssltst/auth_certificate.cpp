@@ -19,6 +19,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+#include <ux_output_debug.h>
+
 #include <auth_certificate.h>
 
 #include <openssl/asn1.h>
@@ -272,14 +274,18 @@ Certificate* certificate_new(X509* x509)
     /* Calculate SHA1 and SHA256 digests of the X509 structure */
     result->sha1.data = (uint8_t*)malloc(SHA_DIGEST_LENGTH);
     if (result->sha1.data) {
+        memset(result->sha1.data,0, SHA_DIGEST_LENGTH);
         X509_digest(x509, EVP_sha1(), result->sha1.data, NULL);
         result->sha1.len = SHA_DIGEST_LENGTH;
+        DEBUG_BUFFER_FMT(result->sha1.data,result->sha1.len, "sha1 buffer");
     }
 
     result->sha256.data = (uint8_t*)malloc(SHA256_DIGEST_LENGTH);
     if (result->sha256.data) {
+        memset(result->sha256.data, 0, SHA256_DIGEST_LENGTH);
         X509_digest(x509, EVP_sha256(), result->sha256.data, NULL);
         result->sha256.len = SHA256_DIGEST_LENGTH;
+        DEBUG_BUFFER_FMT(result->sha256.data,result->sha256.len, "sha256 buffer");
     }
 
     /* 256 bytes should be enough for any name */

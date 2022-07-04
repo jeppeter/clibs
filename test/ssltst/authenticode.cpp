@@ -305,6 +305,10 @@ AuthenticodeArray* authenticode_new(const uint8_t* data, long len)
     uint64_t version = 0;
     PKCS7_SIGNED* p7data = NULL;
     const uint8_t* polddata = data;
+    STACK_OF(X509_ALGOR) *md_sk;
+    int i;
+    X509_ALGOR *alg;
+    char namebuf[256];
     if (!data || len == 0)
         return NULL;
 
@@ -348,9 +352,18 @@ AuthenticodeArray* authenticode_new(const uint8_t* data, long len)
 
     p7data = p7->d.sign;
 
-    
+    md_sk = p7data->md_algs;
+
+    for(i=0;i<sk_X509_ALGOR_num(md_sk);i++) {
+        alg = sk_X509_ALGOR_value(md_sk,i);
+        OBJ_obj2txt(namebuf,256,alg->algorithm,0);
+        DEBUG_INFO("[%d] algorithm [%s]", i, namebuf);
+    }
+
     if (ASN1_INTEGER_get_uint64(&version, p7data->version))
         auth->version = version;
+
+    DEBUG_INFO("p7data version [%d]", auth->version);
 
     certs = p7data->cert;
 
