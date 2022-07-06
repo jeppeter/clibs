@@ -80,5 +80,8 @@
     },
     "tstsvrsockrd<tstsvrsockrd_handler>##port [length] [host] [backlog] to read socket in server mode default length 1024 default host 0.0.0.0 backlog 5##" : {
         "$" : "+"
+    },
+    "backtrace<backtrace_handler>##stkidx to dump stack index of function##" : {
+        "$" : 1
     }
 }

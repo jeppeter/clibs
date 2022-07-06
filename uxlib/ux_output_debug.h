@@ -30,6 +30,7 @@ void debug_out_string(int level,const char* file,int lineno,const char* fmt,...)
 void console_out_string(int level,const char* file,int lineno,const char* fmt,...);
 void debug_buffer_fmt(int level,const char* file,int lineno,unsigned char* pBuffer,int buflen,const char* fmt,...);
 void console_buffer_fmt(int level,const char* file,int lineno,unsigned char* pBuffer,int buflen,const char* fmt,...);
+void backtrace_out_string(int level,int stkidx, const char* file, int lineno, const char* fmt,...);
 
 int init_log(int loglvl);
 void fini_log();
@@ -82,6 +83,13 @@ void fini_log();
 #define  DEBUG_BUFFER_FMT(ptr,blen,...)  __OUTPUT_BUFFER_FMT(BASE_LOG_DEBUG,ptr,blen,__VA_ARGS__)
 #define  TRACE_BUFFER_FMT(ptr,blen,...)  __OUTPUT_BUFFER_FMT(BASE_LOG_TRACE,ptr,blen,__VA_ARGS__)
 
+
+#define  BACKTRACE_FATAL(stkidx,...)            backtrace_out_string(BASE_LOG_FATAL,(stkidx),__FILE__,__LINE__,__VA_ARGS__)
+#define  BACKTRACE_ERROR(stkidx,...)            backtrace_out_string(BASE_LOG_ERROR,(stkidx),__FILE__,__LINE__,__VA_ARGS__)
+#define  BACKTRACE_WARN(stkidx,...)             backtrace_out_string(BASE_LOG_WARN,(stkidx),__FILE__,__LINE__,__VA_ARGS__)    
+#define  BACKTRACE_INFO(stkidx,...)             backtrace_out_string(BASE_LOG_INFO,(stkidx),__FILE__,__LINE__,__VA_ARGS__)
+#define  BACKTRACE_DEBUG(stkidx,...)            backtrace_out_string(BASE_LOG_DEBUG,(stkidx),__FILE__,__LINE__,__VA_ARGS__)
+#define  BACKTRACE_TRACE(stkidx,...)            backtrace_out_string(BASE_LOG_TRACE,(stkidx),__FILE__,__LINE__,__VA_ARGS__)
 
 #define  INIT_LOG(loglvl)  init_log(loglvl)
 #define  FINI_LOG()        fini_log()

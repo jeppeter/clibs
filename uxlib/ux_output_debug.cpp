@@ -7,6 +7,7 @@
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
+#include <execinfo.h>
 
 static int st_output_loglvl = BASE_LOG_DEFAULT;
 static int st_output_opened = 0;
@@ -336,6 +337,117 @@ out:
     return;
 }
 
+static int __output_backtrace_format_v(char** ppbuf, int *pbufsize, int level, int stkidx, const char* file, int lineno, void** ppfuncs , int funclen, const char* fmt, va_list ap)
+{
+    int retlen = 0;
+    int ret;
+    struct timespec ts;
+    uint64_t millsecs;
+    char** ppsymbols=NULL;
+    int i;
+
+    if (ppbuf == NULL || pbufsize == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (fmt == NULL) {
+        if (*ppbuf) {
+            free(*ppbuf);
+        }
+        *ppbuf = NULL;
+        *pbufsize = 0;
+        return 0;
+    }
+
+    switch (level) {
+    case BASE_LOG_FATAL:
+        ret = snprintf_safe(ppbuf, pbufsize, "<FATAL>");
+        break;
+    case BASE_LOG_ERROR:
+        ret = snprintf_safe(ppbuf, pbufsize, "<ERROR>");
+        break;
+    case BASE_LOG_WARN:
+        ret = snprintf_safe(ppbuf, pbufsize, "<WARN>");
+        break;
+    case BASE_LOG_INFO:
+        ret = snprintf_safe(ppbuf, pbufsize, "<INFO>");
+        break;
+    case BASE_LOG_DEBUG:
+        ret = snprintf_safe(ppbuf, pbufsize, "<DEBUG>");
+        break;
+    case BASE_LOG_TRACE:
+        ret = snprintf_safe(ppbuf, pbufsize, "<TRACE>");
+        break;
+    default:
+        ret = -EINVAL;
+        SETERRNO(ret);
+        break;
+    }
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = clock_gettime(CLOCK_MONOTONIC , &ts);
+    if (ret  < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    millsecs = ts.tv_sec * 1000;
+    millsecs += (ts.tv_nsec / (1000 * 1000));
+
+    ret = append_snprintf_safe(ppbuf, pbufsize, " [%s:%d]:time(%lld:0x%llx)", file, lineno, millsecs, millsecs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = append_snprintf_safe(ppbuf,pbufsize," SYMBOLSFUNC ");
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = append_vsnprintf_safe(ppbuf, pbufsize, fmt, ap);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ppsymbols = backtrace_symbols(ppfuncs,funclen);
+    if (ppsymbols == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    for(i=stkidx;i<funclen;i++) {
+        ret = append_snprintf_safe(ppbuf,pbufsize,"\nFUNC[%d] [%s] [%p]", i - stkidx,ppsymbols[i], ppfuncs[i]);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    retlen = ret;
+
+    if (ppsymbols) {
+        free(ppsymbols);
+    }
+    ppsymbols = NULL;
+
+    return retlen;
+fail:
+    if (ppsymbols) {
+        free(ppsymbols);
+    }
+    ppsymbols = NULL;
+    snprintf_safe(ppbuf, pbufsize,NULL);
+    SETERRNO(ret);
+    return ret;
+}
+
 void debug_buffer_fmt(int level, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
 {
     va_list ap;
@@ -360,4 +472,64 @@ void console_buffer_fmt(int level,const char* file,int lineno,unsigned char* pBu
     }
     __inner_buffer_output(level, file, lineno, pBuffer, buflen, fmt, ap, __stderr_output);
     return;
+}
+
+void backtrace_out_string(int level,int stkidx, const char* file, int lineno, const char* fmt,...)
+{
+    va_list ap;
+    void** ppfuncs = NULL;
+    int funcsize=0;
+    int funclen = 0;
+    char* pbuf=NULL;
+    int bufsize=0;
+    int ret;
+    if (level > st_output_loglvl) {
+        return;
+    }
+    if (fmt != NULL) {
+        va_start(ap, fmt);
+    }
+
+    funcsize = 4;
+
+
+    while(1) {
+        if (ppfuncs != NULL) {
+            free(ppfuncs);
+        }
+        ppfuncs = NULL;
+
+        ppfuncs = (void**) malloc(sizeof(*ppfuncs) * funcsize);
+        if (ppfuncs == NULL) {
+            GETERRNO(ret);
+            goto out;
+        }
+
+        ret = backtrace(ppfuncs,funcsize);
+        if (ret < funcsize) {
+            funclen = ret;
+            break;
+        }
+        funcsize <<= 1;
+    }
+
+
+    ret = __output_backtrace_format_v(&pbuf,&bufsize,level,stkidx + 1,file,lineno,ppfuncs , funclen,fmt,ap);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+
+    __syslog_output(level,pbuf);
+    __stderr_output(level,pbuf);
+
+
+out:
+    __output_backtrace_format_v(&pbuf,&bufsize,level,0,NULL,0,NULL,0,NULL,ap);
+    if (ppfuncs) {
+        free(ppfuncs);
+    }
+    ppfuncs = NULL;
+    return ;
 }

@@ -145,3 +145,22 @@ out:
     return ret;
 }
 
+int backtrace_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int stkidx = 0;
+
+    init_log_verbose(pargs);
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        stkidx = atoi(parsestate->leftargs[0]);
+    }
+
+    BACKTRACE_FATAL(stkidx,"BACKTRACE_FATAL");
+    BACKTRACE_ERROR(stkidx,"BACKTRACE_ERROR");
+    BACKTRACE_WARN(stkidx,"BACKTRACE_WARN");
+    BACKTRACE_INFO(stkidx,"BACKTRACE_INFO");
+    BACKTRACE_DEBUG(stkidx,"BACKTRACE_DEBUG");
+    BACKTRACE_TRACE(stkidx,"BACKTRACE_TRACE");
+
+    return 0;
+}
