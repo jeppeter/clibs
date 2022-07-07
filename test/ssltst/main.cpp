@@ -16,7 +16,16 @@ typedef struct __args_options {
     int m_verbose;
 } args_options_t, *pargs_options_t;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int peauth_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+
+#ifdef __cplusplus
+};
+#endif
+
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
 do{                                                                               \

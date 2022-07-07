@@ -1218,6 +1218,17 @@ def __format_cmdstruct_macro_top(commandline,structname,prefix='',extoptions=Non
     s += __format_tabs_line('#undef parse_param_smart',0)
     s += __format_tabs_line('#endif /*parse_param_smart*/',0)
 
+    s += __format_tabs_line('#ifdef __cplusplus',0)
+    s += __format_tabs_line('extern "C" {',0)
+    s += __format_tabs_line('#endif /* __cplusplus */',0)
+
+    s += __format_tabs_line('int parse_param_smart(int argc, char* argv[], popt_cmd_t pmaincmd, void* popt, pextargs_state_t* ppoutstate, int* pprio,pextargs_options_t pargoptions);',0)
+
+    s += __format_tabs_line('#ifdef __cplusplus',0)
+    s += __format_tabs_line('};',0)
+    s += __format_tabs_line('#endif /* __cplusplus */',0)
+
+
     # now we should make the new function
     s += __format_tabs_line('int parse_param_smart(int argc, char* argv[], popt_cmd_t pmaincmd, void* popt, pextargs_state_t* ppoutstate, int* pprio,pextargs_options_t pargoptions)',0)
     s += __format_tabs_line('{',0)
