@@ -75,6 +75,7 @@ endif
 main.o:main.cpp
 
 main.cpp:args_options.cpp peauth.cpp pkcs7.cpp
+	$(call call_exec,touch main.cpp,"TOUCH   main.cpp")
 
 args_options.cpp:args_options.cpp.tmpl ${TOPDIR}/common/extargslib
 	$(call call_exec,${PYTHON} ${TOPDIR}/coutput.py -j ${SRCDIR}/cmd.json -i $< cmdstruct | \

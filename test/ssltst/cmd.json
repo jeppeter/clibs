@@ -6,6 +6,9 @@
     	"$" : "+"
     },
     "pkcs7octstrenc<pkcs7octstrenc_handler>##str ... to encoding for str in pkcs7 format ##" : {
-    	"$" : 1
+    	"$" : "?"
+    },
+    "pkcs7dump<pkcs7dump_handler>##to decode and encode pkcs7##" : {
+    	"$" : 0
     }
 }
