@@ -13,6 +13,8 @@
 
 
 typedef struct __args_options {
+    char* m_input;
+    char* m_output;
     int m_verbose;
 } args_options_t, *pargs_options_t;
 
@@ -21,6 +23,8 @@ extern "C" {
 #endif
 
 int peauth_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int pkcs7octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+//int pkcs7dec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
@@ -76,6 +80,7 @@ int init_log_verbose(pargs_options_t pargs)
 }
 
 #include "peauth.cpp"
+#include "pkcs7.cpp"
 
 int main(int argc, char* argv[])
 {

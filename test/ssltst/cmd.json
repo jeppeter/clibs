@@ -1,6 +1,11 @@
 {
     "verbose|v<m_verbose>" : "+",
+    "input|i<m_input>" : null,
+    "output|o<m_output>" : null,
     "peauth<peauth_handler>##pefile ... to parse pe authenticode ##" : {
     	"$" : "+"
+    },
+    "pkcs7octstrenc<pkcs7octstrenc_handler>##str ... to encoding for str in pkcs7 format ##" : {
+    	"$" : 1
     }
 }

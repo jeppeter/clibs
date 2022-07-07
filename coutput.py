@@ -1217,6 +1217,7 @@ def __format_cmdstruct_macro_top(commandline,structname,prefix='',extoptions=Non
     s += __format_tabs_line('#ifdef parse_param_smart',0)
     s += __format_tabs_line('#undef parse_param_smart',0)
     s += __format_tabs_line('#endif /*parse_param_smart*/',0)
+    s += __format_tabs_line('',0)
 
     s += __format_tabs_line('#ifdef __cplusplus',0)
     s += __format_tabs_line('extern "C" {',0)
@@ -1227,6 +1228,8 @@ def __format_cmdstruct_macro_top(commandline,structname,prefix='',extoptions=Non
     s += __format_tabs_line('#ifdef __cplusplus',0)
     s += __format_tabs_line('};',0)
     s += __format_tabs_line('#endif /* __cplusplus */',0)
+
+    s += __format_tabs_line('',0)
 
 
     # now we should make the new function
