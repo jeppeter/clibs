@@ -10,5 +10,8 @@
     },
     "pkcs7dump<pkcs7dump_handler>##to decode and encode pkcs7##" : {
     	"$" : 0
+    },
+    "asn1intenc<asn1intenc_handler>##val ... to encode asn1integer##" : {
+        "$" : "+"
     }
 }

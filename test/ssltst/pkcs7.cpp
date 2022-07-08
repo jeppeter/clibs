@@ -156,7 +156,6 @@ int pkcs7dump_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
-
 	ret = 0;
 out:
 	if (fin != NULL && fin != stdin) {
@@ -170,6 +169,51 @@ out:
 	fout = NULL;
 	PKCS7_free(p7);
 	p7 = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int asn1intenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	ASN1_INTEGER* ita=NULL;
+	int val;
+	int i;
+	int64_t i64v;
+	unsigned char* pout=NULL;
+	int outlen=0;
+	int ret;
+	pargs_options_t pargs = (pargs_options_t) popt;
+
+	init_log_verbose(pargs);
+
+	ita = ASN1_INTEGER_new();
+	if (ita == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not use integer error[%d]\n",ret);
+		goto out;
+	}
+
+	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+		val = atoi(parsestate->leftargs[i]);
+		i64v = (int64_t) val;
+		ASN1_INTEGER_set_int64(ita,i64v);
+		outlen = i2d_ASN1_INTEGER(ita,&pout);
+		if (outlen <= 0) {
+			GETERRNO(ret);
+			fprintf(stderr,"i2d error[%d]\n", ret);
+			goto out;
+		}
+		DEBUG_BUFFER_FMT(pout,outlen,"integer format");
+		OPENSSL_free(pout);
+		pout = NULL;
+	}
+
+	ret = 0;
+out:
+	OPENSSL_free(pout);
+	pout = NULL;
+	ASN1_INTEGER_free(ita);
+	ita = NULL;
 	SETERRNO(ret);
 	return ret;
 }
