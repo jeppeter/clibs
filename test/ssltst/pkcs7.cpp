@@ -176,9 +176,9 @@ out:
 int asn1intenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	ASN1_INTEGER* ita=NULL;
-	int val;
+	long long ival;
+	char* pendptr=NULL;
 	int i;
-	int64_t i64v;
 	unsigned char* pout=NULL;
 	int outlen=0;
 	int ret;
@@ -194,9 +194,9 @@ int asn1intenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	}
 
 	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
-		val = atoi(parsestate->leftargs[i]);
-		i64v = (int64_t) val;
-		ASN1_INTEGER_set_int64(ita,i64v);
+		pendptr = NULL;
+		ival = strtoll(parsestate->leftargs[i],&pendptr,10);
+		ASN1_INTEGER_set_int64(ita,ival);
 		outlen = i2d_ASN1_INTEGER(ita,&pout);
 		if (outlen <= 0) {
 			GETERRNO(ret);
