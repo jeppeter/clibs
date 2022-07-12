@@ -16,5 +16,8 @@
     },
     "asn1octstrenc<asn1octstrenc_handler>##val ... to encode asn1octstr##" : {
         "$" : "+"
+    },
+    "asn1objenc<asn1objenc_handler>##objsn ... to encode asn1obj##" : {
+        "$" : "+"
     }
 }
