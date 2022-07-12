@@ -13,5 +13,8 @@
     },
     "asn1intenc<asn1intenc_handler>##val ... to encode asn1integer##" : {
         "$" : "+"
+    },
+    "asn1octstrenc<asn1octstrenc_handler>##val ... to encode asn1octstr##" : {
+        "$" : "+"
     }
 }

@@ -26,6 +26,7 @@ int peauth_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int pkcs7octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int pkcs7dump_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1intenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int asn1octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
