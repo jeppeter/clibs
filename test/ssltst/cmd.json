@@ -26,7 +26,7 @@
     "asn1strenc<asn1strenc_handler>##val ... to encode asn1str##" : {
         "$" : "+"
     },
-    "asn1seqenc<asn1seqenc_handler>##bool int str object ... to encode asn1seq##" : {
-        "$" : 4
+    "asn1seqenc<asn1seqenc_handler>##bool int str object [inter] ... to encode asn1seq##" : {
+        "$" : "+"
     }
 }

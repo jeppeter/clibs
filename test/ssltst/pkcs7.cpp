@@ -522,6 +522,7 @@ typedef struct {
 	ASN1_INTEGER *vinter;
 	ASN1_UTF8STRING *vstr;
 	ASN1_OBJECT *vobj;
+	STACK_OF(ASN1_INTEGER)* sinter;
 } ASN1_SEQ_DATA;
 
 
@@ -531,7 +532,8 @@ ASN1_SEQUENCE(ASN1_SEQ_DATA) = {
         ASN1_SIMPLE(ASN1_SEQ_DATA, success, ASN1_BOOLEAN),
         ASN1_SIMPLE(ASN1_SEQ_DATA, vinter, ASN1_INTEGER),
         ASN1_SIMPLE(ASN1_SEQ_DATA, vstr, ASN1_UTF8STRING),
-        ASN1_SIMPLE(ASN1_SEQ_DATA, vobj, ASN1_OBJECT)
+        ASN1_SIMPLE(ASN1_SEQ_DATA, vobj, ASN1_OBJECT),
+        ASN1_IMP_SET_OF_OPT(ASN1_SEQ_DATA, sinter, ASN1_INTEGER, 0)
 } ASN1_SEQUENCE_END(ASN1_SEQ_DATA)
 
 
@@ -546,7 +548,6 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	int snlen = 0;
 	long long ival;
 	char* pendptr = NULL;
-	int i;
 	unsigned char* pout = NULL;
 	int outlen = 0;
 	int ret;
@@ -554,19 +555,21 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	int ccsize = 0;
 	int cclen = 0;
 	int llen=0;
+	int cnt = 0;
 	const unsigned char* p=NULL;
 	pargs_options_t pargs = (pargs_options_t) popt;
 	ASN1_OBJECT* ito=NULL;
+	ASN1_INTEGER* iti = NULL;
 
 	init_log_verbose(pargs);
 
-	for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+	for (cnt = 0; parsestate->leftargs && parsestate->leftargs[cnt]; cnt++) {
 
 	}
 
-	if (i < 4) {
+	if (cnt < 4) {
 		ret = -EINVAL;
-		fprintf(stderr, "need ASN1_BOOLEAN int str object\n");
+		fprintf(stderr, "need ASN1_BOOLEAN int str object [inter]\n");
 		goto out;
 	}
 
@@ -678,6 +681,32 @@ get_again:
 		goto out;
 	}
 
+	if (cnt > 4) {
+		STACK_OF(ASN1_INTEGER)* its = NULL;
+		DEBUG_INFO("to use [%s]", parsestate->leftargs[4]);
+		ival = strtoll(parsestate->leftargs[4],&pendptr,10);
+		iti =  ASN1_INTEGER_new();
+		if (iti == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr,"no integer\n");
+			goto out;
+		}
+		ret = ASN1_INTEGER_set_int64(iti,ival);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not set integer\n");
+			goto out;
+		}
+
+		its = pdata->sinter;
+		if (!sk_ASN1_INTEGER_push(its,iti)) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not push [%d]\n", ret);
+			goto out;
+		}
+		iti = NULL;
+	}
+
 	ret = i2d_ASN1_SEQ_DATA(pdata,&pout);
 	if (ret <= 0) {
 		GETERRNO(ret);
@@ -693,6 +722,7 @@ out:
 	OPENSSL_free(pout);
 	OPENSSL_free(ccbuf);
 	OPENSSL_free(objsn);
+	ASN1_INTEGER_free(iti);
 	ASN1_SEQ_DATA_free(pdata);
 	SETERRNO(ret);
 	return ret;
