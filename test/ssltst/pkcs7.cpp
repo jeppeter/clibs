@@ -294,22 +294,22 @@ int asn1objenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	unsigned char* objsn = NULL;
 	int snsize = 0;
 	int snlen = 0;
-	int llen =0;
+	int llen = 0;
 	int i;
 	unsigned char* pout = NULL;
 	int outlen = 0;
 	int ret;
 	pargs_options_t pargs = (pargs_options_t) popt;
-	unsigned char* ccbuf=NULL;
-	int ccsize=0;
-	int cclen=0;
+	unsigned char* ccbuf = NULL;
+	int ccsize = 0;
+	int cclen = 0;
 
 	init_log_verbose(pargs);
 
 
 	snsize = 4;
 	for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
-	get_again:
+get_again:
 		if (objsn != NULL) {
 			free(objsn);
 		}
@@ -317,14 +317,14 @@ int asn1objenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 		objsn = (unsigned char*)malloc(snsize);
 		if (objsn == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "can not alloc [%d] objsn [%d]\n", snsize,ret);
+			fprintf(stderr, "can not alloc [%d] objsn [%d]\n", snsize, ret);
 			goto out;
 		}
-		memset(objsn,0,snsize);
-		ret = a2d_ASN1_OBJECT(objsn,snsize,parsestate->leftargs[i],-1);
+		memset(objsn, 0, snsize);
+		ret = a2d_ASN1_OBJECT(objsn, snsize, parsestate->leftargs[i], -1);
 		if (ret <= 0) {
 			snsize <<= 1;
-			DEBUG_INFO("ret [%d] snsize [%d]", ret,snsize);
+			DEBUG_INFO("ret [%d] snsize [%d]", ret, snsize);
 			goto get_again;
 		}
 		snlen = ret;
@@ -334,7 +334,7 @@ int asn1objenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 			cclen += 0;
 		} else if (snlen >= 128 && snlen < 256) {
 			cclen += 1;
-		} else if (snlen >= 256 && snlen < ((1 << 15)-1)) {
+		} else if (snlen >= 256 && snlen < ((1 << 15) - 1)) {
 			cclen += 2;
 		} else {
 			ret = -EINVAL;
@@ -354,7 +354,7 @@ int asn1objenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 				goto out;
 			}
 		}
-		memset(ccbuf,0, ccsize);
+		memset(ccbuf, 0, ccsize);
 		llen = 0;
 		ccbuf[llen] =  V_ASN1_OBJECT;
 		llen ++;
@@ -378,25 +378,25 @@ int asn1objenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 			goto out;
 		}
 
-		memcpy(&(ccbuf[llen]),objsn,snlen);
+		memcpy(&(ccbuf[llen]), objsn, snlen);
 		llen += snlen;
 
-		p =(const unsigned char*) ccbuf;
-		ita = d2i_ASN1_OBJECT(NULL,&p,llen);
+		p = (const unsigned char*) ccbuf;
+		ita = d2i_ASN1_OBJECT(NULL, &p, llen);
 		if (ita == NULL) {
 			GETERRNO(ret);
 			fprintf(stderr, "can not parse buffer [%d]\n", ret);
 			goto out;
 		}
 
-		outlen = i2d_ASN1_OBJECT(ita,&pout);
+		outlen = i2d_ASN1_OBJECT(ita, &pout);
 		if (outlen <= 0) {
 			GETERRNO(ret);
 			fprintf(stderr, "i2d error[%d]\n", ret);
 			goto out;
 		}
 
-		DEBUG_BUFFER_FMT(pout,outlen,"object format");
+		DEBUG_BUFFER_FMT(pout, outlen, "object format");
 		OPENSSL_free(pout);
 		pout = NULL;
 		ASN1_OBJECT_free(ita);
@@ -420,4 +420,50 @@ out:
 	cclen = 0;
 
 	SETERRNO(ret);
-	return ret;}
+	return ret;
+}
+
+int asn1enumerateenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	ASN1_ENUMERATED* ita = NULL;
+	long long ival;
+	char* pendptr = NULL;
+	int i;
+	unsigned char* pout = NULL;
+	int outlen = 0;
+	int ret;
+	pargs_options_t pargs = (pargs_options_t) popt;
+
+	init_log_verbose(pargs);
+
+	ita = ASN1_ENUMERATED_new();
+	if (ita == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not use enumerated error[%d]\n", ret);
+		goto out;
+	}
+
+	for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+		pendptr = NULL;
+		ival = strtoll(parsestate->leftargs[i], &pendptr, 10);
+		ASN1_ENUMERATED_set_int64(ita, ival);
+		outlen = i2d_ASN1_ENUMERATED(ita, &pout);
+		if (outlen <= 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "i2d error[%d]\n", ret);
+			goto out;
+		}
+		DEBUG_BUFFER_FMT(pout, outlen, "integer format");
+		OPENSSL_free(pout);
+		pout = NULL;
+	}
+
+	ret = 0;
+out:
+	OPENSSL_free(pout);
+	pout = NULL;
+	ASN1_ENUMERATED_free(ita);
+	ita = NULL;
+	SETERRNO(ret);
+	return ret;
+}
