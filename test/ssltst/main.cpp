@@ -6,6 +6,8 @@
 
 
 #include <authenticode.h>
+#include <openssl/asn1.h>
+#include <openssl/asn1t.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -30,6 +32,7 @@ int asn1octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 int asn1objenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1enumerateenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1strenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
