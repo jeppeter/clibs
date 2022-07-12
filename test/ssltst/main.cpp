@@ -29,6 +29,7 @@ int asn1intenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int asn1octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1objenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1enumerateenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int asn1strenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

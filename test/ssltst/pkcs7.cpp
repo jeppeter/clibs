@@ -467,3 +467,49 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int asn1strenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	ASN1_STRING* ita = NULL;
+	int i;
+	unsigned char* pout = NULL;
+	int outlen = 0;
+	int ret;
+	pargs_options_t pargs = (pargs_options_t) popt;
+
+	init_log_verbose(pargs);
+
+	ita = ASN1_STRING_new();
+	if (ita == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not use string error[%d]\n", ret);
+		goto out;
+	}
+
+	for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+		ret = ASN1_STRING_set(ita, parsestate->leftargs[i],-1);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "set [%s] error[%d]\n", parsestate->leftargs[i],ret);
+			goto out;
+		}
+		outlen = i2d_ASN1_UTF8STRING(ita, &pout);
+		if (outlen <= 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "i2d error[%d]\n", ret);
+			goto out;
+		}
+		DEBUG_BUFFER_FMT(pout, outlen, "integer format");
+		OPENSSL_free(pout);
+		pout = NULL;
+	}
+
+	ret = 0;
+out:
+	OPENSSL_free(pout);
+	pout = NULL;
+	ASN1_STRING_free(ita);
+	ita = NULL;
+	SETERRNO(ret);
+	return ret;	
+}
