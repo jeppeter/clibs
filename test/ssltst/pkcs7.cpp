@@ -240,7 +240,7 @@ int asn1octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 
 	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
 		pstr = (const unsigned char*) parsestate->leftargs[i];
-		llen = strlen(parsestate->leftargs[i]) + 1;
+		llen = strlen(parsestate->leftargs[i]);
 		ret = ASN1_OCTET_STRING_set(ita,pstr,llen);
 		if (ret <= 0) {
 			GETERRNO(ret);

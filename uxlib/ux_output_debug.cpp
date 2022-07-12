@@ -258,7 +258,7 @@ static void __inner_buffer_output(int level, const char* file,int lineno, unsign
     for (i = 0; i < buflen ; i++) {
         if ((i % 16) == 0) {
             if (i > 0) {
-                ret = append_snprintf_safe(&pbuf, &bufsize, "   ");
+                ret = append_snprintf_safe(&pbuf, &bufsize, "    ");
                 if (ret < 0) {
                     GETERRNO(ret);
                     goto out;
@@ -282,7 +282,7 @@ static void __inner_buffer_output(int level, const char* file,int lineno, unsign
                     goto out;
                 }
             }
-            ret = snprintf_safe(&pbuf, &bufsize, "0x%08x", i);
+            ret = snprintf_safe(&pbuf, &bufsize, "0x%08x:", i);
             if (ret < 0) {
                 GETERRNO(ret);
                 goto out;
