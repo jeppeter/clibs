@@ -533,7 +533,7 @@ ASN1_SEQUENCE(ASN1_SEQ_DATA) = {
         ASN1_SIMPLE(ASN1_SEQ_DATA, vinter, ASN1_INTEGER),
         ASN1_SIMPLE(ASN1_SEQ_DATA, vstr, ASN1_UTF8STRING),
         ASN1_SIMPLE(ASN1_SEQ_DATA, vobj, ASN1_OBJECT),
-        ASN1_IMP_SET_OF_OPT(ASN1_SEQ_DATA, sinter, ASN1_INTEGER, 0)
+        ASN1_IMP_SET_OF_OPT(ASN1_SEQ_DATA, sinter, ASN1_INTEGER, 3)
 } ASN1_SEQUENCE_END(ASN1_SEQ_DATA)
 
 
@@ -737,6 +737,230 @@ out:
 	OPENSSL_free(objsn);
 	ASN1_INTEGER_free(iti);
 	ASN1_SEQ_DATA_free(pdata);
+	SETERRNO(ret);
+	return ret;
+}
+
+typedef struct {
+	ASN1_BOOLEAN success;
+	ASN1_INTEGER *vinter;
+	ASN1_UTF8STRING *vstr;
+	ASN1_OBJECT *vobj;
+	STACK_OF(ASN1_INTEGER)* sinter;
+} ASN1_SEQ_DATA2;
+
+
+DECLARE_ASN1_FUNCTIONS(ASN1_SEQ_DATA2)
+
+ASN1_SEQUENCE(ASN1_SEQ_DATA2) = {
+        ASN1_SIMPLE(ASN1_SEQ_DATA2, success, ASN1_BOOLEAN),
+        ASN1_SIMPLE(ASN1_SEQ_DATA2, vinter, ASN1_INTEGER),
+        ASN1_SIMPLE(ASN1_SEQ_DATA2, vstr, ASN1_UTF8STRING),
+        ASN1_SIMPLE(ASN1_SEQ_DATA2, vobj, ASN1_OBJECT),
+        ASN1_SET_OF(ASN1_SEQ_DATA2, sinter, ASN1_INTEGER)
+} ASN1_SEQUENCE_END(ASN1_SEQ_DATA2)
+
+
+IMPLEMENT_ASN1_FUNCTIONS(ASN1_SEQ_DATA2)
+
+
+int asn1seq2enc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	ASN1_SEQ_DATA2* pdata = NULL;
+	unsigned char* objsn = NULL;
+	int snsize = 4;
+	int snlen = 0;
+	long long ival;
+	char* pendptr = NULL;
+	unsigned char* pout = NULL;
+	int outlen = 0;
+	int ret;
+	unsigned char* ccbuf=NULL;
+	int ccsize = 0;
+	int cclen = 0;
+	int llen=0;
+	int cnt = 0;
+	const unsigned char* p=NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	ASN1_OBJECT* ito=NULL;
+	ASN1_INTEGER* iti = NULL;
+	int i;
+
+	init_log_verbose(pargs);
+
+	for (cnt = 0; parsestate->leftargs && parsestate->leftargs[cnt]; cnt++) {
+
+	}
+
+	if (cnt < 4) {
+		ret = -EINVAL;
+		fprintf(stderr, "need ASN1_BOOLEAN int str object [inter]\n");
+		goto out;
+	}
+
+	pdata = ASN1_SEQ_DATA2_new();
+	if (pdata == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "alloc ASN1_SEQ_DATA error[%d]\n", ret);
+		goto out;
+	}
+
+	if (strcasecmp(parsestate->leftargs[0], "true") == 0) {
+		pdata->success = 0xff;
+	} else {
+		pdata->success = 0;
+	}
+
+	ival = strtoll(parsestate->leftargs[1], &pendptr, 10);
+	ret = ASN1_INTEGER_set_int64(pdata->vinter, ival);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not set integer [%d]\n", ret);
+		goto out;
+	}
+
+	ret = ASN1_STRING_set(pdata->vstr, parsestate->leftargs[2], -1);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not set string [%d]\n", ret);
+		goto out;
+	}
+
+	snsize = 4;
+get_again:
+	if (objsn != NULL) {
+		OPENSSL_free(objsn);
+	}
+	objsn = NULL;
+	objsn = (unsigned char*)OPENSSL_malloc(snsize);
+	if (objsn == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "alloc [%d] error[%d]\n", snsize, ret);
+		goto out;
+	}
+
+	ret = a2d_ASN1_OBJECT(objsn, snsize, parsestate->leftargs[3], -1);
+	if (ret <= 0 || ret >= snsize) {
+		snsize <<= 1;
+		goto get_again;
+	}
+	snlen = ret;
+
+	cclen = snlen + 2;
+	if (snlen < 128) {
+		cclen += 0;
+	} else if (snlen >= 128 && snlen < 256) {
+		cclen += 1;
+	} else if (snlen >= 256 && snlen < ((1 << 15) - 1)) {
+		cclen += 2;
+	} else {
+		ret = -EINVAL;
+		fprintf(stderr, "overflow snlen [%d]\n", snlen);
+		goto out;
+	}
+	if (ccsize < cclen) {
+		ccsize = cclen + 1;
+		if (ccbuf != NULL) {
+			OPENSSL_free(ccbuf);
+		}
+		ccbuf = NULL;
+		ccbuf = (unsigned char*)OPENSSL_malloc(ccsize);
+		if (ccbuf == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not alloc [%d]\n", ccsize);
+			goto out;
+		}
+	}
+	memset(ccbuf, 0, ccsize);
+	llen = 0;
+	ccbuf[llen] =  V_ASN1_OBJECT;
+	llen ++;
+	if (snlen < 128) {
+		ccbuf[llen] = snlen;
+		llen ++;
+	} else if (snlen >= 128 && snlen < 256) {
+		ccbuf[llen] = 0x81;
+		llen ++;
+		ccbuf[llen] = snlen;
+		llen ++;
+	} else if (snlen >= 256 && snlen < ((1 << 15) - 1)) {
+		ccbuf[llen] = 0x82;
+		llen ++;
+		ccbuf[llen] = (snlen >> 8)  & 0xff;
+		llen ++;
+		ccbuf[llen] = (snlen & 0xff);
+		llen ++;
+	} else {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	memcpy(&(ccbuf[llen]), objsn, snlen);
+	llen += snlen;
+
+	p = (const unsigned char*) ccbuf;
+	ito = d2i_ASN1_OBJECT(&(pdata->vobj), &p, llen);
+	if (ito == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not parse buffer [%d]\n", ret);
+		goto out;
+	}
+
+	i = 4;
+	while (cnt > i) {
+		STACK_OF(ASN1_INTEGER)* its = NULL;
+		DEBUG_INFO("to use [%s]", parsestate->leftargs[i]);
+		ival = strtoll(parsestate->leftargs[i],&pendptr,10);
+		iti =  ASN1_INTEGER_new();
+		if (iti == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr,"no integer\n");
+			goto out;
+		}
+		ret = ASN1_INTEGER_set_int64(iti,ival);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not set integer\n");
+			goto out;
+		}
+
+		its = pdata->sinter;
+		if (its == NULL) {
+			pdata->sinter = sk_ASN1_INTEGER_new(NULL);
+			if (pdata->sinter == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "sinter alloc error[%d]\n", ret);
+				goto out;
+			}
+			its = pdata->sinter;
+		}
+		if (!sk_ASN1_INTEGER_push(its,iti)) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not push [%d]\n", ret);
+			goto out;
+		}
+		iti = NULL;
+		DEBUG_INFO("num [%d] [%p] [%d]", sk_ASN1_INTEGER_num(pdata->sinter), pdata->sinter, sk_ASN1_INTEGER_num(its));
+		i ++;
+	}
+
+	ret = i2d_ASN1_SEQ_DATA2(pdata,&pout);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "seq data error[%d]\n", ret);
+		goto out;
+	}
+	outlen = ret;
+
+	DEBUG_BUFFER_FMT(pout,outlen,"seq data");
+
+	ret = 0;
+out:
+	OPENSSL_free(pout);
+	OPENSSL_free(ccbuf);
+	OPENSSL_free(objsn);
+	ASN1_INTEGER_free(iti);
+	ASN1_SEQ_DATA2_free(pdata);
 	SETERRNO(ret);
 	return ret;
 }
