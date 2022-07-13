@@ -33,7 +33,6 @@ int asn1objenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int asn1enumerateenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1strenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int asn1seq2enc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

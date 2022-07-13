@@ -28,9 +28,6 @@
     },
     "asn1seqenc<asn1seqenc_handler>##bool int str object [inter] ... to encode asn1seq##" : {
         "$" : "+"
-    },
-    "asn1seq2enc<asn1seq2enc_handler>##bool int str object [inter] ... to encode asn1seq##" : {
-        "$" : "+"
     }
 
 }
