@@ -527,7 +527,8 @@ typedef struct {
 	int32_t optembint;
 	ASN1_OCTET_STRING* impstr;
 	int32_t impembint;
-	ASN1_OCTET_STRING* impoptustr;
+	ASN1_OCTET_STRING* impoptstr;
+	ASN1_OBJECT* expobj;
 } ASN1_SEQ_DATA;
 
 
@@ -543,7 +544,8 @@ ASN1_SEQUENCE(ASN1_SEQ_DATA) = {
         ASN1_OPT_EMBED(ASN1_SEQ_DATA, optembint, ZINT32),
         ASN1_IMP(ASN1_SEQ_DATA, impstr, ASN1_OCTET_STRING, 1),
         ASN1_IMP_EMBED(ASN1_SEQ_DATA, impembint, INT32, 2),
-        ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptustr, ASN1_OCTET_STRING_NDEF, 0)
+        ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptstr, ASN1_OCTET_STRING_NDEF, 3),
+        ASN1_EXP(ASN1_SEQ_DATA, expobj, ASN1_OBJECT, 4),
 } ASN1_SEQUENCE_END(ASN1_SEQ_DATA)
 
 
