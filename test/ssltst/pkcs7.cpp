@@ -560,6 +560,7 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	pargs_options_t pargs = (pargs_options_t) popt;
 	ASN1_OBJECT* ito=NULL;
 	ASN1_INTEGER* iti = NULL;
+	int i;
 
 	init_log_verbose(pargs);
 
@@ -681,10 +682,11 @@ get_again:
 		goto out;
 	}
 
-	if (cnt > 4) {
+	i = 4;
+	while (cnt > i) {
 		STACK_OF(ASN1_INTEGER)* its = NULL;
-		DEBUG_INFO("to use [%s]", parsestate->leftargs[4]);
-		ival = strtoll(parsestate->leftargs[4],&pendptr,10);
+		DEBUG_INFO("to use [%s]", parsestate->leftargs[i]);
+		ival = strtoll(parsestate->leftargs[i],&pendptr,10);
 		iti =  ASN1_INTEGER_new();
 		if (iti == NULL) {
 			GETERRNO(ret);
@@ -699,12 +701,23 @@ get_again:
 		}
 
 		its = pdata->sinter;
+		if (its == NULL) {
+			pdata->sinter = sk_ASN1_INTEGER_new(NULL);
+			if (pdata->sinter == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "sinter alloc error[%d]\n", ret);
+				goto out;
+			}
+			its = pdata->sinter;
+		}
 		if (!sk_ASN1_INTEGER_push(its,iti)) {
 			GETERRNO(ret);
 			fprintf(stderr, "can not push [%d]\n", ret);
 			goto out;
 		}
 		iti = NULL;
+		DEBUG_INFO("num [%d] [%p] [%d]", sk_ASN1_INTEGER_num(pdata->sinter), pdata->sinter, sk_ASN1_INTEGER_num(its));
+		i ++;
 	}
 
 	ret = i2d_ASN1_SEQ_DATA(pdata,&pout);
