@@ -1327,6 +1327,69 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	}
 
 
+	ret = set_asn1_utfstr(&(pdata->impoptstr),"impoptstr",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+
+	ret = set_asn1_object(&(pdata->impoptobj),"impoptobj",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_integer(&(pdata->impoptint),"impoptint",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_utfstr(&(pdata->expstr),"expstr",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+
+	ret = set_asn1_object(&(pdata->expobj),"expobj",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_integer(&(pdata->expint),"expint",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_int32(&(pdata->expembint),"expembint",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_utfstr(&(pdata->expoptstr),"expoptstr",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+
+	ret = set_asn1_object(&(pdata->expoptobj),"expoptobj",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_integer(&(pdata->expoptint),"expoptint",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
 
 	ret = i2d_ASN1_SEQ_DATA(pdata, &pout);
 	if (ret <= 0) {
