@@ -518,10 +518,9 @@ out:
 
 
 typedef struct {
-	ASN1_BOOLEAN success;
-	ASN1_INTEGER *vinter;
-	ASN1_UTF8STRING *vstr;
-	ASN1_OBJECT *vobj;
+	ASN1_INTEGER *simpint;
+	ASN1_UTF8STRING *simpstr;
+	ASN1_OBJECT *simpobj;
 	int32_t embint;
 	ASN1_UTF8STRING *optstr;
 	ASN1_OBJECT *optobj;
@@ -590,10 +589,9 @@ typedef struct {
 DECLARE_ASN1_FUNCTIONS(ASN1_SEQ_DATA)
 
 ASN1_SEQUENCE(ASN1_SEQ_DATA) = {
-	ASN1_SIMPLE(ASN1_SEQ_DATA, success, ASN1_BOOLEAN),
-	ASN1_SIMPLE(ASN1_SEQ_DATA, vinter, ASN1_INTEGER),
-	ASN1_SIMPLE(ASN1_SEQ_DATA, vstr, ASN1_UTF8STRING),
-	ASN1_SIMPLE(ASN1_SEQ_DATA, vobj, ASN1_OBJECT),
+	ASN1_SIMPLE(ASN1_SEQ_DATA, simpint, ASN1_INTEGER),
+	ASN1_SIMPLE(ASN1_SEQ_DATA, simpstr, ASN1_UTF8STRING),
+	ASN1_SIMPLE(ASN1_SEQ_DATA, simpobj, ASN1_OBJECT),
 	ASN1_EMBED(ASN1_SEQ_DATA, embint, ZINT32),
 	ASN1_OPT(ASN1_SEQ_DATA, optstr, ASN1_UTF8STRING),
 	ASN1_OPT(ASN1_SEQ_DATA, optobj, ASN1_OBJECT),
@@ -863,7 +861,6 @@ fail:
 int set_asn1_object_array(STACK_OF(ASN1_OBJECT)** ppobjarr, const char* key, jvalue* pj)
 {
 	int ret;
-	const char* pstrobj;
 	int error;
 	unsigned char* objsn = NULL;
 	int snsize = 0;
@@ -885,11 +882,6 @@ int set_asn1_object_array(STACK_OF(ASN1_OBJECT)** ppobjarr, const char* key, jva
 	error = 0;
 	arrobj = (jvalue*)jobject_get_array(pj, key, &error);
 	if (arrobj == NULL) {
-		return 0;
-	}
-
-	pstrobj = jobject_get_string(pj, key, &error);
-	if (pstrobj == NULL) {
 		return 0;
 	}
 
@@ -1034,6 +1026,189 @@ fail:
 	return ret;
 }
 
+int set_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppobjarr, const char* key, jvalue* pj)
+{	
+	int ret;
+	int error;
+	STACK_OF(ASN1_INTEGER)* pobjarr = NULL;
+	ASN1_INTEGER* pobj = NULL;
+	jvalue* arrobj = NULL;
+	jvalue* curobj = NULL;
+	jint* curint=NULL;
+	jint64* curint64=NULL;
+	unsigned int arrsize = 0;
+	int cnt = 0;
+	unsigned int i;
+
+	error = 0;
+	arrobj = (jvalue*)jobject_get_array(pj, key, &error);
+	if (arrobj == NULL) {
+		return 0;
+	}
+
+	arrsize = jarray_size(arrobj);
+
+	for (i = 0; i < arrsize; i++) {
+		error = 0;
+		curint = NULL;
+		curint64 = NULL;
+		curobj = jarray_get(arrobj, i, &error);
+		if (curobj == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "get [%s].[%d] error[%d]\n", key, i, ret);
+			goto fail;
+		}
+
+		if (curobj->type == JINT) {
+			curint = (jint*) curobj;
+		} else if (curobj->type == JINT64) {
+			curint64 = (jint64*) curobj;
+		} else {
+			ret = -EINVAL;
+			fprintf(stderr, "[%s].[%d] not JSTRING\n", key, i);
+			goto fail;
+		}
+
+		ASSERT_IF(pobj == NULL);
+		pobj = ASN1_INTEGER_new();
+		if (pobj == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "[%s].[%d] alloc error[%d]\n", key, i,ret);
+			goto fail;
+		}
+
+		if (curint) {
+			ret = ASN1_INTEGER_set_int64(pobj,(int64_t)curint->value);
+		} else {
+			ret = ASN1_INTEGER_set_int64(pobj,(int64_t)curint64->value);
+		}
+		if (ret <= 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "[%s].[%d] set int64 error[%d]\n", key,i, ret);
+			goto fail;
+		}
+
+		if (pobjarr == NULL) {
+			pobjarr = sk_ASN1_INTEGER_new_null();
+			if (pobjarr == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "alloc [%s] STACK_OF(ASN1_INTEGER) error[%d]\n", key, ret);
+				goto fail;
+			}
+			*ppobjarr = pobjarr;
+		}
+
+		ret = sk_ASN1_INTEGER_push(pobjarr,pobj);
+		if (ret == 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "[%s].[%d] push error[%d]\n", key,i, ret);
+			goto fail;
+		}
+		pobj = NULL;
+		cnt ++;
+	}
+
+	ASN1_INTEGER_free(pobj);
+	return cnt;
+fail:
+	ASN1_INTEGER_free(pobj);
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int set_asn1_string_array(STACK_OF(ASN1_UTF8STRING)** ppobjarr, const char* key, jvalue* pj)
+{	
+	int ret;
+	int error;
+	STACK_OF(ASN1_UTF8STRING)* pobjarr = NULL;
+	ASN1_STRING* pobj = NULL;
+	jvalue* arrobj = NULL;
+	jstring* curobj = NULL;
+	unsigned int arrsize = 0;
+	int cnt = 0;
+	unsigned int i;
+
+	error = 0;
+	arrobj = (jvalue*)jobject_get_array(pj, key, &error);
+	if (arrobj == NULL) {
+		return 0;
+	}
+
+	arrsize = jarray_size(arrobj);
+
+	for (i = 0; i < arrsize; i++) {
+		error = 0;
+		curobj = (jstring*)jarray_get(arrobj, i, &error);
+		if (curobj == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "get [%s].[%d] error[%d]\n", key, i, ret);
+			goto fail;
+		}
+
+		if (curobj->type != JSTRING) {
+			ret = -EINVAL;
+			fprintf(stderr, "[%s].[%d] error[%d]\n",key, i, ret);
+			goto fail;
+		}
+
+		ASSERT_IF(pobj == NULL);
+		pobj = ASN1_STRING_new();
+		if (pobj == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "[%s].[%d] alloc error[%d]\n", key, i,ret);
+			goto fail;
+		}
+
+		ret = ASN1_STRING_set(pobj,curobj->value,-1);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "[%s].[%d] set error[%d]\n", key, i, ret);
+			goto fail;
+		}
+
+
+		if (pobjarr == NULL) {
+			pobjarr = sk_ASN1_UTF8STRING_new_null();
+			if (pobjarr == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "alloc [%s] STACK_OF(ASN1_STRING) error[%d]\n", key, ret);
+				goto fail;
+			}
+			*ppobjarr = pobjarr;
+		}
+
+		ret = sk_ASN1_UTF8STRING_push(pobjarr,pobj);
+		if (ret == 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "[%s].[%d] push error[%d]\n", key,i, ret);
+			goto fail;
+		}
+		pobj = NULL;
+		cnt ++;
+	}
+
+	ASN1_STRING_free(pobj);
+	return cnt;
+fail:
+	ASN1_STRING_free(pobj);
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int set_asn1_int32(int32_t* pint32, const char* key, const jvalue *pj)
+{
+	int val;
+	int error=0;
+
+	val = jobject_get_int(pj,key,&error);
+	if (error != 0) {
+		return 0;
+	}
+	*pint32 = val;
+	return 1;
+}
 
 int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -1042,27 +1217,13 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	char* pjson = NULL;
 	int jsonsize = 0;
 	int jsonlen = 0;
-	unsigned char* objsn = NULL;
-	int snsize = 4;
-	int snlen = 0;
-	long long ival;
-	char* pendptr = NULL;
-	unsigned char* pout = NULL;
-	int outlen = 0;
+	unsigned int jlen = 0;
+	pargs_options_t pargs = (pargs_options_t)popt;
 	int ret;
-	unsigned char* ccbuf = NULL;
-	int ccsize = 0;
-	int cclen = 0;
-	int llen = 0;
-	int cnt = 0;
-	const unsigned char* p = NULL;
-	pargs_options_t pargs = (pargs_options_t) popt;
-	ASN1_OBJECT* ito = NULL;
-	ASN1_INTEGER* iti = NULL;
+	unsigned char* pout=NULL;
+	int outlen;
 
 	init_log_verbose(pargs);
-
-
 
 	pdata = ASN1_SEQ_DATA_new();
 	if (pdata == NULL) {
@@ -1071,106 +1232,100 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 		goto out;
 	}
 
-	if (strcasecmp(parsestate->leftargs[0], "true") == 0) {
-		pdata->success = 0xff;
+	if (pargs->m_input == NULL) {
+		ret = read_stdin_whole(0,&pjson,&jsonsize);
 	} else {
-		pdata->success = 0;
+		ret = read_file_whole(pargs->m_input,&pjson,&jsonsize);
 	}
-
-	ival = strtoll(parsestate->leftargs[1], &pendptr, 10);
-	ret = ASN1_INTEGER_set_int64(pdata->vinter, ival);
-	if (ret <= 0) {
+	if (ret < 0) {
 		GETERRNO(ret);
-		fprintf(stderr, "can not set integer [%d]\n", ret);
+		fprintf(stderr, "read [%s] error[%d]\n", pargs->m_input ? pargs->m_input : "stdin", ret);
 		goto out;
 	}
+	jsonlen = ret;
+	pjson[jsonlen] = 0x0;
 
-	ret = ASN1_STRING_set(pdata->vstr, parsestate->leftargs[2], -1);
-	if (ret <= 0) {
-		GETERRNO(ret);
-		fprintf(stderr, "can not set string [%d]\n", ret);
-		goto out;
-	}
-
-	snsize = 4;
-get_again:
-	if (objsn != NULL) {
-		OPENSSL_free(objsn);
-	}
-	objsn = NULL;
-	objsn = (unsigned char*)OPENSSL_malloc(snsize);
-	if (objsn == NULL) {
-		GETERRNO(ret);
-		fprintf(stderr, "alloc [%d] error[%d]\n", snsize, ret);
-		goto out;
-	}
-
-	ret = a2d_ASN1_OBJECT(objsn, snsize, parsestate->leftargs[3], -1);
-	if (ret <= 0 || ret >= snsize) {
-		snsize <<= 1;
-		goto get_again;
-	}
-	snlen = ret;
-
-	cclen = snlen + 2;
-	if (snlen < 128) {
-		cclen += 0;
-	} else if (snlen >= 128 && snlen < 256) {
-		cclen += 1;
-	} else if (snlen >= 256 && snlen < ((1 << 15) - 1)) {
-		cclen += 2;
-	} else {
+	jlen = jsonlen + 1;
+	pj = jvalue_read(pjson,&jlen);
+	if (pj == NULL) {
 		ret = -EINVAL;
-		fprintf(stderr, "overflow snlen [%d]\n", snlen);
-		goto out;
-	}
-	if (ccsize < cclen) {
-		ccsize = cclen + 1;
-		if (ccbuf != NULL) {
-			OPENSSL_free(ccbuf);
-		}
-		ccbuf = NULL;
-		ccbuf = (unsigned char*)OPENSSL_malloc(ccsize);
-		if (ccbuf == NULL) {
-			GETERRNO(ret);
-			fprintf(stderr, "can not alloc [%d]\n", ccsize);
-			goto out;
-		}
-	}
-	memset(ccbuf, 0, ccsize);
-	llen = 0;
-	ccbuf[llen] =  V_ASN1_OBJECT;
-	llen ++;
-	if (snlen < 128) {
-		ccbuf[llen] = snlen;
-		llen ++;
-	} else if (snlen >= 128 && snlen < 256) {
-		ccbuf[llen] = 0x81;
-		llen ++;
-		ccbuf[llen] = snlen;
-		llen ++;
-	} else if (snlen >= 256 && snlen < ((1 << 15) - 1)) {
-		ccbuf[llen] = 0x82;
-		llen ++;
-		ccbuf[llen] = (snlen >> 8)  & 0xff;
-		llen ++;
-		ccbuf[llen] = (snlen & 0xff);
-		llen ++;
-	} else {
-		ret = -EINVAL;
+		fprintf(stderr,"parse [%s] error\n", pargs->m_input ? pargs->m_input : "stdin");
 		goto out;
 	}
 
-	memcpy(&(ccbuf[llen]), objsn, snlen);
-	llen += snlen;
-
-	p = (const unsigned char*) ccbuf;
-	ito = d2i_ASN1_OBJECT(&(pdata->vobj), &p, llen);
-	if (ito == NULL) {
+	ret = set_asn1_integer(&(pdata->simpint),"simpint",pj);
+	if (ret < 0) {
 		GETERRNO(ret);
-		fprintf(stderr, "can not parse buffer [%d]\n", ret);
 		goto out;
 	}
+
+	ret = set_asn1_object(&(pdata->simpobj),"simpobj",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_utfstr(&(pdata->simpstr),"simpstr",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_int32(&(pdata->embint),"embint",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_utfstr(&(pdata->optstr),"optstr",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_object(&(pdata->optobj),"optobj",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_integer(&(pdata->optint),"optint",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_int32(&(pdata->optembint),"optembint",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_utfstr(&(pdata->impstr),"impstr",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+
+	ret = set_asn1_object(&(pdata->impobj),"impobj",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_integer(&(pdata->impint),"impint",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = set_asn1_int32(&(pdata->impembint),"impembint",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
 
 
 	ret = i2d_ASN1_SEQ_DATA(pdata, &pout);
@@ -1186,10 +1341,14 @@ get_again:
 	ret = 0;
 out:
 	OPENSSL_free(pout);
-	OPENSSL_free(ccbuf);
-	OPENSSL_free(objsn);
-	ASN1_INTEGER_free(iti);
+	outlen = 0;
 	ASN1_SEQ_DATA_free(pdata);
+	if (pargs->m_input) {
+		read_file_whole(NULL,&pjson,&jsonsize);
+	} else {
+		read_stdin_whole(1,&pjson,&jsonsize);
+	}
+	jsonlen = 0;
 	SETERRNO(ret);
 	return ret;
 }
