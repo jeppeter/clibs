@@ -30,7 +30,7 @@ int pkcs7octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 	p7 = PKCS7_new_ex(NULL, NULL);
 	if (p7 == NULL) {
 		GETERRNO(ret);
-		fprintf(stderr, "can not new PKCS7 error[%d]\n", ret);
+		ERROR_INFO( "can not new PKCS7 error[%d]", ret);
 		goto out;
 	}
 
@@ -39,7 +39,7 @@ int pkcs7octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 	ret = PKCS7_set_type(p7, NID_pkcs7_data_ex);
 	if (ret == 0) {
 		ret = -EINVAL;
-		fprintf(stderr, "can not set NID_pkcs7_data\n");
+		ERROR_INFO( "can not set NID_pkcs7_data");
 		goto out;
 	}
 
@@ -50,7 +50,7 @@ int pkcs7octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 	if (str != NULL) {
 		if (octstr == NULL) {
 			ret = -EINVAL;
-			fprintf(stderr, "data null\n");
+			ERROR_INFO( "data null");
 			goto out;
 		}
 
@@ -59,7 +59,7 @@ int pkcs7octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 		ret = ASN1_STRING_set((ASN1_STRING*) octstr, str, slen);
 		if (ret == 0) {
 			ret = -EINVAL;
-			fprintf(stderr, "set [%s] error\n", str);
+			ERROR_INFO( "set [%s] error", str);
 			goto out;
 		}
 	} else {
@@ -75,7 +75,7 @@ int pkcs7octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 		fp = fopen(pargs->m_output, "wb");
 		if (fp == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "can not open [%s] for write\n", pargs->m_output);
+			ERROR_INFO( "can not open [%s] for write", pargs->m_output);
 			goto out;
 		}
 	} else {
@@ -87,7 +87,7 @@ int pkcs7octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 	ret = i2d_PKCS7_fp(fp, p7);
 	if (ret == 0) {
 		ret =  -EINVAL;
-		fprintf(stderr, "out [%s] error\n", pargs->m_output != NULL ? pargs->m_output : "stdout");
+		ERROR_INFO( "out [%s] error", pargs->m_output != NULL ? pargs->m_output : "stdout");
 		goto out;
 	}
 
@@ -121,7 +121,7 @@ int pkcs7dump_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		fin = fopen(pargs->m_input, "rb");
 		if (fin == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "can not open [%s] for read\n", pargs->m_input);
+			ERROR_INFO( "can not open [%s] for read", pargs->m_input);
 			goto out;
 		}
 	} else {
@@ -131,7 +131,7 @@ int pkcs7dump_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	p7 = d2i_PKCS7_fp(fin, NULL);
 	if (p7 == NULL) {
 		GETERRNO(ret);
-		fprintf(stderr, "can not read PKCS7 from [%s] error[%d]\n", pargs->m_input ? pargs->m_input : "stdin", ret);
+		ERROR_INFO( "can not read PKCS7 from [%s] error[%d]", pargs->m_input ? pargs->m_input : "stdin", ret);
 		goto out;
 	}
 
@@ -142,7 +142,7 @@ int pkcs7dump_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		fout = fopen(pargs->m_output, "wb");
 		if (fout == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "can not open [%s] for write\n", pargs->m_output);
+			ERROR_INFO( "can not open [%s] for write", pargs->m_output);
 			goto out;
 		}
 	} else {
@@ -152,7 +152,7 @@ int pkcs7dump_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	ret = i2d_PKCS7_fp(fout, p7);
 	if (ret == 0) {
 		ret =  -EINVAL;
-		fprintf(stderr, "out [%s] error\n", pargs->m_output != NULL ? pargs->m_output : "stdout");
+		ERROR_INFO( "out [%s] error", pargs->m_output != NULL ? pargs->m_output : "stdout");
 		goto out;
 	}
 
@@ -189,7 +189,7 @@ int asn1intenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	ita = ASN1_INTEGER_new();
 	if (ita == NULL) {
 		GETERRNO(ret);
-		fprintf(stderr, "can not use integer error[%d]\n", ret);
+		ERROR_INFO( "can not use integer error[%d]", ret);
 		goto out;
 	}
 
@@ -200,7 +200,7 @@ int asn1intenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 		outlen = i2d_ASN1_INTEGER(ita, &pout);
 		if (outlen <= 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "i2d error[%d]\n", ret);
+			ERROR_INFO( "i2d error[%d]", ret);
 			goto out;
 		}
 		DEBUG_BUFFER_FMT(pout, outlen, "integer format");
@@ -235,7 +235,7 @@ int asn1octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 	ita = ASN1_OCTET_STRING_new();
 	if (ita == NULL) {
 		GETERRNO(ret);
-		fprintf(stderr, "can not use integer error[%d]\n", ret);
+		ERROR_INFO( "can not use integer error[%d]", ret);
 		goto out;
 	}
 
@@ -245,13 +245,13 @@ int asn1octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 		ret = ASN1_OCTET_STRING_set(ita, pstr, llen);
 		if (ret <= 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "can not set [%s] error[%d]\n", pstr, ret);
+			ERROR_INFO( "can not set [%s] error[%d]", pstr, ret);
 			goto out;
 		}
 		outlen = i2d_ASN1_OCTET_STRING(ita, &pout);
 		if (outlen <= 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "i2d error[%d]\n", ret);
+			ERROR_INFO( "i2d error[%d]", ret);
 			goto out;
 		}
 		DEBUG_BUFFER_FMT(pout, outlen, "integer format");
@@ -262,13 +262,13 @@ int asn1octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 	itn = ASN1_NULL_new();
 	if (itn == NULL) {
 		GETERRNO(ret);
-		fprintf(stderr, "can not ASN1_NULL_new\n");
+		ERROR_INFO( "can not ASN1_NULL_new");
 		goto out;
 	}
 	outlen = i2d_ASN1_NULL(itn, &pout);
 	if (outlen <= 0) {
 		GETERRNO(ret);
-		fprintf(stderr, "i2d error[%d]\n", ret);
+		ERROR_INFO( "i2d error[%d]", ret);
 		goto out;
 	}
 	DEBUG_BUFFER_FMT(pout, outlen, "null format");
@@ -317,7 +317,7 @@ get_again:
 		objsn = (unsigned char*)malloc(snsize);
 		if (objsn == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "can not alloc [%d] objsn [%d]\n", snsize, ret);
+			ERROR_INFO( "can not alloc [%d] objsn [%d]", snsize, ret);
 			goto out;
 		}
 		memset(objsn, 0, snsize);
@@ -338,7 +338,7 @@ get_again:
 			cclen += 2;
 		} else {
 			ret = -EINVAL;
-			fprintf(stderr, "overflow snlen [%d]\n", snlen);
+			ERROR_INFO( "overflow snlen [%d]", snlen);
 			goto out;
 		}
 		if (ccsize < cclen) {
@@ -350,7 +350,7 @@ get_again:
 			ccbuf = (unsigned char*)OPENSSL_malloc(ccsize);
 			if (ccbuf == NULL) {
 				GETERRNO(ret);
-				fprintf(stderr, "can not alloc [%d]\n", ccsize);
+				ERROR_INFO( "can not alloc [%d]", ccsize);
 				goto out;
 			}
 		}
@@ -385,14 +385,14 @@ get_again:
 		ita = d2i_ASN1_OBJECT(NULL, &p, llen);
 		if (ita == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "can not parse buffer [%d]\n", ret);
+			ERROR_INFO( "can not parse buffer [%d]", ret);
 			goto out;
 		}
 
 		outlen = i2d_ASN1_OBJECT(ita, &pout);
 		if (outlen <= 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "i2d error[%d]\n", ret);
+			ERROR_INFO( "i2d error[%d]", ret);
 			goto out;
 		}
 
@@ -439,7 +439,7 @@ int asn1enumerateenc_handler(int argc, char* argv[], pextargs_state_t parsestate
 	ita = ASN1_ENUMERATED_new();
 	if (ita == NULL) {
 		GETERRNO(ret);
-		fprintf(stderr, "can not use enumerated error[%d]\n", ret);
+		ERROR_INFO( "can not use enumerated error[%d]", ret);
 		goto out;
 	}
 
@@ -450,7 +450,7 @@ int asn1enumerateenc_handler(int argc, char* argv[], pextargs_state_t parsestate
 		outlen = i2d_ASN1_ENUMERATED(ita, &pout);
 		if (outlen <= 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "i2d error[%d]\n", ret);
+			ERROR_INFO( "i2d error[%d]", ret);
 			goto out;
 		}
 		DEBUG_BUFFER_FMT(pout, outlen, "integer format");
@@ -482,7 +482,7 @@ int asn1strenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	ita = ASN1_STRING_new();
 	if (ita == NULL) {
 		GETERRNO(ret);
-		fprintf(stderr, "can not use string error[%d]\n", ret);
+		ERROR_INFO("can not use string error[%d]", ret);
 		goto out;
 	}
 
@@ -490,13 +490,13 @@ int asn1strenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 		ret = ASN1_STRING_set(ita, parsestate->leftargs[i], -1);
 		if (ret <= 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "set [%s] error[%d]\n", parsestate->leftargs[i], ret);
+			ERROR_INFO( "set [%s] error[%d]", parsestate->leftargs[i], ret);
 			goto out;
 		}
 		outlen = i2d_ASN1_UTF8STRING(ita, &pout);
 		if (outlen <= 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "i2d error[%d]\n", ret);
+			ERROR_INFO( "i2d error[%d]", ret);
 			goto out;
 		}
 		DEBUG_BUFFER_FMT(pout, outlen, "integer format");
@@ -606,7 +606,7 @@ ASN1_SEQUENCE(ASN1_SEQ_DATA) = {
 	ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptint, ASN1_INTEGER, 7),
 	ASN1_EXP(ASN1_SEQ_DATA, expstr, ASN1_UTF8STRING, 8),
 	ASN1_EXP(ASN1_SEQ_DATA, expobj, ASN1_OBJECT, 9),
-	ASN1_EXP(ASN1_SEQ_DATA, expint, ASN1_OBJECT, 10),
+	ASN1_EXP(ASN1_SEQ_DATA, expint, ASN1_INTEGER, 10),
 	ASN1_EXP_EMBED(ASN1_SEQ_DATA, expembint, ZINT32, 11),
 	ASN1_EXP_OPT(ASN1_SEQ_DATA, expoptstr, ASN1_UTF8STRING, 12),
 	ASN1_EXP_OPT(ASN1_SEQ_DATA, expoptobj, ASN1_OBJECT, 13),
@@ -690,13 +690,14 @@ get_again:
 	objsn = (unsigned char*)OPENSSL_malloc(snsize);
 	if (objsn == NULL) {
 		GETERRNO(ret);
-		fprintf(stderr, "alloc [%d] error[%d]\n", snsize, ret);
+		ERROR_INFO( "alloc [%d] error[%d]", snsize, ret);
 		goto fail;
 	}
 
 	ret = a2d_ASN1_OBJECT(objsn, snsize, pstrobj, -1);
 	if (ret <= 0 || ret >= snsize) {
 		snsize <<= 1;
+		DEBUG_INFO("a2d [%s] error[%d]", pstrobj,ret);
 		goto get_again;
 	}
 	snlen = ret;
@@ -710,7 +711,7 @@ get_again:
 		cclen += 2;
 	} else {
 		ret = -EINVAL;
-		fprintf(stderr, "overflow snlen [%d]\n", snlen);
+		ERROR_INFO( "overflow snlen [%d]", snlen);
 		goto fail;
 	}
 	if (ccsize < cclen) {
@@ -722,7 +723,7 @@ get_again:
 		ccbuf = (unsigned char*)OPENSSL_malloc(ccsize);
 		if (ccbuf == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "can not alloc [%d]\n", ccsize);
+			ERROR_INFO( "can not alloc [%d]", ccsize);
 			goto fail;
 		}
 	}
@@ -759,7 +760,7 @@ get_again:
 	pobj = d2i_ASN1_OBJECT(ppobj, &p, llen);
 	if (pobj == NULL) {
 		GETERRNO(ret);
-		fprintf(stderr, "can not parse buffer [%d]\n", ret);
+		ERROR_INFO( "can not parse buffer [%d]", ret);
 		goto fail;
 	}
 
@@ -801,7 +802,7 @@ int set_asn1_integer(ASN1_INTEGER** ppint, const char* key, const jvalue* pj)
 		pint = ASN1_INTEGER_new();
 		if (pint == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "can not alloc [%s] integer error[%d]\n", key, ret);
+			ERROR_INFO( "can not alloc [%s] integer error[%d]", key, ret);
 			goto fail;
 		}
 		*ppint = pint;
@@ -810,7 +811,7 @@ int set_asn1_integer(ASN1_INTEGER** ppint, const char* key, const jvalue* pj)
 	ret = ASN1_INTEGER_set_int64(pint, ival);
 	if (ret <= 0) {
 		GETERRNO(ret);
-		fprintf(stderr, "can not set [%s] ival [%lld] error[%d]\n", key, ival, ret);
+		ERROR_INFO( "can not set [%s] ival [%lld] error[%d]", key, ival, ret);
 		goto fail;
 	}
 	return 1;
@@ -838,7 +839,7 @@ int set_asn1_utfstr(ASN1_UTF8STRING** ppobjstr, const char* key, const jvalue* p
 		pobjstr = ASN1_STRING_new();
 		if (pobjstr == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "alloc [%s] error[%d]\n", key, ret);
+			ERROR_INFO( "alloc [%s] error[%d]", key, ret);
 			goto fail;
 		}
 		*ppobjstr = pobjstr;
@@ -847,7 +848,7 @@ int set_asn1_utfstr(ASN1_UTF8STRING** ppobjstr, const char* key, const jvalue* p
 	ret = ASN1_STRING_set(pobjstr, pstr, -1);
 	if (ret <= 0) {
 		GETERRNO(ret);
-		fprintf(stderr, "set [%s] error[%d]\n", key, ret);
+		ERROR_INFO( "set [%s] error[%d]", key, ret);
 		goto fail;
 	}
 
@@ -893,12 +894,12 @@ int set_asn1_object_array(STACK_OF(ASN1_OBJECT)** ppobjarr, const char* key, jva
 		curobj = (jstring*)jarray_get(arrobj, i, &error);
 		if (curobj == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "get [%s].[%d] error[%d]\n", key, i, ret);
+			ERROR_INFO( "get [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
 		if (curobj->type != JSTRING) {
 			ret = -EINVAL;
-			fprintf(stderr, "[%s].[%d] not JSTRING\n", key, i);
+			ERROR_INFO( "[%s].[%d] not JSTRING", key, i);
 			goto fail;
 		}
 
@@ -911,7 +912,7 @@ get_again:
 		objsn = (unsigned char*)OPENSSL_malloc(snsize);
 		if (objsn == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "alloc [%d] error[%d]\n", snsize, ret);
+			ERROR_INFO( "alloc [%d] error[%d]", snsize, ret);
 			goto fail;
 		}
 
@@ -931,7 +932,7 @@ get_again:
 			cclen += 2;
 		} else {
 			ret = -EINVAL;
-			fprintf(stderr, "overflow snlen [%d]\n", snlen);
+			ERROR_INFO( "overflow snlen [%d]", snlen);
 			goto fail;
 		}
 		if (ccsize < cclen) {
@@ -943,7 +944,7 @@ get_again:
 			ccbuf = (unsigned char*)OPENSSL_malloc(ccsize);
 			if (ccbuf == NULL) {
 				GETERRNO(ret);
-				fprintf(stderr, "can not alloc [%d]\n", ccsize);
+				ERROR_INFO( "can not alloc [%d]", ccsize);
 				goto fail;
 			}
 		}
@@ -980,7 +981,7 @@ get_again:
 		pobj = d2i_ASN1_OBJECT(NULL, &p, llen);
 		if (pobj == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "can not parse buffer [%d]\n", ret);
+			ERROR_INFO( "can not parse buffer [%d]", ret);
 			goto fail;
 		}
 
@@ -988,7 +989,7 @@ get_again:
 			pobjarr = sk_ASN1_OBJECT_new_null();
 			if (pobjarr == NULL) {
 				GETERRNO(ret);
-				fprintf(stderr, "alloc [%s] STACK_OF(ASN1_OBJECT) error[%d]\n", key, ret);
+				ERROR_INFO( "alloc [%s] STACK_OF(ASN1_OBJECT) error[%d]", key, ret);
 				goto fail;
 			}
 			*ppobjarr = pobjarr;
@@ -997,7 +998,7 @@ get_again:
 		ret = sk_ASN1_OBJECT_push(pobjarr,pobj);
 		if (ret == 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "[%s].[%d] push error[%d]\n", key,i, ret);
+			ERROR_INFO( "[%s].[%d] push error[%d]", key,i, ret);
 			goto fail;
 		}
 		pobj = NULL;
@@ -1055,7 +1056,7 @@ int set_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppobjarr, const char* key, j
 		curobj = jarray_get(arrobj, i, &error);
 		if (curobj == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "get [%s].[%d] error[%d]\n", key, i, ret);
+			ERROR_INFO( "get [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
 
@@ -1065,7 +1066,7 @@ int set_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppobjarr, const char* key, j
 			curint64 = (jint64*) curobj;
 		} else {
 			ret = -EINVAL;
-			fprintf(stderr, "[%s].[%d] not JSTRING\n", key, i);
+			ERROR_INFO( "[%s].[%d] not JSTRING", key, i);
 			goto fail;
 		}
 
@@ -1073,7 +1074,7 @@ int set_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppobjarr, const char* key, j
 		pobj = ASN1_INTEGER_new();
 		if (pobj == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "[%s].[%d] alloc error[%d]\n", key, i,ret);
+			ERROR_INFO( "[%s].[%d] alloc error[%d]", key, i,ret);
 			goto fail;
 		}
 
@@ -1084,7 +1085,7 @@ int set_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppobjarr, const char* key, j
 		}
 		if (ret <= 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "[%s].[%d] set int64 error[%d]\n", key,i, ret);
+			ERROR_INFO( "[%s].[%d] set int64 error[%d]", key,i, ret);
 			goto fail;
 		}
 
@@ -1092,7 +1093,7 @@ int set_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppobjarr, const char* key, j
 			pobjarr = sk_ASN1_INTEGER_new_null();
 			if (pobjarr == NULL) {
 				GETERRNO(ret);
-				fprintf(stderr, "alloc [%s] STACK_OF(ASN1_INTEGER) error[%d]\n", key, ret);
+				ERROR_INFO( "alloc [%s] STACK_OF(ASN1_INTEGER) error[%d]", key, ret);
 				goto fail;
 			}
 			*ppobjarr = pobjarr;
@@ -1101,7 +1102,7 @@ int set_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppobjarr, const char* key, j
 		ret = sk_ASN1_INTEGER_push(pobjarr,pobj);
 		if (ret == 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "[%s].[%d] push error[%d]\n", key,i, ret);
+			ERROR_INFO( "[%s].[%d] push error[%d]", key,i, ret);
 			goto fail;
 		}
 		pobj = NULL;
@@ -1142,13 +1143,13 @@ int set_asn1_string_array(STACK_OF(ASN1_UTF8STRING)** ppobjarr, const char* key,
 		curobj = (jstring*)jarray_get(arrobj, i, &error);
 		if (curobj == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "get [%s].[%d] error[%d]\n", key, i, ret);
+			ERROR_INFO( "get [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
 
 		if (curobj->type != JSTRING) {
 			ret = -EINVAL;
-			fprintf(stderr, "[%s].[%d] error[%d]\n",key, i, ret);
+			ERROR_INFO( "[%s].[%d] error[%d]",key, i, ret);
 			goto fail;
 		}
 
@@ -1156,14 +1157,14 @@ int set_asn1_string_array(STACK_OF(ASN1_UTF8STRING)** ppobjarr, const char* key,
 		pobj = ASN1_STRING_new();
 		if (pobj == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "[%s].[%d] alloc error[%d]\n", key, i,ret);
+			ERROR_INFO( "[%s].[%d] alloc error[%d]", key, i,ret);
 			goto fail;
 		}
 
 		ret = ASN1_STRING_set(pobj,curobj->value,-1);
 		if (ret <= 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "[%s].[%d] set error[%d]\n", key, i, ret);
+			ERROR_INFO( "[%s].[%d] set error[%d]", key, i, ret);
 			goto fail;
 		}
 
@@ -1172,7 +1173,7 @@ int set_asn1_string_array(STACK_OF(ASN1_UTF8STRING)** ppobjarr, const char* key,
 			pobjarr = sk_ASN1_UTF8STRING_new_null();
 			if (pobjarr == NULL) {
 				GETERRNO(ret);
-				fprintf(stderr, "alloc [%s] STACK_OF(ASN1_STRING) error[%d]\n", key, ret);
+				ERROR_INFO( "alloc [%s] STACK_OF(ASN1_STRING) error[%d]", key, ret);
 				goto fail;
 			}
 			*ppobjarr = pobjarr;
@@ -1181,7 +1182,7 @@ int set_asn1_string_array(STACK_OF(ASN1_UTF8STRING)** ppobjarr, const char* key,
 		ret = sk_ASN1_UTF8STRING_push(pobjarr,pobj);
 		if (ret == 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "[%s].[%d] push error[%d]\n", key,i, ret);
+			ERROR_INFO( "[%s].[%d] push error[%d]", key,i, ret);
 			goto fail;
 		}
 		pobj = NULL;
@@ -1228,7 +1229,7 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	pdata = ASN1_SEQ_DATA_new();
 	if (pdata == NULL) {
 		GETERRNO(ret);
-		fprintf(stderr, "alloc ASN1_SEQ_DATA error[%d]\n", ret);
+		ERROR_INFO( "alloc ASN1_SEQ_DATA error[%d]", ret);
 		goto out;
 	}
 
@@ -1239,7 +1240,7 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	}
 	if (ret < 0) {
 		GETERRNO(ret);
-		fprintf(stderr, "read [%s] error[%d]\n", pargs->m_input ? pargs->m_input : "stdin", ret);
+		ERROR_INFO( "read [%s] error[%d]", pargs->m_input ? pargs->m_input : "stdin", ret);
 		goto out;
 	}
 	jsonlen = ret;
@@ -1249,7 +1250,7 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	pj = jvalue_read(pjson,&jlen);
 	if (pj == NULL) {
 		ret = -EINVAL;
-		fprintf(stderr,"parse [%s] error\n", pargs->m_input ? pargs->m_input : "stdin");
+		ERROR_INFO("parse [%s] error", pargs->m_input ? pargs->m_input : "stdin");
 		goto out;
 	}
 
@@ -1658,7 +1659,7 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	ret = i2d_ASN1_SEQ_DATA(pdata, &pout);
 	if (ret <= 0) {
 		GETERRNO(ret);
-		fprintf(stderr, "seq data error[%d]\n", ret);
+		ERROR_INFO( "seq data error[%d]", ret);
 		goto out;
 	}
 	outlen = ret;
