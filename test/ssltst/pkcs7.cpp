@@ -557,62 +557,491 @@ typedef struct {
 	STACK_OF(ASN1_UTF8STRING)* impsetstr;
 	STACK_OF(ASN1_OBJECT)* impsetobj;
 	STACK_OF(ASN1_INTEGER)* impsetint;
+	STACK_OF(ASN1_UTF8STRING)* expsetstr;
+	STACK_OF(ASN1_OBJECT)* expsetobj;
+	STACK_OF(ASN1_INTEGER)* expsetint;
+	STACK_OF(ASN1_UTF8STRING)* impsetoptstr;
+	STACK_OF(ASN1_OBJECT)* impsetoptobj;
+	STACK_OF(ASN1_INTEGER)* impsetoptint;
+	STACK_OF(ASN1_UTF8STRING)* expsetoptstr;
+	STACK_OF(ASN1_OBJECT)* expsetoptobj;
+	STACK_OF(ASN1_INTEGER)* expsetoptint;
+	STACK_OF(ASN1_UTF8STRING)* impseqstr;
+	STACK_OF(ASN1_OBJECT)* impseqobj;
+	STACK_OF(ASN1_INTEGER)* impseqint;
+	STACK_OF(ASN1_UTF8STRING)* impseqoptstr;
+	STACK_OF(ASN1_OBJECT)* impseqoptobj;
+	STACK_OF(ASN1_INTEGER)* impseqoptint;
+	STACK_OF(ASN1_UTF8STRING)* expseqstr;
+	STACK_OF(ASN1_OBJECT)* expseqobj;
+	STACK_OF(ASN1_INTEGER)* expseqint;
+	STACK_OF(ASN1_UTF8STRING)* expseqoptstr;
+	STACK_OF(ASN1_OBJECT)* expseqoptobj;
+	STACK_OF(ASN1_INTEGER)* expseqoptint;
+	ASN1_UTF8STRING* ndefexpstr;
+	ASN1_OBJECT* ndefexpobj;
+	ASN1_INTEGER* ndefexpint;
+	ASN1_UTF8STRING* ndefexpoptstr;
+	ASN1_OBJECT* ndefexpoptobj;
+	ASN1_INTEGER* ndefexpoptint;
 } ASN1_SEQ_DATA;
 
 
 DECLARE_ASN1_FUNCTIONS(ASN1_SEQ_DATA)
 
 ASN1_SEQUENCE(ASN1_SEQ_DATA) = {
-        ASN1_SIMPLE(ASN1_SEQ_DATA, success, ASN1_BOOLEAN),
-        ASN1_SIMPLE(ASN1_SEQ_DATA, vinter, ASN1_INTEGER),
-        ASN1_SIMPLE(ASN1_SEQ_DATA, vstr, ASN1_UTF8STRING),
-        ASN1_SIMPLE(ASN1_SEQ_DATA, vobj, ASN1_OBJECT),
-        ASN1_EMBED(ASN1_SEQ_DATA, embint, ZINT32),
-        ASN1_OPT(ASN1_SEQ_DATA, optstr, ASN1_UTF8STRING),
-        ASN1_OPT(ASN1_SEQ_DATA, optobj, ASN1_OBJECT),
-        ASN1_OPT(ASN1_SEQ_DATA, optint, ASN1_INTEGER),
-        ASN1_OPT_EMBED(ASN1_SEQ_DATA, optint, ZINT32),
-        ASN1_IMP(ASN1_SEQ_DATA, impstr, ASN1_UTF8STRING, 1),
-        ASN1_IMP(ASN1_SEQ_DATA, impobj, ASN1_OBJECT, 2),
-        ASN1_IMP(ASN1_SEQ_DATA, impint, ASN1_INTEGER, 3),
-        ASN1_IMP_EMBED(ASN1_SEQ_DATA, impembint, ZINT32, 4),
-        ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptstr, ASN1_UTF8STRING, 5),
-        ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptobj, ASN1_OBJECT, 6),
-        ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptint, ASN1_INTEGER, 7),
-        ASN1_EXP(ASN1_SEQ_DATA, expstr, ASN1_UTF8STRING, 8),
-        ASN1_EXP(ASN1_SEQ_DATA, expobj, ASN1_OBJECT, 9),
-        ASN1_EXP(ASN1_SEQ_DATA, expint, ASN1_OBJECT, 10),
-        ASN1_EXP_EMBED(ASN1_SEQ_DATA, expembint, ZINT32, 11),
-        ASN1_EXP_OPT(ASN1_SEQ_DATA, expoptstr, ASN1_UTF8STRING, 12),
-        ASN1_EXP_OPT(ASN1_SEQ_DATA, expoptobj, ASN1_OBJECT, 13),
-        ASN1_EXP_OPT(ASN1_SEQ_DATA, expoptint, ASN1_INTEGER, 14),
-        ASN1_EXP_OPT_EMBED(ASN1_SEQ_DATA,expoptembint,ZINT32,15),
-        ASN1_SEQUENCE_OF(ASN1_SEQ_DATA,seqstr,ASN1_UTF8STRING),
-        ASN1_SEQUENCE_OF(ASN1_SEQ_DATA,seqobj,ASN1_OBJECT),
-        ASN1_SEQUENCE_OF(ASN1_SEQ_DATA,seqint,ASN1_INTEGER),
-        ASN1_SEQUENCE_OF_OPT(ASN1_SEQ_DATA,seqoptstr,ASN1_UTF8STRING),
-        ASN1_SEQUENCE_OF_OPT(ASN1_SEQ_DATA,seqoptobj,ASN1_OBJECT),
-        ASN1_SEQUENCE_OF_OPT(ASN1_SEQ_DATA,seqoptint,ASN1_INTEGER),
-        ASN1_SET_OF(ASN1_SEQ_DATA,setstr,ASN1_UTF8STRING),
-        ASN1_SET_OF(ASN1_SEQ_DATA,setobj,ASN1_OBJECT),
-        ASN1_SET_OF(ASN1_SEQ_DATA,setint,ASN1_INTEGER),
-        ASN1_SET_OF_OPT(ASN1_SEQ_DATA,setoptstr,ASN1_UTF8STRING),
-        ASN1_SET_OF_OPT(ASN1_SEQ_DATA,setoptobj,ASN1_OBJECT),
-        ASN1_SET_OF_OPT(ASN1_SEQ_DATA,setoptint,ASN1_INTEGER),
-        ASN1_IMP_SET_OF(ASN1_SEQ_DATA,impsetstr,ASN1_UTF8STRING,1),
-        ASN1_IMP_SET_OF(ASN1_SEQ_DATA,impsetobj,ASN1_OBJECT,2),
-        ASN1_IMP_SET_OF(ASN1_SEQ_DATA,impsetint,ASN1_INTEGER,3)
+	ASN1_SIMPLE(ASN1_SEQ_DATA, success, ASN1_BOOLEAN),
+	ASN1_SIMPLE(ASN1_SEQ_DATA, vinter, ASN1_INTEGER),
+	ASN1_SIMPLE(ASN1_SEQ_DATA, vstr, ASN1_UTF8STRING),
+	ASN1_SIMPLE(ASN1_SEQ_DATA, vobj, ASN1_OBJECT),
+	ASN1_EMBED(ASN1_SEQ_DATA, embint, ZINT32),
+	ASN1_OPT(ASN1_SEQ_DATA, optstr, ASN1_UTF8STRING),
+	ASN1_OPT(ASN1_SEQ_DATA, optobj, ASN1_OBJECT),
+	ASN1_OPT(ASN1_SEQ_DATA, optint, ASN1_INTEGER),
+	ASN1_OPT_EMBED(ASN1_SEQ_DATA, optint, ZINT32),
+	ASN1_IMP(ASN1_SEQ_DATA, impstr, ASN1_UTF8STRING, 1),
+	ASN1_IMP(ASN1_SEQ_DATA, impobj, ASN1_OBJECT, 2),
+	ASN1_IMP(ASN1_SEQ_DATA, impint, ASN1_INTEGER, 3),
+	ASN1_IMP_EMBED(ASN1_SEQ_DATA, impembint, ZINT32, 4),
+	ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptstr, ASN1_UTF8STRING, 5),
+	ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptobj, ASN1_OBJECT, 6),
+	ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptint, ASN1_INTEGER, 7),
+	ASN1_EXP(ASN1_SEQ_DATA, expstr, ASN1_UTF8STRING, 8),
+	ASN1_EXP(ASN1_SEQ_DATA, expobj, ASN1_OBJECT, 9),
+	ASN1_EXP(ASN1_SEQ_DATA, expint, ASN1_OBJECT, 10),
+	ASN1_EXP_EMBED(ASN1_SEQ_DATA, expembint, ZINT32, 11),
+	ASN1_EXP_OPT(ASN1_SEQ_DATA, expoptstr, ASN1_UTF8STRING, 12),
+	ASN1_EXP_OPT(ASN1_SEQ_DATA, expoptobj, ASN1_OBJECT, 13),
+	ASN1_EXP_OPT(ASN1_SEQ_DATA, expoptint, ASN1_INTEGER, 14),
+	ASN1_EXP_OPT_EMBED(ASN1_SEQ_DATA, expoptembint, ZINT32, 15),
+	ASN1_SEQUENCE_OF(ASN1_SEQ_DATA, seqstr, ASN1_UTF8STRING),
+	ASN1_SEQUENCE_OF(ASN1_SEQ_DATA, seqobj, ASN1_OBJECT),
+	ASN1_SEQUENCE_OF(ASN1_SEQ_DATA, seqint, ASN1_INTEGER),
+	ASN1_SEQUENCE_OF_OPT(ASN1_SEQ_DATA, seqoptstr, ASN1_UTF8STRING),
+	ASN1_SEQUENCE_OF_OPT(ASN1_SEQ_DATA, seqoptobj, ASN1_OBJECT),
+	ASN1_SEQUENCE_OF_OPT(ASN1_SEQ_DATA, seqoptint, ASN1_INTEGER),
+	ASN1_SET_OF(ASN1_SEQ_DATA, setstr, ASN1_UTF8STRING),
+	ASN1_SET_OF(ASN1_SEQ_DATA, setobj, ASN1_OBJECT),
+	ASN1_SET_OF(ASN1_SEQ_DATA, setint, ASN1_INTEGER),
+	ASN1_SET_OF_OPT(ASN1_SEQ_DATA, setoptstr, ASN1_UTF8STRING),
+	ASN1_SET_OF_OPT(ASN1_SEQ_DATA, setoptobj, ASN1_OBJECT),
+	ASN1_SET_OF_OPT(ASN1_SEQ_DATA, setoptint, ASN1_INTEGER),
+	ASN1_IMP_SET_OF(ASN1_SEQ_DATA, impsetstr, ASN1_UTF8STRING, 1),
+	ASN1_IMP_SET_OF(ASN1_SEQ_DATA, impsetobj, ASN1_OBJECT, 2),
+	ASN1_IMP_SET_OF(ASN1_SEQ_DATA, impsetint, ASN1_INTEGER, 3),
+	ASN1_EXP_SET_OF(ASN1_SEQ_DATA, expsetstr, ASN1_UTF8STRING, 4),
+	ASN1_EXP_SET_OF(ASN1_SEQ_DATA, expsetobj, ASN1_OBJECT, 5),
+	ASN1_EXP_SET_OF(ASN1_SEQ_DATA, expsetint, ASN1_INTEGER, 6),
+	ASN1_IMP_SET_OF_OPT(ASN1_SEQ_DATA, impsetoptstr, ASN1_UTF8STRING, 7),
+	ASN1_IMP_SET_OF_OPT(ASN1_SEQ_DATA, impsetoptobj, ASN1_OBJECT, 8),
+	ASN1_IMP_SET_OF_OPT(ASN1_SEQ_DATA, impsetoptint, ASN1_INTEGER, 9),
+	ASN1_EXP_SET_OF_OPT(ASN1_SEQ_DATA, expsetoptstr, ASN1_UTF8STRING, 10),
+	ASN1_EXP_SET_OF_OPT(ASN1_SEQ_DATA, expsetoptobj, ASN1_OBJECT, 11),
+	ASN1_EXP_SET_OF_OPT(ASN1_SEQ_DATA, expsetoptint, ASN1_INTEGER, 12),
+	ASN1_IMP_SEQUENCE_OF(ASN1_SEQ_DATA, impseqstr, ASN1_UTF8STRING, 13),
+	ASN1_IMP_SEQUENCE_OF(ASN1_SEQ_DATA, impseqobj, ASN1_OBJECT, 14),
+	ASN1_IMP_SEQUENCE_OF(ASN1_SEQ_DATA, impseqint, ASN1_INTEGER, 15),
+	ASN1_IMP_SEQUENCE_OF_OPT(ASN1_SEQ_DATA, impseqoptstr, ASN1_UTF8STRING, 1),
+	ASN1_IMP_SEQUENCE_OF_OPT(ASN1_SEQ_DATA, impseqoptobj, ASN1_OBJECT, 2),
+	ASN1_IMP_SEQUENCE_OF_OPT(ASN1_SEQ_DATA, impseqoptint, ASN1_INTEGER, 3),
+	ASN1_EXP_SEQUENCE_OF(ASN1_SEQ_DATA, expseqstr, ASN1_UTF8STRING, 4),
+	ASN1_EXP_SEQUENCE_OF(ASN1_SEQ_DATA, expseqobj, ASN1_OBJECT, 5),
+	ASN1_EXP_SEQUENCE_OF(ASN1_SEQ_DATA, expseqint, ASN1_INTEGER, 6),
+	ASN1_EXP_SEQUENCE_OF_OPT(ASN1_SEQ_DATA, expseqoptstr, ASN1_UTF8STRING, 7),
+	ASN1_EXP_SEQUENCE_OF_OPT(ASN1_SEQ_DATA, expseqoptobj, ASN1_OBJECT, 8),
+	ASN1_EXP_SEQUENCE_OF_OPT(ASN1_SEQ_DATA, expseqoptint, ASN1_INTEGER, 9),
+	ASN1_NDEF_EXP(ASN1_SEQ_DATA, ndefexpstr, ASN1_UTF8STRING, 10),
+	ASN1_NDEF_EXP(ASN1_SEQ_DATA, ndefexpobj, ASN1_OBJECT, 11),
+	ASN1_NDEF_EXP(ASN1_SEQ_DATA, ndefexpint, ASN1_INTEGER, 12),
+	ASN1_NDEF_EXP_OPT(ASN1_SEQ_DATA, ndefexpoptstr, ASN1_UTF8STRING, 13),
+	ASN1_NDEF_EXP_OPT(ASN1_SEQ_DATA, ndefexpoptobj, ASN1_OBJECT, 14),
+	ASN1_NDEF_EXP_OPT(ASN1_SEQ_DATA, ndefexpoptint, ASN1_INTEGER, 15)
 } ASN1_SEQUENCE_END(ASN1_SEQ_DATA)
 
 
 IMPLEMENT_ASN1_FUNCTIONS(ASN1_SEQ_DATA)
 
 
+int set_asn1_object(ASN1_OBJECT** ppobj, const char* key, jvalue* pj)
+{
+	int ret;
+	const char* pstrobj;
+	int error;
+	unsigned char* objsn = NULL;
+	int snsize = 0;
+	int snlen = 0;
+	unsigned char* ccbuf = NULL;
+	int ccsize = 0;
+	int cclen = 0;
+	int llen;
+	const unsigned char* p;
+	ASN1_OBJECT* pobj = NULL;
+
+	error = 0;
+	pstrobj = jobject_get_string(pj, key, &error);
+	if (pstrobj == NULL) {
+		return 0;
+	}
+
+	snsize = 4;
+get_again:
+	if (objsn != NULL) {
+		OPENSSL_free(objsn);
+	}
+	objsn = NULL;
+	objsn = (unsigned char*)OPENSSL_malloc(snsize);
+	if (objsn == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "alloc [%d] error[%d]\n", snsize, ret);
+		goto fail;
+	}
+
+	ret = a2d_ASN1_OBJECT(objsn, snsize, pstrobj, -1);
+	if (ret <= 0 || ret >= snsize) {
+		snsize <<= 1;
+		goto get_again;
+	}
+	snlen = ret;
+
+	cclen = snlen + 2;
+	if (snlen < 128) {
+		cclen += 0;
+	} else if (snlen >= 128 && snlen < 256) {
+		cclen += 1;
+	} else if (snlen >= 256 && snlen < ((1 << 15) - 1)) {
+		cclen += 2;
+	} else {
+		ret = -EINVAL;
+		fprintf(stderr, "overflow snlen [%d]\n", snlen);
+		goto fail;
+	}
+	if (ccsize < cclen) {
+		ccsize = cclen + 1;
+		if (ccbuf != NULL) {
+			OPENSSL_free(ccbuf);
+		}
+		ccbuf = NULL;
+		ccbuf = (unsigned char*)OPENSSL_malloc(ccsize);
+		if (ccbuf == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not alloc [%d]\n", ccsize);
+			goto fail;
+		}
+	}
+	memset(ccbuf, 0, ccsize);
+	llen = 0;
+	ccbuf[llen] =  V_ASN1_OBJECT;
+	llen ++;
+	if (snlen < 128) {
+		ccbuf[llen] = snlen;
+		llen ++;
+	} else if (snlen >= 128 && snlen < 256) {
+		ccbuf[llen] = 0x81;
+		llen ++;
+		ccbuf[llen] = snlen;
+		llen ++;
+	} else if (snlen >= 256 && snlen < ((1 << 15) - 1)) {
+		ccbuf[llen] = 0x82;
+		llen ++;
+		ccbuf[llen] = (snlen >> 8)  & 0xff;
+		llen ++;
+		ccbuf[llen] = (snlen & 0xff);
+		llen ++;
+	} else {
+		ret = -EINVAL;
+		goto fail;
+	}
+
+	memcpy(&(ccbuf[llen]), objsn, snlen);
+	llen += snlen;
+
+
+
+	p = (const unsigned char*) ccbuf;
+	pobj = d2i_ASN1_OBJECT(ppobj, &p, llen);
+	if (pobj == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not parse buffer [%d]\n", ret);
+		goto fail;
+	}
+
+	OPENSSL_free(ccbuf);
+	ccsize = 0;
+	cclen = 0;
+	llen = 0;
+	OPENSSL_free(objsn);
+	snsize = 0;
+	snlen = 0;
+	return 1;
+fail:
+	OPENSSL_free(ccbuf);
+	ccsize = 0;
+	cclen = 0;
+	llen = 0;
+	OPENSSL_free(objsn);
+	snsize = 0;
+	snlen = 0;
+	SETERRNO(ret);
+	return ret;
+}
+
+int set_asn1_integer(ASN1_INTEGER** ppint, const char* key, const jvalue* pj)
+{
+	long long int ival;
+	int error;
+	int ret;
+	ASN1_INTEGER* pint = NULL;
+
+	error = 0;
+	ival = jobject_get_int64(pj, key, &error);
+	if (error != 0) {
+		return 0;
+	}
+
+	pint = *ppint;
+	if (pint == NULL) {
+		pint = ASN1_INTEGER_new();
+		if (pint == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not alloc [%s] integer error[%d]\n", key, ret);
+			goto fail;
+		}
+		*ppint = pint;
+	}
+
+	ret = ASN1_INTEGER_set_int64(pint, ival);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not set [%s] ival [%lld] error[%d]\n", key, ival, ret);
+		goto fail;
+	}
+	return 1;
+fail:
+
+	SETERRNO(ret);
+	return ret;
+}
+
+int set_asn1_utfstr(ASN1_UTF8STRING** ppobjstr, const char* key, const jvalue* pj)
+{
+	const char* pstr = NULL;
+	int error;
+	int ret;
+	ASN1_UTF8STRING* pobjstr = NULL;
+
+	error = 0;
+	pstr = jobject_get_string(pj, key, &error);
+	if (pstr == NULL) {
+		return 0;
+	}
+
+	pobjstr = *ppobjstr;
+	if (pobjstr == NULL) {
+		pobjstr = ASN1_STRING_new();
+		if (pobjstr == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "alloc [%s] error[%d]\n", key, ret);
+			goto fail;
+		}
+		*ppobjstr = pobjstr;
+	}
+
+	ret = ASN1_STRING_set(pobjstr, pstr, -1);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "set [%s] error[%d]\n", key, ret);
+		goto fail;
+	}
+
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int set_asn1_object_array(STACK_OF(ASN1_OBJECT)** ppobjarr, const char* key, jvalue* pj)
+{
+	int ret;
+	const char* pstrobj;
+	int error;
+	unsigned char* objsn = NULL;
+	int snsize = 0;
+	int snlen = 0;
+	unsigned char* ccbuf = NULL;
+	int ccsize = 0;
+	int cclen = 0;
+	int llen;
+	const unsigned char* p;
+	STACK_OF(ASN1_OBJECT)* pobjarr = NULL;
+	ASN1_OBJECT* pobj = NULL;
+	jvalue* arrobj = NULL;
+	jstring* curobj = NULL;
+	unsigned int arrsize = 0;
+	int cnt = 0;
+	unsigned int i;
+
+
+	error = 0;
+	arrobj = (jvalue*)jobject_get_array(pj, key, &error);
+	if (arrobj == NULL) {
+		return 0;
+	}
+
+	pstrobj = jobject_get_string(pj, key, &error);
+	if (pstrobj == NULL) {
+		return 0;
+	}
+
+	snsize = 4;
+	arrsize = jarray_size(arrobj);
+
+	for (i = 0; i < arrsize; i++) {
+		error = 0;
+		curobj = (jstring*)jarray_get(arrobj, i, &error);
+		if (curobj == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "get [%s].[%d] error[%d]\n", key, i, ret);
+			goto fail;
+		}
+		if (curobj->type != JSTRING) {
+			ret = -EINVAL;
+			fprintf(stderr, "[%s].[%d] not JSTRING\n", key, i);
+			goto fail;
+		}
+
+		ASSERT_IF(pobj == NULL);
+get_again:
+		if (objsn != NULL) {
+			OPENSSL_free(objsn);
+		}
+		objsn = NULL;
+		objsn = (unsigned char*)OPENSSL_malloc(snsize);
+		if (objsn == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "alloc [%d] error[%d]\n", snsize, ret);
+			goto fail;
+		}
+
+		ret = a2d_ASN1_OBJECT(objsn, snsize, curobj->value, -1);
+		if (ret <= 0 || ret >= snsize) {
+			snsize <<= 1;
+			goto get_again;
+		}
+		snlen = ret;
+
+		cclen = snlen + 2;
+		if (snlen < 128) {
+			cclen += 0;
+		} else if (snlen >= 128 && snlen < 256) {
+			cclen += 1;
+		} else if (snlen >= 256 && snlen < ((1 << 15) - 1)) {
+			cclen += 2;
+		} else {
+			ret = -EINVAL;
+			fprintf(stderr, "overflow snlen [%d]\n", snlen);
+			goto fail;
+		}
+		if (ccsize < cclen) {
+			ccsize = cclen + 1;
+			if (ccbuf != NULL) {
+				OPENSSL_free(ccbuf);
+			}
+			ccbuf = NULL;
+			ccbuf = (unsigned char*)OPENSSL_malloc(ccsize);
+			if (ccbuf == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "can not alloc [%d]\n", ccsize);
+				goto fail;
+			}
+		}
+		memset(ccbuf, 0, ccsize);
+		llen = 0;
+		ccbuf[llen] =  V_ASN1_OBJECT;
+		llen ++;
+		if (snlen < 128) {
+			ccbuf[llen] = snlen;
+			llen ++;
+		} else if (snlen >= 128 && snlen < 256) {
+			ccbuf[llen] = 0x81;
+			llen ++;
+			ccbuf[llen] = snlen;
+			llen ++;
+		} else if (snlen >= 256 && snlen < ((1 << 15) - 1)) {
+			ccbuf[llen] = 0x82;
+			llen ++;
+			ccbuf[llen] = (snlen >> 8)  & 0xff;
+			llen ++;
+			ccbuf[llen] = (snlen & 0xff);
+			llen ++;
+		} else {
+			ret = -EINVAL;
+			goto fail;
+		}
+
+		memcpy(&(ccbuf[llen]), objsn, snlen);
+		llen += snlen;
+
+
+
+		p = (const unsigned char*) ccbuf;
+		pobj = d2i_ASN1_OBJECT(NULL, &p, llen);
+		if (pobj == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not parse buffer [%d]\n", ret);
+			goto fail;
+		}
+
+		if (pobjarr == NULL) {
+			pobjarr = sk_ASN1_OBJECT_new_null();
+			if (pobjarr == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "alloc [%s] STACK_OF(ASN1_OBJECT) error[%d]\n", key, ret);
+				goto fail;
+			}
+			*ppobjarr = pobjarr;
+		}
+
+		ret = sk_ASN1_OBJECT_push(pobjarr,pobj);
+		if (ret == 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "[%s].[%d] push error[%d]\n", key,i, ret);
+			goto fail;
+		}
+		pobj = NULL;
+		cnt ++;
+	}
+
+	ASN1_OBJECT_free(pobj);
+	OPENSSL_free(ccbuf);
+	ccsize = 0;
+	cclen = 0;
+	llen = 0;
+	OPENSSL_free(objsn);
+	snsize = 0;
+	snlen = 0;
+	return cnt;
+fail:
+	ASN1_OBJECT_free(pobj);
+	OPENSSL_free(ccbuf);
+	ccsize = 0;
+	cclen = 0;
+	llen = 0;
+	OPENSSL_free(objsn);
+	snsize = 0;
+	snlen = 0;
+	SETERRNO(ret);
+	return ret;
+}
 
 
 int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	ASN1_SEQ_DATA* pdata = NULL;
+	jvalue* pj = NULL;
+	char* pjson = NULL;
+	int jsonsize = 0;
+	int jsonlen = 0;
 	unsigned char* objsn = NULL;
 	int snsize = 4;
 	int snlen = 0;
@@ -621,27 +1050,19 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	unsigned char* pout = NULL;
 	int outlen = 0;
 	int ret;
-	unsigned char* ccbuf=NULL;
+	unsigned char* ccbuf = NULL;
 	int ccsize = 0;
 	int cclen = 0;
-	int llen=0;
+	int llen = 0;
 	int cnt = 0;
-	const unsigned char* p=NULL;
+	const unsigned char* p = NULL;
 	pargs_options_t pargs = (pargs_options_t) popt;
-	ASN1_OBJECT* ito=NULL;
+	ASN1_OBJECT* ito = NULL;
 	ASN1_INTEGER* iti = NULL;
 
 	init_log_verbose(pargs);
 
-	for (cnt = 0; parsestate->leftargs && parsestate->leftargs[cnt]; cnt++) {
 
-	}
-
-	if (cnt < 4) {
-		ret = -EINVAL;
-		fprintf(stderr, "need ASN1_BOOLEAN int str object [inter]\n");
-		goto out;
-	}
 
 	pdata = ASN1_SEQ_DATA_new();
 	if (pdata == NULL) {
@@ -752,7 +1173,7 @@ get_again:
 	}
 
 
-	ret = i2d_ASN1_SEQ_DATA(pdata,&pout);
+	ret = i2d_ASN1_SEQ_DATA(pdata, &pout);
 	if (ret <= 0) {
 		GETERRNO(ret);
 		fprintf(stderr, "seq data error[%d]\n", ret);
@@ -760,7 +1181,7 @@ get_again:
 	}
 	outlen = ret;
 
-	DEBUG_BUFFER_FMT(pout,outlen,"seq data");
+	DEBUG_BUFFER_FMT(pout, outlen, "seq data");
 
 	ret = 0;
 out:

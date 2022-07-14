@@ -3,6 +3,7 @@
 #include <ux_err.h>
 #include <ux_output_debug.h>
 #include <ux_fileop.h>
+#include <jvalue.h>
 
 
 #include <authenticode.h>
