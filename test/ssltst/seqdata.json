@@ -5,5 +5,11 @@
 	"impembint" : -2,
 	"expobj" : "1.22.11",
 	"expembint" : 77202,
-	"ndefexpobj" : "1.2.222"
+	"ndefexpobj" : "1.2.222",
+	"------------" : "below are not must",
+	"simpint" : 100,
+	"simpstr" : "hello world",
+	"impstr" : "impstr set",
+	"impobj" : "2.11.32"
+
 }
