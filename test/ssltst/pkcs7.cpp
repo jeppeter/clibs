@@ -1221,6 +1221,74 @@ int set_asn1_int32(int32_t* pint32, const char* key, const jvalue *pj)
 	return 1;
 }
 
+#define SET_SEQ_INT_VALUE(member)                                                                 \
+do{                                                                                               \
+	ret = set_asn1_integer(&(pdata->member),#member,pj);                                          \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+
+#define SET_SEQ_OBJECT_VALUE(member)                                                              \
+do{                                                                                               \
+	ret = set_asn1_object(&(pdata->member),#member,pj);                                           \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+#define SET_SEQ_STR_VALUE(member)                                                                 \
+do{                                                                                               \
+	ret = set_asn1_utfstr(&(pdata->member),#member,pj);                                           \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+#define SET_SEQ_INT32_VALUE(member)                                                               \
+do{                                                                                               \
+	ret = set_asn1_int32(&(pdata->member),#member,pj);                                            \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+
+
+#define SET_SEQ_INT_ARRAY(member)                                                                 \
+do{                                                                                               \
+	ret = set_asn1_integer_array(&(pdata->member),#member,pj);                                    \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+
+#define SET_SEQ_OBJECT_ARRAY(member)                                                              \
+do{                                                                                               \
+	ret = set_asn1_object_array(&(pdata->member),#member,pj);                                     \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+#define SET_SEQ_STR_ARRAY(member)                                                                 \
+do{                                                                                               \
+	ret = set_asn1_string_array(&(pdata->member),#member,pj);                                     \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+
 int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	ASN1_SEQ_DATA* pdata = NULL;
@@ -1264,407 +1332,71 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 		goto out;
 	}
 
-	ret = set_asn1_integer(&(pdata->simpint), "simpint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_object(&(pdata->simpobj), "simpobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_utfstr(&(pdata->simpstr), "simpstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_int32(&(pdata->embint), "embint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_utfstr(&(pdata->optstr), "optstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_object(&(pdata->optobj), "optobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer(&(pdata->optint), "optint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_int32(&(pdata->optembint), "optembint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_utfstr(&(pdata->impstr), "impstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = set_asn1_object(&(pdata->impobj), "impobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer(&(pdata->impint), "impint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_int32(&(pdata->impembint), "impembint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = set_asn1_utfstr(&(pdata->impoptstr), "impoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = set_asn1_object(&(pdata->impoptobj), "impoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer(&(pdata->impoptint), "impoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_utfstr(&(pdata->expstr), "expstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = set_asn1_object(&(pdata->expobj), "expobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer(&(pdata->expint), "expint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_int32(&(pdata->expembint), "expembint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_utfstr(&(pdata->expoptstr), "expoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = set_asn1_object(&(pdata->expoptobj), "expoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer(&(pdata->expoptint), "expoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_int32(&(pdata->expoptembint), "expoptembint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = set_asn1_utfstr(&(pdata->seqstr), "seqstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = set_asn1_object(&(pdata->seqobj), "seqobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer(&(pdata->seqint), "seqint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_utfstr(&(pdata->seqoptstr), "seqoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = set_asn1_object(&(pdata->seqoptobj), "seqoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer(&(pdata->seqoptint), "seqoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_string_array(&(pdata->setstr), "setstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_object_array(&(pdata->setobj), "setobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer_array(&(pdata->setint), "setint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = set_asn1_string_array(&(pdata->setoptstr), "setoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_object_array(&(pdata->setoptobj), "setoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer_array(&(pdata->setoptint), "setoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = set_asn1_string_array(&(pdata->impsetstr), "impsetstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_object_array(&(pdata->impsetobj), "impsetobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer_array(&(pdata->impsetint), "impsetint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_string_array(&(pdata->expsetstr), "expsetstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_object_array(&(pdata->expsetobj), "expsetobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer_array(&(pdata->expsetint), "expsetint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_string_array(&(pdata->impsetoptstr), "impsetoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_object_array(&(pdata->impsetoptobj), "impsetoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer_array(&(pdata->impsetoptint), "impsetoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_string_array(&(pdata->expsetoptstr), "expsetoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_object_array(&(pdata->expsetoptobj), "expsetoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer_array(&(pdata->expsetoptint), "expsetoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_string_array(&(pdata->impseqstr), "impseqstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_object_array(&(pdata->impseqobj), "impseqobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer_array(&(pdata->impseqint), "impseqint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_string_array(&(pdata->impseqoptstr), "impseqoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_object_array(&(pdata->impseqoptobj), "impseqoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer_array(&(pdata->impseqoptint), "impseqoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_string_array(&(pdata->expseqstr), "expseqstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_object_array(&(pdata->expseqobj), "expseqobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer_array(&(pdata->expseqint), "expseqint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_string_array(&(pdata->expseqoptstr), "expseqoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_object_array(&(pdata->expseqoptobj), "expseqoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer_array(&(pdata->expseqoptint), "expseqoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_utfstr(&(pdata->ndefexpstr), "ndefexpstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = set_asn1_object(&(pdata->ndefexpobj), "ndefexpobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer(&(pdata->ndefexpint), "ndefexpint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_utfstr(&(pdata->ndefexpoptstr), "ndefexpoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = set_asn1_object(&(pdata->ndefexpoptobj), "ndefexpoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = set_asn1_integer(&(pdata->ndefexpoptint), "ndefexpoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
+	SET_SEQ_INT_VALUE(simpint);
+	SET_SEQ_OBJECT_VALUE(simpobj);
+	SET_SEQ_STR_VALUE(simpstr);
+	SET_SEQ_INT32_VALUE(embint);
+	SET_SEQ_STR_VALUE(optstr);
+	SET_SEQ_OBJECT_VALUE(optobj);
+	SET_SEQ_INT_VALUE(optint);
+	SET_SEQ_INT32_VALUE(optembint);
+	SET_SEQ_STR_VALUE(impstr);
+	SET_SEQ_OBJECT_VALUE(impobj);
+	SET_SEQ_INT_VALUE(impint);
+	SET_SEQ_INT32_VALUE(impembint);
+	SET_SEQ_STR_VALUE(impoptstr);
+	SET_SEQ_OBJECT_VALUE(impoptobj);
+	SET_SEQ_INT_VALUE(impoptint);
+	SET_SEQ_STR_VALUE(expstr);
+	SET_SEQ_OBJECT_VALUE(expobj);
+	SET_SEQ_INT_VALUE(expint);
+	SET_SEQ_INT32_VALUE(expembint);
+	SET_SEQ_STR_VALUE(expoptstr);
+	SET_SEQ_OBJECT_VALUE(expoptobj);
+	SET_SEQ_INT_VALUE(expoptint);
+	SET_SEQ_INT32_VALUE(expoptembint);
+	SET_SEQ_STR_VALUE(seqstr);
+	SET_SEQ_OBJECT_VALUE(seqobj);
+	SET_SEQ_INT_VALUE(seqint);
+	SET_SEQ_STR_VALUE(seqoptstr);
+	SET_SEQ_OBJECT_VALUE(seqoptobj);
+	SET_SEQ_INT_VALUE(seqoptint);
+	SET_SEQ_STR_ARRAY(setstr);
+	SET_SEQ_OBJECT_ARRAY(setobj);
+	SET_SEQ_INT_ARRAY(setint);
+	SET_SEQ_STR_ARRAY(setoptstr);
+	SET_SEQ_OBJECT_ARRAY(setoptobj);
+	SET_SEQ_INT_ARRAY(setoptint);
+	SET_SEQ_STR_ARRAY(impsetstr);
+	SET_SEQ_OBJECT_ARRAY(impsetobj);
+	SET_SEQ_INT_ARRAY(impsetint);
+	SET_SEQ_STR_ARRAY(expsetstr);
+	SET_SEQ_OBJECT_ARRAY(expsetobj);
+	SET_SEQ_INT_ARRAY(expsetint);
+	SET_SEQ_STR_ARRAY(impsetoptstr);
+	SET_SEQ_OBJECT_ARRAY(impsetoptobj);
+	SET_SEQ_INT_ARRAY(impsetoptint);
+	SET_SEQ_STR_ARRAY(expsetoptstr);
+	SET_SEQ_OBJECT_ARRAY(expsetoptobj);
+	SET_SEQ_INT_ARRAY(expsetoptint);
+	SET_SEQ_STR_ARRAY(impseqstr);
+	SET_SEQ_OBJECT_ARRAY(impseqobj);
+	SET_SEQ_INT_ARRAY(impseqint);
+	SET_SEQ_STR_ARRAY(impseqoptstr);
+	SET_SEQ_OBJECT_ARRAY(impseqoptobj);
+	SET_SEQ_INT_ARRAY(impseqoptint);
+	SET_SEQ_STR_ARRAY(expseqstr);
+	SET_SEQ_OBJECT_ARRAY(expseqobj);
+	SET_SEQ_INT_ARRAY(expseqint);
+	SET_SEQ_STR_ARRAY(expseqoptstr);
+	SET_SEQ_OBJECT_ARRAY(expseqoptobj);
+	SET_SEQ_INT_ARRAY(expseqoptint);
+	SET_SEQ_STR_VALUE(ndefexpstr);
+	SET_SEQ_OBJECT_VALUE(ndefexpobj);
+	SET_SEQ_INT_VALUE(ndefexpint);
+	SET_SEQ_STR_VALUE(ndefexpoptstr);
+	SET_SEQ_OBJECT_VALUE(ndefexpoptobj);
+	SET_SEQ_INT_VALUE(ndefexpoptint);
 
 	ret = i2d_ASN1_SEQ_DATA(pdata, &pout);
 	if (ret <= 0) {
@@ -2086,6 +1818,72 @@ fail:
 	return ret;
 }
 
+#define GET_SEQ_INT_VALUE(member)                                                                 \
+do{                                                                                               \
+	ret = get_asn1_integer(&(pdata->member),#member,pj);                                          \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+#define GET_SEQ_STR_VALUE(member)                                                                 \
+do{                                                                                               \
+	ret = get_asn1_utfstr(&(pdata->member),#member,pj);                                           \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+
+#define GET_SEQ_OBJECT_VALUE(member)                                                              \
+do{                                                                                               \
+	ret = get_asn1_object(&(pdata->member),#member,pj);                                           \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+#define GET_SEQ_INT32_VALUE(member)                                                               \
+do{                                                                                               \
+	ret = get_asn1_int32(&(pdata->member),#member,pj);                                            \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+
+#define GET_SEQ_INT_ARRAY(member)                                                                 \
+do{                                                                                               \
+	ret = get_asn1_integer_array(&(pdata->member),#member,pj);                                    \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+#define GET_SEQ_STR_ARRAY(member)                                                                 \
+do{                                                                                               \
+	ret = get_asn1_string_array(&(pdata->member),#member,pj);                                     \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+
+#define GET_SEQ_OBJECT_ARRAY(member)                                                              \
+do{                                                                                               \
+	ret = get_asn1_object_array(&(pdata->member),#member,pj);                                     \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
 int asn1seqdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	ASN1_SEQ_DATA* pdata = NULL;
@@ -2128,390 +1926,70 @@ int asn1seqdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 		goto out;
 	}
 
-	ret = get_asn1_integer(&(pdata->simpint), "simpint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_utfstr(&(pdata->simpstr), "simpstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object(&(pdata->simpobj), "simpobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_int32(&(pdata->embint), "embint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer(&(pdata->optint), "optint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_utfstr(&(pdata->optstr), "optstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object(&(pdata->optobj), "optobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer(&(pdata->impint), "impint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_utfstr(&(pdata->impstr), "impstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object(&(pdata->impobj), "impobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_int32(&(pdata->impembint), "impembint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-
-	ret = get_asn1_integer(&(pdata->impoptint), "impoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_utfstr(&(pdata->impoptstr), "impoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object(&(pdata->impoptobj), "impoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer(&(pdata->expint), "expint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_utfstr(&(pdata->expstr), "expstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object(&(pdata->expobj), "expobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_int32(&(pdata->expembint), "expembint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer(&(pdata->expoptint), "expoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_utfstr(&(pdata->expoptstr), "expoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object(&(pdata->expoptobj), "expoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_int32(&(pdata->expoptembint), "expoptembint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer(&(pdata->seqint), "seqint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_utfstr(&(pdata->seqstr), "seqstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object(&(pdata->seqobj), "seqobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer(&(pdata->seqoptint), "seqoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_utfstr(&(pdata->seqoptstr), "seqoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object(&(pdata->seqoptobj), "seqoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_string_array(&(pdata->setstr), "setstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object_array(&(pdata->setobj), "setobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer_array(&(pdata->setint), "setint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_string_array(&(pdata->setoptstr), "setoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object_array(&(pdata->setoptobj), "setoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer_array(&(pdata->setoptint), "setoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_string_array(&(pdata->impsetstr), "impsetstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object_array(&(pdata->impsetobj), "impsetobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer_array(&(pdata->impsetint), "impsetint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_string_array(&(pdata->expsetstr), "expsetstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object_array(&(pdata->expsetobj), "expsetobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer_array(&(pdata->expsetint), "expsetint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_string_array(&(pdata->impsetoptstr), "impsetoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object_array(&(pdata->impsetoptobj), "impsetoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer_array(&(pdata->impsetoptint), "impsetoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_string_array(&(pdata->expsetoptstr), "expsetoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object_array(&(pdata->expsetoptobj), "expsetoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer_array(&(pdata->expsetoptint), "expsetoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_string_array(&(pdata->impseqstr), "impseqstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object_array(&(pdata->impseqobj), "impseqobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer_array(&(pdata->impseqint), "impseqint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_string_array(&(pdata->impseqoptstr), "impseqoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object_array(&(pdata->impseqoptobj), "impseqoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer_array(&(pdata->impseqoptint), "impseqoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_string_array(&(pdata->expseqstr), "expseqstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object_array(&(pdata->expseqobj), "expseqobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer_array(&(pdata->expseqint), "expseqint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_string_array(&(pdata->expseqoptstr), "expseqoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object_array(&(pdata->expseqoptobj), "expseqoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer_array(&(pdata->expseqoptint), "expseqoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer(&(pdata->ndefexpint), "ndefexpint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_utfstr(&(pdata->ndefexpstr), "ndefexpstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object(&(pdata->ndefexpobj), "ndefexpobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_integer(&(pdata->ndefexpoptint), "ndefexpoptint", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_utfstr(&(pdata->ndefexpoptstr), "ndefexpoptstr", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	ret = get_asn1_object(&(pdata->ndefexpoptobj), "ndefexpoptobj", pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto out;
-	}
+	GET_SEQ_INT_VALUE(simpint);
+	GET_SEQ_STR_VALUE(simpstr);
+	GET_SEQ_OBJECT_VALUE(simpobj);
+	GET_SEQ_INT32_VALUE(embint);
+	GET_SEQ_INT_VALUE(optint);
+	GET_SEQ_STR_VALUE(optstr);
+	GET_SEQ_OBJECT_VALUE(optobj);
+	GET_SEQ_INT_VALUE(impint);
+	GET_SEQ_STR_VALUE(impstr);
+	GET_SEQ_OBJECT_VALUE(impobj);
+	GET_SEQ_INT32_VALUE(impembint);
+	GET_SEQ_INT_VALUE(impoptint);
+	GET_SEQ_STR_VALUE(impoptstr);
+	GET_SEQ_OBJECT_VALUE(impoptobj);
+	GET_SEQ_INT_VALUE(expint);
+	GET_SEQ_STR_VALUE(expstr);
+	GET_SEQ_OBJECT_VALUE(expobj);
+	GET_SEQ_INT32_VALUE(expembint);
+	GET_SEQ_INT_VALUE(expoptint);
+	GET_SEQ_STR_VALUE(expoptstr);
+	GET_SEQ_OBJECT_VALUE(expoptobj);
+	GET_SEQ_INT32_VALUE(expoptembint);
+	GET_SEQ_INT_VALUE(seqint);
+	GET_SEQ_STR_VALUE(seqstr);
+	GET_SEQ_OBJECT_VALUE(seqobj);
+	GET_SEQ_INT_VALUE(seqoptint);
+	GET_SEQ_STR_VALUE(seqoptstr);
+	GET_SEQ_OBJECT_VALUE(seqoptobj);
+	GET_SEQ_STR_ARRAY(setstr);
+	GET_SEQ_OBJECT_ARRAY(setobj);
+	GET_SEQ_INT_ARRAY(setint);
+	GET_SEQ_STR_ARRAY(setoptstr);
+	GET_SEQ_OBJECT_ARRAY(setoptobj);
+	GET_SEQ_INT_ARRAY(setoptint);
+	GET_SEQ_STR_ARRAY(impsetstr);
+	GET_SEQ_OBJECT_ARRAY(impsetobj);
+	GET_SEQ_INT_ARRAY(impsetint);
+	GET_SEQ_STR_ARRAY(expsetstr);
+	GET_SEQ_OBJECT_ARRAY(expsetobj);
+	GET_SEQ_INT_ARRAY(expsetint);
+	GET_SEQ_STR_ARRAY(impsetoptstr);
+	GET_SEQ_OBJECT_ARRAY(impsetoptobj);
+	GET_SEQ_INT_ARRAY(impsetoptint);
+	GET_SEQ_STR_ARRAY(expsetoptstr);
+	GET_SEQ_OBJECT_ARRAY(expsetoptobj);
+	GET_SEQ_INT_ARRAY(expsetoptint);
+	GET_SEQ_STR_ARRAY(impsetstr);
+	GET_SEQ_OBJECT_ARRAY(impseqobj);
+	GET_SEQ_INT_ARRAY(impseqint);
+	GET_SEQ_STR_ARRAY(impseqoptstr);
+	GET_SEQ_OBJECT_ARRAY(impseqoptobj);
+	GET_SEQ_INT_ARRAY(impseqoptint);
+	GET_SEQ_STR_ARRAY(expseqstr);
+	GET_SEQ_OBJECT_ARRAY(expseqobj);
+	GET_SEQ_INT_ARRAY(expseqint);
+	GET_SEQ_STR_ARRAY(expseqoptstr);
+	GET_SEQ_OBJECT_ARRAY(expseqoptobj);
+	GET_SEQ_INT_ARRAY(expseqoptint);
+	GET_SEQ_INT_VALUE(ndefexpint);
+	GET_SEQ_STR_VALUE(ndefexpstr);
+	GET_SEQ_OBJECT_VALUE(ndefexpobj);
+	GET_SEQ_INT_VALUE(ndefexpoptint);
+	GET_SEQ_STR_VALUE(ndefexpoptstr);
+	GET_SEQ_OBJECT_VALUE(ndefexpoptobj);
 
 	jsonstr = jvalue_write_pretty(pj, &jlen);
 	if (jsonstr == NULL) {
