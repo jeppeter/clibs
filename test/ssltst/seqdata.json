@@ -31,5 +31,20 @@
 	"seqint" : [-11,-12,-13],
 	"setstr" : ["setstr1","setstr2","setstr3"],
 	"setobj" : ["1.12.1","1.12.2","1.12.3"],
-	"setint" : [-14,-15,-16]
+	"setint" : [-14,-15,-16],
+	"setoptstr" : ["setoptstr1","setoptstr2","setoptstr3"],
+	"setoptobj" : ["1.13.1","1.13.2","1.13.3"],
+	"setoptint" : [-17,-18,-19],
+	"impsetstr" : ["impsetstr1","impsetstr2","impsetstr3"],
+	"impsetobj" : ["1.14.1","1.14.2","1.14.3"],
+	"impsetint" : [-20,-21,-22],
+	"expsetstr" : ["expsetstr1","expsetstr2","expsetstr3"],
+	"expsetobj" : ["1.15.1","1.15.2","1.15.3"],
+	"expsetint" : [-23,-24,-25],
+	"impsetoptstr" : ["impsetoptstr1","impsetoptstr2","impsetoptstr3"],
+	"impsetoptobj" : ["1.16.1","1.16.2","1.16.3"],
+	"impsetoptint" : [-26,-27,-28],
+	"expsetoptstr" : ["expsetoptstr1","expsetoptstr2","expsetoptstr3"],
+	"expsetoptobj" : ["1.17.1","1.17.2","1.17.3"],
+	"expsetoptint" : [-29,-30,-31]
 }
