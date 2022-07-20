@@ -541,12 +541,12 @@ typedef struct {
 	ASN1_OBJECT* expoptobj;
 	ASN1_INTEGER* expoptint;
 	int32_t expoptembint;
-	ASN1_UTF8STRING* seqstr;
-	ASN1_OBJECT* seqobj;
-	ASN1_INTEGER* seqint;
-	ASN1_UTF8STRING* seqoptstr;
-	ASN1_OBJECT* seqoptobj;
-	ASN1_INTEGER* seqoptint;
+	STACK_OF(ASN1_UTF8STRING)* seqstr;
+	STACK_OF(ASN1_OBJECT)* seqobj;
+	STACK_OF(ASN1_INTEGER)* seqint;
+	STACK_OF(ASN1_UTF8STRING)* seqoptstr;
+	STACK_OF(ASN1_OBJECT)* seqoptobj;
+	STACK_OF(ASN1_INTEGER)* seqoptint;
 	STACK_OF(ASN1_UTF8STRING)* setstr;
 	STACK_OF(ASN1_OBJECT)* setobj;
 	STACK_OF(ASN1_INTEGER)* setint;
@@ -1355,12 +1355,12 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	SET_SEQ_OBJECT_VALUE(expoptobj);
 	SET_SEQ_INT_VALUE(expoptint);
 	SET_SEQ_INT32_VALUE(expoptembint);
-	SET_SEQ_STR_VALUE(seqstr);
-	SET_SEQ_OBJECT_VALUE(seqobj);
-	SET_SEQ_INT_VALUE(seqint);
-	SET_SEQ_STR_VALUE(seqoptstr);
-	SET_SEQ_OBJECT_VALUE(seqoptobj);
-	SET_SEQ_INT_VALUE(seqoptint);
+	SET_SEQ_STR_ARRAY(seqstr);
+	SET_SEQ_OBJECT_ARRAY(seqobj);
+	SET_SEQ_INT_ARRAY(seqint);
+	SET_SEQ_STR_ARRAY(seqoptstr);
+	SET_SEQ_OBJECT_ARRAY(seqoptobj);
+	SET_SEQ_INT_ARRAY(seqoptint);
 	SET_SEQ_STR_ARRAY(setstr);
 	SET_SEQ_OBJECT_ARRAY(setobj);
 	SET_SEQ_INT_ARRAY(setint);
@@ -1617,6 +1617,8 @@ int get_asn1_string_array(STACK_OF(ASN1_UTF8STRING)** ppstrarr, const char* key,
 			ERROR_INFO("put [%s] array error[%d]", key, ret);
 			goto fail;
 		}
+		/*we have inserted ,so make it ok*/
+		parr = NULL;
 	}
 
 	if (parr != NULL) {
@@ -1709,6 +1711,8 @@ get_again:
 			ERROR_INFO("put [%s] array error[%d]", key, ret);
 			goto fail;
 		}
+		/*put so not free again*/
+		parr = NULL;
 	}
 
 	OPENSSL_free(pout);
@@ -1784,6 +1788,8 @@ int get_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppintarr, const char* key, j
 			ERROR_INFO("put [%s] array error[%d]", key, ret);
 			goto fail;
 		}
+		/*put for no free*/
+		parr= NULL;
 	}
 
 	if (parr != NULL) {
@@ -1948,12 +1954,12 @@ int asn1seqdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	GET_SEQ_STR_VALUE(expoptstr);
 	GET_SEQ_OBJECT_VALUE(expoptobj);
 	GET_SEQ_INT32_VALUE(expoptembint);
-	GET_SEQ_INT_VALUE(seqint);
-	GET_SEQ_STR_VALUE(seqstr);
-	GET_SEQ_OBJECT_VALUE(seqobj);
-	GET_SEQ_INT_VALUE(seqoptint);
-	GET_SEQ_STR_VALUE(seqoptstr);
-	GET_SEQ_OBJECT_VALUE(seqoptobj);
+	GET_SEQ_INT_ARRAY(seqint);
+	GET_SEQ_STR_ARRAY(seqstr);
+	GET_SEQ_OBJECT_ARRAY(seqobj);
+	GET_SEQ_INT_ARRAY(seqoptint);
+	GET_SEQ_STR_ARRAY(seqoptstr);
+	GET_SEQ_OBJECT_ARRAY(seqoptobj);
 	GET_SEQ_STR_ARRAY(setstr);
 	GET_SEQ_OBJECT_ARRAY(setobj);
 	GET_SEQ_INT_ARRAY(setint);

@@ -25,5 +25,6 @@
 	"expoptstr" : "expoptstr",
 	"expoptobj" : "1.2.6",
 	"expoptint" : -9,
-	"expoptembint" : 10
+	"expoptembint" : 10,
+	"seqstr" : ["seqstr"]
 }
