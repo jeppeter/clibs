@@ -26,5 +26,10 @@
 	"expoptobj" : "1.2.6",
 	"expoptint" : -9,
 	"expoptembint" : 10,
-	"seqstr" : ["seqstr"]
+	"seqstr" : ["seqstr1","seqstr2","seqstr3"],
+	"seqobj" : ["1.11.1","1.11.2","1.11.3"],
+	"seqint" : [-11,-12,-13],
+	"setstr" : ["setstr1","setstr2","setstr3"],
+	"setobj" : ["1.12.1","1.12.2","1.12.3"],
+	"setint" : [-14,-15,-16]
 }
