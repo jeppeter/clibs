@@ -59,6 +59,9 @@
 	"expseqoptstr" : ["expseqoptstr1","expseqoptstr2","expseqoptstr3"],
 	"expseqoptobj" : ["1.21.1","1.21.2","1.21.3"],
 	"expseqoptint" : [-41,-42,-43],
-	"ndefexpstr-" : "ndefexpstr1",
-	"ndefexpint-" : -44
+	"ndefexpstr" : "ndefexpstr1",
+	"ndefexpint" : -44,
+	"ndefexpoptstr" : "ndefexpoptstr1",
+	"ndefexpoptobj" : "1.23.1",
+	"ndefexpoptint" : -45
 }
