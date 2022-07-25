@@ -6,6 +6,7 @@
 	"expobj" : "1.22.11",
 	"expembint" : -8,
 	"ndefexpobj" : "1.22.1",
+	"embstr" : "embstr1",
 	"------------" : "below are not must",
 	"simpint" : -1,
 	"simpstr" : "simpstr",

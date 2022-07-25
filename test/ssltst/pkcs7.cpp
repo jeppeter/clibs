@@ -522,6 +522,7 @@ typedef struct {
 	ASN1_UTF8STRING *simpstr;
 	ASN1_OBJECT *simpobj;
 	int32_t embint;
+	ASN1_UTF8STRING embstr;
 	ASN1_UTF8STRING *optstr;
 	ASN1_OBJECT *optobj;
 	ASN1_INTEGER* optint;
@@ -593,6 +594,7 @@ ASN1_SEQUENCE(ASN1_SEQ_DATA) = {
 	ASN1_SIMPLE(ASN1_SEQ_DATA, simpstr, ASN1_UTF8STRING),
 	ASN1_SIMPLE(ASN1_SEQ_DATA, simpobj, ASN1_OBJECT),
 	ASN1_EMBED(ASN1_SEQ_DATA, embint, ZINT32),
+	ASN1_EMBED(ASN1_SEQ_DATA,embstr, ASN1_UTF8STRING),
 	ASN1_OPT(ASN1_SEQ_DATA, optstr, ASN1_UTF8STRING),
 	ASN1_OPT(ASN1_SEQ_DATA, optobj, ASN1_OBJECT),
 	ASN1_OPT(ASN1_SEQ_DATA, optint, ASN1_INTEGER),
@@ -867,6 +869,34 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int set_asn1_embstr(ASN1_UTF8STRING* pobjstr, const char* key, const jvalue* pj)
+{
+	const char* pstr = NULL;
+	int error;
+	int ret;
+
+	error = 0;
+	pstr = jobject_get_string(pj, key, &error);
+	if (pstr == NULL) {
+		DEBUG_INFO("no [%s] set", key);
+		return 0;
+	}
+
+
+	ret = ASN1_STRING_set(pobjstr, pstr, -1);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO( "set [%s] error[%d]", key, ret);
+		goto fail;
+	}
+
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 
 
 int set_asn1_object_array(STACK_OF(ASN1_OBJECT)** ppobjarr, const char* key, jvalue* pj)
@@ -1259,6 +1289,15 @@ do{                                                                             
 }while(0)
 
 
+#define SET_SEQ_STR_EMBED(member)                                                                 \
+do{                                                                                               \
+	ret = set_asn1_embstr(&(pdata->member),#member,pj);                                           \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
 
 #define SET_SEQ_INT_ARRAY(member)                                                                 \
 do{                                                                                               \
@@ -1336,6 +1375,7 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	SET_SEQ_OBJECT_VALUE(simpobj);
 	SET_SEQ_STR_VALUE(simpstr);
 	SET_SEQ_INT32_VALUE(embint);
+	SET_SEQ_STR_EMBED(embstr);
 	SET_SEQ_STR_VALUE(optstr);
 	SET_SEQ_OBJECT_VALUE(optobj);
 	SET_SEQ_INT_VALUE(optint);
@@ -1563,6 +1603,31 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int get_asn1_embstr(ASN1_UTF8STRING* pstr, const char* key, jvalue* pj)
+{
+	int ret;
+	const char* pout = NULL;
+	int setted = 0;
+
+
+	pout = (const char*)ASN1_STRING_get0_data(pstr);
+	if (pout != NULL) {
+		ret = jobject_put_string(pj, key, pout);
+		if (ret != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("can not put [%s] [%s] error[%d]", key, pout, ret);
+			goto fail;
+		}
+		setted = 1;
+	}
+
+	return setted;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 
 int get_asn1_string_array(STACK_OF(ASN1_UTF8STRING)** ppstrarr, const char* key, jvalue* pj)
 {
@@ -1862,6 +1927,16 @@ do{                                                                             
 }while(0)
 
 
+#define GET_SEQ_STR_EMBED(member)                                                                 \
+do{                                                                                               \
+	ret = get_asn1_embstr(&(pdata->member),#member,pj);                                           \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+
 #define GET_SEQ_INT_ARRAY(member)                                                                 \
 do{                                                                                               \
 	ret = get_asn1_integer_array(&(pdata->member),#member,pj);                                    \
@@ -1936,6 +2011,7 @@ int asn1seqdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	GET_SEQ_STR_VALUE(simpstr);
 	GET_SEQ_OBJECT_VALUE(simpobj);
 	GET_SEQ_INT32_VALUE(embint);
+	GET_SEQ_STR_EMBED(embstr);
 	GET_SEQ_INT_VALUE(optint);
 	GET_SEQ_STR_VALUE(optstr);
 	GET_SEQ_OBJECT_VALUE(optobj);
