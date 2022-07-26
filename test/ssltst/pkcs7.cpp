@@ -2108,3 +2108,120 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+#define SEARCH_DIGIT(p)                                                                           \
+do{                                                                                               \
+	while(*p != 0x0 && ( *p < '0' || *p > '9')) {                                                 \
+		p ++;                                                                                     \
+	}                                                                                             \
+	if (*p < '0' || *p > '9') {                                                                   \
+		ret = -EINVAL;                                                                            \
+		goto fail;                                                                                \
+	}                                                                                             \
+}while(0)
+
+#define SKIP_DIGIT(p)                                                                             \
+do{                                                                                               \
+	while(*p >= '0' && *p <= '9') {                                                               \
+		p ++;                                                                                     \
+	}                                                                                             \
+}while(0)
+
+int get_time_str(const char* timestr, time_t* ptm)
+{
+	struct tm stm = {0};
+	char* pcur= (char*)timestr;
+	int ret = 0;
+
+	/*first search year*/
+	SEARCH_DIGIT(pcur);
+	stm.tm_year = atoi(pcur) - 1900;
+	SKIP_DIGIT(pcur);
+
+	SEARCH_DIGIT(pcur);
+	stm.tm_mon = atoi(pcur) - 1;
+	SKIP_DIGIT(pcur);
+
+	SEARCH_DIGIT(pcur);
+	stm.tm_mday = atoi(pcur);
+	SKIP_DIGIT(pcur);
+
+	SEARCH_DIGIT(pcur);
+	stm.tm_hour = atoi(pcur);
+	SKIP_DIGIT(pcur);
+
+	SEARCH_DIGIT(pcur);
+	stm.tm_min = atoi(pcur);
+	SKIP_DIGIT(pcur);
+
+	SEARCH_DIGIT(pcur);
+	stm.tm_sec = atoi(pcur);
+	SKIP_DIGIT(pcur);
+
+	*ptm = mktime(&stm);
+	if (*ptm == -1) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int asn1timeenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	ASN1_TIME* ptime=NULL;
+	ASN1_TIME* prettime = NULL;
+	unsigned char* pout=NULL;
+	int outlen = 0;
+	int ret;
+	pargs_options_t pargs = (pargs_options_t)popt;
+	int i;
+	const char* timestr = NULL;
+	time_t settm;
+	init_log_verbose(pargs);
+
+	ptime = ASN1_TIME_new();
+	if (ptime == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("can not new ASN1_TIME [%d]",ret);
+		goto out;
+	}
+
+	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+		timestr = parsestate->leftargs[i];
+		ret = get_time_str(timestr,&settm);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("get time [%s] error[%d]", timestr, ret);
+			goto out;
+		}
+		DEBUG_INFO("[%s] to [0x%lx:%ld]", timestr, settm,settm);
+
+		prettime = ASN1_TIME_set(ptime, settm);
+		if (prettime == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("set [%s] time error[%d]", timestr, ret);
+			goto out;
+		}
+		OPENSSL_free(pout);
+		pout = NULL;
+		ret = i2d_ASN1_TIME(ptime,&pout);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("can not format ASN1_TIME for [%s] error[%d]", timestr,ret);
+			goto out;
+		}
+		outlen = ret;
+		DEBUG_BUFFER_FMT(pout, outlen, "out[%s] time", timestr);
+	}
+
+
+	ret = 0;
+out:
+	OPENSSL_free(pout);
+	ASN1_TIME_free(ptime);
+	SETERRNO(ret);
+	return ret;
+}

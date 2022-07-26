@@ -31,6 +31,9 @@
     },
     "asn1seqdec<asn1seqdec_handler>##handle input value dump for input parameter##" : {
         "$" : 0
+    },
+    "asn1timeenc<asn1timeenc_handler>##timestr ... to timestr format is YY-mm-dd HH:MM:SS##" : {
+        "$" : "+"
     }
 
 }
