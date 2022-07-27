@@ -34,6 +34,9 @@
     },
     "asn1timeenc<asn1timeenc_handler>##timestr ... to timestr format is YY-mm-dd HH:MM:SS##" : {
         "$" : "+"
+    },
+    "asn1bignumenc<asn1bignumenc_handler>## [-] hexval ... to set hexval must be 0-255##" : {
+        "$" : "+"
     }
 
 }

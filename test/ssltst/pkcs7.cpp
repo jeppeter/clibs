@@ -2225,3 +2225,103 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+
+typedef struct {
+	BIGNUM* pb;
+} ASN1_SEQ_BIGNUM;
+
+
+DECLARE_ASN1_FUNCTIONS(ASN1_SEQ_BIGNUM)
+
+ASN1_SEQUENCE(ASN1_SEQ_BIGNUM) = {
+	ASN1_SIMPLE(ASN1_SEQ_BIGNUM, pb, CBIGNUM),
+} ASN1_SEQUENCE_END(ASN1_SEQ_BIGNUM)
+
+IMPLEMENT_ASN1_FUNCTIONS(ASN1_SEQ_BIGNUM)
+
+
+int asn1bignumenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int cnt=0;
+	int neg = 0;
+	pargs_options_t pargs =(pargs_options_t)popt;
+	ASN1_SEQ_BIGNUM* pbnum=NULL;
+	int i;
+	int ret;
+	unsigned char* pout= NULL;
+	BIGNUM*pb=NULL;
+	init_log_verbose(pargs);
+	for(i=0;parsestate->leftargs&&parsestate->leftargs[i];i++) {
+		cnt ++;
+	}
+
+	pbnum = ASN1_SEQ_BIGNUM_new();
+	if (pbnum == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("ASN1_SEQ_BIGNUM_new error[%d]", ret);
+		goto out;
+	}
+
+
+	if (cnt > 0 ) {
+		i = 0;
+		if (strcmp(parsestate->leftargs[0],"-") == 0) {
+			neg = 1;
+			i = 1;
+		}
+
+		if (i < cnt) {
+			ret = BN_hex2bn(&pb, parsestate->leftargs[i]);
+			if (ret <= 0){
+				GETERRNO(ret);
+				ERROR_INFO("can not set [%s] error[%d]", parsestate->leftargs[i],ret);
+				goto out;
+			}
+		} else {
+			pb = BN_new();
+			if (pb == NULL) {
+				GETERRNO(ret);
+				goto out;
+			}
+		}
+
+		if (neg > 0) {
+			BN_set_negative(pb,neg);
+		}
+		
+		if (pbnum->pb == NULL) {
+			pbnum->pb = BN_new();
+			if (pbnum->pb == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("BN_new error[%d]", ret);
+				goto out;
+			}
+		}
+
+		BN_copy(pbnum->pb, pb);
+		if (neg > 0) {
+			BN_set_negative(pbnum->pb, neg);
+		}
+
+		ret = i2d_ASN1_SEQ_BIGNUM(pbnum,&pout);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("BIGNUM format error[%d]", ret);
+			goto out;
+		}
+
+		DEBUG_BUFFER_FMT(pout,ret,"BIGNUM value");
+	}
+
+	ret = 0;
+out:
+	OPENSSL_free(pb);
+	pb = NULL;
+	OPENSSL_free(pout);
+	pout = NULL;
+	ASN1_SEQ_BIGNUM_free(pbnum);
+	pbnum = NULL;
+	SETERRNO(ret);
+	return ret;
+}
