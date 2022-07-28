@@ -531,6 +531,7 @@ typedef struct {
 	ASN1_OBJECT* impobj;
 	ASN1_INTEGER* impint;
 	int32_t impembint;
+	ASN1_BIT_STRING* impoptbitstr;
 	ASN1_UTF8STRING* impoptstr;
 	ASN1_OBJECT* impoptobj;
 	ASN1_INTEGER* impoptint;
@@ -603,6 +604,7 @@ ASN1_SEQUENCE(ASN1_SEQ_DATA) = {
 	ASN1_IMP(ASN1_SEQ_DATA, impobj, ASN1_OBJECT, 2),
 	ASN1_IMP(ASN1_SEQ_DATA, impint, ASN1_INTEGER, 3),
 	ASN1_IMP_EMBED(ASN1_SEQ_DATA, impembint, ZINT32, 4),
+	ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptbitstr, ASN1_BIT_STRING, 4),
 	ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptstr, ASN1_UTF8STRING, 5),
 	ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptobj, ASN1_OBJECT, 6),
 	ASN1_IMP_OPT(ASN1_SEQ_DATA, impoptint, ASN1_INTEGER, 7),
@@ -828,6 +830,45 @@ int set_asn1_integer(ASN1_INTEGER** ppint, const char* key, const jvalue* pj)
 	return 1;
 fail:
 
+	SETERRNO(ret);
+	return ret;
+}
+
+int set_asn1_bitstr(ASN1_BIT_STRING** ppbitstr, const char* key, const jvalue* pj)
+{
+	const char* pstr = NULL;
+	int error;
+	int ret;
+	int rlen;
+	ASN1_BIT_STRING* pbitstr = NULL;
+
+	error = 0;
+	pstr = jobject_get_string(pj, key, &error);
+	if (pstr == NULL) {
+		DEBUG_INFO("no [%s] set", key);
+		return 0;
+	}
+
+	pbitstr = *ppbitstr;
+	if (pbitstr == NULL) {
+		pbitstr = ASN1_BIT_STRING_new();
+		if (pbitstr == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO( "alloc [%s] error[%d]", key, ret);
+			goto fail;
+		}
+		*ppbitstr = pbitstr;
+	}
+	rlen = strlen(pstr);
+	ret = ASN1_BIT_STRING_set(pbitstr, (unsigned char*)pstr, rlen);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO( "set [%s] error[%d]", key, ret);
+		goto fail;
+	}
+
+	return 1;
+fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -1279,6 +1320,16 @@ do{                                                                             
 	}                                                                                             \
 }while(0)
 
+#define SET_SEQ_BITSTR_VALUE(member)                                                              \
+do{                                                                                               \
+	ret = set_asn1_bitstr(&(pdata->member),#member,pj);                                           \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
+
+
 #define SET_SEQ_INT32_VALUE(member)                                                               \
 do{                                                                                               \
 	ret = set_asn1_int32(&(pdata->member),#member,pj);                                            \
@@ -1384,6 +1435,7 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	SET_SEQ_OBJECT_VALUE(impobj);
 	SET_SEQ_INT_VALUE(impint);
 	SET_SEQ_INT32_VALUE(impembint);
+	SET_SEQ_BITSTR_VALUE(impoptbitstr);
 	SET_SEQ_STR_VALUE(impoptstr);
 	SET_SEQ_OBJECT_VALUE(impoptobj);
 	SET_SEQ_INT_VALUE(impoptint);
@@ -1603,6 +1655,38 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int get_asn1_bitstr(ASN1_BIT_STRING** ppbitstr, const char* key, jvalue* pj)
+{
+	int ret;
+	const char* pout = NULL;
+	int setted = 0;
+	ASN1_UTF8STRING* pbitstr;
+	if (ppbitstr == NULL || *ppbitstr == NULL) {
+		DEBUG_INFO("no [%s] get", key);
+		return 0;
+	}
+
+	pbitstr = *ppbitstr;
+
+
+	pout = (const char*)ASN1_STRING_get0_data(pbitstr);
+	if (pout != NULL) {
+		ret = jobject_put_string(pj, key, pout);
+		if (ret != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("can not put [%s] [%s] error[%d]", key, pout, ret);
+			goto fail;
+		}
+		setted = 1;
+	}
+
+	return setted;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 
 int get_asn1_embstr(ASN1_UTF8STRING* pstr, const char* key, jvalue* pj)
 {
@@ -1907,6 +1991,14 @@ do{                                                                             
 	}                                                                                             \
 }while(0)
 
+#define GET_SEQ_BITSTR_VALUE(member)                                                              \
+do{                                                                                               \
+	ret = get_asn1_bitstr(&(pdata->member),#member,pj);                                           \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+}while(0)
 
 #define GET_SEQ_OBJECT_VALUE(member)                                                              \
 do{                                                                                               \
@@ -2020,6 +2112,7 @@ int asn1seqdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	GET_SEQ_OBJECT_VALUE(impobj);
 	GET_SEQ_INT32_VALUE(impembint);
 	GET_SEQ_INT_VALUE(impoptint);
+	GET_SEQ_BITSTR_VALUE(impoptbitstr);
 	GET_SEQ_STR_VALUE(impoptstr);
 	GET_SEQ_OBJECT_VALUE(impoptobj);
 	GET_SEQ_INT_VALUE(expint);

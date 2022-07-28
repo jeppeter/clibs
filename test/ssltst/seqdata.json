@@ -17,6 +17,7 @@
 	"impstr" : "impstr",
 	"impobj" : "1.2.3",
 	"impint" : -4,
+	"impoptbitstr" : "impoptbitstr1",
 	"impoptstr" : "impoptstr",
 	"impoptobj" : "1.2.4",
 	"impoptint" : -6,
