@@ -65,5 +65,8 @@
 	"ndefexpint" : -44,
 	"ndefexpoptstr" : "ndefexpoptstr1",
 	"ndefexpoptobj" : "1.23.1",
-	"ndefexpoptint" : -45
+	"ndefexpoptint" : -45,
+	"seqoptstr" : ["seqoptstr1","seqoptstr2","seqoptstr3"],
+	"seqoptobj" : ["1.24.1","1.24.2","1.24.3"],
+	"seqoptint" : [-46,-47,-48]
 }
