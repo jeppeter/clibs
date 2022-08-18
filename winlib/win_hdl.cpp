@@ -253,8 +253,11 @@ get_name_again:
 				goto fail;
 			}
 			memset(pnamebuf, 0, namesize);
-			DEBUG_INFO("[%d].[0x%x] duphdl [0x%x] type [%s] get name size [%d] Attributes [0x%lx]", lastpid, ptblex->HandleValue, duphdl, pstype, pbasicinfo->NameInfoSize,pbasicinfo->Attributes);
-			if ( pbasicinfo->NameInfoSize > 0) {
+			DEBUG_INFO("[%d].[0x%x] duphdl [0x%x] type [%s] get name size [%d] Attributes [0x%lx] GrantedAccess [0x%lx]", lastpid, ptblex->HandleValue, duphdl, pstype, pbasicinfo->NameInfoSize,pbasicinfo->Attributes,ptblex->GrantedAccess);
+			if ( pbasicinfo->NameInfoSize > 0 ||  
+				//(ptblex->GrantedAccess != 0x1a0089 && ptblex->GrantedAccess != 0x1a019f && ptblex->GrantedAccess != 0x120189 && ptblex->GrantedAccess != 0x16019f && ptblex->GrantedAccess != 0x12019f) 
+				((ptblex->GrantedAccess & 0x120089) != 0x120089)) {
+				DEBUG_INFO("query [%d] [0x%x] duphdl [0x%x]", lastpid,ptblex->HandleValue, duphdl);
 				status = pNtQueryObject(duphdl, ObjectNameInformation, pnamebuf, namesize, &uret);
 				if (!NT_SUCCESS(status)) {
 					if (status == STATUS_INFO_LENGTH_MISMATCH) {
