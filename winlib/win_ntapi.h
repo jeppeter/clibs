@@ -289,6 +289,12 @@ typedef struct _SYSTEM_HANDLE_INFORMATION_EX
     SYSTEM_HANDLE_TABLE_ENTRY_INFO_EX Handles[1];
 } SYSTEM_HANDLE_INFORMATION_EX, *PSYSTEM_HANDLE_INFORMATION_EX;
 
+typedef struct _OBJECT_NAME_INFORMATION
+{
+    UNICODE_STRING Name;
+} OBJECT_NAME_INFORMATION, *POBJECT_NAME_INFORMATION;
+
+
 typedef enum _OBJECT_INFORMATION_CLASS
 {
     ObjectBasicInformation, // q: OBJECT_BASIC_INFORMATION
@@ -329,6 +335,21 @@ typedef struct _OBJECT_TYPE_INFORMATION
     ULONG DefaultNonPagedPoolCharge;
 } OBJECT_TYPE_INFORMATION, *POBJECT_TYPE_INFORMATION;
 
+
+typedef struct _OBJECT_BASIC_INFORMATION
+{
+    ULONG Attributes;
+    ACCESS_MASK GrantedAccess;
+    ULONG HandleCount;
+    ULONG PointerCount;
+    ULONG PagedPoolCharge;
+    ULONG NonPagedPoolCharge;
+    ULONG Reserved[3];
+    ULONG NameInfoSize;
+    ULONG TypeInfoSize;
+    ULONG SecurityDescriptorSize;
+    LARGE_INTEGER CreationTime;
+} OBJECT_BASIC_INFORMATION, *POBJECT_BASIC_INFORMATION;
 
 
 typedef NTSTATUS (WINAPI *NtQuerySystemInformation_fn_t)(SYSTEM_INFORMATION_CLASS SystemInformationClass, PVOID SystemInformation,ULONG SystemInformationLength,PULONG ReturnLength);
