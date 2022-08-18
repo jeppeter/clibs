@@ -3228,3 +3228,35 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int handles_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    phandle_info_t phdls=NULL;
+    int hdlsize=0;
+    int hdllen=0;
+    int i;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    ret = get_handle_infos(0,&phdls,&hdlsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not get handles error[%d]\n", ret);
+        goto out;
+    }
+
+    hdllen = ret;
+    for(i=0;i<hdllen;i++) {
+        fprintf(stdout,"[%d] proc[%d] handle[0x%x] type[%s] name[%s]\n",i,phdls[i].m_pid,phdls[i].m_hdl,phdls[i].m_typename,phdls[i].m_name);
+    }
+    ret = 0;
+out:
+    get_handle_infos(1,&phdls,&hdlsize);
+    hdllen = 0;
+    SETERRNO(ret);
+    return ret;
+}

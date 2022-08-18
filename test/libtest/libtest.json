@@ -423,5 +423,8 @@
     },
     "regdelkey<regdelkey_handler>## hkey subkey subkeypath [recursive] to delete reg key ##" : {
         "$" : "+"
+    },
+    "handles<handles_handler>##to list handles for all process##" : {
+        "$" : 0
     }
 }

@@ -45,6 +45,7 @@
 #include <win_output_debug_cfg.h>
 #include <win_gui.h>
 #include <win_sock.h>
+#include <win_hdl.h>
 
 
 #include <jvalue.h>
@@ -253,6 +254,7 @@ int tstsvrsockrdwr_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 int tstclisockrdwr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regdelvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regdelkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int handles_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
