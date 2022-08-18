@@ -161,7 +161,7 @@ get_info_again:
 			continue;
 		}
 
-		DEBUG_INFO("dup [%d].[0x%x] value [0x%x]", lastpid, ptblex->HandleValue, duphdl);
+		//DEBUG_INFO("dup [%d].[0x%x] value [0x%x]", lastpid, ptblex->HandleValue, duphdl);
 
 
 
@@ -204,7 +204,7 @@ get_query_type_again:
 			goto fail;
 		}
 
-		DEBUG_INFO("[%d].[0x%x] duphdl [0x%x] type [%s]", lastpid, ptblex->HandleValue, duphdl, pstype);
+		//DEBUG_INFO("[%d].[0x%x] duphdl [0x%x] type [%s]", lastpid, ptblex->HandleValue, duphdl, pstype);
 		if (str_nocase_cmp(pstype, "file") == 0 || str_nocase_cmp(pstype, "directory") == 0 ) {
 
 get_basic_again:
@@ -254,7 +254,7 @@ get_name_again:
 			}
 			memset(pnamebuf, 0, namesize);
 			DEBUG_INFO("[%d].[0x%x] duphdl [0x%x] type [%s] get name size [%d] Attributes [0x%lx]", lastpid, ptblex->HandleValue, duphdl, pstype, pbasicinfo->NameInfoSize,pbasicinfo->Attributes);
-			if ( 1 || pbasicinfo->NameInfoSize > 0) {
+			if ( pbasicinfo->NameInfoSize > 0) {
 				status = pNtQueryObject(duphdl, ObjectNameInformation, pnamebuf, namesize, &uret);
 				if (!NT_SUCCESS(status)) {
 					if (status == STATUS_INFO_LENGTH_MISMATCH) {
