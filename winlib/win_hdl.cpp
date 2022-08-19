@@ -3,20 +3,30 @@
 #include <win_ntapi.h>
 #include <win_uniansi.h>
 #include <win_strop.h>
+
+#pragma warning(push)
+#pragma warning(disable:4530)
+#pragma warning(disable:4514)
+#pragma warning(disable:4577)
+
 #include <vector>
+#pragma warning(pop)
+
 
 #define MAX_QUERY_BUF_SIZE   (2UL << 20)
 
 typedef struct __info_variables {
-	char* m_ptypename;
 	int m_typesize;
-	char* m_pname;
 	int m_namesize;
+	char* m_ptypename;
+	char* m_pname;
 	HANDLE m_duphdl;
 	HANDLE m_prochdl;
+	PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX m_table;
 	phandle_info_t m_phdlinfo;
 	HMODULE m_ntmod;
 	int m_lastpid;	
+	int m_reserv1;
 } info_variables_t,*pinfo_variables_t;
 
 typedef struct __input_handls_t {
@@ -66,6 +76,11 @@ void free_info_variables(pinfo_variables_t* ppvars)
 		}
 		pvars->m_prochdl = NULL;
 
+		if (pvars->m_table != NULL) {
+			free(pvars->m_table);
+		}
+		pvars->m_table = NULL;
+
 		if (pvars->m_phdlinfo != NULL) {
 			free(pvars->m_phdlinfo);
 		}
@@ -89,7 +104,7 @@ pinfo_variables_t alloc_info_variables(void)
 {
 	pinfo_variables_t pvars = NULL;
 	int ret;
-	pvars = malloc(sizeof(*pvars));
+	pvars = (pinfo_variables_t)malloc(sizeof(*pvars));
 	if (pvars == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -164,7 +179,7 @@ int push_input_handles(pinput_handles_t phdls, PSYSTEM_HANDLE_TABLE_ENTRY_INFO_E
 {
 	int ret = 0;
 	PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX pinsert= NULL;
-	pinsert = malloc(sizeof(*pinsert));
+	pinsert = (PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX)malloc(sizeof(*pinsert));
 	if (pinsert == NULL) {
 		GETERRNO(ret);
 		return ret;
@@ -174,7 +189,7 @@ int push_input_handles(pinput_handles_t phdls, PSYSTEM_HANDLE_TABLE_ENTRY_INFO_E
 
 	EnterCriticalSection(&(phdls->m_cs));
 	phdls->m_pvec->push_back(pinsert);
-	ret = phdls->m_pvec->size();
+	ret = (int)phdls->m_pvec->size();
 	LeaveCriticalSection(&(phdls->m_cs));
 	return ret;
 }
@@ -184,14 +199,14 @@ pinput_handles_t alloc_input_handles(void)
 	pinput_handles_t phdls=NULL;
 	int ret;
 
-	phdls = malloc(sizeof(*phdls));
+	phdls = (pinput_handles_t)malloc(sizeof(*phdls));
 	if (phdls == NULL) {
 		GETERRNO(ret);
 		goto fail;
 	}
 	memset(phdls,0,sizeof(*phdls));
 	InitializeCriticalSection(&(phdls->m_cs));
-	phdls->m_pvec = new std::vector<PSYSTEM_HANDLE_INFORMATION_EX>();
+	phdls->m_pvec = new std::vector<PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX>();
 	return phdls;
 fail:
 	free_input_handles(&phdls);
@@ -224,7 +239,7 @@ poutput_infos_t alloc_output_infos(void)
 	poutput_infos_t pinfos = NULL;
 	int ret;
 
-	pinfos = malloc(sizeof(*pinfos));
+	pinfos = (poutput_infos_t)malloc(sizeof(*pinfos));
 	if (pinfos == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -245,7 +260,7 @@ int push_output_info(poutput_infos_t pinfos, phandle_info_t *ppinfo)
 	EnterCriticalSection(&(pinfos->m_cs));
 	pinfos->m_pvec->push_back(*ppinfo);
 	*ppinfo = NULL;
-	ret = pinfos->m_pvec->size();
+	ret = (int)pinfos->m_pvec->size();
 	LeaveCriticalSection(&(pinfos->m_cs));
 	return ret;
 }
@@ -273,7 +288,8 @@ DWORD WINAPI get_handle_info_thread(void* args)
 	int curpid = (int)GetCurrentProcessId();
 	int curthrid = (int)GetCurrentThreadId();
 	int lasterrpid = -1;
-	int i;
+	int idx = 0;
+	DWORD dret;
 
 	if (pvars->m_typesize == 0) {
 		pvars->m_typesize = 4;
@@ -283,15 +299,14 @@ DWORD WINAPI get_handle_info_thread(void* args)
 		pvars->m_namesize = 4;
 	}
 
-	if (pvars->m_phdlinfo == NULL) {
-		pvars->m_phdlinfo = malloc(sizeof(*(pvars->m_phdlinfo)));
-		if (pvars->m_phdlinfo == NULL) {
+	if (pvars->m_table == NULL) {
+		pvars->m_table = (PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX)malloc(sizeof(*(pvars->m_table)));
+		if (pvars->m_table == NULL) {
 			GETERRNO(ret);
 			goto out;
 		}
 	}
-
-	ptable = pvars->m_phdlinfo;
+	ptable = pvars->m_table;
 
 
 	while(1) {
@@ -308,7 +323,7 @@ DWORD WINAPI get_handle_info_thread(void* args)
 		}
 
 
-		if (ptable->UniqueProcessId == curpid) {
+		if ((int)ptable->UniqueProcessId == curpid) {
 			DEBUG_INFO("[%d].[%d] skip same process", curpid,curthrid);
 			goto next_cycle;
 		}
@@ -330,11 +345,22 @@ DWORD WINAPI get_handle_info_thread(void* args)
 			}
 		}
 
+		if (pvars->m_phdlinfo == NULL) {
+			pvars->m_phdlinfo = (phandle_info_t)malloc(sizeof(*(pvars->m_phdlinfo)));
+			if (pvars->m_phdlinfo == NULL) {
+				GETERRNO(ret);
+				goto out;
+			}
+		} 
+		memset(pvars->m_phdlinfo, 0 , sizeof(*(pvars->m_phdlinfo)));
+		
 
+		push_output_info(poutput,&(pvars->m_phdlinfo));
 
 	next_cycle:
 		/*we handle next one*/
 		remove_input_handles(pinput);
+		idx ++;
 	}
 
 
