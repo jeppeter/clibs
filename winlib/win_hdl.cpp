@@ -3,6 +3,7 @@
 #include <win_ntapi.h>
 #include <win_uniansi.h>
 #include <win_strop.h>
+#include <win_time.h>
 
 #pragma warning(push)
 #pragma warning(disable:4530)
@@ -71,11 +72,13 @@ void free_info_variables(pinfo_variables_t* ppvars)
 		pvars->m_namesize = 0;
 
 		if (pvars->m_duphdl != NULL) {
+			DEBUG_INFO("close duphdl [%p]", pvars->m_duphdl);
 			CloseHandle(pvars->m_duphdl);
 		}
 		pvars->m_duphdl = NULL;
 
 		if (pvars->m_prochdl != NULL) {
+			DEBUG_INFO("close prochdl [%p]", pvars->m_prochdl);
 			CloseHandle(pvars->m_prochdl);
 		}
 		pvars->m_prochdl = NULL;
@@ -90,9 +93,7 @@ void free_info_variables(pinfo_variables_t* ppvars)
 		}
 		pvars->m_phdlinfo = NULL;
 
-		if (pvars->m_ntmod != NULL) {
-			CloseHandle(pvars->m_ntmod);
-		}
+		/*not set module*/
 		pvars->m_ntmod = NULL;
 
 		pvars->m_lastpid = -1;
@@ -173,7 +174,7 @@ int peek_input_handles(pinput_handles_t phdls, PSYSTEM_HANDLE_TABLE_ENTRY_INFO_E
 	return ret;
 }
 
-int remove_input_handles(pinput_handles_t phdls)
+int remove_input_handles(pinput_handles_t phdls, int errmode)
 {
 	int ret = 0;
 	PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX pget = NULL;
@@ -185,6 +186,9 @@ int remove_input_handles(pinput_handles_t phdls)
 	}
 	LeaveCriticalSection(&(phdls->m_cs));
 	if (pget != NULL) {
+		if (errmode != 0) {
+			DEBUG_INFO("remove [%d].[0x%x] handle ", (int)pget->UniqueProcessId, pget->HandleValue);
+		}
 		free(pget);
 	}
 	pget = NULL;
@@ -305,7 +309,6 @@ DWORD WINAPI get_handle_info_thread(void* args)
 	int curthrid = (int)GetCurrentThreadId();
 	int lasterrpid = -1;
 	int idx = 0;
-	DWORD dret;
 	NTSTATUS status;
 	NtDuplicateObject_fn_t pNtDuplicateObject = NULL;
 	NtQueryObject_fn_t pNtQueryObject = NULL;
@@ -331,14 +334,7 @@ DWORD WINAPI get_handle_info_thread(void* args)
 	}
 	ptable = pvars->m_table;
 
-	if (pvars->m_ntmod == NULL) {
-		pvars->m_ntmod = LoadLibraryA("ntdll.dll");
-		if (pvars->m_ntmod == NULL) {
-			GETERRNO(ret);
-			ERROR_INFO("[%d].[%d] can not load ntdll.dll error[%d]", curpid, curthrid, ret);
-			goto out;
-		}
-	}
+	ASSERT_IF(pvars->m_ntmod != NULL);
 
 	pNtQueryObject = reinterpret_cast<NtQueryObject_fn_t>(reinterpret_cast<void*>(GetProcAddress(pvars->m_ntmod, "NtQueryObject")));
 	if (pNtQueryObject == NULL) {
@@ -358,19 +354,16 @@ DWORD WINAPI get_handle_info_thread(void* args)
 	while (1) {
 		ret = peek_input_handles(pinput, ptable);
 		if (ret == 0) {
-			dret = WaitForSingleObject(pthrvars->m_exitevt, 1);
-			if (dret == WAIT_OBJECT_0) {
-				/*that exited*/
-				break;
-			}
-			/*we notified*/
-			SetEvent(pthrvars->m_notievt);
-			continue;
+			/*all is ok ,so we should exit*/
+			break;
 		}
-
 
 		if ((int)ptable->UniqueProcessId == curpid) {
 			DEBUG_INFO("[%d].[%d] skip same process", curpid, curthrid);
+			goto next_cycle;
+		}
+
+		if (lasterrpid >= 0 && lasterrpid == (int) ptable->UniqueProcessId) {
 			goto next_cycle;
 		}
 
@@ -392,14 +385,6 @@ DWORD WINAPI get_handle_info_thread(void* args)
 			pvars->m_lastpid = (int) ptable->UniqueProcessId;
 		}
 
-		if (pvars->m_phdlinfo == NULL) {
-			pvars->m_phdlinfo = (phandle_info_t)malloc(sizeof(*(pvars->m_phdlinfo)));
-			if (pvars->m_phdlinfo == NULL) {
-				GETERRNO(ret);
-				goto out;
-			}
-		}
-		memset(pvars->m_phdlinfo, 0 , sizeof(*(pvars->m_phdlinfo)));
 
 		if (pvars->m_duphdl != NULL) {
 			CloseHandle(pvars->m_duphdl);
@@ -499,18 +484,31 @@ get_name_again:
 			goto out;
 		}
 
+		if (pvars->m_phdlinfo == NULL) {
+			pvars->m_phdlinfo = (phandle_info_t)malloc(sizeof(*(pvars->m_phdlinfo)));
+			if (pvars->m_phdlinfo == NULL) {
+				GETERRNO(ret);
+				goto out;
+			}
+		}
+		memset(pvars->m_phdlinfo, 0 , sizeof(*(pvars->m_phdlinfo)));
+
+
 		phdlinfo = pvars->m_phdlinfo;
 		/**/
 		phdlinfo->m_pid = (int)ptable->UniqueProcessId;
 		phdlinfo->m_hdl = (HANDLE)ptable->HandleValue;
-		strncpy_s(phdlinfo->m_typename, sizeof(phdlinfo->m_typename) - 1, pvars->m_ptypename, sizeof(phdlinfo->m_typename));
-		strncpy_s(phdlinfo->m_name, sizeof(phdlinfo->m_name) - 1, pvars->m_pname, sizeof(phdlinfo->m_name));
-
+		if (pvars->m_ptypename != NULL) {
+			strncpy_s(phdlinfo->m_typename, sizeof(phdlinfo->m_typename) - 1, pvars->m_ptypename, sizeof(phdlinfo->m_typename));	
+		}		
+		if (pvars->m_pname != NULL) {
+			strncpy_s(phdlinfo->m_name, sizeof(phdlinfo->m_name) - 1, pvars->m_pname, sizeof(phdlinfo->m_name));
+		}		
 		push_output_info(poutput, &(pvars->m_phdlinfo));
 
 next_cycle:
 		/*we handle next one*/
-		remove_input_handles(pinput);
+		remove_input_handles(pinput,0);
 		idx ++;
 		SetEvent(pthrvars->m_notievt);
 	}
@@ -530,29 +528,29 @@ void free_thread_vars(pthread_vars_t* ppthrvars)
 	DWORD dret;
 	if (ppthrvars && *ppthrvars) {
 		pthread_vars_t pthrvars = *ppthrvars;
-		if (pthrvars->m_thrhdl != NULL) {
+		if (pthrvars->m_exited == 0 && pthrvars->m_thrhdl != NULL) {
 			int cnt = 0;
-			int exited = 0;
 			while (cnt < 5) {
 				SetEvent(pthrvars->m_exitevt);
 				dret = WaitForSingleObject(pthrvars->m_thrhdl, 10);
 				if (dret == WAIT_OBJECT_0) {
 					if (pthrvars->m_exited > 0) {
-						exited = 1;
 						break;
 					}
 				}
 				cnt ++;
 			}
 
-			if (exited == 0) {
+			if (pthrvars->m_exited == 0) {
 				bret = TerminateThread(pthrvars->m_thrhdl, 20);
 				if (!bret) {
 					GETERRNO(ret);
 					ERROR_INFO("can not terminate thread error[%d]", ret);
 				}
-				exited = 0;
 			}
+		}
+		pthrvars->m_exited = 1;
+		if (pthrvars->m_thrhdl != NULL) {
 			bret = CloseHandle(pthrvars->m_thrhdl);
 			if (!bret) {
 				GETERRNO(ret);
@@ -633,7 +631,7 @@ fail:
 	return NULL;
 }
 
-int restart_background_thread(pthread_vars_t pthrvars)
+int restart_background_thread(pthread_vars_t pthrvars, HMODULE hmod)
 {
 	DWORD thrid;
 	BOOL bret;
@@ -648,9 +646,10 @@ int restart_background_thread(pthread_vars_t pthrvars)
 		}
 		CloseHandle(pthrvars->m_thrhdl);
 		pthrvars->m_thrhdl = NULL;
+		pthrvars->m_exited = 1;
 
 		/*now we should remove the first*/
-		ret = remove_input_handles(pthrvars->m_pinput);
+		ret = remove_input_handles(pthrvars->m_pinput,1);
 		if (ret == 0) {
 			/*nothing to handle*/
 			return 0;
@@ -664,6 +663,7 @@ int restart_background_thread(pthread_vars_t pthrvars)
 		GETERRNO(ret);
 		goto fail;
 	}
+	pthrvars->m_pvars->m_ntmod = hmod;
 
 	pthrvars->m_exited = 0;
 	pthrvars->m_thrhdl = CreateThread(NULL, 0, get_handle_info_thread, pthrvars, 0, &thrid);
@@ -770,6 +770,7 @@ get_info_again:
 
 	/*now to input */
 	pinfoex = (PSYSTEM_HANDLE_INFORMATION_EX) pbuffer;
+	DEBUG_INFO("handles [%d]", pinfoex->NumberOfHandles);
 	for (i = 0 ; i < pinfoex->NumberOfHandles; i ++) {
 		ret = push_input_handles(pthrvars->m_pinput, &(pinfoex->Handles[i]));
 		if (ret < 0) {
@@ -778,7 +779,7 @@ get_info_again:
 		}
 	}
 
-	ret = restart_background_thread(pthrvars);
+	ret = restart_background_thread(pthrvars, hmod);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -793,7 +794,7 @@ get_info_again:
 		waitnum ++;
 		waithdls[waitnum] = pthrvars->m_thrhdl;
 		waitnum ++;
-		dret = WaitForMultipleObjects(waitnum, waithdls, FALSE, 500);
+		dret = WaitForMultipleObjects(waitnum, waithdls, FALSE, 200);
 		if (dret == WAIT_OBJECT_0) {
 			ResetEvent(pthrvars->m_notievt);
 			while (1) {
@@ -829,12 +830,11 @@ get_info_again:
 				pinfo = NULL;
 			}
 		} else if (dret == (WAIT_OBJECT_0 + 1)) {
-			if (pthrvars->m_exited) {
-				break;
-			}
+			DEBUG_INFO("EXITED");
+			break;
 		} else if (dret == WAIT_TIMEOUT) {
 			DEBUG_INFO("WAIT_TIMEOUT");
-			ret = restart_background_thread(pthrvars);
+			ret = restart_background_thread(pthrvars, hmod);
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
@@ -848,6 +848,15 @@ get_info_again:
 		}
 	}
 
+	while (pthrvars->m_exited == 0) {
+		sleep_mill(1);
+	}
+
+	DEBUG_INFO("exitcode [%d]", pthrvars->m_exitcode);
+	if (pthrvars->m_exitcode != 0) {
+		ret = pthrvars->m_exitcode;
+		goto fail;
+	}
 
 succ:
 	while (1) {
