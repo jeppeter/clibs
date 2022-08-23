@@ -27,21 +27,21 @@ typedef struct __info_variables {
 	PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX m_table;
 	phandle_info_t m_phdlinfo;
 	HMODULE m_ntmod;
-	int m_lastpid;	
+	int m_lastpid;
 	ULONG m_tinfosize;
 	ULONG m_ninfosize;
 	ULONG m_reserv1;
-} info_variables_t,*pinfo_variables_t;
+} info_variables_t, *pinfo_variables_t;
 
 typedef struct __input_handls_t {
 	CRITICAL_SECTION m_cs;
 	std::vector<PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX>* m_pvec;
-}input_handles_t,*pinput_handles_t;
+} input_handles_t, *pinput_handles_t;
 
 typedef struct __output_infos_t {
 	CRITICAL_SECTION m_cs;
 	std::vector<phandle_info_t>* m_pvec;
-} output_infos_t,*poutput_infos_t;
+} output_infos_t, *poutput_infos_t;
 
 typedef struct __thread_vars {
 	HANDLE m_notievt;
@@ -52,7 +52,7 @@ typedef struct __thread_vars {
 	poutput_infos_t m_poutput;
 	int m_exited;
 	int m_exitcode;
-} thread_vars_t,*pthread_vars_t;
+} thread_vars_t, *pthread_vars_t;
 
 void free_info_variables(pinfo_variables_t* ppvars)
 {
@@ -125,7 +125,7 @@ pinfo_variables_t alloc_info_variables(void)
 		GETERRNO(ret);
 		goto fail;
 	}
-	memset(pvars,0,sizeof(*pvars));
+	memset(pvars, 0, sizeof(*pvars));
 	pvars->m_lastpid = -1;
 
 	pvars->m_tinfosize = 4;
@@ -143,7 +143,7 @@ void free_input_handles(pinput_handles_t* pphdls)
 	if (pphdls && *pphdls) {
 		pinput_handles_t phdls = *pphdls;
 		if (phdls->m_pvec) {
-			while(phdls->m_pvec->size() > 0) {
+			while (phdls->m_pvec->size() > 0) {
 				PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX phdl = phdls->m_pvec->at(0);
 				phdls->m_pvec->erase(phdls->m_pvec->begin());
 				free(phdl);
@@ -160,13 +160,13 @@ void free_input_handles(pinput_handles_t* pphdls)
 }
 
 
-int peek_input_handles(pinput_handles_t phdls,PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX pinput)
+int peek_input_handles(pinput_handles_t phdls, PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX pinput)
 {
 	int ret = 0;
 	EnterCriticalSection(&(phdls->m_cs));
 	if (phdls->m_pvec->size() > 0) {
 		PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX pget = phdls->m_pvec->at(0);
-		memcpy(pinput,pget,sizeof(*pget));
+		memcpy(pinput, pget, sizeof(*pget));
 		ret = 1;
 	}
 	LeaveCriticalSection(&(phdls->m_cs));
@@ -181,7 +181,7 @@ int remove_input_handles(pinput_handles_t phdls)
 	if (phdls->m_pvec->size() > 0) {
 		pget = phdls->m_pvec->at(0);
 		phdls->m_pvec->erase(phdls->m_pvec->begin());
-		ret = 1;
+		ret = (int)phdls->m_pvec->size();
 	}
 	LeaveCriticalSection(&(phdls->m_cs));
 	if (pget != NULL) {
@@ -194,14 +194,14 @@ int remove_input_handles(pinput_handles_t phdls)
 int push_input_handles(pinput_handles_t phdls, PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX ptable)
 {
 	int ret = 0;
-	PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX pinsert= NULL;
+	PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX pinsert = NULL;
 	pinsert = (PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX)malloc(sizeof(*pinsert));
 	if (pinsert == NULL) {
 		GETERRNO(ret);
 		return ret;
 	}
 
-	memcpy(pinsert,ptable,sizeof(*pinsert));
+	memcpy(pinsert, ptable, sizeof(*pinsert));
 
 	EnterCriticalSection(&(phdls->m_cs));
 	phdls->m_pvec->push_back(pinsert);
@@ -212,7 +212,7 @@ int push_input_handles(pinput_handles_t phdls, PSYSTEM_HANDLE_TABLE_ENTRY_INFO_E
 
 pinput_handles_t alloc_input_handles(void)
 {
-	pinput_handles_t phdls=NULL;
+	pinput_handles_t phdls = NULL;
 	int ret;
 
 	phdls = (pinput_handles_t)malloc(sizeof(*phdls));
@@ -220,7 +220,7 @@ pinput_handles_t alloc_input_handles(void)
 		GETERRNO(ret);
 		goto fail;
 	}
-	memset(phdls,0,sizeof(*phdls));
+	memset(phdls, 0, sizeof(*phdls));
 	InitializeCriticalSection(&(phdls->m_cs));
 	phdls->m_pvec = new std::vector<PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX>();
 	return phdls;
@@ -235,7 +235,7 @@ void free_output_info(poutput_infos_t *ppinfos)
 	if (ppinfos && *ppinfos) {
 		poutput_infos_t pinfos = *ppinfos;
 		if (pinfos->m_pvec != NULL) {
-			while(pinfos->m_pvec->size() > 0) {
+			while (pinfos->m_pvec->size() > 0) {
 				phandle_info_t pinfo = pinfos->m_pvec->at(0);
 				pinfos->m_pvec->erase(pinfos->m_pvec->begin());
 				free(pinfo);
@@ -260,7 +260,7 @@ poutput_infos_t alloc_output_infos(void)
 		GETERRNO(ret);
 		goto fail;
 	}
-	memset(pinfos,0,sizeof(*pinfos));
+	memset(pinfos, 0, sizeof(*pinfos));
 	InitializeCriticalSection(&(pinfos->m_cs));
 	pinfos->m_pvec = new std::vector<phandle_info_t>();
 	return pinfos;
@@ -272,7 +272,7 @@ fail:
 
 int push_output_info(poutput_infos_t pinfos, phandle_info_t *ppinfo)
 {
-	int ret=0;
+	int ret = 0;
 	EnterCriticalSection(&(pinfos->m_cs));
 	pinfos->m_pvec->push_back(*ppinfo);
 	*ppinfo = NULL;
@@ -283,7 +283,7 @@ int push_output_info(poutput_infos_t pinfos, phandle_info_t *ppinfo)
 
 phandle_info_t get_output_info(poutput_infos_t pinfos)
 {
-	phandle_info_t poutput=NULL;
+	phandle_info_t poutput = NULL;
 	EnterCriticalSection(&(pinfos->m_cs));
 	if (pinfos->m_pvec->size() > 0) {
 		poutput = pinfos->m_pvec->at(0);
@@ -335,30 +335,30 @@ DWORD WINAPI get_handle_info_thread(void* args)
 		pvars->m_ntmod = LoadLibraryA("ntdll.dll");
 		if (pvars->m_ntmod == NULL) {
 			GETERRNO(ret);
-			ERROR_INFO("[%d].[%d] can not load ntdll.dll error[%d]", curpid,curthrid,ret);
+			ERROR_INFO("[%d].[%d] can not load ntdll.dll error[%d]", curpid, curthrid, ret);
 			goto out;
 		}
 	}
 
-	pNtQueryObject = reinterpret_cast<NtQueryObject_fn_t>(reinterpret_cast<void*>(GetProcAddress(pvars->m_ntmod,"NtQueryObject")));
+	pNtQueryObject = reinterpret_cast<NtQueryObject_fn_t>(reinterpret_cast<void*>(GetProcAddress(pvars->m_ntmod, "NtQueryObject")));
 	if (pNtQueryObject == NULL) {
 		GETERRNO(ret);
-		ERROR_INFO("[%d].[%d] GetProcAddress NtQueryObject error[%d]",curpid,curthrid,ret);
+		ERROR_INFO("[%d].[%d] GetProcAddress NtQueryObject error[%d]", curpid, curthrid, ret);
 		goto out;
 	}
 
-	pNtDuplicateObject = reinterpret_cast<NtDuplicateObject_fn_t>(reinterpret_cast<void*>(GetProcAddress(pvars->m_ntmod,"NtDuplicateObject")));
+	pNtDuplicateObject = reinterpret_cast<NtDuplicateObject_fn_t>(reinterpret_cast<void*>(GetProcAddress(pvars->m_ntmod, "NtDuplicateObject")));
 	if (pNtDuplicateObject == NULL) {
 		GETERRNO(ret);
-		ERROR_INFO("[%d].[%d] GetProcAddress NtDuplicateObject error[%d]", curpid,curthrid,ret);
+		ERROR_INFO("[%d].[%d] GetProcAddress NtDuplicateObject error[%d]", curpid, curthrid, ret);
 		goto out;
 	}
 
 
-	while(1) {
-		ret = peek_input_handles(pinput,ptable);
+	while (1) {
+		ret = peek_input_handles(pinput, ptable);
 		if (ret == 0) {
-			dret = WaitForSingleObject(pthrvars->m_exitevt,1);
+			dret = WaitForSingleObject(pthrvars->m_exitevt, 1);
 			if (dret == WAIT_OBJECT_0) {
 				/*that exited*/
 				break;
@@ -370,7 +370,7 @@ DWORD WINAPI get_handle_info_thread(void* args)
 
 
 		if ((int)ptable->UniqueProcessId == curpid) {
-			DEBUG_INFO("[%d].[%d] skip same process", curpid,curthrid);
+			DEBUG_INFO("[%d].[%d] skip same process", curpid, curthrid);
 			goto next_cycle;
 		}
 
@@ -384,11 +384,12 @@ DWORD WINAPI get_handle_info_thread(void* args)
 			if (pvars->m_prochdl == NULL) {
 				if (lasterrpid != (int)ptable->UniqueProcessId) {
 					GETERRNO(ret);
-					ERROR_INFO("[%d].[%d] can not open [%d] process error[%d]", curpid,curthrid, (int)(ptable->UniqueProcessId), ret);	
+					ERROR_INFO("[%d].[%d] can not open [%d] process error[%d]", curpid, curthrid, (int)(ptable->UniqueProcessId), ret);
 					lasterrpid = (int) ptable->UniqueProcessId;
 				}
 				goto next_cycle;
 			}
+			pvars->m_lastpid = (int) ptable->UniqueProcessId;
 		}
 
 		if (pvars->m_phdlinfo == NULL) {
@@ -397,7 +398,7 @@ DWORD WINAPI get_handle_info_thread(void* args)
 				GETERRNO(ret);
 				goto out;
 			}
-		} 
+		}
 		memset(pvars->m_phdlinfo, 0 , sizeof(*(pvars->m_phdlinfo)));
 
 		if (pvars->m_duphdl != NULL) {
@@ -408,12 +409,12 @@ DWORD WINAPI get_handle_info_thread(void* args)
 		if (!NT_SUCCESS(status)) {
 			GETERRNO(ret);
 			pvars->m_duphdl = NULL;
-			ERROR_INFO("[%d].[%d]can not open [%d] handle [0x%x] error[0x%lx] [%d]",curpid,curthrid,pvars->m_lastpid, ptable->HandleValue, status, ret);
+			ERROR_INFO("[%d].[%d]can not open [%d] handle [0x%x] error[0x%lx] [%d]", curpid, curthrid, pvars->m_lastpid, ptable->HandleValue, status, ret);
 			goto next_cycle;
 		}
 
 		/**/
-	get_type_again:
+get_type_again:
 		if (pvars->m_ptypeinfo) {
 			free(pvars->m_ptypeinfo);
 		}
@@ -425,7 +426,7 @@ DWORD WINAPI get_handle_info_thread(void* args)
 		}
 		memset(pvars->m_ptypeinfo, 0, pvars->m_tinfosize);
 
-		status = pNtQueryObject(pvars->m_duphdl,ObjectTypeInformation,pvars->m_ptypeinfo, pvars->m_tinfosize, &uret);
+		status = pNtQueryObject(pvars->m_duphdl, ObjectTypeInformation, pvars->m_ptypeinfo, pvars->m_tinfosize, &uret);
 		if (!NT_SUCCESS(status)) {
 			if (status == STATUS_INFO_LENGTH_MISMATCH) {
 				if (pvars->m_tinfosize < uret) {
@@ -436,30 +437,30 @@ DWORD WINAPI get_handle_info_thread(void* args)
 						pvars->m_tinfosize = 4;
 					}
 				}
-				WARN_INFO("[%d].[%d] query [%d].[0x%x] duphdl [0x%x] expand size [0x%lx]",curpid,curthrid, pvars->m_lastpid, ptable->HandleValue,pvars->m_duphdl,pvars->m_tinfosize);
+				WARN_INFO("[%d].[%d] query [%d].[0x%x] duphdl [0x%x] expand size [0x%lx]", curpid, curthrid, pvars->m_lastpid, ptable->HandleValue, pvars->m_duphdl, pvars->m_tinfosize);
 				goto get_type_again;
 			}
 			GETERRNO(ret);
-			ERROR_INFO("[%d].[%d] query [%d].[0x%p] duphdl [0x%x] error[0x%x] [%d]", curpid,curthrid, pvars->m_lastpid,ptable->HandleValue,pvars->m_duphdl,status,ret);
+			ERROR_INFO("[%d].[%d] query [%d].[0x%p] duphdl [0x%x] error[0x%x] [%d]", curpid, curthrid, pvars->m_lastpid, ptable->HandleValue, pvars->m_duphdl, status, ret);
 			goto out;
 		}
 
 		ptinfo = (POBJECT_TYPE_INFORMATION) pvars->m_ptypeinfo;
 
-		ret = UnicodeToAnsi(ptinfo->TypeName.Buffer,&(pvars->m_ptypename),&(pvars->m_typesize));
+		ret = UnicodeToAnsi(ptinfo->TypeName.Buffer, &(pvars->m_ptypename), &(pvars->m_typesize));
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto out;
 		}
 
-		if (str_nocase_cmp(pvars->m_ptypename,"file") != 0 &&
-			str_nocase_cmp(pvars->m_ptypename,"directory") != 0) {
-			WARN_INFO("[%d].[%d] [%d].[0x%x] duphdl [0x%x] type [%s]", curpid,curthrid, pvars->m_lastpid, ptable->HandleValue,pvars->m_duphdl,pvars->m_ptypename);
+		if (str_nocase_cmp(pvars->m_ptypename, "file") != 0 &&
+		        str_nocase_cmp(pvars->m_ptypename, "directory") != 0) {
+			WARN_INFO("[%d].[%d] [%d].[0x%x] duphdl [0x%x] type [%s]", curpid, curthrid, pvars->m_lastpid, ptable->HandleValue, pvars->m_duphdl, pvars->m_ptypename);
 			goto next_cycle;
 		}
 
 		/*now we should give the name*/
-	get_name_again:
+get_name_again:
 		if (pvars->m_pnameinfo) {
 			free(pvars->m_pnameinfo);
 		}
@@ -469,9 +470,9 @@ DWORD WINAPI get_handle_info_thread(void* args)
 			GETERRNO(ret);
 			goto out;
 		}
-		memset(pvars->m_pnameinfo,0, pvars->m_ninfosize);
+		memset(pvars->m_pnameinfo, 0, pvars->m_ninfosize);
 
-		status = pNtQueryObject(pvars->m_duphdl,ObjectNameInformation,pvars->m_pnameinfo, pvars->m_ninfosize,&uret);
+		status = pNtQueryObject(pvars->m_duphdl, ObjectNameInformation, pvars->m_pnameinfo, pvars->m_ninfosize, &uret);
 		if (!NT_SUCCESS(status)) {
 			if (status == STATUS_INFO_LENGTH_MISMATCH) {
 				if (pvars->m_ninfosize < uret) {
@@ -482,17 +483,17 @@ DWORD WINAPI get_handle_info_thread(void* args)
 						pvars->m_ninfosize = 4;
 					}
 				}
-				WARN_INFO("[%d].[%d] query [%d].[0x%x] duphdl [0x%x] name expand size [0x%lx]",curpid,curthrid, pvars->m_lastpid, ptable->HandleValue,pvars->m_duphdl,pvars->m_ninfosize);
+				WARN_INFO("[%d].[%d] query [%d].[0x%x] duphdl [0x%x] name expand size [0x%lx]", curpid, curthrid, pvars->m_lastpid, ptable->HandleValue, pvars->m_duphdl, pvars->m_ninfosize);
 				goto get_name_again;
 			}
 			GETERRNO(ret);
-			ERROR_INFO("[%d].[%d] query [%d].[0x%p] duphdl [0x%x] name error[0x%x] [%d]", curpid,curthrid, pvars->m_lastpid,ptable->HandleValue,pvars->m_duphdl,status,ret);
-			goto out;			
+			ERROR_INFO("[%d].[%d] query [%d].[0x%p] duphdl [0x%x] name error[0x%x] [%d]", curpid, curthrid, pvars->m_lastpid, ptable->HandleValue, pvars->m_duphdl, status, ret);
+			goto next_cycle;
 		}
 
 		pninfo = (POBJECT_NAME_INFORMATION) pvars->m_pnameinfo;
 
-		ret = UnicodeToAnsi(pninfo->Name.Buffer,&(pvars->m_pname),&(pvars->m_namesize));
+		ret = UnicodeToAnsi(pninfo->Name.Buffer, &(pvars->m_pname), &(pvars->m_namesize));
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto out;
@@ -502,12 +503,12 @@ DWORD WINAPI get_handle_info_thread(void* args)
 		/**/
 		phdlinfo->m_pid = (int)ptable->UniqueProcessId;
 		phdlinfo->m_hdl = (HANDLE)ptable->HandleValue;
-		strncpy_s(phdlinfo->m_typename,sizeof(phdlinfo->m_typename)-1,pvars->m_ptypename,sizeof(phdlinfo->m_typename));
-		strncpy_s(phdlinfo->m_name, sizeof(phdlinfo->m_name) -1,pvars->m_pname,sizeof(phdlinfo->m_name));
+		strncpy_s(phdlinfo->m_typename, sizeof(phdlinfo->m_typename) - 1, pvars->m_ptypename, sizeof(phdlinfo->m_typename));
+		strncpy_s(phdlinfo->m_name, sizeof(phdlinfo->m_name) - 1, pvars->m_pname, sizeof(phdlinfo->m_name));
 
-		push_output_info(poutput,&(pvars->m_phdlinfo));
+		push_output_info(poutput, &(pvars->m_phdlinfo));
 
-	next_cycle:
+next_cycle:
 		/*we handle next one*/
 		remove_input_handles(pinput);
 		idx ++;
@@ -522,11 +523,169 @@ out:
 	return (DWORD)ret;
 }
 
+void free_thread_vars(pthread_vars_t* ppthrvars)
+{
+	BOOL bret;
+	int ret;
+	DWORD dret;
+	if (ppthrvars && *ppthrvars) {
+		pthread_vars_t pthrvars = *ppthrvars;
+		if (pthrvars->m_thrhdl != NULL) {
+			int cnt = 0;
+			int exited = 0;
+			while (cnt < 5) {
+				SetEvent(pthrvars->m_exitevt);
+				dret = WaitForSingleObject(pthrvars->m_thrhdl, 10);
+				if (dret == WAIT_OBJECT_0) {
+					if (pthrvars->m_exited > 0) {
+						exited = 1;
+						break;
+					}
+				}
+				cnt ++;
+			}
+
+			if (exited == 0) {
+				bret = TerminateThread(pthrvars->m_thrhdl, 20);
+				if (!bret) {
+					GETERRNO(ret);
+					ERROR_INFO("can not terminate thread error[%d]", ret);
+				}
+				exited = 0;
+			}
+			bret = CloseHandle(pthrvars->m_thrhdl);
+			if (!bret) {
+				GETERRNO(ret);
+				ERROR_INFO("can not close thread [%d]", ret);
+			}
+			pthrvars->m_thrhdl = NULL;
+		}
+
+		if (pthrvars->m_exitevt) {
+			CloseHandle(pthrvars->m_exitevt);
+		}
+		pthrvars->m_exitevt = NULL;
+
+		if (pthrvars->m_notievt) {
+			CloseHandle(pthrvars->m_notievt);
+		}
+		pthrvars->m_notievt = NULL;
+
+		free_input_handles(&(pthrvars->m_pinput));
+		free_output_info(&(pthrvars->m_poutput));
+		free_info_variables(&(pthrvars->m_pvars));
+		pthrvars->m_exited = 1;
+		pthrvars->m_exitcode = 0;
+		free(pthrvars);
+		*ppthrvars = NULL;
+	}
+}
+
+pthread_vars_t alloc_thread_vars(void)
+{
+	pthread_vars_t pthrvars = NULL;
+	int ret;
+
+	pthrvars = (pthread_vars_t) malloc(sizeof(*pthrvars));
+	if (pthrvars == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(pthrvars, 0, sizeof(*pthrvars));
+	pthrvars->m_exited = 1;
+
+	pthrvars->m_exitevt = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (pthrvars->m_exitevt == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("cannot init exitevt error[%d]", ret);
+		goto fail;
+	}
+
+	pthrvars->m_notievt = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (pthrvars->m_notievt == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("cannot init notievt error[%d]", ret);
+		goto fail;
+	}
+
+	pthrvars->m_pinput = alloc_input_handles();
+	if (pthrvars->m_pinput == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	pthrvars->m_poutput = alloc_output_infos();
+	if (pthrvars->m_poutput == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	pthrvars->m_pvars = alloc_info_variables();
+	if (pthrvars->m_pvars == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return pthrvars;
+fail:
+	free_thread_vars(&pthrvars);
+	SETERRNO(ret);
+	return NULL;
+}
+
+int restart_background_thread(pthread_vars_t pthrvars)
+{
+	DWORD thrid;
+	BOOL bret;
+	int ret;
+	if (pthrvars->m_thrhdl != NULL) {
+		/*now it is exited*/
+		bret = TerminateThread(pthrvars->m_thrhdl, 20);
+		if (!bret) {
+			GETERRNO(ret);
+			ERROR_INFO("terminate thread error[%d]", ret);
+			goto fail;
+		}
+		CloseHandle(pthrvars->m_thrhdl);
+		pthrvars->m_thrhdl = NULL;
+
+		/*now we should remove the first*/
+		ret = remove_input_handles(pthrvars->m_pinput);
+		if (ret == 0) {
+			/*nothing to handle*/
+			return 0;
+		}
+	}
+
+	pthrvars->m_exited = 1;
+	free_info_variables(&(pthrvars->m_pvars));
+	pthrvars->m_pvars = alloc_info_variables();
+	if (pthrvars->m_pvars == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	pthrvars->m_exited = 0;
+	pthrvars->m_thrhdl = CreateThread(NULL, 0, get_handle_info_thread, pthrvars, 0, &thrid);
+	if (pthrvars->m_thrhdl == NULL) {
+		GETERRNO(ret);
+		pthrvars->m_exited = 1;
+		ERROR_INFO("create thread error[%d]", ret);
+		goto fail;
+	}
+
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 
 int get_handle_infos(int freed, phandle_info_t* pphdls, int *psize)
 {
 	int retsize = 0;
 	phandle_info_t prethdl = NULL;
+	phandle_info_t ptmphdl = NULL;
 	int retlen = 0;
 	int ret;
 	NTSTATUS status;
@@ -535,34 +694,13 @@ int get_handle_infos(int freed, phandle_info_t* pphdls, int *psize)
 	PVOID pbuffer = NULL;
 	unsigned int i;
 	PSYSTEM_HANDLE_INFORMATION_EX pinfoex = NULL;
-	PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX ptblex = NULL;
 	NtQuerySystemInformation_fn_t pNtQuerySystemInformation = NULL;
-	NtDuplicateObject_fn_t pNtDuplicateObject = NULL;
-	NtQueryObject_fn_t pNtQueryObject = NULL;
-	void* pqrybuf = NULL;
-	ULONG qrysize = 4;
-	ULONG qrylen = 0;
-	void* pnamebuf = NULL;
-	ULONG namesize = 4;
-	ULONG namelen = 0;
-	void* pbasicbuf = NULL;
-	ULONG basicsize = 4;
-	ULONG basiclen = 0;
+	HANDLE waithdls[2];
+	DWORD waitnum;
+	phandle_info_t pinfo = NULL;
 	HMODULE hmod = NULL;
-	HANDLE prochdl = NULL;
-	HANDLE duphdl = NULL;
-	int lastpid = -1;
-	int lasterrpid = -1;
-	int curpid = -1;
-	POBJECT_TYPE_INFORMATION ptypeinfo = NULL;
-	POBJECT_NAME_INFORMATION pnameinfo = NULL;
-	POBJECT_BASIC_INFORMATION pbasicinfo = NULL;
-	char* pstype = NULL;
-	int stypesize = 0;
-	char* psname = NULL;
-	int snamesize = 0;
-
-
+	pthread_vars_t pthrvars = NULL;
+	DWORD dret;
 
 	if (freed > 0) {
 		if (pphdls && *pphdls) {
@@ -591,26 +729,10 @@ int get_handle_infos(int freed, phandle_info_t* pphdls, int *psize)
 		goto fail;
 	}
 
-	curpid = (int) GetCurrentProcessId();
-
 	pNtQuerySystemInformation = reinterpret_cast<NtQuerySystemInformation_fn_t>(reinterpret_cast<void*>(GetProcAddress(hmod, "NtQuerySystemInformation")));
 	if (pNtQuerySystemInformation == NULL) {
 		GETERRNO(ret);
 		ERROR_INFO("no NtQuerySystemInformation error[%d]", ret);
-		goto fail;
-	}
-
-	pNtDuplicateObject = reinterpret_cast<NtDuplicateObject_fn_t>(reinterpret_cast<void*>(GetProcAddress(hmod, "NtDuplicateObject")));
-	if (pNtDuplicateObject == NULL) {
-		GETERRNO(ret);
-		ERROR_INFO("no NtDuplicateObject error[%d]", ret);
-		goto fail;
-	}
-
-	pNtQueryObject = reinterpret_cast<NtQueryObject_fn_t>(reinterpret_cast<void*>(GetProcAddress(hmod, "NtQueryObject")));
-	if (pNtQueryObject == NULL) {
-		GETERRNO(ret);
-		ERROR_INFO("no NtQueryObject error[%d]", ret);
 		goto fail;
 	}
 
@@ -640,209 +762,151 @@ get_info_again:
 		goto fail;
 	}
 
+	pthrvars = alloc_thread_vars();
+	if (pthrvars == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	/*now to input */
 	pinfoex = (PSYSTEM_HANDLE_INFORMATION_EX) pbuffer;
-	for (i = 0; i < pinfoex->NumberOfHandles; i++) {
-		ptblex = &(pinfoex->Handles[i]);
-		if ((int)ptblex->UniqueProcessId == curpid) {
-			continue;
-		}
-
-		if (lastpid < 0 || lastpid != (int)ptblex->UniqueProcessId) {
-			if (prochdl != NULL) {
-				CloseHandle(prochdl);
-				prochdl = NULL;
-			}
-			prochdl = OpenProcess(PROCESS_DUP_HANDLE, FALSE, (DWORD)ptblex->UniqueProcessId);
-			if (prochdl == NULL) {
-				GETERRNO(ret);
-				if (lasterrpid != (int) ptblex->UniqueProcessId) {
-					ERROR_INFO("can not open [%d] error[%d]", ptblex->UniqueProcessId, ret);
-					lasterrpid = (int)	 ptblex->UniqueProcessId;
-				}
-				continue;
-			}
-			lastpid = (int)ptblex->UniqueProcessId;
-		}
-
-		if (duphdl != NULL) {
-			CloseHandle(duphdl);
-			duphdl = NULL;
-		}
-
-
-		status = pNtDuplicateObject(prochdl, (HANDLE)ptblex->HandleValue, NtCurrentProcess(), &duphdl, 0, 0, 0);
-		if (!NT_SUCCESS(status)) {
-			GETERRNO(ret);
-			duphdl = NULL;
-			ERROR_INFO("can not open [%d] handle [0x%x] error[0x%lx] [%d]", lastpid, ptblex->HandleValue, status, ret);
-			continue;
-		}
-
-		//DEBUG_INFO("dup [%d].[0x%x] value [0x%x]", lastpid, ptblex->HandleValue, duphdl);
-
-
-
-get_query_type_again:
-		if (pqrybuf) {
-			free(pqrybuf);
-		}
-		pqrybuf = NULL;
-
-		pqrybuf = malloc((size_t)qrysize);
-		if (pqrybuf == NULL) {
-			GETERRNO(ret);
-			goto fail;
-		}
-		memset(pqrybuf, 0 , (size_t)qrysize);
-
-		status = pNtQueryObject(duphdl, ObjectTypeInformation, pqrybuf, qrysize, &uret);
-		if (!NT_SUCCESS(status)) {
-			if (status == STATUS_INFO_LENGTH_MISMATCH) {
-				if (qrysize < MAX_QUERY_BUF_SIZE) {
-					if (qrysize < uret) {
-						qrysize = uret;
-					} else {
-						qrysize <<= 1;
-					}
-					goto get_query_type_again;
-				}
-			}
-			GETERRNO(ret);
-			ERROR_INFO("query [%d].[0x%x] duphdl [0x%x] error[0x%x] [%d]", lastpid, ptblex->HandleValue, duphdl, status, ret);
-			continue;
-		}
-		qrylen = uret;
-		ptypeinfo = (POBJECT_TYPE_INFORMATION) pqrybuf;
-
-		ret = UnicodeToAnsi(ptypeinfo->TypeName.Buffer, &pstype, &stypesize);
+	for (i = 0 ; i < pinfoex->NumberOfHandles; i ++) {
+		ret = push_input_handles(pthrvars->m_pinput, &(pinfoex->Handles[i]));
 		if (ret < 0) {
 			GETERRNO(ret);
-			ERROR_BUFFER_FMT(ptypeinfo->TypeName.Buffer, ptypeinfo->TypeName.Length, "trans [%d].[0x%x] duphdl [0x%x] error[%d]", lastpid, ptblex->HandleValue, duphdl, ret);
 			goto fail;
 		}
+	}
 
-		//DEBUG_INFO("[%d].[0x%x] duphdl [0x%x] type [%s]", lastpid, ptblex->HandleValue, duphdl, pstype);
-		if (str_nocase_cmp(pstype, "file") == 0 || str_nocase_cmp(pstype, "directory") == 0 ) {
+	ret = restart_background_thread(pthrvars);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	} else if (ret == 0) {
+		goto succ;
+	}
 
-get_basic_again:
-			basicsize = sizeof(*pbasicinfo);
-			if (pbasicbuf) {
-				free(pbasicbuf);
+
+	while (1) {
+		waitnum = 0;
+		waithdls[waitnum] = pthrvars->m_notievt;
+		waitnum ++;
+		waithdls[waitnum] = pthrvars->m_thrhdl;
+		waitnum ++;
+		dret = WaitForMultipleObjects(waitnum, waithdls, FALSE, 500);
+		if (dret == WAIT_OBJECT_0) {
+			ResetEvent(pthrvars->m_notievt);
+			while (1) {
+				pinfo = get_output_info(pthrvars->m_poutput);
+				if (pinfo == NULL) {
+					break;
+				}
+				if (retlen >= retsize) {
+					if (retsize == 0) {
+						retsize = 4;
+					} else {
+						retsize <<= 1;
+					}
+					ptmphdl = (phandle_info_t)malloc(retsize * sizeof(*ptmphdl));
+					if (ptmphdl == NULL) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					memset(ptmphdl, 0, sizeof(*ptmphdl) * retsize);
+					if (retlen > 0) {
+						memcpy(ptmphdl, prethdl, sizeof(*ptmphdl) * retlen);
+					}
+					if (prethdl && prethdl != *pphdls) {
+						free(prethdl);
+					}
+					prethdl = ptmphdl;
+					ptmphdl = NULL;
+				}
+				DEBUG_INFO("[%d] [%s][%s]", retlen, pinfo->m_typename, pinfo->m_name);
+				memcpy(&(prethdl[retlen]), pinfo, sizeof(*pinfo));
+				retlen ++;
+				free(pinfo);
+				pinfo = NULL;
 			}
-			pbasicbuf = NULL;
-			pbasicbuf = malloc(basicsize);
-			if (pbasicbuf == NULL) {
+		} else if (dret == (WAIT_OBJECT_0 + 1)) {
+			if (pthrvars->m_exited) {
+				break;
+			}
+		} else if (dret == WAIT_TIMEOUT) {
+			DEBUG_INFO("WAIT_TIMEOUT");
+			ret = restart_background_thread(pthrvars);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			} else if (ret == 0) {
+				break;
+			}
+		} else {
+			GETERRNO(ret);
+			ERROR_INFO("can not wait error [%ld] [%d]", dret, ret);
+			goto fail;
+		}
+	}
+
+
+succ:
+	while (1) {
+		pinfo = get_output_info(pthrvars->m_poutput);
+		if (pinfo == NULL) {
+			break;
+		}
+		if (retlen >= retsize) {
+			if (retsize == 0) {
+				retsize = 4;
+			} else {
+				retsize <<= 1;
+			}
+			ptmphdl = (phandle_info_t)malloc(retsize * sizeof(*ptmphdl));
+			if (ptmphdl == NULL) {
 				GETERRNO(ret);
 				goto fail;
 			}
-			memset(pbasicbuf , 0, basicsize);
-			status = pNtQueryObject(duphdl, ObjectBasicInformation, pbasicbuf, basicsize, &uret);
-			if (!NT_SUCCESS(status)) {
-				if (status == STATUS_INFO_LENGTH_MISMATCH) {
-					if (basicsize < MAX_QUERY_BUF_SIZE) {
-						basiclen = basicsize;
-						if (basicsize == 0) {
-							basicsize = 4;
-						} else {
-							basicsize <<= 1;
-						}
-
-						DEBUG_INFO("query basic [%d].[0x%x] duphdl [0x%x] basicsize [0x%lx] basiclen [0x%lx]", lastpid, ptblex->HandleValue, duphdl, basicsize, basiclen);
-						goto get_basic_again;
-					}
-				}
-				GETERRNO(ret);
-				ERROR_INFO("query basic [%d].[0x%x] duphdl [0x%x] error[0x%x] [%d]", lastpid, ptblex->HandleValue, duphdl, status, ret);
-				continue;
+			memset(ptmphdl, 0, sizeof(*ptmphdl) * retsize);
+			if (retlen > 0) {
+				memcpy(ptmphdl, prethdl, sizeof(*ptmphdl) * retlen);
 			}
-
-			pbasicinfo = (POBJECT_BASIC_INFORMATION) pbasicbuf;
-
-
-get_name_again:
-			if (pnamebuf) {
-				free(pnamebuf);
+			if (prethdl && prethdl != *pphdls) {
+				free(prethdl);
 			}
-			pnamebuf = NULL;
-			pnamebuf = malloc(namesize);
-			if (pnamebuf == NULL) {
-				GETERRNO(ret);
-				goto fail;
-			}
-			memset(pnamebuf, 0, namesize);
-			DEBUG_INFO("[%d].[0x%x] duphdl [0x%x] type [%s] get name size [%d] Attributes [0x%lx] GrantedAccess [0x%lx]", lastpid, ptblex->HandleValue, duphdl, pstype, pbasicinfo->NameInfoSize,pbasicinfo->Attributes,ptblex->GrantedAccess);
-			if ( pbasicinfo->NameInfoSize > 0 ||  
-				//(ptblex->GrantedAccess != 0x1a0089 && ptblex->GrantedAccess != 0x1a019f && ptblex->GrantedAccess != 0x120189 && ptblex->GrantedAccess != 0x16019f && ptblex->GrantedAccess != 0x12019f) 
-				((ptblex->GrantedAccess & 0x120089) != 0x120089)) {
-				DEBUG_INFO("query [%d] [0x%x] duphdl [0x%x]", lastpid,ptblex->HandleValue, duphdl);
-				status = pNtQueryObject(duphdl, ObjectNameInformation, pnamebuf, namesize, &uret);
-				if (!NT_SUCCESS(status)) {
-					if (status == STATUS_INFO_LENGTH_MISMATCH) {
-						if (namesize < MAX_QUERY_BUF_SIZE) {
-							if (namesize < uret) {
-								namesize = uret;
-							} else {
-								namesize <<= 1;
-							}
-							DEBUG_INFO("[%d].[0x%x] duphdl [0x%x] type [%s] get name size [%d]", lastpid, ptblex->HandleValue, duphdl, pstype, namesize);
-							goto get_name_again;
-						}
-					}
-					GETERRNO(ret);
-					ERROR_INFO("[%d].[0x%x] duphdl [0x%x] type [%s] get name error[0x%x] [%d]", lastpid, ptblex->HandleValue, duphdl, pstype, status, ret);
-					continue;
-				}
-				pnameinfo = (POBJECT_NAME_INFORMATION) pnamebuf;
-
-				ret = UnicodeToAnsi(pnameinfo->Name.Buffer, &psname, &snamesize);
-				if (ret < 0) {
-					GETERRNO(ret);
-					goto fail;
-				}
-				DEBUG_INFO("[%d].[0x%x] duphdl [0x%x] type [%s] name [%s]", lastpid, ptblex->HandleValue, duphdl, pstype, psname);
-			}
+			prethdl = ptmphdl;
+			ptmphdl = NULL;
 		}
 
+		memcpy(&(prethdl[retlen]), pinfo, sizeof(*pinfo));
+		retlen ++;
+		free(pinfo);
+		pinfo = NULL;
 	}
+
+	if (*pphdls && *pphdls != prethdl) {
+		free(*pphdls);
+	}
+	*pphdls = prethdl;
+	*psize = retsize;
+
+	if (ptmphdl) {
+		free(ptmphdl);
+	}
+	ptmphdl = NULL;
+
+
+	if (pinfo) {
+		free(pinfo);
+	}
+	pinfo = NULL;
+
+	free_thread_vars(&pthrvars);
 
 	if (pbuffer) {
 		free(pbuffer);
 	}
 	pbuffer = NULL;
 
-	UnicodeToAnsi(NULL, &psname, &snamesize);
-	UnicodeToAnsi(NULL, &pstype, &stypesize);
-
-	if (pbasicbuf) {
-		free(pbasicbuf);
-	}
-	pbasicbuf = NULL;
-	basicsize = 0;
-	basiclen = 0;
-
-	if (pnamebuf) {
-		free(pnamebuf);
-	}
-	pnamebuf = NULL;
-	namesize = 0;
-	namelen = 0;
-
-	if (pqrybuf) {
-		free(pqrybuf);
-	}
-	pqrybuf = NULL;
-	qrysize = 0;
-	qrylen = 0;
-
-	if (duphdl != NULL) {
-		CloseHandle(duphdl);
-	}
-	duphdl = NULL;
-
-	if (prochdl != NULL) {
-		CloseHandle(prochdl);
-	}
-	prochdl = NULL;
 
 	if (hmod != NULL) {
 		FreeLibrary(hmod);
@@ -851,10 +915,6 @@ get_name_again:
 
 	return retlen;
 fail:
-	if (pbuffer) {
-		free(pbuffer);
-	}
-	pbuffer = NULL;
 
 	if (prethdl && prethdl != *pphdls) {
 		free(prethdl);
@@ -862,39 +922,23 @@ fail:
 	prethdl = NULL;
 	retsize = 0;
 
-	UnicodeToAnsi(NULL, &psname, &snamesize);
-	UnicodeToAnsi(NULL, &pstype, &stypesize);
-
-	if (pbasicbuf) {
-		free(pbasicbuf);
+	if (ptmphdl) {
+		free(ptmphdl);
 	}
-	pbasicbuf = NULL;
-	basicsize = 0;
-	basiclen = 0;
+	ptmphdl = NULL;
 
-	if (pnamebuf) {
-		free(pnamebuf);
+	if (pinfo) {
+		free(pinfo);
 	}
-	pnamebuf = NULL;
-	namesize = 0;
-	namelen = 0;
+	pinfo = NULL;
 
-	if (pqrybuf) {
-		free(pqrybuf);
-	}
-	pqrybuf = NULL;
-	qrysize = 0;
-	qrylen = 0;
+	free_thread_vars(&pthrvars);
 
-	if (duphdl != NULL) {
-		CloseHandle(duphdl);
+	if (pbuffer) {
+		free(pbuffer);
 	}
-	duphdl = NULL;
+	pbuffer = NULL;
 
-	if (prochdl != NULL) {
-		CloseHandle(prochdl);
-	}
-	prochdl = NULL;
 
 	if (hmod != NULL) {
 		FreeLibrary(hmod);
