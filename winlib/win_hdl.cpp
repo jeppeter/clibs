@@ -20,13 +20,17 @@ typedef struct __info_variables {
 	int m_namesize;
 	char* m_ptypename;
 	char* m_pname;
+	void* m_ptypeinfo;
+	void* m_pnameinfo;
 	HANDLE m_duphdl;
 	HANDLE m_prochdl;
 	PSYSTEM_HANDLE_TABLE_ENTRY_INFO_EX m_table;
 	phandle_info_t m_phdlinfo;
 	HMODULE m_ntmod;
 	int m_lastpid;	
-	int m_reserv1;
+	ULONG m_tinfosize;
+	ULONG m_ninfosize;
+	ULONG m_reserv1;
 } info_variables_t,*pinfo_variables_t;
 
 typedef struct __input_handls_t {
@@ -93,6 +97,18 @@ void free_info_variables(pinfo_variables_t* ppvars)
 
 		pvars->m_lastpid = -1;
 
+		if (pvars->m_ptypeinfo) {
+			free(pvars->m_ptypeinfo);
+		}
+		pvars->m_ptypeinfo = NULL;
+		pvars->m_tinfosize = 0;
+
+		if (pvars->m_pnameinfo) {
+			free(pvars->m_pnameinfo);
+		}
+		pvars->m_pnameinfo = NULL;
+		pvars->m_ninfosize = 0;
+
 		free(pvars);
 		*ppvars = NULL;
 	}
@@ -112,8 +128,8 @@ pinfo_variables_t alloc_info_variables(void)
 	memset(pvars,0,sizeof(*pvars));
 	pvars->m_lastpid = -1;
 
-	pvars->m_typesize = 4;
-	pvars->m_namesize = 4;
+	pvars->m_tinfosize = 4;
+	pvars->m_ninfosize = 4;
 
 	return pvars;
 fail:
@@ -293,13 +309,17 @@ DWORD WINAPI get_handle_info_thread(void* args)
 	NTSTATUS status;
 	NtDuplicateObject_fn_t pNtDuplicateObject = NULL;
 	NtQueryObject_fn_t pNtQueryObject = NULL;
+	ULONG uret;
+	POBJECT_TYPE_INFORMATION ptinfo;
+	POBJECT_NAME_INFORMATION pninfo;
+	phandle_info_t phdlinfo;
 
-	if (pvars->m_typesize == 0) {
-		pvars->m_typesize = 4;
+	if (pvars->m_tinfosize == 0) {
+		pvars->m_tinfosize = 4;
 	}
 
-	if (pvars->m_namesize == 0) {
-		pvars->m_namesize = 4;
+	if (pvars->m_ninfosize == 0) {
+		pvars->m_ninfosize = 4;
 	}
 
 	if (pvars->m_table == NULL) {
@@ -393,7 +413,97 @@ DWORD WINAPI get_handle_info_thread(void* args)
 		}
 
 		/**/
+	get_type_again:
+		if (pvars->m_ptypeinfo) {
+			free(pvars->m_ptypeinfo);
+		}
+		pvars->m_ptypeinfo = NULL;
+		pvars->m_ptypeinfo = malloc(pvars->m_tinfosize);
+		if (pvars->m_ptypeinfo == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+		memset(pvars->m_ptypeinfo, 0, pvars->m_tinfosize);
 
+		status = pNtQueryObject(pvars->m_duphdl,ObjectTypeInformation,pvars->m_ptypeinfo, pvars->m_tinfosize, &uret);
+		if (!NT_SUCCESS(status)) {
+			if (status == STATUS_INFO_LENGTH_MISMATCH) {
+				if (pvars->m_tinfosize < uret) {
+					pvars->m_tinfosize = uret;
+				} else {
+					pvars->m_tinfosize <<= 1;
+					if (pvars->m_tinfosize == 0) {
+						pvars->m_tinfosize = 4;
+					}
+				}
+				WARN_INFO("[%d].[%d] query [%d].[0x%x] duphdl [0x%x] expand size [0x%lx]",curpid,curthrid, pvars->m_lastpid, ptable->HandleValue,pvars->m_duphdl,pvars->m_tinfosize);
+				goto get_type_again;
+			}
+			GETERRNO(ret);
+			ERROR_INFO("[%d].[%d] query [%d].[0x%p] duphdl [0x%x] error[0x%x] [%d]", curpid,curthrid, pvars->m_lastpid,ptable->HandleValue,pvars->m_duphdl,status,ret);
+			goto out;
+		}
+
+		ptinfo = (POBJECT_TYPE_INFORMATION) pvars->m_ptypeinfo;
+
+		ret = UnicodeToAnsi(ptinfo->TypeName.Buffer,&(pvars->m_ptypename),&(pvars->m_typesize));
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+
+		if (str_nocase_cmp(pvars->m_ptypename,"file") != 0 &&
+			str_nocase_cmp(pvars->m_ptypename,"directory") != 0) {
+			WARN_INFO("[%d].[%d] [%d].[0x%x] duphdl [0x%x] type [%s]", curpid,curthrid, pvars->m_lastpid, ptable->HandleValue,pvars->m_duphdl,pvars->m_ptypename);
+			goto next_cycle;
+		}
+
+		/*now we should give the name*/
+	get_name_again:
+		if (pvars->m_pnameinfo) {
+			free(pvars->m_pnameinfo);
+		}
+		pvars->m_pnameinfo = NULL;
+		pvars->m_pnameinfo = malloc(pvars->m_ninfosize);
+		if (pvars->m_pnameinfo == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+		memset(pvars->m_pnameinfo,0, pvars->m_ninfosize);
+
+		status = pNtQueryObject(pvars->m_duphdl,ObjectNameInformation,pvars->m_pnameinfo, pvars->m_ninfosize,&uret);
+		if (!NT_SUCCESS(status)) {
+			if (status == STATUS_INFO_LENGTH_MISMATCH) {
+				if (pvars->m_ninfosize < uret) {
+					pvars->m_ninfosize = uret;
+				} else {
+					pvars->m_ninfosize <<= 1;
+					if (pvars->m_ninfosize == 0) {
+						pvars->m_ninfosize = 4;
+					}
+				}
+				WARN_INFO("[%d].[%d] query [%d].[0x%x] duphdl [0x%x] name expand size [0x%lx]",curpid,curthrid, pvars->m_lastpid, ptable->HandleValue,pvars->m_duphdl,pvars->m_ninfosize);
+				goto get_name_again;
+			}
+			GETERRNO(ret);
+			ERROR_INFO("[%d].[%d] query [%d].[0x%p] duphdl [0x%x] name error[0x%x] [%d]", curpid,curthrid, pvars->m_lastpid,ptable->HandleValue,pvars->m_duphdl,status,ret);
+			goto out;			
+		}
+
+		pninfo = (POBJECT_NAME_INFORMATION) pvars->m_pnameinfo;
+
+		ret = UnicodeToAnsi(pninfo->Name.Buffer,&(pvars->m_pname),&(pvars->m_namesize));
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+
+		phdlinfo = pvars->m_phdlinfo;
+		/**/
+		phdlinfo->m_pid = (int)ptable->UniqueProcessId;
+		phdlinfo->m_hdl = (HANDLE)ptable->HandleValue;
+		strncpy_s(phdlinfo->m_typename,sizeof(phdlinfo->m_typename)-1,pvars->m_ptypename,sizeof(phdlinfo->m_typename));
+		strncpy_s(phdlinfo->m_name, sizeof(phdlinfo->m_name) -1,pvars->m_pname,sizeof(phdlinfo->m_name));
 
 		push_output_info(poutput,&(pvars->m_phdlinfo));
 
@@ -401,9 +511,10 @@ DWORD WINAPI get_handle_info_thread(void* args)
 		/*we handle next one*/
 		remove_input_handles(pinput);
 		idx ++;
+		SetEvent(pthrvars->m_notievt);
 	}
 
-
+	ret = 0;
 out:
 	pthrvars->m_exitcode = ret;
 	SETERRNO(ret);
