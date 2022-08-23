@@ -3238,6 +3238,7 @@ int handles_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     int hdllen=0;
     int i;
 
+    REFERENCE_ARG(parsestate);
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
     init_log_level(pargs);
@@ -3251,7 +3252,7 @@ int handles_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
     hdllen = ret;
     for(i=0;i<hdllen;i++) {
-        fprintf(stdout,"[%d] proc[%d] handle[0x%x] type[%s] name[%s]\n",i,phdls[i].m_pid,phdls[i].m_hdl,phdls[i].m_typename,phdls[i].m_name);
+        fprintf(stdout,"[%d] proc[%d] handle[0x%p] type[%s] name[%s]\n",i,phdls[i].m_pid,phdls[i].m_hdl,phdls[i].m_typename,phdls[i].m_name);
     }
     ret = 0;
 out:

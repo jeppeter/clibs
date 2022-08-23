@@ -290,6 +290,9 @@ DWORD WINAPI get_handle_info_thread(void* args)
 	int lasterrpid = -1;
 	int idx = 0;
 	DWORD dret;
+	NTSTATUS status;
+	NtDuplicateObject_fn_t pNtDuplicateObject = NULL;
+	NtQueryObject_fn_t pNtQueryObject = NULL;
 
 	if (pvars->m_typesize == 0) {
 		pvars->m_typesize = 4;
@@ -307,6 +310,29 @@ DWORD WINAPI get_handle_info_thread(void* args)
 		}
 	}
 	ptable = pvars->m_table;
+
+	if (pvars->m_ntmod == NULL) {
+		pvars->m_ntmod = LoadLibraryA("ntdll.dll");
+		if (pvars->m_ntmod == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("[%d].[%d] can not load ntdll.dll error[%d]", curpid,curthrid,ret);
+			goto out;
+		}
+	}
+
+	pNtQueryObject = reinterpret_cast<NtQueryObject_fn_t>(reinterpret_cast<void*>(GetProcAddress(pvars->m_ntmod,"NtQueryObject")));
+	if (pNtQueryObject == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("[%d].[%d] GetProcAddress NtQueryObject error[%d]",curpid,curthrid,ret);
+		goto out;
+	}
+
+	pNtDuplicateObject = reinterpret_cast<NtDuplicateObject_fn_t>(reinterpret_cast<void*>(GetProcAddress(pvars->m_ntmod,"NtDuplicateObject")));
+	if (pNtDuplicateObject == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("[%d].[%d] GetProcAddress NtDuplicateObject error[%d]", curpid,curthrid,ret);
+		goto out;
+	}
 
 
 	while(1) {
@@ -353,7 +379,21 @@ DWORD WINAPI get_handle_info_thread(void* args)
 			}
 		} 
 		memset(pvars->m_phdlinfo, 0 , sizeof(*(pvars->m_phdlinfo)));
-		
+
+		if (pvars->m_duphdl != NULL) {
+			CloseHandle(pvars->m_duphdl);
+		}
+		pvars->m_duphdl = NULL;
+		status = pNtDuplicateObject(pvars->m_prochdl, (HANDLE)ptable->HandleValue, NtCurrentProcess(), &(pvars->m_duphdl), 0, 0, DUPLICATE_SAME_ACCESS);
+		if (!NT_SUCCESS(status)) {
+			GETERRNO(ret);
+			pvars->m_duphdl = NULL;
+			ERROR_INFO("[%d].[%d]can not open [%d] handle [0x%x] error[0x%lx] [%d]",curpid,curthrid,pvars->m_lastpid, ptable->HandleValue, status, ret);
+			goto next_cycle;
+		}
+
+		/**/
+
 
 		push_output_info(poutput,&(pvars->m_phdlinfo));
 
