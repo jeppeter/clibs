@@ -28,9 +28,13 @@ ifeq (${STATICLIB},)
 all:dynamic
 
 dynamic:ssltst
+	$(call call_exec,cp ${DYNAMICDIR}/libuxlib.so ., "CP      libuxlib.so")
+	$(call call_exec,cp ${DYNAMICDIR}/libjson.so ., "CP      libjson.so")
+	$(call call_exec,cp ${DYNAMICDIR}/libcryptutil.so ., "CP      libcryptutil.so")
+	$(call call_exec,cp ${DYNAMICDIR}/libextargs.so ., "CP      libextargs.so")
 
-ssltst:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so ${EXT_LIB_PATH_2}
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} ${EXT_LIB_PATH_2} -lextargs -ljson -luxlib -lcryptutil -lssl -lcrypto,"LINK    $@")
+ssltst:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so 
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -lgcrypt -lextargs -ljson -luxlib -lcryptutil -lssl -lcrypto,"LINK    $@")
 
 
 ${DYNAMICDIR}/libuxlib.so:
@@ -52,8 +56,8 @@ all:static
 static:ssltst_static
 
 
-ssltst_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a ${EXT_LIB_PATH_2}
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} ${EXT_LIB_PATH_2} -lextargs -ljson -luxlib -lcryptutil -lssl -lcrypto,"LINK    $@")
+ssltst_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a 
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -lgcrypt -lextargs -ljson -luxlib -lcryptutil -lssl -lcrypto,"LINK    $@")
 
 
 ${STATICDIR}/libuxlib.a:
@@ -101,4 +105,5 @@ clean:clean_extargslib clean_uxlib clean_json clean_cryptutil
 	$(call call_exec,${RM} -f ssltst ssltst_static, "RM      ssltst")
 	$(call call_exec,${RM} -f args_options.cpp,"RM      args_options.cpp")
 	$(call call_exec,${RM} -f ${LXTEST_OFILES}, "RM      *.o")
+	$(call call_exec,${RM} -f *.so, "RM      *.so")
 

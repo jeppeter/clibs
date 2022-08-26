@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <gcrypt.h>
 
 
 typedef struct __args_options {
@@ -37,6 +38,8 @@ int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int asn1seqdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1timeenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1bignumenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int aes256cfbenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int aes256cfbdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
@@ -93,6 +96,7 @@ int init_log_verbose(pargs_options_t pargs)
 
 #include "peauth.cpp"
 #include "pkcs7.cpp"
+#include "aes.cpp"
 
 int main(int argc, char* argv[])
 {
