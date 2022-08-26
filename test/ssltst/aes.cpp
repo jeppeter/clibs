@@ -78,7 +78,7 @@ int parse_hex_string(const char* hexstr,uint8_t** ppv8,int* psize)
 		}
 
 		while (idx < slen) {
-			pretv8[didx] |= (hex_value(hexstr[idx],&errnum) << 8);
+			pretv8[didx] |= (hex_value(hexstr[idx],&errnum) << 4);
 			pretv8[didx] |= hex_value(hexstr[idx+1],&errnum);
 			idx += 2;
 			didx += 1;
@@ -120,6 +120,7 @@ int aes256cfbenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 	char* inbuf=NULL,*outbuf=NULL;
 	int insize=0,outsize=0;
 	int inlen=0,outlen =0;
+	char* ptmp=NULL;
 
 	pargs_options_t pargs =(pargs_options_t)popt;
 	gcry_cipher_hd_t hd = NULL;
@@ -158,11 +159,6 @@ int aes256cfbenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 	DEBUG_BUFFER_FMT(pkey,keylen,"key");
 	DEBUG_BUFFER_FMT(piv,ivlen,"iv");
 
-	if (pargs->m_input == NULL) {
-		ret = read_stdin_whole(0, &inbuf, &insize);
-	} else {
-		ret = read_file_whole(pargs->m_input, &inbuf, &insize);
-	}
 
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -192,7 +188,16 @@ int aes256cfbenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 		goto out;		
 	}
 
-	outsize = inlen + 32;
+	if (pargs->m_input == NULL) {
+		ret = read_stdin_whole(0, &inbuf, &insize);
+	} else {
+		ret = read_file_whole(pargs->m_input, &inbuf, &insize);
+	}
+
+	inlen = ret;
+
+
+	outsize = inlen;
 	outbuf = (char*)malloc(outsize);
 	if (outbuf == NULL) {
 		GETERRNO(ret);
@@ -201,12 +206,55 @@ int aes256cfbenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 
 	memset(outbuf,0,outsize);
 	outlen = outsize;
+	outlen = inlen;
 
-	err = gcry_cipher_encrypt(hd,outbuf,outlen,inbuf,inlen);
+	err = gcry_cipher_encrypt(hd,outbuf,inlen,inbuf,inlen);
 	if (err) {
 		GETERRNO(ret);
 		ERROR_INFO("encrypt buffer error[%d]",ret);
 		goto out;
+	}
+
+	while (parsestate->leftargs && parsestate->leftargs[idx]) {
+		char* fname = parsestate->leftargs[idx];
+
+		ret = read_file_whole(fname,&inbuf,&insize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("can not read[%s] error[%d]", fname,ret);
+			goto out;
+		}
+		inlen = ret;
+
+		if (outsize < (outlen + inlen)) {
+			outsize = (outlen + inlen);
+			ptmp = (char*) malloc(outsize);
+			if (ptmp == NULL) {
+				GETERRNO(ret);
+				goto out;
+			}
+
+			memset(ptmp,0,outsize);
+			if (outlen > 0) {
+				memcpy(ptmp, outbuf, outlen);
+			}
+			if (outbuf != NULL) {
+				free(outbuf);
+			}
+			outbuf = ptmp;
+			ptmp = NULL;
+		}
+
+		err = gcry_cipher_encrypt(hd,&outbuf[outlen],inlen,inbuf,inlen);
+		if (err) {
+			GETERRNO(ret);
+			ERROR_INFO("encrypt buffer error[%d]",ret);
+			goto out;
+		}
+
+		DEBUG_BUFFER_FMT(&(outbuf[outlen]),inlen,"for [%s] encrypt", fname);
+		outlen += inlen;
+		idx += 1;
 	}
 
 	if (pargs->m_output) {
@@ -224,6 +272,10 @@ int aes256cfbenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 	DEBUG_BUFFER_FMT(outbuf,outlen, "encrypt buffer");
 	ret = 0;
 out:
+	if(ptmp) {
+		free(ptmp);
+	}
+
 	if (outbuf) {
 		free(outbuf);
 	}
