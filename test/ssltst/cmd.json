@@ -39,10 +39,10 @@
         "$" : "+"
     },
     "aes256cfbenc<aes256cfbenc_handler>##key iv to encrypt from input to output##" : {
-        "$" : 2
+        "$" : "+"
     },
     "aes256cfbdec<aes256cfbdec_handler>##key iv to decrypt from input ot output##" : {
-        "$" : 2
+        "$" : "+"
     }
 
 
