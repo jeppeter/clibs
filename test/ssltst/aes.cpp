@@ -215,6 +215,8 @@ int aes256cfbenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 		goto out;
 	}
 
+	DEBUG_BUFFER_FMT(outbuf,inlen,"encrypt [%s]", pargs->m_input ? pargs->m_input : "stdin");
+
 	while (parsestate->leftargs && parsestate->leftargs[idx]) {
 		char* fname = parsestate->leftargs[idx];
 
