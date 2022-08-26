@@ -27,7 +27,8 @@ int pkcs7octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 	DEBUG_INFO(" ");
 
 
-	p7 = PKCS7_new_ex(NULL, NULL);
+	//p7 = PKCS7_new_ex(NULL, NULL);
+	p7 = PKCS7_new();
 	if (p7 == NULL) {
 		GETERRNO(ret);
 		ERROR_INFO( "can not new PKCS7 error[%d]", ret);
