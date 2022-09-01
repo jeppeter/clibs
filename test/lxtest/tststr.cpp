@@ -111,3 +111,79 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int fmttime_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    const char* fmtstr=NULL;
+    const char* fmtval=NULL;
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int idx=0;
+    struct tm tmval;
+    char* pbuf=NULL;
+    int bufsize=0;
+    int ret;
+    char* pret=NULL;
+
+    /*
+        in %x %x format 12/10/22 12:30:50
+        2022-12-10 12:30:50
+    */
+    init_log_verbose(pargs);
+    if (parsestate->leftargs && parsestate->leftargs[idx]) {
+        fmtstr = parsestate->leftargs[idx];
+        idx += 1;
+        if (parsestate->leftargs && parsestate->leftargs[idx]) {
+            fmtval = parsestate->leftargs[idx];
+            idx += 1;
+        }
+    }
+
+    if (fmtstr == NULL || fmtval == NULL) {
+        ret = -EINVAL;
+        goto out;
+    }
+
+    memset(&tmval,0,sizeof(tmval));
+    pret = strptime(fmtval,fmtstr,&tmval);
+    if (pret == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("val [%s] fmt [%s] error[%d]", fmtval,fmtstr,ret);
+        goto out;
+    }
+
+    bufsize = 100;
+fmt_again:
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+
+    pbuf = (char*)malloc(bufsize);
+    if (pbuf == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = strftime(pbuf,bufsize,"%Y-%m-%d %H:%M:%S",&tmval);
+    if (ret >= (bufsize - 1)) {
+        bufsize <<= 1;
+        goto fmt_again;
+    } else if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("strftime error[%d]", ret);
+        goto out;
+    }
+
+    fprintf(stdout,"[%s] => [%s] = [%s]\n", fmtstr,fmtval, pbuf);
+    ret = 0;
+out:
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+    bufsize = 0;
+
+
+    SETERRNO(ret);
+    return ret;
+}

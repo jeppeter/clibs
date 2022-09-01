@@ -83,5 +83,8 @@
     },
     "backtrace<backtrace_handler>##stkidx to dump stack index of function##" : {
         "$" : 1
+    },
+    "fmttime<fmttime_handler>##fmtstr fmtval to make timevalue##" : {
+        "$" : 2
     }
 }
