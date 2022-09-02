@@ -262,12 +262,12 @@ int __inner_out_buffer(int loglvl, const char* file, int lineno, unsigned char* 
         goto fail;
     }
 
-    ret = str_append_snprintf_safe(&msg,&msgsize,"buffer[0x%p] size[%d:0x%x]",pBuffer,buflen,buflen);
+    ret = str_append_snprintf_safe(&msg, &msgsize, "buffer[0x%p] size[%d:0x%x]", pBuffer, buflen, buflen);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-    if (fmt != NULL) {        
+    if (fmt != NULL) {
         ret = str_append_vsnprintf_safe(&msg, &msgsize, " ", ap);
         if (ret < 0) {
             GETERRNO(ret);
@@ -361,6 +361,34 @@ void __fini_output_cfg(void)
     }
     DeleteCriticalSection(&st_outputcs);
     st_output_inited = 0;
+}
+
+int change_log_level(int loglvl)
+{
+    int retval;
+    int ret;
+    unsigned int idx=0;
+
+    if (loglvl < BASE_LOG_FATAL || loglvl > BASE_LOG_TRACE) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (st_output_inited == 0) {
+        return st_output_loglvl;
+    }
+
+    EnterCriticalSection(&st_outputcs);
+    retval = st_output_loglvl;
+    idx = 0;
+    while (st_debugout_ios->size() > idx) {
+        DebugOutIO* pout = st_debugout_ios->at(idx);
+        pout->set_level(loglvl);
+        idx += 1;
+    }
+    LeaveCriticalSection(&st_outputcs);
+    return retval;
 }
 
 

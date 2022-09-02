@@ -3261,3 +3261,37 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+
+int disabledebug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    int level;
+    pargs_options_t pargs = (pargs_options_t)popt;
+
+    init_log_level(pargs);
+    DEBUG_INFO("BEFORE change");
+
+    level = change_log_level(BASE_LOG_FATAL);
+    if (level < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("change_log_level error[%d]", ret);
+        goto out;
+    }
+
+    DEBUG_INFO("should not see");
+
+    ret = change_log_level(level);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("change_log_level error[%d]", ret);
+        goto out;
+    }
+
+    DEBUG_INFO("after change");
+
+    ret = 0;
+out:    
+    SETERRNO(ret);
+    return ret;
+}

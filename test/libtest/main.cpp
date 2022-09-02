@@ -255,6 +255,7 @@ int tstclisockrdwr_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 int regdelvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int regdelkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int handles_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int disabledebug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1

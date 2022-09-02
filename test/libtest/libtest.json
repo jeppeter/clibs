@@ -426,5 +426,8 @@
     },
     "handles<handles_handler>##to list handles for all process##" : {
         "$" : 0
+    },
+    "disabledebug<disabledebug_handler>##to make change_log_level##" : {
+        "$" : 0
     }
 }

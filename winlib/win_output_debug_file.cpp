@@ -8,6 +8,7 @@ public:
 	virtual int write_buffer(char* pbuf, int buflen) = 0;
 	virtual void flush() = 0;
 	virtual int set_cfg(OutfileCfg* pcfg) = 0;
+	virtual int set_level(int level) = 0;
 };
 
 class DebugOutBuffer : public DebugOutIO
@@ -20,6 +21,7 @@ public:
 	virtual int write_buffer(char* pbuf, int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
+	virtual int set_level(int level);	
 protected:
 	int m_level;
 	int m_fmtflag;
@@ -436,6 +438,13 @@ int DebugOutBuffer::set_cfg(OutfileCfg* pcfg)
 fail:
 	SETERRNO(ret);
 	return ret;
+}
+
+int DebugOutBuffer::set_level(int level)
+{
+	int retval = this->m_level;
+	this->m_level = level;
+	return  retval;
 }
 
 

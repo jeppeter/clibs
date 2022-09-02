@@ -46,6 +46,7 @@ WINLIB_API void FiniOutput(void);
 WINLIB_API int error_out(const char* fmt, ...);
 WINLIB_API int output_debug_string_handle(int loglvl, const char* file, int lineno, const char* fmt, ...);
 WINLIB_API int output_buffer_fmt_handle(int loglvl, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...);
+WINLIB_API int change_log_level(int loglvl);
 
 
 #ifdef __cplusplus
