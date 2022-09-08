@@ -398,7 +398,11 @@ int __init_output_cfg(poutput_debug_cfg_t pcfg)
     int ret;
     DebugOutIO* pout = NULL;
     OutfileCfg* poutcfg = NULL;
-    InitializeCriticalSection(&st_outputcs);
+    if (st_output_inited == 0) {
+        InitializeCriticalSection(&st_outputcs);
+        st_output_inited = 1;    
+    }
+    
     EnterCriticalSection(&st_outputcs);
     __free_output_hds();
 
@@ -573,7 +577,6 @@ int InitOutput(int loglvl)
         SETERRNO(ret);
         return ret;
     }
-    st_output_inited = 1;
     return 0;
 }
 
@@ -594,7 +597,6 @@ int InitOutputEx(int loglvl, poutput_debug_cfg_t pcfg)
         GETERRNO(ret);
         goto fail;
     }
-    st_output_inited = 1;
     return 0;
 fail:
     __free_output_hds();
@@ -608,7 +610,11 @@ int InitOutputEx2(OutputCfg* pcfgs)
     OutfileCfg* pcfg = NULL;
     int i;
     DebugOutIO* pout = NULL;
-    InitializeCriticalSection(&st_outputcs);
+    if (st_output_inited == 0) {
+        InitializeCriticalSection(&st_outputcs);
+        st_output_inited = 1;    
+    }
+    
     EnterCriticalSection(&st_outputcs);
     __free_output_hds();
     st_debugout_ios =  new std::vector<DebugOutIO*>();
@@ -626,7 +632,6 @@ int InitOutputEx2(OutputCfg* pcfgs)
     }
 
     LeaveCriticalSection(&st_outputcs);
-    st_output_inited = 1;
     return 0;
 fail:
     __free_output_hds();

@@ -5383,7 +5383,7 @@ HANDLE __open_mux(char* cmdline, int created)
 	mymux = open_mutex(mymuxname, created);
 	if (mymux == NULL) {
 		GETERRNO(ret);
-		//ERROR_INFO("%s [%s] error[%d]", created ? "CreateEvent" : "OpenEvent", mymuxname, ret);
+		ERROR_INFO("%s [%s] error[%d]", created ? "CreateEvent" : "OpenEvent", mymuxname, ret);
 		goto fail;
 	}
 
