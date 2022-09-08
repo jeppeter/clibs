@@ -196,7 +196,7 @@ int __inner_output_console(int loglvl, const char* file, int lineno, const char*
     }
 
     EnterCriticalSection(&st_outputcs);
-    for (i = 0; i < st_debugout_ios->size(); i++) {
+    for (i = 0; st_debugout_ios != NULL && i < st_debugout_ios->size(); i++) {
         pout = st_debugout_ios->at(i);
         ret = pout->write_log(loglvl, locstr, timestr, _get_loglevel_note(loglvl), msg);
         if (ret < 0) {
@@ -382,10 +382,12 @@ int change_log_level(int loglvl)
     EnterCriticalSection(&st_outputcs);
     retval = st_output_loglvl;
     idx = 0;
-    while (st_debugout_ios->size() > idx) {
-        DebugOutIO* pout = st_debugout_ios->at(idx);
-        pout->set_level(loglvl);
-        idx += 1;
+    if (st_debugout_ios != NULL) {
+        while (st_debugout_ios->size() > idx) {
+            DebugOutIO* pout = st_debugout_ios->at(idx);
+            pout->set_level(loglvl);
+            idx += 1;
+        }        
     }
     LeaveCriticalSection(&st_outputcs);
     return retval;
@@ -617,6 +619,7 @@ int InitOutputEx2(OutputCfg* pcfgs)
     
     EnterCriticalSection(&st_outputcs);
     __free_output_hds();
+    ASSERT_IF(st_debugout_ios == NULL);
     st_debugout_ios =  new std::vector<DebugOutIO*>();
     for (i = 0;; i++) {
         pcfg = pcfgs->get_config(i);
