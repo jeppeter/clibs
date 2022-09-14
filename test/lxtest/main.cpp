@@ -10,6 +10,7 @@
 #include <ux_regex.h>
 #include <ux_strop.h>
 #include <ux_sock.h>
+#include <ux_tty.h>
 
 #include <string.h>
 #include <unistd.h>
@@ -28,6 +29,9 @@ typedef struct __args_options {
     char* m_errout;
     int m_withevt;
     int m_mask;
+    int m_bauderate;
+    int m_xonxoff;
+    int m_csbits;
 } args_options_t, *pargs_options_t;
 
 int debug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
@@ -58,6 +62,8 @@ int tstclisockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int tstsvrsockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int backtrace_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int fmttime_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
 do{                                                                               \

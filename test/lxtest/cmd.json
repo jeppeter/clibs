@@ -5,6 +5,9 @@
     "output|o<m_output>"  : null,
     "errout|e<m_errout>" : null,
     "withevent<m_withevt>" : false,
+    "bauderate<m_bauderate>" : 115200,
+    "xonxoff<m_xonxoff>" : true,
+    "csbits<m_csbits>" : 8,
     "mask|m<m_mask>" : 504,
     "debug<debug_handler>" : {
         "$" : 0
@@ -86,5 +89,11 @@
     },
     "fmttime<fmttime_handler>##fmtstr fmtval to make timevalue##" : {
         "$" : 2
+    },
+    "ttyread<ttyread_handler>##ttyname [size] [timemills] to read ttyname default size 100 default timemills 1000 millisecond##"  : {
+        "$" : "+"
+    },
+    "ttywrite<ttywrite_handler>##ttyname file [timemills] to read ttyname  default timemills 1000 millisecond##"  : {
+        "$" : "+"
     }
 }

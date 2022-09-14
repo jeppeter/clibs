@@ -210,10 +210,10 @@ int exists_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     const char* fname;
     init_log_verbose(pargs);
 
-    for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
         fname = parsestate->leftargs[i];
         ret = is_path_exist(fname);
-        fprintf(stdout,"[%d][%s] %s\n",i,fname,ret > 0 ? "exist" : "not exist");
+        fprintf(stdout, "[%d][%s] %s\n", i, fname, ret > 0 ? "exist" : "not exist");
     }
     ret = 0;
 
@@ -241,10 +241,10 @@ int format_md5_digest(pmd5_state_t p, char* fmt, int size)
     return 0;
 }
 
-int md5sum_file(char* fname, uint64_t size,char* digest,int digsize)
+int md5sum_file(char* fname, uint64_t size, char* digest, int digsize)
 {
     char* pbuf = NULL;
-    int bufsize = 0, buflen=0;
+    int bufsize = 0, buflen = 0;
     int overed = 0;
     uint64_t cursize;
     md5_state_t s;
@@ -262,7 +262,7 @@ int md5sum_file(char* fname, uint64_t size,char* digest,int digsize)
     init_md5_state(&s);
     while (1) {
         buflen = bufsize;
-        ret = read_offset_file(fname,cursize,pbuf,buflen);
+        ret = read_offset_file(fname, cursize, pbuf, buflen);
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
@@ -270,8 +270,8 @@ int md5sum_file(char* fname, uint64_t size,char* digest,int digsize)
         DEBUG_BUFFER_FMT(pbuf, (buflen > 0x20 ? 0x20 : buflen), "[%s] at [0x%llx]", fname, cursize);
         buflen = ret;
         if (buflen > 0) {
-            md5sum((unsigned char*)pbuf, (unsigned int) buflen, bufdig, &s);    
-        }        
+            md5sum((unsigned char*)pbuf, (unsigned int) buflen, bufdig, &s);
+        }
         cursize += buflen;
         if (buflen < bufsize) {
             overed = 1;
@@ -282,7 +282,7 @@ int md5sum_file(char* fname, uint64_t size,char* digest,int digsize)
     if ((buflen & 0x3f) == 0) {
         md5sum((unsigned char*)pbuf, (unsigned int)0, bufdig, &s);
     }
-    
+
     format_md5_digest(&s, digest, digsize);
 
     if (pbuf) {
@@ -310,16 +310,322 @@ int md5_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 
     for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
         fname = parsestate->leftargs[i];
-        ret = md5sum_file(fname,0, digest, sizeof(digest));
+        ret = md5sum_file(fname, 0, digest, sizeof(digest));
         if (ret < 0) {
             GETERRNO(ret);
             ERROR_INFO("calc [%s] error[%d]", fname, ret);
             goto out;
         }
-        fprintf(stdout, "[%s] => [%s]\n",fname, digest);
+        fprintf(stdout, "[%s] => [%s]\n", fname, digest);
     }
     ret = 0;
 out:
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    void* ptty = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    char* ttyname = NULL;
+    int readsize = 100;
+    int timemills = 1000;
+    char* pbuf = NULL;
+    int ival;
+    uint64_t sticks;
+    int evfd = -1;
+    int pollfd = -1;
+    struct epoll_event evt;
+    struct epoll_event getevt;
+    int leftmills;
+
+    init_log_verbose(pargs);
+
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        ttyname = parsestate->leftargs[0];
+        if (parsestate->leftargs[1]) {
+            readsize = atoi(parsestate->leftargs[1]);
+            if (parsestate->leftargs[2]) {
+                timemills = atoi(parsestate->leftargs[2]);
+            }
+        }
+    }
+
+    if (ttyname == NULL) {
+        ret = -EINVAL;
+        ERROR_INFO("can not get ttyname");
+        goto out;
+    }
+
+    ptty = open_tty(ttyname);
+    if (ptty == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("open [%s] error[%d]", ttyname, ret);
+        goto out;
+    }
+
+    ival = pargs->m_bauderate;
+    ret = set_tty_config(ptty, TTY_SET_SPEED, &ival);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("set SPEED [%d] error[%d]", ival, ret);
+        goto out;
+    }
+
+    ival = pargs->m_xonxoff;
+    ret = set_tty_config(ptty, TTY_SET_XONXOFF, &ival);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("set XONXOFF [%d]  error[%d]", ival, ret);
+        goto out;
+    }
+
+    ival = pargs->m_csbits;
+    ret = set_tty_config(ptty, TTY_SET_SIZE, &ival);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("set CSISE [%d]  error[%d]", ival, ret);
+        goto out;
+    }
+
+    pbuf = (char*)malloc(readsize);
+    if (pbuf == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memset(pbuf, 0, readsize);
+
+    ret = read_tty_nonblock(ptty, (uint8_t*)pbuf, readsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("read error[%d]", ret);
+        goto out;
+    } else if (ret == 0) {
+        sticks = get_cur_ticks();
+        evfd = epoll_create(1);
+        if (evfd < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "epoll_create [%d]\n", ret);
+            goto out;
+        }
+
+        pollfd = get_tty_read_handle(ptty);
+        if (pollfd < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("get read handle error[%d]", ret);
+            goto out;
+        }
+
+        memset(&evt,0,sizeof(evt));
+        evt.events = (EPOLLIN | EPOLLET);
+        evt.data.fd = pollfd;
+
+
+        ret = epoll_ctl(evfd,EPOLL_CTL_ADD,pollfd,&evt);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not add pollfd [%d] error[%d]",pollfd, ret);
+            goto out;
+        }
+
+        while (1) {
+            ret = time_left(sticks, (uint32_t)timemills);
+            if (ret < 0) {
+                ret = -ETIMEDOUT;
+                ERROR_INFO("read [%s] timedout", ttyname);
+                goto out;
+            }
+            leftmills = ret;
+
+            ret = epoll_wait(evfd,&getevt,1,leftmills);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("epoll_wait error[%d]", ret);
+                goto out;
+            } else if (ret > 0) {
+                DEBUG_INFO("get fd [%d] events [%d:0x%x]", getevt.data.fd,getevt.events, getevt.events);
+                if (getevt.data.fd == pollfd && getevt.events != EPOLLIN) {
+                    ret = complete_tty_read(ptty);
+                    if (ret < 0) {
+                        GETERRNO(ret);
+                        ERROR_INFO("complete read error[%d]", ret);
+                        goto out;
+                    } else if (ret > 0) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    DEBUG_BUFFER_FMT(pbuf, readsize, "read [%s] buffer", ttyname);
+    ret = 0;
+out:
+    free_tty(&ptty);
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+
+    if (evfd >= 0) {
+        close(evfd);
+    }
+    evfd = -1;
+    SETERRNO(ret);
+    return ret;
+}
+
+int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    void* ptty = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    char* ttyname = NULL;
+    char* infile = NULL;
+    int timemills = 1000;
+    char* pbuf = NULL;
+    int bufsize=0,buflen=0;
+    int ival;
+    uint64_t sticks;
+    int evfd = -1;
+    int pollfd = -1;
+    struct epoll_event evt;
+    struct epoll_event getevt;
+    int leftmills;
+
+    init_log_verbose(pargs);
+
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        ttyname = parsestate->leftargs[0];
+        if (parsestate->leftargs[1]) {
+            infile = parsestate->leftargs[1];
+            if (parsestate->leftargs[2]) {
+                timemills = atoi(parsestate->leftargs[2]);
+            }
+        }
+    }
+
+    if (ttyname == NULL || infile == NULL) {
+        ret = -EINVAL;
+        ERROR_INFO("can not get ttyname and infile");
+        goto out;
+    }
+
+    ptty = open_tty(ttyname);
+    if (ptty == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("open [%s] error[%d]", ttyname, ret);
+        goto out;
+    }
+
+    ival = pargs->m_bauderate;
+    ret = set_tty_config(ptty, TTY_SET_SPEED, &ival);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("set SPEED [%d] error[%d]", ival, ret);
+        goto out;
+    }
+
+    ival = pargs->m_xonxoff;
+    ret = set_tty_config(ptty, TTY_SET_XONXOFF, &ival);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("set XONXOFF [%d]  error[%d]", ival, ret);
+        goto out;
+    }
+
+    ival = pargs->m_csbits;
+    ret = set_tty_config(ptty, TTY_SET_SIZE, &ival);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("set CSISE [%d]  error[%d]", ival, ret);
+        goto out;
+    }
+
+    ret = read_file_whole(infile,&pbuf,&bufsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    buflen = ret;
+
+
+    ret = write_tty_nonblock(ptty, (uint8_t*)pbuf, buflen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("read error[%d]", ret);
+        goto out;
+    } else if (ret == 0) {
+        sticks = get_cur_ticks();
+        evfd = epoll_create(1);
+        if (evfd < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "epoll_create [%d]\n", ret);
+            goto out;
+        }
+
+        pollfd = get_tty_write_handle(ptty);
+        if (pollfd < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("get write handle error[%d]", ret);
+            goto out;
+        }
+
+        memset(&evt,0,sizeof(evt));
+        evt.events = (EPOLLOUT | EPOLLET);
+        evt.data.fd = pollfd;
+
+
+        ret = epoll_ctl(evfd,EPOLL_CTL_ADD,pollfd,&evt);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not add pollfd [%d] error[%d]",pollfd, ret);
+            goto out;
+        }
+
+        while (1) {
+            ret = time_left(sticks, (uint32_t)timemills);
+            if (ret < 0) {
+                ret = -ETIMEDOUT;
+                ERROR_INFO("write [%s] timedout", ttyname);
+                goto out;
+            }
+            leftmills = ret;
+
+            ret = epoll_wait(evfd,&getevt,1,leftmills);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("epoll_wait error[%d]", ret);
+                goto out;
+            } else if (ret > 0) {
+                DEBUG_INFO("get fd [%d] events [%d:0x%x]", getevt.data.fd,getevt.events, getevt.events);
+                if (getevt.data.fd == pollfd && getevt.events != EPOLLOUT) {
+                    ret = complete_tty_write(ptty);
+                    if (ret < 0) {
+                        GETERRNO(ret);
+                        ERROR_INFO("complete write error[%d]", ret);
+                        goto out;
+                    } else if (ret > 0) {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    DEBUG_BUFFER_FMT(pbuf, buflen, "write [%s] buffer", ttyname);
+    ret = 0;
+out:
+    free_tty(&ptty);
+    read_file_whole(NULL,&pbuf,&bufsize);
+    buflen = 0;
+    if (evfd >= 0) {
+        close(evfd);
+    }
+    evfd = -1;
     SETERRNO(ret);
     return ret;
 }
