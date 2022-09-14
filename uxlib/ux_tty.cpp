@@ -308,9 +308,11 @@ int read_tty_nonblock(void* ptty1, uint8_t* pbuf, int bufsize)
 	ptty->m_prdptr = pbuf;
 	ptty->m_rdleft = bufsize;
 
+	DEBUG_INFO("will read [%s] [%p] [0x%x:%d]", ptty->m_ttyname, ptty->m_prdptr, ptty->m_rdleft,ptty->m_rdleft);
 	ret = read(ptty->m_ttyfd, ptty->m_prdptr, ptty->m_rdleft);
 	if (ret < 0) {
 		GETERRNO(ret);
+		DEBUG_INFO("read [%s] [%d] error[%d]", ptty->m_ttyname, ptty->m_rdleft, ret);
 		if (ret != -EAGAIN && ret != -EWOULDBLOCK) {
 			ERROR_INFO("read [%s] error[%d]", ptty->m_ttyname, ret);
 			goto fail;
@@ -318,6 +320,7 @@ int read_tty_nonblock(void* ptty1, uint8_t* pbuf, int bufsize)
 		/*now handle*/
 		ret = 0;
 	}
+	DEBUG_INFO("read [%s] ret [%d]",ptty->m_ttyname, ret);
 
 	ptty->m_prdptr += ret;
 	ptty->m_rdleft -= ret;
@@ -412,15 +415,18 @@ int complete_tty_read(void* ptty1)
 	} else {
 		ASSERT_IF(ptty->m_prdptr != NULL);
 		ASSERT_IF(ptty->m_rdleft > 0);
+		DEBUG_INFO("will read [%s] [%p] [0x%x:%d]", ptty->m_ttyname, ptty->m_prdptr, ptty->m_rdleft,ptty->m_rdleft);
 		ret = read(ptty->m_ttyfd, ptty->m_prdptr, ptty->m_rdleft);
 		if (ret < 0) {
 			GETERRNO(ret);
+			DEBUG_INFO("read [%s] [%d] error[%d]", ptty->m_ttyname, ptty->m_rdleft, ret);
 			if (ret != -EAGAIN && ret != -EWOULDBLOCK) {
 				ERROR_INFO("read [%s] error[%d]", ptty->m_ttyname, ret);
 				goto fail;	
 			}
 			ret = 0;
 		}
+		DEBUG_INFO("read [%s] ret [%d]",ptty->m_ttyname, ret);
 
 		ptty->m_prdptr += ret;
 		ptty->m_rdleft -= ret;

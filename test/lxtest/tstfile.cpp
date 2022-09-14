@@ -366,6 +366,7 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         ERROR_INFO("open [%s] error[%d]", ttyname, ret);
         goto out;
     }
+    DEBUG_INFO("open [%s] succ", ttyname);
 
     ival = pargs->m_bauderate;
     ret = set_tty_config(ptty, TTY_SET_SPEED, &ival);
@@ -374,6 +375,7 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         ERROR_INFO("set SPEED [%d] error[%d]", ival, ret);
         goto out;
     }
+    DEBUG_INFO("set [%s] speed [%d]", ttyname, ival);
 
     ival = pargs->m_xonxoff;
     ret = set_tty_config(ptty, TTY_SET_XONXOFF, &ival);
@@ -383,6 +385,8 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         goto out;
     }
 
+    DEBUG_INFO("set [%s] XONXOFF %s",ttyname, ival != 0 ? "TRUE" : "FALSE");
+
     ival = pargs->m_csbits;
     ret = set_tty_config(ptty, TTY_SET_SIZE, &ival);
     if (ret < 0) {
@@ -390,6 +394,7 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         ERROR_INFO("set CSISE [%d]  error[%d]", ival, ret);
         goto out;
     }
+    DEBUG_INFO("set [%s] m_csbits [%d]", ttyname, ival);
 
     pbuf = (char*)malloc(readsize);
     if (pbuf == NULL) {
@@ -423,6 +428,8 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         evt.events = (EPOLLIN | EPOLLET);
         evt.data.fd = pollfd;
 
+        DEBUG_INFO("EPOLLET [0x%x] EPOLLIN [%d]" ,EPOLLET,EPOLLIN);
+
 
         ret = epoll_ctl(evfd,EPOLL_CTL_ADD,pollfd,&evt);
         if (ret < 0) {
@@ -433,13 +440,14 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
         while (1) {
             ret = time_left(sticks, (uint32_t)timemills);
-            if (ret < 0) {
+            if (ret <= 0) {
                 ret = -ETIMEDOUT;
                 ERROR_INFO("read [%s] timedout", ttyname);
                 goto out;
             }
             leftmills = ret;
 
+            DEBUG_INFO("leftmills [%d]", leftmills);
             ret = epoll_wait(evfd,&getevt,1,leftmills);
             if (ret < 0) {
                 GETERRNO(ret);
@@ -447,7 +455,7 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
                 goto out;
             } else if (ret > 0) {
                 DEBUG_INFO("get fd [%d] events [%d:0x%x]", getevt.data.fd,getevt.events, getevt.events);
-                if (getevt.data.fd == pollfd && getevt.events != EPOLLIN) {
+                if (getevt.data.fd == pollfd && getevt.events == EPOLLIN) {
                     ret = complete_tty_read(ptty);
                     if (ret < 0) {
                         GETERRNO(ret);
@@ -588,7 +596,7 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
         while (1) {
             ret = time_left(sticks, (uint32_t)timemills);
-            if (ret < 0) {
+            if (ret <= 0) {
                 ret = -ETIMEDOUT;
                 ERROR_INFO("write [%s] timedout", ttyname);
                 goto out;
