@@ -193,7 +193,13 @@ int _flush_tty_read_buffer(ptty_data_priv_t ptty)
 				if (curlen > 0x200) {
 					curlen = 0x200;
 				}
-				DEBUG_BUFFER_FMT(ptty->m_flushbuf, curlen, "read[%s][%d] len [%d]", ptty->m_ttyname, cnt,ret);
+				if (curlen == ret) {
+					DEBUG_BUFFER_FMT(ptty->m_flushbuf, curlen, "read[%s][%d] len [%d]", ptty->m_ttyname, cnt,ret);	
+				} else {
+					DEBUG_BUFFER_FMT(ptty->m_flushbuf, curlen, "read[%s][%d] start len [%d]", ptty->m_ttyname, cnt,ret);
+					DEBUG_BUFFER_FMT(&(ptty->m_flushbuf[ret - curlen]), curlen, "read[%s][%d] end len [%d]", ptty->m_ttyname, cnt,ret);
+				}
+				
 				cnt += ret;
 			}
 		}
@@ -683,7 +689,13 @@ read_again:
 				if (curlen > 0x200) {
 					curlen = 0x200;
 				}
-				DEBUG_BUFFER_FMT(ptty->m_prdptr, curlen, "read [%s] ret [%d]", ptty->m_ttyname, ret);
+				if (curlen == ret) {
+					DEBUG_BUFFER_FMT(ptty->m_prdptr, curlen, "read [%s] ret [%d]", ptty->m_ttyname, ret);	
+				} else {
+					DEBUG_BUFFER_FMT(ptty->m_prdptr, curlen, "read [%s] start ret [%d]", ptty->m_ttyname, ret);	
+					DEBUG_BUFFER_FMT(&(ptty->m_prdptr[ret - curlen]), curlen, "read [%s] end ret [%d]", ptty->m_ttyname, ret);
+				}
+				
 
 				ptty->m_prdptr += ret;
 				ptty->m_rdleft -= ret;
