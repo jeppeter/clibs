@@ -65,7 +65,9 @@ int backtrace_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int fmttime_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int ttyconfig_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ttycfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ttycfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
 do{                                                                               \

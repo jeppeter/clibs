@@ -334,7 +334,6 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     int readsize = 100;
     int timemills = 1000;
     char* pbuf = NULL;
-    int ival;
     uint64_t sticks;
     int evfd = -1;
     int pollfd = -1;
@@ -368,34 +367,6 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     }
     DEBUG_INFO("open [%s] succ", ttyname);
 
-    ival = pargs->m_bauderate;
-    ret = set_tty_config(ptty, TTY_SET_SPEED, &ival);
-    if (ret < 0) {
-        GETERRNO(ret);
-        ERROR_INFO("set SPEED [%d] error[%d]", ival, ret);
-        goto out;
-    }
-    DEBUG_INFO("set [%s] speed [%d]", ttyname, ival);
-
-    ival = pargs->m_xonxoff;
-    ret = set_tty_config(ptty, TTY_SET_XONXOFF, &ival);
-    if (ret < 0) {
-        GETERRNO(ret);
-        ERROR_INFO("set XONXOFF [%d]  error[%d]", ival, ret);
-        goto out;
-    }
-
-    DEBUG_INFO("set [%s] XONXOFF %s",ttyname, ival != 0 ? "TRUE" : "FALSE");
-
-    ival = pargs->m_csbits;
-    ret = set_tty_config(ptty, TTY_SET_SIZE, &ival);
-    if (ret < 0) {
-        GETERRNO(ret);
-        ERROR_INFO("set CSISE [%d]  error[%d]", ival, ret);
-        goto out;
-    }
-    DEBUG_INFO("set [%s] m_csbits [%d]", ttyname, ival);
-
     pbuf = (char*)malloc(readsize);
     if (pbuf == NULL) {
         GETERRNO(ret);
@@ -424,17 +395,17 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
             goto out;
         }
 
-        memset(&evt,0,sizeof(evt));
+        memset(&evt, 0, sizeof(evt));
         evt.events = (EPOLLIN | EPOLLET);
         evt.data.fd = pollfd;
 
-        DEBUG_INFO("EPOLLET [0x%x] EPOLLIN [%d]" ,EPOLLET,EPOLLIN);
+        DEBUG_INFO("EPOLLET [0x%x] EPOLLIN [%d]" , EPOLLET, EPOLLIN);
 
 
-        ret = epoll_ctl(evfd,EPOLL_CTL_ADD,pollfd,&evt);
+        ret = epoll_ctl(evfd, EPOLL_CTL_ADD, pollfd, &evt);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("can not add pollfd [%d] error[%d]",pollfd, ret);
+            ERROR_INFO("can not add pollfd [%d] error[%d]", pollfd, ret);
             goto out;
         }
 
@@ -448,13 +419,13 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
             leftmills = ret;
 
             DEBUG_INFO("leftmills [%d]", leftmills);
-            ret = epoll_wait(evfd,&getevt,1,leftmills);
+            ret = epoll_wait(evfd, &getevt, 1, leftmills);
             if (ret < 0) {
                 GETERRNO(ret);
                 ERROR_INFO("epoll_wait error[%d]", ret);
                 goto out;
             } else if (ret > 0) {
-                DEBUG_INFO("get fd [%d] events [%d:0x%x]", getevt.data.fd,getevt.events, getevt.events);
+                DEBUG_INFO("get fd [%d] events [%d:0x%x]", getevt.data.fd, getevt.events, getevt.events);
                 if (getevt.data.fd == pollfd && getevt.events == EPOLLIN) {
                     ret = complete_tty_read(ptty);
                     if (ret < 0) {
@@ -496,8 +467,7 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     int timemills = 1000;
     char* pbuf = NULL;
     char* pptr = NULL;
-    int bufsize=0,buflen=0;
-    int ival;
+    int bufsize = 0, buflen = 0;
     uint64_t sticks;
     int evfd = -1;
     int pollfd = -1;
@@ -530,31 +500,8 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         goto out;
     }
 
-    ival = pargs->m_bauderate;
-    ret = set_tty_config(ptty, TTY_SET_SPEED, &ival);
-    if (ret < 0) {
-        GETERRNO(ret);
-        ERROR_INFO("set SPEED [%d] error[%d]", ival, ret);
-        goto out;
-    }
 
-    ival = pargs->m_xonxoff;
-    ret = set_tty_config(ptty, TTY_SET_XONXOFF, &ival);
-    if (ret < 0) {
-        GETERRNO(ret);
-        ERROR_INFO("set XONXOFF [%d]  error[%d]", ival, ret);
-        goto out;
-    }
-
-    ival = pargs->m_csbits;
-    ret = set_tty_config(ptty, TTY_SET_SIZE, &ival);
-    if (ret < 0) {
-        GETERRNO(ret);
-        ERROR_INFO("set CSISE [%d]  error[%d]", ival, ret);
-        goto out;
-    }
-
-    ret = read_file_whole(infile,&pbuf,&bufsize);
+    ret = read_file_whole(infile, &pbuf, &bufsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
@@ -583,15 +530,15 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             goto out;
         }
 
-        memset(&evt,0,sizeof(evt));
+        memset(&evt, 0, sizeof(evt));
         evt.events = (EPOLLOUT | EPOLLET);
         evt.data.fd = pollfd;
 
 
-        ret = epoll_ctl(evfd,EPOLL_CTL_ADD,pollfd,&evt);
+        ret = epoll_ctl(evfd, EPOLL_CTL_ADD, pollfd, &evt);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("can not add pollfd [%d] error[%d]",pollfd, ret);
+            ERROR_INFO("can not add pollfd [%d] error[%d]", pollfd, ret);
             goto out;
         }
 
@@ -604,13 +551,13 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             }
             leftmills = ret;
 
-            ret = epoll_wait(evfd,&getevt,1,leftmills);
+            ret = epoll_wait(evfd, &getevt, 1, leftmills);
             if (ret < 0) {
                 GETERRNO(ret);
                 ERROR_INFO("epoll_wait error[%d]", ret);
                 goto out;
             } else if (ret > 0) {
-                DEBUG_INFO("get fd [%d] events [%d:0x%x] EPOLLOUT [%d]", getevt.data.fd,getevt.events, getevt.events, EPOLLOUT);
+                DEBUG_INFO("get fd [%d] events [%d:0x%x] EPOLLOUT [%d]", getevt.data.fd, getevt.events, getevt.events, EPOLLOUT);
                 if (getevt.data.fd == pollfd && getevt.events == EPOLLOUT) {
                     ret = complete_tty_write(ptty);
                     if (ret < 0) {
@@ -631,13 +578,13 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         pptr -= 0x200;
         DEBUG_BUFFER_FMT(pptr, 0x200, "write [%s] buffer end", ttyname);
     } else {
-        DEBUG_BUFFER_FMT(pbuf, buflen, "write [%s] buffer", ttyname);    
+        DEBUG_BUFFER_FMT(pbuf, buflen, "write [%s] buffer", ttyname);
     }
-    
+
     ret = 0;
 out:
     free_tty(&ptty);
-    read_file_whole(NULL,&pbuf,&bufsize);
+    read_file_whole(NULL, &pbuf, &bufsize);
     buflen = 0;
     if (evfd >= 0) {
         close(evfd);
@@ -647,16 +594,110 @@ out:
     return ret;
 }
 
+#define TTY_CFG_BIT(member,bits, bitdesc)                                                         \
+do{                                                                                               \
+    if ( ((pcfg->member) & bits ) != 0 ) {                                                        \
+        fprintf(stdout,"%s",bitdesc);                                                             \
+    } else {                                                                                      \
+        fprintf(stdout, "-%s",bitdesc);                                                           \
+    }                                                                                             \
+    fprintf(stdout," ");                                                                          \
+}while(0)
 
-int ttyconfig_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+#define  TTY_CC_VAL(ccnum,desc)                                                                   \
+do{                                                                                               \
+    if (pcfg->c_cc[(ccnum)] == 0) {                                                               \
+        fprintf(stdout,"%s off[%d] undef",desc,ccnum);                                            \
+    } else {                                                                                      \
+        fprintf(stdout,"%s off[%d] [0x%x]", desc,ccnum,pcfg->c_cc[(ccnum)]);                      \
+    }                                                                                             \
+    fprintf(stdout," ");                                                                          \
+}while(0)
+
+#define TTY_IFLAG_BIT(bits, bitdesc) TTY_CFG_BIT(c_iflag,bits,bitdesc)
+#define TTY_OFLAG_BIT(bits, bitdesc) TTY_CFG_BIT(c_oflag,bits,bitdesc)
+#define TTY_CFLAG_BIT(bits, bitdesc) TTY_CFG_BIT(c_cflag,bits,bitdesc)
+#define TTY_LFLAG_BIT(bits, bitdesc) TTY_CFG_BIT(c_lflag,bits,bitdesc)
+
+#define TTY_SPEED_NOTE(member,desc)                                                               \
+do{                                                                                               \
+    val = pcfg->member;                                                                           \
+    sval = val;                                                                                   \
+    if (val == B0) {                                                                              \
+        sval = 0;                                                                                 \
+    } else if (val == B50) {                                                                      \
+        sval = 50;                                                                                \
+    } else if (val == B75) {                                                                      \
+        sval = 75;                                                                                \
+    } else if (val == B110) {                                                                     \
+        sval = 110;                                                                               \
+    } else if (val == B134) {                                                                     \
+        sval = 134;                                                                               \
+    } else if (val == B150) {                                                                     \
+        sval = 150;                                                                               \
+    } else if (val == B200) {                                                                     \
+        sval = 200;                                                                               \
+    } else if (val == B300) {                                                                     \
+        sval = 300;                                                                               \
+    } else if (val == B600) {                                                                     \
+        sval = 600;                                                                               \
+    } else if (val == B1200) {                                                                    \
+        sval = 1200;                                                                              \
+    } else if (val == B2400) {                                                                    \
+        sval = 2400;                                                                              \
+    } else if (val == B4800) {                                                                    \
+        sval = 4800;                                                                              \
+    } else if (val == B9600) {                                                                    \
+        sval = 9600;                                                                              \
+    } else if (val == B19200) {                                                                   \
+        sval = 19200;                                                                             \
+    } else if (val == B38400) {                                                                   \
+        sval = 38400;                                                                             \
+    } else if (val == B57600) {                                                                   \
+        sval = 57600;                                                                             \
+    } else if (val == B115200) {                                                                  \
+        sval = 115200;                                                                            \
+    } else if (val == B230400) {                                                                  \
+        sval = 230400;                                                                            \
+    } else if (val == B460800) {                                                                  \
+        sval = 460800;                                                                            \
+    } else if (val == B500000) {                                                                  \
+        sval = 500000;                                                                            \
+    } else if (val == B576000) {                                                                  \
+        sval = 576000;                                                                            \
+    } else if (val == B921600) {                                                                  \
+        sval = 921600;                                                                            \
+    } else if (val == B1000000) {                                                                 \
+        sval = 1000000;                                                                           \
+    } else if (val == B1152000) {                                                                 \
+        sval = 1152000;                                                                           \
+    } else if (val == B1500000) {                                                                 \
+        sval = 1500000;                                                                           \
+    } else if (val == B2000000) {                                                                 \
+        sval = 2000000;                                                                           \
+    } else if (val == B2500000) {                                                                 \
+        sval = 2500000;                                                                           \
+    } else if (val == B3000000) {                                                                 \
+        sval = 3000000;                                                                           \
+    } else if (val == B3500000) {                                                                 \
+        sval = 3500000;                                                                           \
+    } else if (val == B4000000) {                                                                 \
+        sval = 4000000;                                                                           \
+    }                                                                                             \
+    fprintf(stdout,"%s [0x%x] [%d]\n", desc,val,sval);                                            \
+}while(0)
+
+int ttycfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     void* ptty = NULL;
     pargs_options_t pargs = (pargs_options_t) popt;
     int ret;
     char* ttyname = NULL;
     char* pbuf = NULL;
-    int bufsize=0,buflen=0;
+    int bufsize = 0, buflen = 0;
     struct termios* pcfg;
+    int val;
+    int sval;
 
     init_log_verbose(pargs);
 
@@ -677,25 +718,396 @@ int ttyconfig_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         goto out;
     }
 
-    ret = get_tty_config_direct(ptty,(void**)&pbuf,&bufsize);
+    ret = get_tty_config_direct(ptty, (void**)&pbuf, &bufsize);
     if (ret < 0) {
         GETERRNO(ret);
-        ERROR_INFO("get [%s] config error [%d]",ttyname, ret);
+        ERROR_INFO("get [%s] config error [%d]", ttyname, ret);
         goto out;
     }
     buflen = ret;
 
-    DEBUG_BUFFER_FMT(pbuf,buflen, "[%s] config",ttyname);
+    DEBUG_BUFFER_FMT(pbuf, buflen, "[%s] config", ttyname);
     pcfg = (struct termios*) pbuf;
-    fprintf(stdout,"[%s]\n", ttyname);
-    fprintf(stdout,"ispeed [%d]\n", pcfg->c_ispeed);
-    fprintf(stdout, "ospeed [%d]\n", pcfg->c_ospeed);
+    fprintf(stdout, "[%s]\n", ttyname);
+    TTY_SPEED_NOTE(c_ispeed,"ispeed");
+    TTY_SPEED_NOTE(c_ospeed,"ospeed");
 
+
+    fprintf(stdout, "c_cc    ");
+    TTY_CC_VAL(VINTR, "intr");
+    TTY_CC_VAL(VQUIT, "quit");
+    TTY_CC_VAL(VERASE, "erase");
+    TTY_CC_VAL(VKILL, "kill");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    TTY_CC_VAL(VEOF, "eof");
+    TTY_CC_VAL(VEOL, "eol");
+    TTY_CC_VAL(VEOL2, "eol2");
+    TTY_CC_VAL(VSWTC, "swtch");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    TTY_CC_VAL(VSTART, "start");
+    TTY_CC_VAL(VSTOP, "stop");
+    TTY_CC_VAL(VSUSP, "susp");
+    TTY_CC_VAL(VREPRINT, "rprnt");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    TTY_CC_VAL(VWERASE, "werase");
+    TTY_CC_VAL(VLNEXT, "lnext");
+    TTY_CC_VAL(VDISCARD, "flush");
+    TTY_CC_VAL(VMIN, "min");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    TTY_CC_VAL(VTIME, "time");
+    fprintf(stdout, "\n");
+
+
+    fprintf(stdout, "iflags  ");
+    TTY_IFLAG_BIT(IGNBRK, "ignbrk");
+    TTY_IFLAG_BIT(BRKINT, "brkint");
+    TTY_IFLAG_BIT(IGNPAR, "ignpar");
+    TTY_IFLAG_BIT(PARMRK, "parmrk");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    TTY_IFLAG_BIT(INPCK, "inpck");
+    TTY_IFLAG_BIT(ISTRIP, "istrip");
+    TTY_IFLAG_BIT(INLCR, "inlcr");
+    TTY_IFLAG_BIT(IGNCR, "igncr");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    TTY_IFLAG_BIT(ICRNL, "icrnl");
+    TTY_IFLAG_BIT(IUCLC, "iuclc");
+    TTY_IFLAG_BIT(IXON, "ixon");
+    TTY_IFLAG_BIT(IXANY, "ixany");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    TTY_IFLAG_BIT(IXOFF, "ixoff");
+    TTY_IFLAG_BIT(IMAXBEL, "imaxbel");
+    TTY_IFLAG_BIT(IUTF8, "iutf8");
+    fprintf(stdout, "\n");
+
+
+    fprintf(stdout, "c_cflag ");
+    TTY_CFLAG_BIT(PARENB, "parenb");
+    TTY_CFLAG_BIT(PARODD, "parodd");
+    val = pcfg->c_cflag & CSIZE;
+    if (val == CS5) {
+        fprintf(stdout, "cs5 ");
+    } else if (val == CS6) {
+        fprintf(stdout, "cs6 ");
+    } else if (val == CS7) {
+        fprintf(stdout, "cs7 ");
+    } else if (val == CS8) {
+        fprintf(stdout, "cs8 ");
+    } else {
+        fprintf(stdout, "cs[0x%x] ", val);
+    }
+    TTY_CFLAG_BIT(HUPCL, "hupcl");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    TTY_CFLAG_BIT(CSTOPB, "cstopb");
+    TTY_CFLAG_BIT(CREAD, "cread");
+    TTY_CFLAG_BIT(CLOCAL, "clocal");
+    TTY_CFLAG_BIT(CRTSCTS, "crtscts");
+    fprintf(stdout, "\n");
+
+    fprintf(stdout, "c_oflag ");
+    TTY_OFLAG_BIT(OPOST, "opost");
+    TTY_OFLAG_BIT(OLCUC, "olcuc");
+    TTY_OFLAG_BIT(OCRNL, "ocrnl");
+    TTY_OFLAG_BIT(ONLCR, "onlcr");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    TTY_OFLAG_BIT(ONOCR, "onocr");
+    TTY_OFLAG_BIT(ONLRET, "onlret");
+    TTY_OFLAG_BIT(OFILL, "ofill");
+    TTY_OFLAG_BIT(OFDEL, "ofdel");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    val = pcfg->c_oflag & NLDLY;
+    if (val == NL0) {
+        fprintf(stdout, "nl0 ");
+    } else if (val == NL1) {
+        fprintf(stdout, "nl1 ");
+    } else {
+        fprintf(stdout, "nl[0x%x] ", val);
+    }
+
+    val = pcfg->c_oflag & CRDLY;
+    if (val == CR0) {
+        fprintf(stdout, "cr0 ");
+    } else if (val == CR1) {
+        fprintf(stdout, "cr1 ");
+    } else if (val == CR2) {
+        fprintf(stdout, "cr2 ");
+    } else if (val == CR3) {
+        fprintf(stdout, "cr3 ");
+    } else {
+        fprintf(stdout, "cr[0x%x] ", val);
+    }
+
+
+    val = pcfg->c_oflag & TABDLY;
+    if (val == TAB0) {
+        fprintf(stdout, "tab0 ");
+    } else if (val == TAB1) {
+        fprintf(stdout, "tab1 ");
+    } else if (val == TAB2) {
+        fprintf(stdout, "tab2 ");
+    } else if (val == TAB3) {
+        fprintf(stdout, "tab3 ");
+    } else {
+        fprintf(stdout, "tab[0x%x] ", val);
+    }
+
+
+    val = pcfg->c_oflag & BSDLY;
+    if (val == BS0) {
+        fprintf(stdout, "bs0 ");
+    } else if (val == BS1) {
+        fprintf(stdout, "bs1 ");
+    } else {
+        fprintf(stdout, "bs[0x%x] ", val);
+    }
+
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+
+    val = pcfg->c_oflag & VTDLY;
+    if (val == VT0) {
+        fprintf(stdout, "vt0 ");
+    } else if (val == VT1) {
+        fprintf(stdout, "vt1 ");
+    } else {
+        fprintf(stdout, "vt[0x%x] ", val);
+    }
+
+
+    val = pcfg->c_oflag & FFDLY;
+    if (val == FF0) {
+        fprintf(stdout, "ff0 ");
+    } else if (val == FF1) {
+        fprintf(stdout, "ff1 ");
+    } else {
+        fprintf(stdout, "ff[0x%x] ", val);
+    }
+
+    fprintf(stdout, "\n");
+
+    fprintf(stdout, "c_lflag ");
+    TTY_LFLAG_BIT(ISIG,"isig");
+    TTY_LFLAG_BIT(ICANON,"icanon");
+    TTY_LFLAG_BIT(IEXTEN,"iexten");
+    TTY_LFLAG_BIT(ECHO,"echo");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    TTY_LFLAG_BIT(ECHOE,"echoe");
+    TTY_LFLAG_BIT(ECHOK,"echok");
+    TTY_LFLAG_BIT(ECHONL,"echonl");
+    TTY_LFLAG_BIT(NOFLSH,"noflsh");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    TTY_LFLAG_BIT(XCASE,"xcase");
+    TTY_LFLAG_BIT(TOSTOP,"tostop");
+    TTY_LFLAG_BIT(ECHOPRT,"echoprt");
+    TTY_LFLAG_BIT(ECHOCTL,"echoctl");
+    fprintf(stdout, "\n");
+    fprintf(stdout, "        ");
+    TTY_LFLAG_BIT(ECHOKE,"echoke");
+
+    fprintf(stdout, "\n");
 
     ret = 0;
 out:
-    get_tty_config_direct(NULL,(void**)&pbuf,&bufsize);
+    get_tty_config_direct(NULL, (void**)&pbuf, &bufsize);
     buflen = 0;
+    free_tty(&ptty);
+    SETERRNO(ret);
+    return ret;
+}
+
+int ttycfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    void* ptty = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    char* ttyname = NULL;
+    int vflag = 0;
+    char cfgbuf[10];
+    unsigned int* uptr;
+    unsigned char* ucptr;
+    int *iptr;
+    int ival;
+    uint64_t val64;
+    char* keyname = NULL;
+    int idx;
+
+    init_log_verbose(pargs);
+
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        ttyname = parsestate->leftargs[0];
+    }
+
+    if (ttyname == NULL) {
+        ret = -EINVAL;
+        ERROR_INFO("can not get ttyname");
+        goto out;
+    }
+
+    ptty = open_tty(ttyname);
+    if (ptty == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not open [%s] error[%d]", ttyname, ret);
+        goto out;
+    }
+
+    for (idx = 1; parsestate->leftargs && parsestate->leftargs[idx] != NULL;) {
+        keyname = parsestate->leftargs[idx];
+        idx += 1;
+        ival = -1;
+        val64 = 0;
+        if (strcmp(keyname, "iflagset") == 0) {
+            vflag = TTY_SET_IFLAGS;
+            GET_OPT_NUM64(val64, "set iflag");
+            if (val64 == 0) {
+                ret = -EINVAL;
+                fprintf(stderr, "no set iflag\n");
+                goto out;
+            }
+            uptr = (unsigned int*)cfgbuf;
+            *uptr = (unsigned int) val64;
+        } else if (strcmp(keyname, "iflagclear") == 0) {
+            vflag = TTY_CLEAR_IFLAGS;
+            GET_OPT_NUM64(val64, "clear iflag");
+            if (val64 == 0) {
+                ret = -EINVAL;
+                fprintf(stderr, "no clear iflag\n");
+                goto out;
+            }
+            uptr = (unsigned int*)cfgbuf;
+            *uptr = (unsigned int) val64;
+        } else if (strcmp(keyname, "oflagset") == 0) {
+            vflag = TTY_SET_OFLAGS;
+            GET_OPT_NUM64(val64, "set oflag");
+            if (val64 == 0) {
+                ret = -EINVAL;
+                fprintf(stderr, "no set oflag\n");
+                goto out;
+            }
+            uptr = (unsigned int*)cfgbuf;
+            *uptr = (unsigned int) val64;
+        } else if (strcmp(keyname, "oflagclear") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            GET_OPT_NUM64(val64, "clear oflag");
+            if (val64 == 0) {
+                ret = -EINVAL;
+                fprintf(stderr, "no clear oflag\n");
+                goto out;
+            }
+            uptr = (unsigned int*)cfgbuf;
+            *uptr = (unsigned int) val64;
+        } else if (strcmp(keyname, "cflagset") == 0) {
+            vflag = TTY_SET_CFLAGS;
+            GET_OPT_NUM64(val64, "set cflag");
+            if (val64 == 0) {
+                ret = -EINVAL;
+                fprintf(stderr, "no set cflag\n");
+                goto out;
+            }
+            uptr = (unsigned int*)cfgbuf;
+            *uptr = (unsigned int) val64;
+        } else if (strcmp(keyname, "cflagclear") == 0) {
+            vflag = TTY_CLEAR_CFLAGS;
+            GET_OPT_NUM64(val64, "clear cflag");
+            if (val64 == 0) {
+                ret = -EINVAL;
+                fprintf(stderr, "no clear cflag\n");
+                goto out;
+            }
+            uptr = (unsigned int*)cfgbuf;
+            *uptr = (unsigned int) val64;
+        } else if (strcmp(keyname, "lflagset") == 0) {
+            vflag = TTY_SET_LFLAGS;
+            GET_OPT_NUM64(val64, "set lflag");
+            if (val64 == 0) {
+                ret = -EINVAL;
+                fprintf(stderr, "no set lflag\n");
+                goto out;
+            }
+            uptr = (unsigned int*)cfgbuf;
+            *uptr = (unsigned int) val64;
+        } else if (strcmp(keyname, "lflagclear") == 0) {
+            vflag = TTY_CLEAR_LFLAGS;
+            GET_OPT_NUM64(val64, "clear lflag");
+            if (val64 == 0) {
+                ret = -EINVAL;
+                fprintf(stderr, "no clear lflag\n");
+                goto out;
+            }
+            uptr = (unsigned int*)cfgbuf;
+            *uptr = (unsigned int) val64;
+        } else if (strcmp(keyname, "clineset") == 0) {
+            vflag = TTY_SET_CLINE;
+            GET_OPT_INT(ival, "line set");
+            if (ival < 0) {
+                ret = -EINVAL;
+                fprintf(stderr, "no line set\n");
+                goto out;
+            }
+            ucptr = (unsigned char*)cfgbuf;
+            *ucptr = (unsigned char)ival;
+        } else if (strcmp(keyname, "speedset") == 0) {
+            vflag = TTY_SET_SPEED;
+            GET_OPT_INT(ival, "speed");
+            if (ival < 0) {
+                ret = -EINVAL;
+                fprintf(stderr, "no speed\n");
+                goto out;
+            }
+            iptr = (int*)cfgbuf;
+            *iptr = ival;
+        } else if (strcmp(keyname, "ccset") == 0) {
+            vflag = TTY_SET_CC;
+            ucptr = (unsigned char*)cfgbuf;
+            GET_OPT_INT(ival, "set cc offset");
+            if (ival < 0) {
+                ret = -EINVAL;
+                fprintf(stderr, "no set cc offset\n");
+                goto out;
+            }
+            ucptr[0] = (unsigned char)ival;
+            ival = -1;
+            GET_OPT_INT(ival, "set cc value");
+            if (ival < 0) {
+                ret = -EINVAL;
+                fprintf(stderr, "no set cc value\n");
+                goto out;
+            }
+            ucptr[1] = (unsigned char)ival;
+        } else {
+            ret = -EINVAL;
+            fprintf(stderr, "not support keyname [%s]\n", keyname);
+            goto out;
+        }
+
+        ret = prepare_tty_config(ptty, vflag, cfgbuf);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("can not set [%s] ", keyname);
+            goto out;
+        }
+    }
+
+    ret = commit_tty_config(ptty);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not commit [%s] config", ttyname);
+        goto out;
+    }
+    fprintf(stdout, "config [%s] succ\n", ttyname);
+
+    ret = 0;
+out:
     free_tty(&ptty);
     SETERRNO(ret);
     return ret;

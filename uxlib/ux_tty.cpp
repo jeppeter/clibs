@@ -26,7 +26,8 @@ typedef struct __tty_data_priv {
 	int m_inrd;
 	int m_inwr;
 	struct termios m_ttycfg;
-	int m_bauderate;
+	struct termios m_preparecfg;
+	int m_cfgcached;
 	uint8_t* m_prdptr;
 	int m_rdleft;
 	uint8_t* m_pwrptr;
@@ -47,7 +48,6 @@ void free_tty(void** pptty)
 			free(ptty->m_ttyname);
 		}
 		ptty->m_ttyname = NULL;
-		ptty->m_bauderate = 0;
 		memset(&(ptty->m_ttycfg), 0, sizeof(ptty->m_ttycfg));
 		ptty->m_inrd = 0;
 		ptty->m_inwr = 0;
@@ -76,6 +76,7 @@ void* open_tty(const char* ttyname)
 	ptty->m_magic = TTY_DATA_MAGIC;
 	ptty->m_ttyfd = -1;
 	ptty->m_flushed = TTY_NONE_FLUSH;
+	ptty->m_cfgcached = 0;
 
 	ptty->m_ttyname = strdup(ttyname);
 	if (ptty->m_ttyname == NULL) {
@@ -111,7 +112,6 @@ void* open_tty(const char* ttyname)
 	ptty->m_inrd = 0;
 	ptty->m_inwr = 0;
 
-	ptty->m_bauderate = 115200;
 
 	ret = tcgetattr(ptty->m_ttyfd, &(ptty->m_ttycfg));
 	if (ret != 0) {
@@ -174,19 +174,25 @@ fail:
 }
 
 
-int set_tty_config(void* ptty1, int flag, void* value)
+int prepare_tty_config(void* ptty1, int flag, void* value)
 {
 	ptty_data_priv_t ptty = (ptty_data_priv_t) ptty1;
 	int ret;
 	int *iptr, ival;
-	struct termios tycfg;
-	int setbauderate = 0;
-	int bauderate = 0;
-	if (ptty->m_magic != TTY_DATA_MAGIC) {
+	unsigned int *uptr, uval;
+	unsigned char* ucptr, uch,ucoff;
+	struct termios* ptycfg=NULL;
+	if (ptty->m_magic != TTY_DATA_MAGIC || ptty->m_ttyfd < 0) {
 		ret = -EINVAL;
 		SETERRNO(ret);
 		return ret;
 	}
+
+	if (ptty->m_cfgcached == 0) {
+		memcpy(&(ptty->m_preparecfg), &(ptty->m_ttycfg),sizeof(ptty->m_preparecfg));
+		ptty->m_cfgcached = 1;
+	}
+	ptycfg = &(ptty->m_preparecfg);
 
 	switch (flag) {
 	case TTY_SET_SPEED:
@@ -196,102 +202,89 @@ int set_tty_config(void* ptty1, int flag, void* value)
 		}
 		iptr = (int*) value;
 		ival = *iptr;
-		memcpy(&tycfg, &(ptty->m_ttycfg), sizeof(tycfg));
 		switch (ival) {
 		case 0:
-			cfsetspeed(&tycfg, B0);
+			cfsetspeed(ptycfg, B0);
 			break;
 		case 50:
-			cfsetspeed(&tycfg, B50);
+			cfsetspeed(ptycfg, B50);
 			break;
 		case 75:
-			cfsetspeed(&tycfg, B75);
+			cfsetspeed(ptycfg, B75);
 			break;
 		case 110:
-			cfsetspeed(&tycfg, B110);
+			cfsetspeed(ptycfg, B110);
 			break;
 		case 134:
-			cfsetspeed(&tycfg, B134);
+			cfsetspeed(ptycfg, B134);
 			break;
 		case 150:
-			cfsetspeed(&tycfg, B150);
+			cfsetspeed(ptycfg, B150);
 			break;
 		case 200:
-			cfsetspeed(&tycfg, B200);
+			cfsetspeed(ptycfg, B200);
 			break;
 		case 300:
-			cfsetspeed(&tycfg, B300);
+			cfsetspeed(ptycfg, B300);
 			break;
 		case 600:
-			cfsetspeed(&tycfg, B600);
+			cfsetspeed(ptycfg, B600);
 			break;
 		case 1200:
-			cfsetspeed(&tycfg, B1200);
+			cfsetspeed(ptycfg, B1200);
 			break;
 		case 1800:
-			cfsetspeed(&tycfg, B1800);
+			cfsetspeed(ptycfg, B1800);
 			break;
 		case 2400:
-			cfsetspeed(&tycfg, B2400);
+			cfsetspeed(ptycfg, B2400);
 			break;
 		case 4800:
-			cfsetspeed(&tycfg, B4800);
+			cfsetspeed(ptycfg, B4800);
 			break;
 		case 9600:
-			cfsetspeed(&tycfg, B9600);
+			cfsetspeed(ptycfg, B9600);
 			break;
 		case 19200:
-			cfsetspeed(&tycfg, B19200);
+			cfsetspeed(ptycfg, B19200);
 			break;
 		case 38400:
-			cfsetspeed(&tycfg, B38400);
+			cfsetspeed(ptycfg, B38400);
 			break;
 		case 57600:
-			cfsetspeed(&tycfg, B57600);
+			cfsetspeed(ptycfg, B57600);
 			break;
 		case 115200:
-			cfsetspeed(&tycfg, B115200);
+			cfsetspeed(ptycfg, B115200);
 			break;
 		case 230400:
-			cfsetspeed(&tycfg, B230400);
+			cfsetspeed(ptycfg, B230400);
 			break;
 		case 460800:
-			cfsetspeed(&tycfg, B460800);
+			cfsetspeed(ptycfg, B460800);
 			break;
 		default:
 			ret = -EINVAL;
 			ERROR_INFO("set speed for [%s] not valid [%d]", ptty->m_ttyname, ival);
 			goto fail;
 		}
-		setbauderate = 1;
-		bauderate = ival;
-		break;
-	case TTY_SET_XONXOFF:
-		iptr = (int*) value;
-		ival = *iptr;
-		memcpy(&tycfg, &(ptty->m_ttycfg), sizeof(tycfg));
-		tycfg.c_iflag &= ~(IXON | IXOFF | IXANY);
-		if (ival != 0) {
-			tycfg.c_iflag |= (IXON | IXOFF);
-		}
 		break;
 	case TTY_SET_SIZE:
 		iptr = (int*) value;
 		ival = *iptr;
-		memcpy(&tycfg, &(ptty->m_ttycfg), sizeof(tycfg));
-		tycfg.c_cflag &= ~CSIZE;
+		ptycfg->c_cflag &= ~CSIZE;
 		switch (ival) {
 		case 5:
-			tycfg.c_cflag |= CS5;
+			ptycfg->c_cflag |= CS5;
 			break;
 		case 6:
-			tycfg.c_cflag |= CS6;
+			ptycfg->c_cflag |= CS6;
 			break;
 		case 7:
-			tycfg.c_cflag |= CS7;
+			ptycfg->c_cflag |= CS7;
 			break;
 		case 8:
-			tycfg.c_cflag |= CS8;
+			ptycfg->c_cflag |= CS8;
 			break;
 		default:
 			ret = -EINVAL;
@@ -299,25 +292,110 @@ int set_tty_config(void* ptty1, int flag, void* value)
 			goto fail;
 		}
 		break;
+	case TTY_SET_IFLAGS:
+		uptr = (unsigned int*) value;
+		uval = *uptr;
+		ptycfg->c_iflag |= uval;
+		break;
+
+	case TTY_CLEAR_IFLAGS:
+		uptr = (unsigned int*) value;
+		uval = *uptr;
+		ptycfg->c_iflag &= ~uval;
+		break;	
+
+	case TTY_SET_OFLAGS:
+		uptr = (unsigned int*) value;
+		uval = *uptr;
+		ptycfg->c_oflag |= uval;
+		break;
+
+	case TTY_CLEAR_OFLAGS:
+		uptr = (unsigned int*) value;
+		uval = *uptr;
+		ptycfg->c_oflag &= ~uval;
+		break;	
+
+	case TTY_SET_CFLAGS:
+		uptr = (unsigned int*) value;
+		uval = *uptr;
+		ptycfg->c_cflag |= uval;
+		break;
+
+	case TTY_CLEAR_CFLAGS:
+		uptr = (unsigned int*) value;
+		uval = *uptr;
+		ptycfg->c_cflag &= ~uval;
+		break;
+
+	case TTY_SET_LFLAGS:
+		uptr = (unsigned int*) value;
+		uval = *uptr;
+		ptycfg->c_lflag |= uval;
+		break;
+
+	case TTY_CLEAR_LFLAGS:
+		uptr = (unsigned int*) value;
+		uval = *uptr;
+		ptycfg->c_lflag &= ~uval;
+		break;	
+
+	case TTY_SET_CLINE:
+		ucptr = (unsigned char*) value;
+		uch = *ucptr;
+		ptycfg->c_line = uch;
+		break;
+
+	case TTY_SET_CC:
+		ucptr = (unsigned char*) value;
+		ucoff = ucptr[0];
+		uch = ucptr[1];
+		if (ucoff >= NCCS) {
+			ret = -EINVAL;
+			goto fail;
+		}
+		ptycfg->c_cc[ucoff] = uch;
+		break;
+
 	default:
 		ret = -EINVAL;
 		ERROR_INFO("[%d] not valid ctrl code", flag);
 		goto fail;;
 	}
 
-	ret = tcsetattr(ptty->m_ttyfd, TCSANOW, &(tycfg));
-	if (ret != 0) {
-		GETERRNO(ret);
-		ERROR_INFO("set TCSETS2 [%s]  error[%d]", ptty->m_ttyname, ret);
-		goto fail;
-	}
-
-	memcpy(&(ptty->m_ttycfg), &tycfg, sizeof(tycfg));
-	if (setbauderate) {
-		ptty->m_bauderate = bauderate;
-	}
 
 	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int commit_tty_config(void* ptty1)
+{
+	ptty_data_priv_t ptty = (ptty_data_priv_t) ptty1;
+	int setted = 0;
+	int ret;
+
+	if (ptty->m_magic != TTY_DATA_MAGIC || ptty->m_ttyfd < 0) {
+		ret = -EINVAL;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (ptty->m_cfgcached > 0) {
+		ret = tcsetattr(ptty->m_ttyfd, TCSANOW,&(ptty->m_preparecfg));
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("can not set [%s] error[%d]", ptty->m_ttyname, ret);
+			goto fail;
+			goto fail;
+		}
+		memcpy(&(ptty->m_ttycfg),&(ptty->m_preparecfg),sizeof(ptty->m_preparecfg));
+		ptty->m_cfgcached = 0;
+		setted = 1;
+	}
+
+	return setted;
 fail:
 	SETERRNO(ret);
 	return ret;

@@ -72,6 +72,7 @@ endif
 main.o:main.cpp
 
 main.cpp:args_options.cpp tstdebug.cpp tstproc.cpp tstdev.cpp tstregex.cpp tststr.cpp tstfile.cpp tstsock.cpp
+	$(call call_exec,touch main.cpp,"TOUCH   main.cpp")
 
 args_options.cpp:args_options.cpp.tmpl ${TOPDIR}/common/extargslib
 	$(call call_exec,${PYTHON} ${TOPDIR}/coutput.py -j ${SRCDIR}/cmd.json -i $< cmdstruct | \
