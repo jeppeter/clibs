@@ -21,6 +21,9 @@ int get_tty_read_handle(void* ptty);
 int get_tty_write_handle(void* ptty);
 int complete_tty_read(void* ptty);
 int complete_tty_write(void* ptty);
+int get_tty_config_direct(void* ptty, void** ppcfg,int* psize);
+int set_tty_config_direct(void* ptty, void* pcfg,int size);
+
 
 #ifdef __cplusplus
 };

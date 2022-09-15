@@ -637,3 +637,57 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+
+int ttyconfig_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    void* ptty = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    char* ttyname = NULL;
+    char* pbuf = NULL;
+    int bufsize=0,buflen=0;
+    struct termios* pcfg;
+
+    init_log_verbose(pargs);
+
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        ttyname = parsestate->leftargs[0];
+    }
+
+    if (ttyname == NULL) {
+        ret = -EINVAL;
+        ERROR_INFO("can not get ttyname");
+        goto out;
+    }
+
+    ptty = open_tty(ttyname);
+    if (ptty == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not open [%s] error[%d]", ttyname, ret);
+        goto out;
+    }
+
+    ret = get_tty_config_direct(ptty,(void**)&pbuf,&bufsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get [%s] config error [%d]",ttyname, ret);
+        goto out;
+    }
+    buflen = ret;
+
+    DEBUG_BUFFER_FMT(pbuf,buflen, "[%s] config",ttyname);
+    pcfg = (struct termios*) pbuf;
+    fprintf(stdout,"[%s]\n", ttyname);
+    fprintf(stdout,"ispeed [%d]\n", pcfg->c_ispeed);
+    fprintf(stdout, "ospeed [%d]\n", pcfg->c_ospeed);
+
+
+    ret = 0;
+out:
+    get_tty_config_direct(NULL,(void**)&pbuf,&bufsize);
+    buflen = 0;
+    free_tty(&ptty);
+    SETERRNO(ret);
+    return ret;
+}

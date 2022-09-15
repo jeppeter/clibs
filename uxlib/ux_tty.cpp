@@ -112,25 +112,6 @@ void* open_tty(const char* ttyname)
 		goto fail;
 	}
 
-	ptty->m_ttycfg.c_cflag &= ~CSTOPB;
-
-	ptty->m_ttycfg.c_cflag &= ~CSIZE;
-	ptty->m_ttycfg.c_cflag |= CS8;
-
-	ptty->m_ttycfg.c_cflag &= ~CRTSCTS;
-
-	ptty->m_ttycfg.c_iflag &= ~(IXON | IXOFF | IXANY);
-	ptty->m_ttycfg.c_iflag |= (IXOFF | IXON);
-
-	cfsetspeed(&(ptty->m_ttycfg), B115200);
-
-	ret = tcsetattr(ptty->m_ttyfd, TCSANOW, &(ptty->m_ttycfg));
-	if (ret != 0) {
-		GETERRNO(ret);
-		ERROR_INFO("can not TCSETS2 [%s] error[%d]", ptty->m_ttyname, ret);
-		goto fail;
-	}
-
 	return (void*) ptty;
 fail:
 	free_tty((void**)&ptty);
@@ -482,6 +463,92 @@ int complete_tty_write(void* ptty1)
 
 	return completed;
 
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int get_tty_config_direct(void* ptty1, void** ppcfg,int* psize)
+{	
+	ptty_data_priv_t ptty = (ptty_data_priv_t) ptty1;
+	int ret;
+	struct termios *pretcfg=NULL;
+	int retsize=0;
+	int retlen = sizeof(*pretcfg);
+	if (ptty == NULL) {
+		if (ppcfg && *ppcfg) {
+			free(*ppcfg);
+			*ppcfg = NULL;
+		}
+		if (psize) {
+			*psize = 0;
+		}
+		return 0;
+	}
+
+	if(ppcfg == NULL || psize == NULL) {
+		ret = -EINVAL;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (ptty->m_magic != TTY_DATA_MAGIC || ptty->m_ttyfd < 0) {
+		ret = -EINVAL;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	pretcfg = (struct termios*) (*ppcfg);
+	retsize = *psize;
+
+	if (retsize < retlen || pretcfg == NULL) {
+		retsize = retlen;
+		pretcfg = (struct termios*) malloc(retsize);
+		if (pretcfg == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	memcpy(pretcfg, &(ptty->m_ttycfg),retlen);
+	if (*ppcfg && *ppcfg != pretcfg) {
+		free(*ppcfg);
+	}
+
+	*ppcfg = pretcfg;
+	*psize = retsize;
+
+	return retlen;
+fail:
+	if (pretcfg != NULL && pretcfg != *ppcfg) {
+		free(pretcfg);
+	}
+	pretcfg = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int set_tty_config_direct(void* ptty1, void* pcfg,int size)
+{
+	ptty_data_priv_t ptty = (ptty_data_priv_t) ptty1;
+	int ret;
+	struct termios *pretcfg= (struct termios*) pcfg;
+
+	if (ptty == NULL || ptty->m_magic != TTY_DATA_MAGIC || ptty->m_ttyfd < 0 || 
+		pretcfg == NULL || size < (int)sizeof(*pretcfg)) {
+		ret = -EINVAL;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	ret = tcsetattr(ptty->m_ttyfd, TCSANOW,pretcfg);
+	if (ret != 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memcpy(&(ptty->m_ttycfg),pretcfg,sizeof(*pretcfg));
+	return 0;
 fail:
 	SETERRNO(ret);
 	return ret;

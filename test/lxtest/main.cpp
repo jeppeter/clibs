@@ -18,6 +18,7 @@
 #include <sys/eventfd.h>
 #include <sys/epoll.h>
 #include <ctype.h>
+#include <termios.h>
 
 #include <crypt_md5.h>
 
@@ -64,6 +65,7 @@ int backtrace_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int fmttime_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ttyconfig_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
 do{                                                                               \

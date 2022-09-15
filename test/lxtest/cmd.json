@@ -95,5 +95,8 @@
     },
     "ttywrite<ttywrite_handler>##ttyname file [timemills] to read ttyname  default timemills 1000 millisecond##"  : {
         "$" : "+"
+    },
+    "ttyconfig<ttyconfig_handler>##ttyname to display tty config##" : {
+        "$" : 1
     }
 }
