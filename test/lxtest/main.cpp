@@ -117,6 +117,54 @@ int init_log_verbose(pargs_options_t pargs)
     return 0;
 }
 
+void print_buffer(FILE* fp, unsigned char* pbuf, int buflen, const char* fmt, ...)
+{
+    va_list ap;
+    int i;
+    int lasti;
+    fprintf(fp, "buffer [%p] size[0x%x:%d]", pbuf, buflen, buflen);
+    if (fmt != NULL) {
+        va_start(ap, fmt);
+        fprintf(fp, " ");
+        vfprintf(fp, fmt, ap);
+    }
+    for (i = 0, lasti = 0; i < buflen; i++) {
+        if ((i % 16) == 0) {
+            if (i > 0) {
+                fprintf(fp, "    ");
+                while (lasti != i) {
+                    if (pbuf[lasti] >= ' ' && pbuf[lasti] <= 0x7e) {
+                        fprintf(fp, "%c", pbuf[lasti]);
+                    } else {
+                        fprintf(fp, ".");
+                    }
+                    lasti ++;
+                }
+            }
+            fprintf(fp, "\n0x%08x:", i);
+        }
+        fprintf(fp, " 0x%02x", pbuf[i]);
+    }
+
+    if (lasti != i) {
+        while ((i % 16) != 0) {
+            fprintf(fp, "     ");
+            i ++;
+        }
+        fprintf(fp, "    ");
+        while (lasti < buflen) {
+            if (pbuf[lasti] >= ' ' && pbuf[lasti] <= 0x7e) {
+                fprintf(fp, "%c", pbuf[lasti]);
+            } else {
+                fprintf(fp, ".");
+            }
+            lasti ++;
+        }
+    }
+    fprintf(fp,"\n");
+    return;
+}
+
 #include "tstdebug.cpp"
 #include "tstproc.cpp"
 #include "tstregex.cpp"

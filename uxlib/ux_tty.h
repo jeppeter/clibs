@@ -21,10 +21,12 @@ extern "C" {
 #define  TTY_SET_CLINE     11  /*value unsigned char*/
 #define  TTY_SET_CC        12  /*to set ctrl[2] ctrl[0] == offset ctrl[1] == value */
 
+#define  TTY_SET_RAW       13  /*set raw mode*/
+
 
 
 void free_tty(void** pptty);
-void* open_tty(const char* ttyname);
+void* open_tty(const char* ttyname,int maxflush);
 int prepare_tty_config(void* ptty,int flag,void* value);
 int commit_tty_config(void* ptty);
 int read_tty_nonblock(void* ptty,uint8_t* pbuf, int bufsize);

@@ -359,7 +359,7 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         goto out;
     }
 
-    ptty = open_tty(ttyname);
+    ptty = open_tty(ttyname,-1);
     if (ptty == NULL) {
         GETERRNO(ret);
         ERROR_INFO("open [%s] error[%d]", ttyname, ret);
@@ -440,7 +440,7 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         }
     }
 
-    DEBUG_BUFFER_FMT(pbuf, readsize, "read [%s] buffer", ttyname);
+    print_buffer(stdout,(unsigned char*)pbuf, readsize, "read [%s] buffer", ttyname);
     ret = 0;
 out:
     free_tty(&ptty);
@@ -493,7 +493,7 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         goto out;
     }
 
-    ptty = open_tty(ttyname);
+    ptty = open_tty(ttyname,-1);
     if (ptty == NULL) {
         GETERRNO(ret);
         ERROR_INFO("open [%s] error[%d]", ttyname, ret);
@@ -573,12 +573,12 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     }
 
     if (buflen > 0x200) {
-        DEBUG_BUFFER_FMT(pbuf, 0x200, "write [%s] buffer start", ttyname);
+        print_buffer(stdout,(unsigned char*)pbuf, 0x200, "write [%s] buffer start", ttyname);
         pptr = pbuf + buflen - 1;
         pptr -= 0x200;
-        DEBUG_BUFFER_FMT(pptr, 0x200, "write [%s] buffer end", ttyname);
+        print_buffer(stdout,(unsigned char*)pptr, 0x200, "write [%s] buffer end", ttyname);
     } else {
-        DEBUG_BUFFER_FMT(pbuf, buflen, "write [%s] buffer", ttyname);
+        print_buffer(stdout,(unsigned char*)pbuf, buflen, "write [%s] buffer", ttyname);
     }
 
     ret = 0;
@@ -711,7 +711,7 @@ int ttycfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         goto out;
     }
 
-    ptty = open_tty(ttyname);
+    ptty = open_tty(ttyname,-1);
     if (ptty == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not open [%s] error[%d]", ttyname, ret);
@@ -954,7 +954,7 @@ int ttycfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         goto out;
     }
 
-    ptty = open_tty(ttyname);
+    ptty = open_tty(ttyname,-1);
     if (ptty == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not open [%s] error[%d]", ttyname, ret);
@@ -1084,6 +1084,9 @@ int ttycfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
                 goto out;
             }
             ucptr[1] = (unsigned char)ival;
+        } else if (strcmp(keyname,"raw") == 0) {
+            vflag = TTY_SET_RAW;
+            memset(cfgbuf,0,sizeof(cfgbuf));
         } else {
             ret = -EINVAL;
             fprintf(stderr, "not support keyname [%s]\n", keyname);

@@ -20,7 +20,10 @@
 typedef struct __tty_data_priv {
 	uint32_t m_magic;
 	int m_flushed;
-	uint8_t m_flushbuf[1];
+	uint8_t *m_flushbuf;
+	int m_flushlen;
+	int m_flushrlen;
+	int m_flushsize;
 	int m_ttyfd;
 	char* m_ttyname;
 	int m_inrd;
@@ -49,6 +52,16 @@ void free_tty(void** pptty)
 		}
 		ptty->m_ttyname = NULL;
 		memset(&(ptty->m_ttycfg), 0, sizeof(ptty->m_ttycfg));
+
+		if (ptty->m_flushbuf) {
+			free(ptty->m_flushbuf);
+		}
+		ptty->m_flushbuf = NULL;
+		ptty->m_flushsize = 0;
+		ptty->m_flushlen = 0;
+		ptty->m_flushrlen = 0;
+
+
 		ptty->m_inrd = 0;
 		ptty->m_inwr = 0;
 		ptty->m_prdptr = NULL;
@@ -60,7 +73,7 @@ void free_tty(void** pptty)
 	}
 }
 
-void* open_tty(const char* ttyname)
+void* open_tty(const char* ttyname,int maxflush)
 {
 	ptty_data_priv_t ptty = NULL;
 	int ret;
@@ -77,6 +90,19 @@ void* open_tty(const char* ttyname)
 	ptty->m_ttyfd = -1;
 	ptty->m_flushed = TTY_NONE_FLUSH;
 	ptty->m_cfgcached = 0;
+	if (maxflush <= 0) {
+		ptty->m_flushsize = (512 << 10);
+	} else {
+		ptty->m_flushsize = maxflush;
+	}
+
+	ptty->m_flushbuf = (uint8_t*)malloc(ptty->m_flushsize);
+	if (ptty->m_flushbuf == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ptty->m_flushrlen = 0;
+	ptty->m_flushlen = 0;
 
 	ptty->m_ttyname = strdup(ttyname);
 	if (ptty->m_ttyname == NULL) {
@@ -85,7 +111,7 @@ void* open_tty(const char* ttyname)
 	}
 
 	/*now open the fd*/
-	ptty->m_ttyfd = open(ptty->m_ttyname, O_RDWR);
+	ptty->m_ttyfd = open(ptty->m_ttyname, O_RDWR,O_TRUNC);
 	if (ptty->m_ttyfd < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("can not open [%s] error[%d]", ptty->m_ttyname, ret);
@@ -132,6 +158,7 @@ int _flush_tty_read_buffer(ptty_data_priv_t ptty)
 	int ret;
 	int cnt = 0;
 	int completed = 0;
+	int curlen = 0;
 	if (ptty->m_ttyfd < 0) {
 		ret = -EINVAL;
 		SETERRNO(ret);
@@ -144,7 +171,7 @@ int _flush_tty_read_buffer(ptty_data_priv_t ptty)
 		if (ptty->m_flushed == TTY_NONE_FLUSH) {
 			/*now we should read every left buffer in the ttyname*/
 			while (1) {
-				ret = read(ptty->m_ttyfd, ptty->m_flushbuf, 1);
+				ret = read(ptty->m_ttyfd, ptty->m_flushbuf, ptty->m_flushsize);
 				if (ret < 0) {
 					GETERRNO(ret);
 					if (ret != -EAGAIN && ret != -EWOULDBLOCK) {
@@ -161,8 +188,13 @@ int _flush_tty_read_buffer(ptty_data_priv_t ptty)
 					completed = 1;
 					break;
 				}
-				DEBUG_BUFFER_FMT(ptty->m_flushbuf, 1, "read[%s][%d]", ptty->m_ttyname, cnt);
-				cnt ++;
+
+				curlen = ret;
+				if (curlen > 0x200) {
+					curlen = 0x200;
+				}
+				DEBUG_BUFFER_FMT(ptty->m_flushbuf, curlen, "read[%s][%d] len [%d]", ptty->m_ttyname, cnt,ret);
+				cnt += ret;
 			}
 		}
 	}
@@ -357,6 +389,14 @@ int prepare_tty_config(void* ptty1, int flag, void* value)
 		ptycfg->c_cc[ucoff] = uch;
 		break;
 
+	case TTY_SET_RAW:
+		ptycfg->c_iflag = 0;
+		ptycfg->c_oflag &= ~OPOST;
+		ptycfg->c_lflag &= ~(ISIG | ICANON | XCASE);
+		ptycfg->c_cc[VMIN] = 1;
+		ptycfg->c_cc[VTIME] = 0;
+		break;
+
 	default:
 		ret = -EINVAL;
 		ERROR_INFO("[%d] not valid ctrl code", flag);
@@ -406,6 +446,7 @@ int read_tty_nonblock(void* ptty1, uint8_t* pbuf, int bufsize)
 	ptty_data_priv_t ptty = (ptty_data_priv_t)ptty1;
 	int ret;
 	int completed = 0;
+	int curlen;
 	if (ptty->m_magic != TTY_DATA_MAGIC) {
 		ret = -EINVAL;
 		SETERRNO(ret);
@@ -423,10 +464,19 @@ int read_tty_nonblock(void* ptty1, uint8_t* pbuf, int bufsize)
 
 	if (ptty->m_flushed == TTY_FLUSH_STORED) {
 		if (ptty->m_rdleft > 0) {
-			ptty->m_prdptr[0] = ptty->m_flushbuf[0];
-			ptty->m_prdptr += 1;
-			ptty->m_rdleft -= 1;
-			ptty->m_flushed = TTY_FLUSHED;
+			curlen = ptty->m_flushlen - ptty->m_flushrlen;
+			if (curlen > ptty->m_rdleft) {
+				curlen = ptty->m_rdleft;
+			}
+			if (curlen > 0) {
+				memcpy(ptty->m_prdptr, &(ptty->m_flushbuf[ptty->m_flushrlen]), curlen);	
+			}			
+			ptty->m_rdleft -= curlen;
+			ptty->m_prdptr += curlen;
+			ptty->m_flushrlen += curlen;
+			if (ptty->m_flushrlen == ptty->m_flushlen) {
+				ptty->m_flushed = TTY_FLUSHED;
+			}
 		}
 
 		if (ptty->m_rdleft == 0) {
@@ -558,6 +608,7 @@ int complete_tty_read(void* ptty1)
 {
 	ptty_data_priv_t ptty = (ptty_data_priv_t) ptty1;
 	int ret;
+	int curlen;
 	int completed = 0;
 	if (ptty->m_magic != TTY_DATA_MAGIC) {
 		ret = -EINVAL;
@@ -569,7 +620,7 @@ int complete_tty_read(void* ptty1)
 		completed = 1;
 	} else {
 		if (ptty->m_flushed == TTY_FLUSHING) {
-			ret = read(ptty->m_ttyfd, ptty->m_flushbuf, 1);
+			ret = read(ptty->m_ttyfd, ptty->m_flushbuf, ptty->m_flushsize);
 			if (ret < 0) {
 				GETERRNO(ret);
 				if (ret != -EAGAIN && ret != -EWOULDBLOCK) {
@@ -578,12 +629,22 @@ int complete_tty_read(void* ptty1)
 				}
 			} else if (ret > 0) {
 				ptty->m_flushed = TTY_FLUSH_STORED;
+				ptty->m_flushlen += ret;
 				if (ptty->m_prdptr != NULL) {
 					if (ptty->m_rdleft > 0) {
-						ptty->m_prdptr[0] = ptty->m_flushbuf[0];
-						ptty->m_prdptr += 1;
-						ptty->m_rdleft -= 1;
-						ptty->m_flushed = TTY_FLUSHED;
+						curlen = ptty->m_flushlen - ptty->m_flushrlen;
+						if (curlen > ptty->m_rdleft) {
+							curlen = ptty->m_rdleft;
+						}
+						if (curlen > 0) {
+							memcpy(ptty->m_prdptr, &(ptty->m_flushbuf[ptty->m_flushrlen]), curlen);	
+						}						
+						ptty->m_rdleft -= curlen;
+						ptty->m_prdptr += curlen;
+						ptty->m_flushrlen += curlen;
+						if (ptty->m_flushrlen == ptty->m_flushlen) {
+							ptty->m_flushed = TTY_FLUSHED;
+						}
 					}
 
 					if (ptty->m_rdleft == 0) {
@@ -618,7 +679,11 @@ read_again:
 					ret = 0;
 					break;
 				}
-				DEBUG_BUFFER_FMT(ptty->m_prdptr, ret, "read [%s] ret [%d]", ptty->m_ttyname, ret);
+				curlen = ret;
+				if (curlen > 0x200) {
+					curlen = 0x200;
+				}
+				DEBUG_BUFFER_FMT(ptty->m_prdptr, curlen, "read [%s] ret [%d]", ptty->m_ttyname, ret);
 
 				ptty->m_prdptr += ret;
 				ptty->m_rdleft -= ret;
