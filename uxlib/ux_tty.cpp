@@ -12,8 +12,15 @@
 
 #define  TTY_DATA_MAGIC   0x430129de
 
+#define  TTY_NONE_FLUSH   0
+#define  TTY_FLUSHING     1
+#define  TTY_FLUSH_STORED 2
+#define  TTY_FLUSHED      3
+
 typedef struct __tty_data_priv {
 	uint32_t m_magic;
+	int m_flushed;
+	uint8_t m_flushbuf[1];
 	int m_ttyfd;
 	char* m_ttyname;
 	int m_inrd;
@@ -68,6 +75,7 @@ void* open_tty(const char* ttyname)
 	memset(ptty, 0, sizeof(*ptty));
 	ptty->m_magic = TTY_DATA_MAGIC;
 	ptty->m_ttyfd = -1;
+	ptty->m_flushed = TTY_NONE_FLUSH;
 
 	ptty->m_ttyname = strdup(ttyname);
 	if (ptty->m_ttyname == NULL) {
@@ -118,6 +126,53 @@ fail:
 	SETERRNO(ret);
 	return NULL;
 }
+
+int _flush_tty_read_buffer(ptty_data_priv_t ptty)
+{
+	int ret;
+	int cnt = 0;
+	int completed = 0;
+	if (ptty->m_ttyfd < 0) {
+		ret = -EINVAL;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (ptty->m_flushed == TTY_FLUSHED || ptty->m_flushed == TTY_FLUSH_STORED) {
+		completed = 1;
+	} else {
+		if (ptty->m_flushed == TTY_NONE_FLUSH) {
+			/*now we should read every left buffer in the ttyname*/
+			while (1) {
+				ret = read(ptty->m_ttyfd, ptty->m_flushbuf,1);
+				if (ret < 0) {
+					GETERRNO(ret);
+					if (ret != -EAGAIN && ret != -EWOULDBLOCK) {
+						ERROR_INFO("flush buffer for [%s] error[%d]", ptty->m_ttyname, ret);
+						goto fail;
+					}
+					ptty->m_inrd = 1;
+					ptty->m_flushed = TTY_FLUSHING;
+					break;
+				} else if (ret == 0) {
+					WARN_INFO("read [%s][%d] ret == 0",ptty->m_ttyname, cnt);
+					ptty->m_inrd = 0;
+					ptty->m_flushed = TTY_FLUSHED;
+					completed = 1;
+					break;
+				}
+				DEBUG_BUFFER_FMT(ptty->m_flushbuf,1,"read[%s][%d]", ptty->m_ttyname, cnt);
+				cnt ++;
+			}
+		}
+	}
+
+	return completed;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 
 int set_tty_config(void* ptty1, int flag, void* value)
 {
@@ -279,37 +334,70 @@ int read_tty_nonblock(void* ptty1, uint8_t* pbuf, int bufsize)
 		return ret;
 	}
 
-	if (ptty->m_inrd > 0) {
+	if (ptty->m_prdptr != NULL) {
 		ret = -EBUSY;
 		SETERRNO(ret);
 		return ret;
 	}
 
-	ptty->m_inrd = 1;
 	ptty->m_prdptr = pbuf;
 	ptty->m_rdleft = bufsize;
 
-	DEBUG_INFO("will read [%s] [%p] [0x%x:%d]", ptty->m_ttyname, ptty->m_prdptr, ptty->m_rdleft,ptty->m_rdleft);
-	ret = read(ptty->m_ttyfd, ptty->m_prdptr, ptty->m_rdleft);
-	if (ret < 0) {
-		GETERRNO(ret);
-		DEBUG_INFO("read [%s] [%d] error[%d]", ptty->m_ttyname, ptty->m_rdleft, ret);
-		if (ret != -EAGAIN && ret != -EWOULDBLOCK) {
-			ERROR_INFO("read [%s] error[%d]", ptty->m_ttyname, ret);
+	if (ptty->m_flushed == TTY_FLUSH_STORED) {
+		if (ptty->m_rdleft > 0) {
+			ptty->m_prdptr[0] = ptty->m_flushbuf[0];
+			ptty->m_prdptr += 1;
+			ptty->m_rdleft -= 1;
+			ptty->m_flushed = TTY_FLUSHED;
+		}
+
+		if (ptty->m_rdleft == 0) {
+			ptty->m_prdptr = NULL;
+			ptty->m_rdleft = 0;
+			ptty->m_inrd = 0;
+			completed = 1;
+			goto succ;
+		}
+	}
+
+
+	if (ptty->m_flushed == TTY_FLUSHED) {
+	read_real_buffer:
+		/*this is handle read mode*/
+		ptty->m_inrd = 1;
+		DEBUG_INFO("will read [%s] [%p] [0x%x:%d]", ptty->m_ttyname, ptty->m_prdptr, ptty->m_rdleft,ptty->m_rdleft);
+		ret = read(ptty->m_ttyfd, ptty->m_prdptr, ptty->m_rdleft);
+		if (ret < 0) {
+			GETERRNO(ret);
+			DEBUG_INFO("read [%s] [%d] error[%d]", ptty->m_ttyname, ptty->m_rdleft, ret);
+			if (ret != -EAGAIN && ret != -EWOULDBLOCK) {
+				ERROR_INFO("read [%s] error[%d]", ptty->m_ttyname, ret);
+				goto fail;
+			}
+			/*now handle*/
+			ret = 0;
+		}
+		DEBUG_INFO("read [%s] ret [%d]",ptty->m_ttyname, ret);
+
+		ptty->m_prdptr += ret;
+		ptty->m_rdleft -= ret;
+		if (ptty->m_rdleft == 0) {
+			ptty->m_prdptr = NULL;
+			ptty->m_inrd = 0;
+			completed = 1;
+		}		
+	} else if (ptty->m_flushed == TTY_NONE_FLUSH) {
+		ret = _flush_tty_read_buffer(ptty);
+		if (ret < 0) {
+			GETERRNO(ret);
 			goto fail;
 		}
-		/*now handle*/
-		ret = 0;
+		if (ret > 0) {
+			goto read_real_buffer;
+		}
 	}
-	DEBUG_INFO("read [%s] ret [%d]",ptty->m_ttyname, ret);
 
-	ptty->m_prdptr += ret;
-	ptty->m_rdleft -= ret;
-	if (ptty->m_rdleft == 0) {
-		ptty->m_prdptr = NULL;
-		ptty->m_inrd = 0;
-		completed = 1;
-	}
+succ:	
 	return completed;
 fail:
 	SETERRNO(ret);
@@ -394,27 +482,70 @@ int complete_tty_read(void* ptty1)
 	if (ptty->m_inrd == 0) {
 		completed = 1;
 	} else {
-		ASSERT_IF(ptty->m_prdptr != NULL);
-		ASSERT_IF(ptty->m_rdleft > 0);
-		DEBUG_INFO("will read [%s] [%p] [0x%x:%d]", ptty->m_ttyname, ptty->m_prdptr, ptty->m_rdleft,ptty->m_rdleft);
-		ret = read(ptty->m_ttyfd, ptty->m_prdptr, ptty->m_rdleft);
-		if (ret < 0) {
-			GETERRNO(ret);
-			DEBUG_INFO("read [%s] [%d] error[%d]", ptty->m_ttyname, ptty->m_rdleft, ret);
-			if (ret != -EAGAIN && ret != -EWOULDBLOCK) {
-				ERROR_INFO("read [%s] error[%d]", ptty->m_ttyname, ret);
-				goto fail;	
-			}
-			ret = 0;
-		}
-		DEBUG_INFO("read [%s] ret [%d]",ptty->m_ttyname, ret);
+		if (ptty->m_flushed == TTY_FLUSHING) {
+			ret = read(ptty->m_ttyfd, ptty->m_flushbuf,1);
+			if (ret < 0) {
+				GETERRNO(ret);
+				if (ret != -EAGAIN && ret != -EWOULDBLOCK) {
+					ERROR_INFO("read flush buffer [%s] error[%d]", ptty->m_ttyname ,ret);
+					goto fail;
+				}
+			} else if (ret > 0) {
+				ptty->m_flushed = TTY_FLUSH_STORED;
+				if (ptty->m_prdptr != NULL) {
+					if (ptty->m_rdleft > 0) {
+						ptty->m_prdptr[0] = ptty->m_flushbuf[0];
+						ptty->m_prdptr += 1;
+						ptty->m_rdleft -= 1;
+						ptty->m_flushed = TTY_FLUSHED;
+					}
 
-		ptty->m_prdptr += ret;
-		ptty->m_rdleft -= ret;
-		if (ptty->m_rdleft == 0) {
-			ptty->m_prdptr = NULL;
-			ptty->m_inrd = 0;
+					if (ptty->m_rdleft == 0) {
+						ptty->m_prdptr = NULL;
+						ptty->m_rdleft = 0;
+						ptty->m_inrd = 0;
+						completed = 1;
+					}
+
+					if (ptty->m_prdptr != NULL) {
+						goto read_again;
+					}
+				} else {
+					ptty->m_inrd = 0;
+					completed = 1;					
+				}
+			}
+		} else if (ptty->m_flushed == TTY_FLUSHED) {
+		read_again:
+			ASSERT_IF(ptty->m_prdptr != NULL);
+			ASSERT_IF(ptty->m_rdleft > 0);
+			DEBUG_INFO("will read [%s] [%p] [0x%x:%d]", ptty->m_ttyname, ptty->m_prdptr, ptty->m_rdleft,ptty->m_rdleft);
+			ret = read(ptty->m_ttyfd, ptty->m_prdptr, ptty->m_rdleft);
+			if (ret < 0) {
+				GETERRNO(ret);
+				DEBUG_INFO("read [%s] [%d] error[%d]", ptty->m_ttyname, ptty->m_rdleft, ret);
+				if (ret != -EAGAIN && ret != -EWOULDBLOCK) {
+					ERROR_INFO("read [%s] error[%d]", ptty->m_ttyname, ret);
+					goto fail;	
+				}
+				ret = 0;
+			}
+			DEBUG_BUFFER_FMT(ptty->m_prdptr, ret, "read [%s] ret [%d]",ptty->m_ttyname, ret);
+
+			ptty->m_prdptr += ret;
+			ptty->m_rdleft -= ret;
+			if (ptty->m_rdleft == 0) {
+				ptty->m_prdptr = NULL;
+				ptty->m_inrd = 0;
+				completed = 1;
+			}			
+		} else if (ptty->m_flushed == TTY_FLUSH_STORED) {
+			WARN_INFO("TTY_FLUSH_STORED met again");
 			completed = 1;
+		}else {
+			ERROR_INFO("not valid state in complete_tty_read [%d]", ptty->m_flushed);
+			ret = -EINVAL;
+			goto fail;
 		}
 	}
 
@@ -467,6 +598,7 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
 
 
 int get_tty_config_direct(void* ptty1, void** ppcfg,int* psize)
