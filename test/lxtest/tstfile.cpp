@@ -495,6 +495,7 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     char* infile = NULL;
     int timemills = 1000;
     char* pbuf = NULL;
+    char* pptr = NULL;
     int bufsize=0,buflen=0;
     int ival;
     uint64_t sticks;
@@ -609,8 +610,8 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
                 ERROR_INFO("epoll_wait error[%d]", ret);
                 goto out;
             } else if (ret > 0) {
-                DEBUG_INFO("get fd [%d] events [%d:0x%x]", getevt.data.fd,getevt.events, getevt.events);
-                if (getevt.data.fd == pollfd && getevt.events != EPOLLOUT) {
+                DEBUG_INFO("get fd [%d] events [%d:0x%x] EPOLLOUT [%d]", getevt.data.fd,getevt.events, getevt.events, EPOLLOUT);
+                if (getevt.data.fd == pollfd && getevt.events == EPOLLOUT) {
                     ret = complete_tty_write(ptty);
                     if (ret < 0) {
                         GETERRNO(ret);
@@ -624,7 +625,15 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         }
     }
 
-    DEBUG_BUFFER_FMT(pbuf, buflen, "write [%s] buffer", ttyname);
+    if (buflen > 0x200) {
+        DEBUG_BUFFER_FMT(pbuf, 0x200, "write [%s] buffer start", ttyname);
+        pptr = pbuf + buflen - 1;
+        pptr -= 0x200;
+        DEBUG_BUFFER_FMT(pptr, 0x200, "write [%s] buffer end", ttyname);
+    } else {
+        DEBUG_BUFFER_FMT(pbuf, buflen, "write [%s] buffer", ttyname);    
+    }
+    
     ret = 0;
 out:
     free_tty(&ptty);
