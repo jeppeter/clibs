@@ -345,3 +345,77 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int __inner_write_serial(pwin_serial_priv_t pcom)
+{
+	int completed = 0;
+	int ret;
+	DWORD cbret;
+	BOOL bret;
+
+	while(pcom->m_wrleft > 0) {
+		bret = ReadFile(pcom->m_hfile,pcom->m_pwrptr,(DWORD) pcom->m_wrleft,&cbret,&(pcom->m_wrov));
+		if (!bret) {
+			GETERRNO(ret);
+			if (ret == -ERROR_IO_PENDING ) {
+				DEBUG_INFO("write pending on [%d] rdleft", pcom->m_rdleft);
+				return 0;
+			} else if (ret == -ERROR_MORE_DATA) {
+				pcom->m_wrleft -= cbret;
+				pcom->m_pwrptr += cbret;
+				pcom->m_wrtotal += cbret;
+				if (pcom->m_wrleft == 0) {
+					pcom->m_pwrptr = NULL;
+					completed = 1;
+					pcom->m_inwr = 0;
+				}
+				return completed;
+			}
+			ERROR_INFO("can not write [%s] on [%d] error[%d]",pcom->m_name, pcom->m_wrleft, ret);
+			SETERRNO(ret);
+			return ret;
+		}
+
+		DEBUG_INFO("cbret [%d]", cbret);
+		pcom->m_wrleft -= cbret;
+		pcom->m_pwrptr += cbret;
+		pcom->m_wrtotal += cbret;
+	}
+
+	if (pcom->m_wrleft == 0) {
+		completed = 1;
+		pcom->m_pwrptr = NULL;
+		pcom->m_inwr = 0;
+	}
+	return completed;
+}
+
+
+int write_serial(void* pcom1, void* pbuf,int bufsize)
+{
+	pwin_serial_priv_t pcom = (pwin_serial_priv_t) pcom1;
+	int completed = 0;
+	int ret;
+	if (pcom == NULL || pcom->m_magic != SERIAL_DATA_MAGIC ||
+		pcom->m_inwr > 0) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	pcom->m_pwrptr = (uint8_t*)pbuf;
+	pcom->m_wrleft = bufsize;
+	pcom->m_inwr = 1;
+	ret = __inner_write_serial(pcom);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	if (pcom->m_inwr == 0) {
+		completed = 1;
+	}
+	return completed;
+fail:
+	SETERRNO(ret);
+	return ret;	
+}
