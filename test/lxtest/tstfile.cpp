@@ -359,7 +359,7 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         goto out;
     }
 
-    ptty = open_tty(ttyname,-1);
+    ptty = open_tty(ttyname, -1);
     if (ptty == NULL) {
         GETERRNO(ret);
         ERROR_INFO("open [%s] error[%d]", ttyname, ret);
@@ -440,7 +440,7 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         }
     }
 
-    print_buffer(stdout,(unsigned char*)pbuf, readsize, "read [%s] buffer", ttyname);
+    print_buffer(stdout, (unsigned char*)pbuf, readsize, "read [%s] buffer", ttyname);
     ret = 0;
 out:
     free_tty(&ptty);
@@ -493,7 +493,7 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         goto out;
     }
 
-    ptty = open_tty(ttyname,-1);
+    ptty = open_tty(ttyname, -1);
     if (ptty == NULL) {
         GETERRNO(ret);
         ERROR_INFO("open [%s] error[%d]", ttyname, ret);
@@ -573,12 +573,12 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     }
 
     if (buflen > 0x200) {
-        print_buffer(stdout,(unsigned char*)pbuf, 0x200, "write [%s] buffer start", ttyname);
+        print_buffer(stdout, (unsigned char*)pbuf, 0x200, "write [%s] buffer start", ttyname);
         pptr = pbuf + buflen - 1;
         pptr -= 0x200;
-        print_buffer(stdout,(unsigned char*)pptr, 0x200, "write [%s] buffer end", ttyname);
+        print_buffer(stdout, (unsigned char*)pptr, 0x200, "write [%s] buffer end", ttyname);
     } else {
-        print_buffer(stdout,(unsigned char*)pbuf, buflen, "write [%s] buffer", ttyname);
+        print_buffer(stdout, (unsigned char*)pbuf, buflen, "write [%s] buffer", ttyname);
     }
 
     ret = 0;
@@ -711,7 +711,7 @@ int ttycfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         goto out;
     }
 
-    ptty = open_tty(ttyname,-1);
+    ptty = open_tty(ttyname, -1);
     if (ptty == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not open [%s] error[%d]", ttyname, ret);
@@ -729,8 +729,8 @@ int ttycfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     DEBUG_BUFFER_FMT(pbuf, buflen, "[%s] config", ttyname);
     pcfg = (struct termios*) pbuf;
     fprintf(stdout, "[%s]\n", ttyname);
-    TTY_SPEED_NOTE(c_ispeed,"ispeed");
-    TTY_SPEED_NOTE(c_ospeed,"ospeed");
+    TTY_SPEED_NOTE(c_ispeed, "ispeed");
+    TTY_SPEED_NOTE(c_ospeed, "ospeed");
 
 
     fprintf(stdout, "c_cc    ");
@@ -895,25 +895,25 @@ int ttycfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     fprintf(stdout, "\n");
 
     fprintf(stdout, "c_lflag ");
-    TTY_LFLAG_BIT(ISIG,"isig");
-    TTY_LFLAG_BIT(ICANON,"icanon");
-    TTY_LFLAG_BIT(IEXTEN,"iexten");
-    TTY_LFLAG_BIT(ECHO,"echo");
+    TTY_LFLAG_BIT(ISIG, "isig");
+    TTY_LFLAG_BIT(ICANON, "icanon");
+    TTY_LFLAG_BIT(IEXTEN, "iexten");
+    TTY_LFLAG_BIT(ECHO, "echo");
     fprintf(stdout, "\n");
     fprintf(stdout, "        ");
-    TTY_LFLAG_BIT(ECHOE,"echoe");
-    TTY_LFLAG_BIT(ECHOK,"echok");
-    TTY_LFLAG_BIT(ECHONL,"echonl");
-    TTY_LFLAG_BIT(NOFLSH,"noflsh");
+    TTY_LFLAG_BIT(ECHOE, "echoe");
+    TTY_LFLAG_BIT(ECHOK, "echok");
+    TTY_LFLAG_BIT(ECHONL, "echonl");
+    TTY_LFLAG_BIT(NOFLSH, "noflsh");
     fprintf(stdout, "\n");
     fprintf(stdout, "        ");
-    TTY_LFLAG_BIT(XCASE,"xcase");
-    TTY_LFLAG_BIT(TOSTOP,"tostop");
-    TTY_LFLAG_BIT(ECHOPRT,"echoprt");
-    TTY_LFLAG_BIT(ECHOCTL,"echoctl");
+    TTY_LFLAG_BIT(XCASE, "xcase");
+    TTY_LFLAG_BIT(TOSTOP, "tostop");
+    TTY_LFLAG_BIT(ECHOPRT, "echoprt");
+    TTY_LFLAG_BIT(ECHOCTL, "echoctl");
     fprintf(stdout, "\n");
     fprintf(stdout, "        ");
-    TTY_LFLAG_BIT(ECHOKE,"echoke");
+    TTY_LFLAG_BIT(ECHOKE, "echoke");
 
     fprintf(stdout, "\n");
 
@@ -941,6 +941,7 @@ int ttycfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     uint64_t val64;
     char* keyname = NULL;
     int idx;
+    char* valname = NULL;
 
     init_log_verbose(pargs);
 
@@ -954,7 +955,7 @@ int ttycfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         goto out;
     }
 
-    ptty = open_tty(ttyname,-1);
+    ptty = open_tty(ttyname, -1);
     if (ptty == NULL) {
         GETERRNO(ret);
         ERROR_INFO("can not open [%s] error[%d]", ttyname, ret);
@@ -968,82 +969,334 @@ int ttycfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         val64 = 0;
         if (strcmp(keyname, "iflagset") == 0) {
             vflag = TTY_SET_IFLAGS;
-            GET_OPT_NUM64(val64, "set iflag");
-            if (val64 == 0) {
+            if (parsestate->leftargs[idx] == NULL) {
                 ret = -EINVAL;
-                fprintf(stderr, "no set iflag\n");
+                ERROR_INFO("[%s] need arg", keyname);
                 goto out;
             }
+            valname = parsestate->leftargs[idx];
+            if (strcmp(valname, "ignbrk") == 0) {
+                val64 = IGNBRK;
+            } else if (strcmp(valname, "brkint") == 0) {
+                val64 = BRKINT;
+            } else if (strcmp(valname, "ignpar") == 0) {
+                val64 = IGNPAR;
+            } else if (strcmp(valname, "parmrk") == 0) {
+                val64 = PARMRK;
+            } else if (strcmp(valname, "inpck") == 0) {
+                val64 = INPCK;
+            } else if (strcmp(valname, "istrip") == 0) {
+                val64 = ISTRIP;
+            } else if (strcmp(valname, "inlcr") == 0) {
+                val64 = INLCR;
+            } else if (strcmp(valname, "igncr") == 0) {
+                val64 = IGNCR;
+            } else if (strcmp(valname, "icrnl") == 0) {
+                val64 = ICRNL;
+            } else if (strcmp(valname, "iuclc") == 0) {
+                val64 = IUCLC;
+            } else if (strcmp(valname, "ixon") == 0) {
+                val64 = IXON;
+            } else if (strcmp(valname, "ixoff") == 0) {
+                val64 = IXOFF;
+            } else if (strcmp(valname, "imaxbel") == 0) {
+                val64 = IMAXBEL;
+            } else if (strcmp(valname, "iutf8") == 0) {
+                val64 = IUTF8;
+            } else {
+                GET_OPT_NUM64(val64, "set iflag");
+                if (val64 == 0) {
+                    ret = -EINVAL;
+                    fprintf(stderr, "no set iflag\n");
+                    goto out;
+                }
+                idx -= 1;
+            }
+            idx += 1;
             uptr = (unsigned int*)cfgbuf;
             *uptr = (unsigned int) val64;
         } else if (strcmp(keyname, "iflagclear") == 0) {
             vflag = TTY_CLEAR_IFLAGS;
-            GET_OPT_NUM64(val64, "clear iflag");
-            if (val64 == 0) {
+            if (parsestate->leftargs[idx] == NULL) {
                 ret = -EINVAL;
-                fprintf(stderr, "no clear iflag\n");
+                ERROR_INFO("[%s] need arg", keyname);
                 goto out;
             }
+            valname = parsestate->leftargs[idx];
+            if (strcmp(valname, "ignbrk") == 0) {
+                val64 = IGNBRK;
+            } else if (strcmp(valname, "brkint") == 0) {
+                val64 = BRKINT;
+            } else if (strcmp(valname, "ignpar") == 0) {
+                val64 = IGNPAR;
+            } else if (strcmp(valname, "parmrk") == 0) {
+                val64 = PARMRK;
+            } else if (strcmp(valname, "inpck") == 0) {
+                val64 = INPCK;
+            } else if (strcmp(valname, "istrip") == 0) {
+                val64 = ISTRIP;
+            } else if (strcmp(valname, "inlcr") == 0) {
+                val64 = INLCR;
+            } else if (strcmp(valname, "igncr") == 0) {
+                val64 = IGNCR;
+            } else if (strcmp(valname, "icrnl") == 0) {
+                val64 = ICRNL;
+            } else if (strcmp(valname, "iuclc") == 0) {
+                val64 = IUCLC;
+            } else if (strcmp(valname, "ixon") == 0) {
+                val64 = IXON;
+            } else if (strcmp(valname, "ixoff") == 0) {
+                val64 = IXOFF;
+            } else if (strcmp(valname, "imaxbel") == 0) {
+                val64 = IMAXBEL;
+            } else if (strcmp(valname, "iutf8") == 0) {
+                val64 = IUTF8;
+            } else {
+                GET_OPT_NUM64(val64, "clear iflag");
+                if (val64 == 0) {
+                    ret = -EINVAL;
+                    fprintf(stderr, "no clear iflag\n");
+                    goto out;
+                }
+                idx -= 1;
+            }
+            idx += 1;
             uptr = (unsigned int*)cfgbuf;
             *uptr = (unsigned int) val64;
         } else if (strcmp(keyname, "oflagset") == 0) {
             vflag = TTY_SET_OFLAGS;
-            GET_OPT_NUM64(val64, "set oflag");
-            if (val64 == 0) {
+            if (parsestate->leftargs[idx] == NULL) {
                 ret = -EINVAL;
-                fprintf(stderr, "no set oflag\n");
+                ERROR_INFO("[%s] need arg", keyname);
                 goto out;
             }
+            valname = parsestate->leftargs[idx];
+            if (strcmp(valname, "opost") == 0) {
+                val64 = OPOST;
+            } else if (strcmp(valname, "olcuc") == 0) {
+                val64 = OLCUC;
+            } else if (strcmp(valname, "ocrnl") == 0) {
+                val64 = OCRNL;
+            } else if (strcmp(valname, "onlcr") == 0) {
+                val64 = ONLCR;
+            } else if (strcmp(valname, "onocr") == 0) {
+                val64 = ONOCR;
+            } else if (strcmp(valname, "onlret") == 0) {
+                val64 = ONLRET;
+            } else if (strcmp(valname, "ofill") == 0) {
+                val64 = OFILL;
+            } else if (strcmp(valname, "ofdel") == 0) {
+                val64 = OFDEL;
+            } else {
+                GET_OPT_NUM64(val64, "set oflag");
+                if (val64 == 0) {
+                    ret = -EINVAL;
+                    fprintf(stderr, "no set oflag\n");
+                    goto out;
+                }
+                idx -= 1;
+            }
+            idx += 1;
             uptr = (unsigned int*)cfgbuf;
             *uptr = (unsigned int) val64;
         } else if (strcmp(keyname, "oflagclear") == 0) {
             vflag = TTY_CLEAR_OFLAGS;
-            GET_OPT_NUM64(val64, "clear oflag");
-            if (val64 == 0) {
+            if (parsestate->leftargs[idx] == NULL) {
                 ret = -EINVAL;
-                fprintf(stderr, "no clear oflag\n");
+                ERROR_INFO("[%s] need arg", keyname);
                 goto out;
             }
+            valname = parsestate->leftargs[idx];
+            if (strcmp(valname, "opost") == 0) {
+                val64 = OPOST;
+            } else if (strcmp(valname, "olcuc") == 0) {
+                val64 = OLCUC;
+            } else if (strcmp(valname, "ocrnl") == 0) {
+                val64 = OCRNL;
+            } else if (strcmp(valname, "onlcr") == 0) {
+                val64 = ONLCR;
+            } else if (strcmp(valname, "onocr") == 0) {
+                val64 = ONOCR;
+            } else if (strcmp(valname, "onlret") == 0) {
+                val64 = ONLRET;
+            } else if (strcmp(valname, "ofill") == 0) {
+                val64 = OFILL;
+            } else if (strcmp(valname, "ofdel") == 0) {
+                val64 = OFDEL;
+            } else {
+                GET_OPT_NUM64(val64, "clear oflag");
+                if (val64 == 0) {
+                    ret = -EINVAL;
+                    fprintf(stderr, "no clear oflag\n");
+                    goto out;
+                }
+                idx -= 1;
+            }
+            idx += 1;
             uptr = (unsigned int*)cfgbuf;
             *uptr = (unsigned int) val64;
         } else if (strcmp(keyname, "cflagset") == 0) {
             vflag = TTY_SET_CFLAGS;
-            GET_OPT_NUM64(val64, "set cflag");
-            if (val64 == 0) {
+            if (parsestate->leftargs[idx] == NULL) {
                 ret = -EINVAL;
-                fprintf(stderr, "no set cflag\n");
+                ERROR_INFO("[%s] need arg", keyname);
                 goto out;
             }
+            valname = parsestate->leftargs[idx];
+            if (strcmp(valname, "parenb") == 0) {
+                val64 = PARENB;
+            } else if (strcmp(valname, "parodd") == 0) {
+                val64 = PARODD;
+            } else if (strcmp(valname, "hupcl") == 0) {
+                val64 = HUPCL;
+            } else if (strcmp(valname, "cstopb") == 0) {
+                val64 = CSTOPB;
+            } else if (strcmp(valname, "cread") == 0) {
+                val64 = CREAD;
+            } else if (strcmp(valname, "clocal") == 0) {
+                val64 = CLOCAL;
+            } else if (strcmp(valname, "crtscts") == 0) {
+                val64 = CRTSCTS;
+            } else {
+                GET_OPT_NUM64(val64, "set cflag");
+                if (val64 == 0) {
+                    ret = -EINVAL;
+                    fprintf(stderr, "no set cflag\n");
+                    goto out;
+                }
+                idx -= 1;
+            }
+            idx += 1;
             uptr = (unsigned int*)cfgbuf;
             *uptr = (unsigned int) val64;
         } else if (strcmp(keyname, "cflagclear") == 0) {
             vflag = TTY_CLEAR_CFLAGS;
-            GET_OPT_NUM64(val64, "clear cflag");
-            if (val64 == 0) {
+            if (parsestate->leftargs[idx] == NULL) {
                 ret = -EINVAL;
-                fprintf(stderr, "no clear cflag\n");
+                ERROR_INFO("[%s] need arg", keyname);
                 goto out;
             }
+            valname = parsestate->leftargs[idx];
+            if (strcmp(valname, "parenb") == 0) {
+                val64 = PARENB;
+            } else if (strcmp(valname, "parodd") == 0) {
+                val64 = PARODD;
+            } else if (strcmp(valname, "hupcl") == 0) {
+                val64 = HUPCL;
+            } else if (strcmp(valname, "cstopb") == 0) {
+                val64 = CSTOPB;
+            } else if (strcmp(valname, "cread") == 0) {
+                val64 = CREAD;
+            } else if (strcmp(valname, "clocal") == 0) {
+                val64 = CLOCAL;
+            } else if (strcmp(valname, "crtscts") == 0) {
+                val64 = CRTSCTS;
+            } else {
+                GET_OPT_NUM64(val64, "clear cflag");
+                if (val64 == 0) {
+                    ret = -EINVAL;
+                    fprintf(stderr, "no clear cflag\n");
+                    goto out;
+                }
+                idx -= 1;
+            }
+            idx += 1;
             uptr = (unsigned int*)cfgbuf;
             *uptr = (unsigned int) val64;
         } else if (strcmp(keyname, "lflagset") == 0) {
             vflag = TTY_SET_LFLAGS;
-            GET_OPT_NUM64(val64, "set lflag");
-            if (val64 == 0) {
+            if (parsestate->leftargs[idx] == NULL) {
                 ret = -EINVAL;
-                fprintf(stderr, "no set lflag\n");
+                ERROR_INFO("[%s] need arg", keyname);
                 goto out;
             }
+            valname = parsestate->leftargs[idx];
+            if (strcmp(valname, "isig") == 0) {
+                val64 = ISIG;
+            } else if (strcmp(valname, "icanon") == 0) {
+                val64 = ICANON;
+            } else if (strcmp(valname, "icanon") == 0) {
+                val64 = ICANON;
+            } else if (strcmp(valname, "iexten") == 0) {
+                val64 = IEXTEN;
+            } else if (strcmp(valname, "echo") == 0) {
+                val64 = ECHO;
+            } else if (strcmp(valname, "echoe") == 0) {
+                val64 = ECHOE;
+            } else if (strcmp(valname, "echok") == 0) {
+                val64 = ECHOK;
+            } else if (strcmp(valname, "echonl") == 0) {
+                val64 = ECHONL;
+            } else if (strcmp(valname, "noflsh") == 0) {
+                val64 = NOFLSH;
+            } else if (strcmp(valname, "xcase") == 0) {
+                val64 = XCASE;
+            } else if (strcmp(valname, "tostop") == 0) {
+                val64 = TOSTOP;
+            } else if (strcmp(valname, "echoprt") == 0) {
+                val64 = ECHOPRT;
+            } else if (strcmp(valname, "echoctl") == 0) {
+                val64 = ECHOCTL;
+            } else if (strcmp(valname, "echoke") == 0) {
+                val64 = ECHOKE;
+            } else {
+                GET_OPT_NUM64(val64, "set lflag");
+                if (val64 == 0) {
+                    ret = -EINVAL;
+                    fprintf(stderr, "no set lflag\n");
+                    goto out;
+                }
+                idx -= 1;
+            }
+            idx += 1;
             uptr = (unsigned int*)cfgbuf;
             *uptr = (unsigned int) val64;
         } else if (strcmp(keyname, "lflagclear") == 0) {
             vflag = TTY_CLEAR_LFLAGS;
-            GET_OPT_NUM64(val64, "clear lflag");
-            if (val64 == 0) {
+            if (parsestate->leftargs[idx] == NULL) {
                 ret = -EINVAL;
-                fprintf(stderr, "no clear lflag\n");
+                ERROR_INFO("[%s] need arg", keyname);
                 goto out;
             }
+            valname = parsestate->leftargs[idx];
+            if (strcmp(valname, "isig") == 0) {
+                val64 = ISIG;
+            } else if (strcmp(valname, "icanon") == 0) {
+                val64 = ICANON;
+            } else if (strcmp(valname, "icanon") == 0) {
+                val64 = ICANON;
+            } else if (strcmp(valname, "iexten") == 0) {
+                val64 = IEXTEN;
+            } else if (strcmp(valname, "echo") == 0) {
+                val64 = ECHO;
+            } else if (strcmp(valname, "echoe") == 0) {
+                val64 = ECHOE;
+            } else if (strcmp(valname, "echok") == 0) {
+                val64 = ECHOK;
+            } else if (strcmp(valname, "echonl") == 0) {
+                val64 = ECHONL;
+            } else if (strcmp(valname, "noflsh") == 0) {
+                val64 = NOFLSH;
+            } else if (strcmp(valname, "xcase") == 0) {
+                val64 = XCASE;
+            } else if (strcmp(valname, "tostop") == 0) {
+                val64 = TOSTOP;
+            } else if (strcmp(valname, "echoprt") == 0) {
+                val64 = ECHOPRT;
+            } else if (strcmp(valname, "echoctl") == 0) {
+                val64 = ECHOCTL;
+            } else if (strcmp(valname, "echoke") == 0) {
+                val64 = ECHOKE;
+            } else {
+                GET_OPT_NUM64(val64, "clear lflag");
+                if (val64 == 0) {
+                    ret = -EINVAL;
+                    fprintf(stderr, "no clear lflag\n");
+                    goto out;
+                }
+                idx -= 1;
+            }
+            idx += 1;
             uptr = (unsigned int*)cfgbuf;
             *uptr = (unsigned int) val64;
         } else if (strcmp(keyname, "clineset") == 0) {
@@ -1084,9 +1337,269 @@ int ttycfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
                 goto out;
             }
             ucptr[1] = (unsigned char)ival;
-        } else if (strcmp(keyname,"raw") == 0) {
+        } else if (strcmp(keyname, "raw") == 0) {
             vflag = TTY_SET_RAW;
-            memset(cfgbuf,0,sizeof(cfgbuf));
+            memset(cfgbuf, 0, sizeof(cfgbuf));
+        } else if (strcmp(keyname, "cs8") == 0) {
+            vflag = TTY_CLEAR_CFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CSIZE;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_CFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CS8;
+        } else if (strcmp(keyname, "cs7") == 0) {
+            vflag = TTY_CLEAR_CFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CSIZE;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_CFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CS7;
+        } else if (strcmp(keyname, "cs6") == 0) {
+            vflag = TTY_CLEAR_CFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CSIZE;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_CFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CS6;
+        } else if (strcmp(keyname, "cs5") == 0) {
+            vflag = TTY_CLEAR_CFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CSIZE;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_CFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CS5;
+        } else if (strcmp(keyname, "nl0") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = NLDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = NL0;
+        } else if (strcmp(keyname, "nl1") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = NLDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = NL0;
+        } else if (strcmp(keyname, "cr0") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CRDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CR0;
+        } else if (strcmp(keyname, "cr1") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CRDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CR1;
+        } else if (strcmp(keyname, "cr2") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CRDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CR2;
+        } else if (strcmp(keyname, "cr3") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CRDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = CR3;
+        } else if (strcmp(keyname, "tab0") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = TABDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = TAB0;
+        } else if (strcmp(keyname, "tab1") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = TABDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = TAB1;
+        } else if (strcmp(keyname, "tab2") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = TABDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = TAB2;
+        } else if (strcmp(keyname, "tab3") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = TABDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = TAB3;
+        } else if (strcmp(keyname, "bs0") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = BSDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = BS0;
+        } else if (strcmp(keyname, "bs1") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = BSDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = BS1;
+        } else if (strcmp(keyname, "vt0") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = VTDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = VT0;
+        } else if (strcmp(keyname, "vt1") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = VTDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = VT1;
+        } else if (strcmp(keyname, "ff0") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = FFDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = FF0;
+        } else if (strcmp(keyname, "ff1") == 0) {
+            vflag = TTY_CLEAR_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = FFDLY;
+            ret = prepare_tty_config(ptty, vflag, cfgbuf);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("can not set [%s] ", keyname);
+                goto out;
+            }
+            vflag = TTY_SET_OFLAGS;
+            iptr = (int*)cfgbuf;
+            *iptr = FF1;
         } else {
             ret = -EINVAL;
             fprintf(stderr, "not support keyname [%s]\n", keyname);
