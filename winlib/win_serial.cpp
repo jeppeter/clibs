@@ -26,7 +26,11 @@ typedef struct __win_serial_priv {
 	int m_inwr;
 	uint64_t m_rdtotal;
 	uint64_t m_wrtotal;
-} win_serial_priv_t,*pwin_serial_priv_t;
+	DCB m_dcb;
+	DCB m_cacheddcb;
+	int m_cached;
+	int m_reserv4;
+} win_serial_priv_t, *pwin_serial_priv_t;
 
 void __free_serial(pwin_serial_priv_t* ppcom)
 {
@@ -40,14 +44,14 @@ void __free_serial(pwin_serial_priv_t* ppcom)
 
 		if (pcom->m_inrd > 0) {
 			ASSERT_IF(pcom->m_hfile != NULL && pcom->m_hfile != INVALID_HANDLE_VALUE);
-			bret = CancelIoEx(pcom->m_hfile,&(pcom->m_rdov));
+			bret = CancelIoEx(pcom->m_hfile, &(pcom->m_rdov));
 			if (!bret) {
 				GETERRNO(ret);
 				ERROR_INFO("cancel [%s] read event error[%d]", pcom->m_name, ret);
 			}
 		}
 		pcom->m_inrd = 0;
-		memset(&(pcom->m_rdov), 0 ,sizeof(pcom->m_rdov));
+		memset(&(pcom->m_rdov), 0 , sizeof(pcom->m_rdov));
 
 		if (pcom->m_inwr > 0) {
 			ASSERT_IF(pcom->m_hfile != NULL && pcom->m_hfile != INVALID_HANDLE_VALUE);
@@ -58,7 +62,7 @@ void __free_serial(pwin_serial_priv_t* ppcom)
 			}
 		}
 		pcom->m_inwr = 0;
-		memset(&(pcom->m_wrov),0, sizeof(pcom->m_wrov));
+		memset(&(pcom->m_wrov), 0, sizeof(pcom->m_wrov));
 
 		if (pcom->m_hrdevt != NULL) {
 			CloseHandle(pcom->m_hrdevt);
@@ -88,6 +92,10 @@ void __free_serial(pwin_serial_priv_t* ppcom)
 		pcom->m_rdtotal = 0;
 		pcom->m_wrtotal = 0;
 
+		memset(&(pcom->m_dcb), 0, sizeof(pcom->m_dcb));
+		memset(&(pcom->m_cacheddcb), 0, sizeof(pcom->m_cacheddcb));
+		pcom->m_cached = 0;
+
 		free(pcom);
 		*ppcom = NULL;
 	}
@@ -99,17 +107,16 @@ void close_serial(void** ppcom)
 }
 
 
-void* open_serial(const char* name, int baudrate)
+void* open_serial(const char* name)
 {
 	pwin_serial_priv_t pcom = NULL;
 	int ret;
-	TCHAR* ptname=NULL;
-	int tnamesize=0;
-	DCB *pdcb=NULL;
+	TCHAR* ptname = NULL;
+	int tnamesize = 0;
 	BOOL bret;
 
 	if (name == NULL) {
-		ret=  -ERROR_INVALID_PARAMETER;
+		ret =  -ERROR_INVALID_PARAMETER;
 		goto fail;
 	}
 
@@ -130,11 +137,17 @@ void* open_serial(const char* name, int baudrate)
 	pcom->m_rdleft = 0;
 	pcom->m_pwrptr = NULL;
 	pcom->m_wrleft = 0;
-	memset(&(pcom->m_rdov),0,sizeof(pcom->m_rdov));
-	memset(&(pcom->m_wrov),0,sizeof(pcom->m_wrov));
+
+	memset(&(pcom->m_rdov), 0, sizeof(pcom->m_rdov));
+	memset(&(pcom->m_wrov), 0, sizeof(pcom->m_wrov));
 
 	pcom->m_inrd = 0;
 	pcom->m_inwr = 0;
+
+	memset(&(pcom->m_dcb), 0, sizeof(pcom->m_dcb));
+	memset(&(pcom->m_cacheddcb), 0, sizeof(pcom->m_cacheddcb));
+	pcom->m_cached = 0;
+
 
 	/*now to open file*/
 	pcom->m_name = _strdup(name);
@@ -143,8 +156,8 @@ void* open_serial(const char* name, int baudrate)
 		goto fail;
 	}
 
-	ret = AnsiToTchar(name,&ptname,&tnamesize);
-	if (ret < 0){
+	ret = AnsiToTchar(name, &ptname, &tnamesize);
+	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
@@ -174,16 +187,11 @@ void* open_serial(const char* name, int baudrate)
 	}
 	pcom->m_wrov.hEvent = pcom->m_hwrevt;
 
-	/*now to set for the com state*/
-	pdcb = (DCB*)malloc(sizeof(*pdcb));
-	if (pdcb == NULL) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	memset(pdcb, 0, sizeof(*pdcb));
-	pdcb->DCBlength = sizeof(*pdcb);
+	memset(&(pcom->m_dcb),0,sizeof(pcom->m_dcb));
+	pcom->m_dcb.DCBlength = sizeof(pcom->m_dcb.DCBlength);
 
-	bret = GetCommState(pcom->m_hfile, pdcb);
+
+	bret = GetCommState(pcom->m_hfile, &(pcom->m_dcb));
 	if (!bret) {
 		GETERRNO(ret);
 		ERROR_INFO("can not GetCommState [%s] error[%d]", pcom->m_name, ret);
@@ -191,83 +199,11 @@ void* open_serial(const char* name, int baudrate)
 	}
 
 
-	switch(baudrate) {
-	case 110:
-		pdcb->BaudRate = CBR_110;
-		break;
-	case 300:
-		pdcb->BaudRate = CBR_300;
-		break;
-	case 600:
-		pdcb->BaudRate = CBR_600;
-		break;
-	case 1200:
-		pdcb->BaudRate = CBR_1200;
-		break;
-	case 2400:
-		pdcb->BaudRate = CBR_2400;
-		break;
-	case 4800:
-		pdcb->BaudRate = CBR_4800;
-		break;
-	case 9600:
-		pdcb->BaudRate = CBR_9600;
-		break;
-	case 14400:
-		pdcb->BaudRate = CBR_14400;
-		break;
-	case 19200:
-		pdcb->BaudRate = CBR_19200;
-		break;
-	case 38400:
-		pdcb->BaudRate = CBR_38400;
-		break;
-	case 57600:
-		pdcb->BaudRate = CBR_57600;
-		break;
-	case 115200:
-		pdcb->BaudRate = CBR_115200;
-		break;
-	case 128000:
-		pdcb->BaudRate = CBR_128000;
-		break;
-	case 256000:
-		pdcb->BaudRate = CBR_256000;
-		break;
-	default:
-		ret = -ERROR_INVALID_PARAMETER;
-		ERROR_INFO("not valid baudrate [%d]" ,baudrate);
-		goto fail;
-	}
-
-	pdcb->fBinary = TRUE;
-	pdcb->fParity = NOPARITY;
-	pdcb->ByteSize = 8;
-	pdcb->StopBits = ONESTOPBIT;
-
-	bret = SetCommState(pcom->m_hfile, pdcb);
-	if (!bret) {
-		GETERRNO(ret);
-		ERROR_INFO("SetCommState [%s] error[%d]",pcom->m_name, ret);
-		goto fail;
-	}
-
-
-	if (pdcb) {
-		free(pdcb);
-	}
-	pdcb = NULL;
-
 	DEBUG_INFO("open [%s] succ", pcom->m_name);
-	AnsiToTchar(NULL,&ptname,&tnamesize);
+	AnsiToTchar(NULL, &ptname, &tnamesize);
 	return pcom;
 fail:
-	if (pdcb) {
-		free(pdcb);
-	}
-	pdcb = NULL;
-
-	AnsiToTchar(NULL,&ptname,&tnamesize);
+	AnsiToTchar(NULL, &ptname, &tnamesize);
 	__free_serial(&pcom);
 	SETERRNO(ret);
 	return NULL;
@@ -280,8 +216,8 @@ int __inner_read_serial(pwin_serial_priv_t pcom)
 	DWORD cbret;
 	BOOL bret;
 
-	while(pcom->m_rdleft > 0) {
-		bret = ReadFile(pcom->m_hfile,pcom->m_prdptr,(DWORD) pcom->m_rdleft,&cbret,&(pcom->m_rdov));
+	while (pcom->m_rdleft > 0) {
+		bret = ReadFile(pcom->m_hfile, pcom->m_prdptr, (DWORD) pcom->m_rdleft, &cbret, &(pcom->m_rdov));
 		if (!bret) {
 			GETERRNO(ret);
 			if (ret == -ERROR_IO_PENDING ) {
@@ -298,7 +234,7 @@ int __inner_read_serial(pwin_serial_priv_t pcom)
 				}
 				return completed;
 			}
-			ERROR_INFO("can not read [%s] on [%d] error[%d]",pcom->m_name, pcom->m_rdleft, ret);
+			ERROR_INFO("can not read [%s] on [%d] error[%d]", pcom->m_name, pcom->m_rdleft, ret);
 			SETERRNO(ret);
 			return ret;
 		}
@@ -323,7 +259,7 @@ int read_serial(void* pcom1, void* pbuf, int bufsize)
 	int completed = 0;
 	int ret;
 	if (pcom == NULL || pcom->m_magic != SERIAL_DATA_MAGIC ||
-		pcom->m_inrd > 0) {
+	        pcom->m_inrd > 0) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
 		return ret;
@@ -353,8 +289,8 @@ int __inner_write_serial(pwin_serial_priv_t pcom)
 	DWORD cbret;
 	BOOL bret;
 
-	while(pcom->m_wrleft > 0) {
-		bret = ReadFile(pcom->m_hfile,pcom->m_pwrptr,(DWORD) pcom->m_wrleft,&cbret,&(pcom->m_wrov));
+	while (pcom->m_wrleft > 0) {
+		bret = ReadFile(pcom->m_hfile, pcom->m_pwrptr, (DWORD) pcom->m_wrleft, &cbret, &(pcom->m_wrov));
 		if (!bret) {
 			GETERRNO(ret);
 			if (ret == -ERROR_IO_PENDING ) {
@@ -371,7 +307,7 @@ int __inner_write_serial(pwin_serial_priv_t pcom)
 				}
 				return completed;
 			}
-			ERROR_INFO("can not write [%s] on [%d] error[%d]",pcom->m_name, pcom->m_wrleft, ret);
+			ERROR_INFO("can not write [%s] on [%d] error[%d]", pcom->m_name, pcom->m_wrleft, ret);
 			SETERRNO(ret);
 			return ret;
 		}
@@ -391,13 +327,13 @@ int __inner_write_serial(pwin_serial_priv_t pcom)
 }
 
 
-int write_serial(void* pcom1, void* pbuf,int bufsize)
+int write_serial(void* pcom1, void* pbuf, int bufsize)
 {
 	pwin_serial_priv_t pcom = (pwin_serial_priv_t) pcom1;
 	int completed = 0;
 	int ret;
 	if (pcom == NULL || pcom->m_magic != SERIAL_DATA_MAGIC ||
-		pcom->m_inwr > 0) {
+	        pcom->m_inwr > 0) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
 		return ret;
@@ -417,5 +353,5 @@ int write_serial(void* pcom1, void* pbuf,int bufsize)
 	return completed;
 fail:
 	SETERRNO(ret);
-	return ret;	
+	return ret;
 }

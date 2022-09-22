@@ -340,6 +340,7 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     struct epoll_event evt;
     struct epoll_event getevt;
     int leftmills;
+    char* output=NULL;
 
     init_log_verbose(pargs);
 
@@ -440,7 +441,19 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         }
     }
 
-    print_buffer(stdout, (unsigned char*)pbuf, readsize, "read [%s] buffer", ttyname);
+    output = pargs->m_output;
+    if (output != NULL) {
+        ret = write_file_whole(output,pbuf,readsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("write [%s] error[%d]", output,ret);
+            goto out;
+        }
+    } else {
+        print_buffer(stdout, (unsigned char*)pbuf, readsize, "read [%s] buffer", ttyname);
+    }
+
+    
     ret = 0;
 out:
     free_tty(&ptty);
@@ -574,7 +587,7 @@ int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
     if (buflen > 0x200) {
         print_buffer(stdout, (unsigned char*)pbuf, 0x200, "write [%s] buffer start", ttyname);
-        pptr = pbuf + buflen - 1;
+        pptr = pbuf + buflen;
         pptr -= 0x200;
         print_buffer(stdout, (unsigned char*)pptr, 0x200, "write [%s] buffer end", ttyname);
     } else {
