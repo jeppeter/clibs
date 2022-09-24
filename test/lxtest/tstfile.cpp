@@ -340,7 +340,7 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     struct epoll_event evt;
     struct epoll_event getevt;
     int leftmills;
-    char* output=NULL;
+    char* output = NULL;
 
     init_log_verbose(pargs);
 
@@ -443,17 +443,17 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
     output = pargs->m_output;
     if (output != NULL) {
-        ret = write_file_whole(output,pbuf,readsize);
+        ret = write_file_whole(output, pbuf, readsize);
         if (ret < 0) {
             GETERRNO(ret);
-            ERROR_INFO("write [%s] error[%d]", output,ret);
+            ERROR_INFO("write [%s] error[%d]", output, ret);
             goto out;
         }
     } else {
         print_buffer(stdout, (unsigned char*)pbuf, readsize, "read [%s] buffer", ttyname);
     }
 
-    
+
     ret = 0;
 out:
     free_tty(&ptty);
@@ -1638,6 +1638,229 @@ int ttycfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     ret = 0;
 out:
     free_tty(&ptty);
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int useropen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    int fd = -1;
+    uid_t uid = 0;
+    char* fname = NULL;
+    int mode = O_RDONLY ;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_verbose(pargs);
+
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        uid = atoi(parsestate->leftargs[0]);
+        if (parsestate->leftargs[1]) {
+            fname = parsestate->leftargs[1];
+            if (parsestate->leftargs[2]) {
+                if (strcmp(parsestate->leftargs[2], "wr") == 0) {
+                    mode = O_WRONLY |  O_CREAT ;
+                }
+            }
+        }
+    }
+
+    if (fname == NULL) {
+        ret = -EINVAL;
+        ERROR_INFO("no fname set");
+        goto out;
+    }
+
+    ret = setuid(uid);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("set [%d] error[%d]", uid, ret);
+        goto out;
+    }
+
+    ret = seteuid(uid);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("seteuid [%d] error[%d]", uid, ret);
+        goto out;
+    }
+
+    fd = open(fname, mode, 0666);
+    if (fd < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("open [%s] error[%d]", fname, ret);
+        goto out;
+    }
+
+    fprintf(stdout, "open [%s] as uid [%d] succ\n", fname, uid);
+    ret = 0;
+out:
+    if (fd >= 0) {
+        close(fd);
+    }
+    fd = -1;
+    SETERRNO(ret);
+    return ret;
+}
+
+/* LZMA filter choices.  Must match those used by unlzma.S */
+#define LZMA_LC 2
+#define LZMA_LP 0
+#define LZMA_PB 0
+
+#define LZMA_PRESET ( LZMA_PRESET_DEFAULT | LZMA_PRESET_EXTREME )
+
+int unzlma_buffer(char* inbuf, int inlen, char** ppoutbuf, int *poutsize, int guesssize)
+{
+    lzma_options_lzma options;
+    int ret;
+    char* pretout = NULL;
+    int outsize = 0;
+    lzma_ret lret;
+    size_t inpos = 0, outpos = 0;
+    int retlen = 0;
+    int setsize = 0;
+
+
+    if (inbuf == NULL) {
+        if (ppoutbuf && *ppoutbuf) {
+            free(*ppoutbuf);
+            *ppoutbuf = NULL;
+        }
+        if (poutsize) {
+            *poutsize = 0;
+        }
+        return 0;
+    }
+
+    if (ppoutbuf == NULL || poutsize == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretout = *ppoutbuf;
+    outsize = *poutsize;
+
+    const lzma_filter filters[] = {
+        { .id = LZMA_FILTER_LZMA1, .options = &options },
+        { .id = LZMA_VLI_UNKNOWN }
+    };
+
+    if (pretout == NULL || outsize < 512) {
+        if (outsize < 512) {
+            outsize = 512;
+        }
+        pretout = (char*)malloc(outsize);
+        if (pretout == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+
+try_again:
+    if (guesssize < 0) {
+        setsize = outsize;
+    } else {
+        setsize = guesssize;
+    }
+
+    memset(pretout, 0xff, outsize);
+    inpos = 0;
+    outpos = 0;
+    lzma_lzma_preset(&options, LZMA_PRESET);
+    options.lc = LZMA_LC;
+    options.lp = LZMA_LP;
+    options.pb = LZMA_PB;
+
+    lret = lzma_raw_buffer_decode(filters, NULL, (uint8_t*)inbuf, &inpos, inlen, (uint8_t*)pretout, &outpos, setsize);
+    if (lret != LZMA_OK) {
+        DEBUG_BUFFER_FMT(pretout, outsize, "outsize prepare");
+        if (lret != LZMA_MEM_ERROR) {
+            GETERRNO(ret);
+            ERROR_INFO("decode buffer [%d]", lret);
+            goto fail;
+        }
+        if (pretout && pretout != *ppoutbuf) {
+            free(pretout);
+        }
+        pretout = NULL;
+        outsize <<= 1;
+        if (outsize < 512) {
+            outsize = 512;
+        }
+        pretout = (char*)malloc(outsize);
+        if (pretout == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        goto try_again;
+    }
+
+    retlen = outpos;
+
+    if (*ppoutbuf && *ppoutbuf != pretout) {
+        free(*ppoutbuf);
+    }
+    *ppoutbuf = pretout;
+    *poutsize = outsize;
+
+    return retlen;
+fail:
+    if (pretout && pretout != *ppoutbuf) {
+        free(pretout);
+    }
+    pretout = NULL;
+    outsize = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+int unlzma_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char* inbuf = NULL;
+    int insize = 0, inlen = 0;
+    char* outbuf = NULL;
+    int outsize = 0, outlen = 0;
+    char* fname = NULL;
+    pargs_options_t pargs = (pargs_options_t)popt;
+    int guesssize = -1;
+
+    init_log_verbose(pargs);
+
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        fname = parsestate->leftargs[0];
+        if (parsestate->leftargs[1]) {
+            guesssize = atoi(parsestate->leftargs[1]);
+        }
+    }
+
+
+    ret = read_file_whole(fname, &inbuf, &insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    inlen = ret;
+    ret = unzlma_buffer(inbuf, inlen, &outbuf, &outsize, guesssize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("unlzma [%s] error[%d]", fname, ret);
+        goto out;
+    }
+    outlen = ret;
+    //DEBUG_BUFFER_FMT(outbuf, outlen, "unlzma buffer [%s]", fname);
+    print_buffer(stdout,(unsigned char*)outbuf,outlen, "unlzma buffer [%s]", fname);
+
+    ret =  0;
+out:
+    unzlma_buffer(NULL, 0, &outbuf, &outsize, -1);
+    outlen = 0;
+    read_file_whole(NULL, &inbuf, &insize);
+    inlen = 0;
     SETERRNO(ret);
     return ret;
 }

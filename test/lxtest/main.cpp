@@ -20,6 +20,11 @@
 #include <ctype.h>
 #include <termios.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <lzma.h>
+
 #include <crypt_md5.h>
 
 typedef struct __args_options {
@@ -67,6 +72,8 @@ int ttyread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int ttywrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ttycfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ttycfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int useropen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int unlzma_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \

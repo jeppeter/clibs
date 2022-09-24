@@ -101,5 +101,11 @@
     },
     "ttycfgset<ttycfgset_handler>##ttyname cfgs ... to set config for tty cfgs##" : {
         "$" : "+"
+    },
+    "useropen<useropen_handler>##uid files [mode] to open file in userid mode rd wr default rd##" : {
+        "$" : "+"
+    },
+    "unlzma<unlzma_handler>##files ... to unlzma files##" : {
+        "$" : "+"
     }
 }
