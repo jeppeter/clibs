@@ -187,7 +187,7 @@ void* open_serial(const char* name)
 	}
 	pcom->m_wrov.hEvent = pcom->m_hwrevt;
 
-	memset(&(pcom->m_dcb),0,sizeof(pcom->m_dcb));
+	memset(&(pcom->m_dcb), 0, sizeof(pcom->m_dcb));
 	pcom->m_dcb.DCBlength = sizeof(pcom->m_dcb.DCBlength);
 
 
@@ -207,6 +207,245 @@ fail:
 	__free_serial(&pcom);
 	SETERRNO(ret);
 	return NULL;
+}
+
+#define SERIAL_SET_VALUE_MASK(member,mask)                                                        \
+do{                                                                                               \
+	pival = (int*) pval;                                                                          \
+	ival = *pival;                                                                                \
+	ival = ival & (mask);                                                                         \
+	pcom->m_cacheddcb.member = (DWORD)ival;                                                       \
+}while(0)
+
+int prepare_config_serial(void* pcom1, int flag, void* pval)
+{
+	pwin_serial_priv_t pcom = (pwin_serial_priv_t)pcom1;
+	int ret;
+
+	int ival, *pival;
+	if (pcom == NULL || pcom->m_magic != SERIAL_DATA_MAGIC || pcom->m_hfile == NULL || pval == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (pcom->m_cached == 0) {
+		memcpy(&(pcom->m_cacheddcb), &(pcom->m_dcb), sizeof(pcom->m_dcb));
+		pcom->m_cached = 1;
+	}
+
+	switch (flag) {
+	case SERIAL_SET_SPEED:
+		pival = (int*) pval;
+		ival = *pival;
+		switch (ival) {
+		case 110:
+			pcom->m_cacheddcb.BaudRate = CBR_110;
+			break;
+		case 300:
+			pcom->m_cacheddcb.BaudRate = CBR_300;
+			break;
+		case 600:
+			pcom->m_cacheddcb.BaudRate = CBR_600;
+			break;
+		case 1200:
+			pcom->m_cacheddcb.BaudRate = CBR_1200;
+			break;
+		case 2400:
+			pcom->m_cacheddcb.BaudRate = CBR_2400;
+			break;
+		case 4800:
+			pcom->m_cacheddcb.BaudRate = CBR_4800;
+			break;
+		case 9600:
+			pcom->m_cacheddcb.BaudRate = CBR_9600;
+			break;
+		case 14400:
+			pcom->m_cacheddcb.BaudRate = CBR_14400;
+			break;
+		case 19200:
+			pcom->m_cacheddcb.BaudRate = CBR_19200;
+			break;
+		case 38400:
+			pcom->m_cacheddcb.BaudRate = CBR_38400;
+			break;
+		case 57600:
+			pcom->m_cacheddcb.BaudRate = CBR_57600;
+			break;
+		case 115200:
+			pcom->m_cacheddcb.BaudRate = CBR_115200;
+			break;
+		case 128000:
+			pcom->m_cacheddcb.BaudRate = CBR_128000;
+			break;
+		case 256000:
+			pcom->m_cacheddcb.BaudRate = CBR_256000;
+			break;
+		default:
+			ret = -ERROR_INVALID_PARAMETER;
+			goto fail;
+		}
+		break;
+	case SERIAL_FBINARY_VALUE:
+		SERIAL_SET_VALUE_MASK(fBinary, 0x1);
+		break;
+	case SERIAL_FPARITY_VALUE:
+		SERIAL_SET_VALUE_MASK(fParity, 0x1);
+		break;
+	case SERIAL_OUTCTXFLOW_VALUE:
+		SERIAL_SET_VALUE_MASK(fOutxCtsFlow, 0x1);
+		break;
+	case SERIAL_OUTDSRFLOW_VALUE:
+		SERIAL_SET_VALUE_MASK(fOutxDsrFlow, 0x1);
+		break;
+	case SERIAL_DTRCTRL_VALUE:
+		SERIAL_SET_VALUE_MASK(fDtrControl, 0x3);
+		break;
+	case SERIAL_DSRSENSITY_VALUE:
+		SERIAL_SET_VALUE_MASK(fDsrSensitivity, 0x1);
+		break;
+	case SERIAL_TXCONONXOFF_VALUE:
+		SERIAL_SET_VALUE_MASK(fTXContinueOnXoff, 0x1);
+		break;
+	case SERIAL_OUTX_VALUE:
+		SERIAL_SET_VALUE_MASK(fOutX, 0x1);
+		break;
+	case SERIAL_INX_VALUE:
+		SERIAL_SET_VALUE_MASK(fInX, 0x1);
+		break;
+	case SERIAL_FERRORCHAR_VALUE:
+		SERIAL_SET_VALUE_MASK(fErrorChar, 0x1);
+		break;
+	case SERIAL_NULL_VALUE:
+		SERIAL_SET_VALUE_MASK(fNull, 0x1);
+		break;
+	case SERIAL_RTSCTRL_VALUE:
+		SERIAL_SET_VALUE_MASK(fRtsControl, 0x3);
+		break;
+	case SERIAL_ABORTONERROR_VALUE:
+		SERIAL_SET_VALUE_MASK(fAbortOnError, 0x1);
+		break;
+	case SERIAL_DUMMY2_VALUE:
+		SERIAL_SET_VALUE_MASK(fDummy2, ((1 << 17) - 1));
+		break;
+	case SERIAL_RESERVED_VALUE:
+		pival = (int*)pval;
+		ival = *pival;
+		pcom->m_cacheddcb.wReserved = (WORD) ival;
+		break;
+	case SERIAL_XONLIMIT_VALUE:
+		pival = (int*)pval;
+		ival = *pival;
+		pcom->m_cacheddcb.XonLim = (WORD) ival;
+		break;
+	case SERIAL_XOFFLIMIT_VALUE:
+		pival = (int*)pval;
+		ival = *pival;
+		pcom->m_cacheddcb.XoffLim = (WORD) ival;
+		break;
+	case SERIAL_BYTESIZE_VALUE:
+		pival = (int*)pval;
+		ival = *pival;
+		pcom->m_cacheddcb.ByteSize = (BYTE) ival;
+		break;
+	case SERIAL_PARITY_VALUE:
+		pival = (int*)pval;
+		ival = *pival;
+		switch (ival) {
+		case EVENPARITY:
+		case MARKPARITY:
+		case NOPARITY:
+		case ODDPARITY:
+		case SPACEPARITY:
+			break;
+		default:
+			ret = -ERROR_INVALID_PARAMETER;
+			goto fail;
+		}
+		pcom->m_cacheddcb.Parity = (BYTE) ival;
+		break;
+	case SERIAL_STOPBITS_VALUE:
+		pival = (int*)pval;
+		ival = *pival;
+		switch (ival) {
+		case ONESTOPBIT:
+		case ONE5STOPBITS:
+		case TWOSTOPBITS:
+			break;
+		default:
+			ret = -ERROR_INVALID_PARAMETER;
+			goto fail;
+		}
+		pcom->m_cacheddcb.StopBits = (BYTE) ival;
+		break;
+	case SERIAL_XONCHAR_VALUE:
+		pival = (int*)pval;
+		ival = *pival;
+		pcom->m_cacheddcb.XonChar = (char) ival;
+		break;
+	case SERIAL_XOFFCHAR_VALUE:
+		pival = (int*)pval;
+		ival = *pival;
+		pcom->m_cacheddcb.XoffChar = (char) ival;
+		break;
+	case SERIAL_ERRORCHAR_VALUE:
+		pival = (int*)pval;
+		ival = *pival;
+		pcom->m_cacheddcb.ErrorChar = (char) ival;
+		break;
+	case SERIAL_EOFCHAR_VALUE:
+		pival = (int*)pval;
+		ival = *pival;
+		pcom->m_cacheddcb.EofChar = (char) ival;
+		break;
+	case SERIAL_EVTCHAR_VALUE:
+		pival = (int*)pval;
+		ival = *pival;
+		pcom->m_cacheddcb.EvtChar = (char) ival;
+		break;
+	case SERIAL_RESERVED1_VALUE:
+		pival = (int*)pval;
+		ival = *pival;
+		pcom->m_cacheddcb.wReserved1 = (WORD) ival;
+		break;
+	default:
+		ret = -ERROR_NOT_SUPPORTED;
+		goto fail;
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int commit_config_serial(void* pcom1)
+{
+	int commited = 0;
+	pwin_serial_priv_t pcom = (pwin_serial_priv_t)pcom1;
+	int ret;
+	BOOL bret;
+	if (pcom == NULL || pcom->m_magic != SERIAL_DATA_MAGIC || pcom->m_hfile == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (pcom->m_cached > 0) {
+		bret = SetCommState(pcom->m_hfile, &(pcom->m_cacheddcb));
+		if (!bret) {
+			GETERRNO(ret);
+			ERROR_INFO("can not set [%s] dcb error[%d]", pcom->m_name, ret);
+			goto fail;
+		}
+		memcpy(&(pcom->m_dcb), &(pcom->m_cacheddcb), sizeof(pcom->m_dcb));
+		pcom->m_cached = 0;
+		commited = 1;
+	}
+
+	return commited ;
+fail:
+	SETERRNO(ret);
+	return ret;
 }
 
 int __inner_read_serial(pwin_serial_priv_t pcom)
@@ -352,6 +591,167 @@ int write_serial(void* pcom1, void* pbuf, int bufsize)
 	}
 	return completed;
 fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+HANDLE get_serial_read_handle(void* pcom1)
+{
+	HANDLE hret = NULL;
+	pwin_serial_priv_t pcom = (pwin_serial_priv_t) pcom1;
+	if (pcom != NULL && pcom->m_magic == SERIAL_DATA_MAGIC && pcom->m_inrd > 0) {
+		hret = pcom->m_hrdevt;
+	}
+	return hret;
+}
+
+HANDLE get_serial_write_handle(void* pcom1)
+{
+	HANDLE hret = NULL;
+	pwin_serial_priv_t pcom = (pwin_serial_priv_t) pcom1;
+	if (pcom != NULL && pcom->m_magic == SERIAL_DATA_MAGIC && pcom->m_inwr > 0) {
+		hret = pcom->m_hrdevt;
+	}
+	return hret;
+}
+
+int complete_serial_read(void* pcom1)
+{
+	int completed = 0;
+	int ret;
+	BOOL bret;
+	DWORD cbread;
+	pwin_serial_priv_t pcom = (pwin_serial_priv_t) pcom1;
+	if (pcom == NULL || pcom->m_magic != SERIAL_DATA_MAGIC || pcom->m_hfile == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (pcom->m_inrd == 0) {
+		completed = 1;
+	} else {
+		bret = GetOverlappedResult(pcom->m_hfile, &(pcom->m_rdov), &cbread, FALSE);
+		if (!bret) {
+			GETERRNO(ret);
+			if (ret != -ERROR_IO_PENDING && ret != -ERROR_MORE_DATA) {
+				ERROR_INFO("get rdov [%s] error[%d]", pcom->m_name, ret);
+				goto fail;
+			}
+		}
+		pcom->m_rdleft -= cbread;
+		pcom->m_prdptr += cbread;
+		if (pcom->m_rdleft == 0) {
+			pcom->m_prdptr = NULL;
+			pcom->m_inrd = 0;
+			completed = 1;
+		}
+	}
+	return completed;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int complete_serial_write(void* pcom1)
+{
+	int completed = 0;
+	int ret;
+	BOOL bret;
+	DWORD cbwrite;
+	pwin_serial_priv_t pcom = (pwin_serial_priv_t) pcom1;
+	if (pcom == NULL || pcom->m_magic != SERIAL_DATA_MAGIC || pcom->m_hfile == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (pcom->m_inwr == 0) {
+		completed = 1;
+	} else {
+		bret = GetOverlappedResult(pcom->m_hfile, &(pcom->m_wrov), &cbwrite, FALSE);
+		if (!bret) {
+			GETERRNO(ret);
+			if (ret != -ERROR_IO_PENDING && ret != -ERROR_MORE_DATA) {
+				ERROR_INFO("get rdov [%s] error[%d]", pcom->m_name, ret);
+				goto fail;
+			}
+		}
+		pcom->m_wrleft -= cbwrite;
+		pcom->m_pwrptr += cbwrite;
+		if (pcom->m_wrleft == 0) {
+			pcom->m_pwrptr = NULL;
+			pcom->m_inwr = 0;
+			completed = 1;
+		}
+	}
+	return completed;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int get_serial_config_direct(void* pcom1,void** ppbuf,int* psize)
+{
+	pwin_serial_priv_t pcom = (pwin_serial_priv_t) pcom1;
+	int ret;
+	int retlen = 0;
+	void* pretbuf=NULL;
+	int retsize=0;
+
+	if (pcom == NULL) {
+		if (ppbuf && *ppbuf) {
+			free(*ppbuf);
+			*ppbuf = NULL;
+		}
+		if (psize) {
+			*psize = 0;
+		}
+		return 0;
+	}
+
+	if (pcom->m_magic != SERIAL_DATA_MAGIC || pcom->m_hfile == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (ppbuf == NULL || psize == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	pretbuf = *ppbuf;
+	retsize = *psize;
+
+	if (retsize < sizeof(pcom->m_dcb) || pretbuf == NULL) {
+		if (retsize < sizeof(pcom->m_dcb)) {
+			retsize = sizeof(pcom->m_dcb);
+		}
+		pretbuf = malloc((size_t)retsize);
+		if (pretbuf == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+	memset(pretbuf, 0,(size_t)retsize);
+	retlen = sizeof(pcom->m_dcb);
+	memcpy(pretbuf, &(pcom->m_dcb),(size_t)retlen);
+
+	if(*ppbuf && *ppbuf != pretbuf) {
+		free(*ppbuf);
+	}
+	*ppbuf = pretbuf;
+	*psize = retsize;
+	return retlen;
+fail:
+	if (pretbuf && pretbuf != *ppbuf) {
+		free(pretbuf);
+	}
+	pretbuf = NULL;
+	retsize = 0;
 	SETERRNO(ret);
 	return ret;
 }

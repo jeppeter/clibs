@@ -429,5 +429,11 @@
     },
     "disabledebug<disabledebug_handler>##to make change_log_level##" : {
         "$" : 0
+    },
+    "sercfgget<sercfgget_handler>##serialname to get config##" : {
+        "$" : 1
+    },
+    "sercfgset<sercfgset_handler>##serialname cfgs ... to set serialname cfg##" : {
+        "$" : "+"
     }
 }

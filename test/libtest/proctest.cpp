@@ -3269,6 +3269,9 @@ int disabledebug_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
     int level;
     pargs_options_t pargs = (pargs_options_t)popt;
 
+    REFERENCE_ARG(parsestate);
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
     init_log_level(pargs);
     DEBUG_INFO("BEFORE change");
 

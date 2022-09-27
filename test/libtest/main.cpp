@@ -46,6 +46,7 @@
 #include <win_gui.h>
 #include <win_sock.h>
 #include <win_hdl.h>
+#include <win_serial.h>
 
 
 #include <jvalue.h>
@@ -256,6 +257,8 @@ int regdelvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int regdelkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int handles_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int disabledebug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int sercfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int sercfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -613,6 +616,7 @@ void close_ctrlc_handle()
 #include "guitest.cpp"
 #include "tstjson.cpp"
 #include "tstsock.cpp"
+#include "tstfile.cpp"
 
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
