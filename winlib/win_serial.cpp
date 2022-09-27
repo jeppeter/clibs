@@ -535,10 +535,12 @@ int _prepare_flushing(pwin_serial_priv_t pcom)
 	if (pcom->m_flshstate == FLUSH_BUFFER_NONE) {
 		pcom->m_flshstate = FLUSH_BUFFER_STARTING;
 		while (1) {
+			cbret = 0;
 			bret = ReadFile(pcom->m_hfile, pcom->m_flshbuf, pcom->m_flshsize, &cbret, &(pcom->m_rdov));
 			if (!bret) {
 				GETERRNO(ret);
 				if (ret == -ERROR_IO_PENDING ) {
+					DEBUG_INFO("cbret %ld ret[%d]", cbret,ret);
 					break;
 				} else if (ret != -ERROR_MORE_DATA) {
 					ERROR_INFO("flush buffer [%s] error[%d]" , pcom->m_name, ret);
@@ -570,10 +572,10 @@ int _prepare_flushing(pwin_serial_priv_t pcom)
 		if (pcom->m_rdleft == 0) {
 			completed = 1;
 			pcom->m_prdptr = NULL;
-			pcom->m_rdleft = 0;
 		}
 
 		if (pcom->m_flshstate == FLUSH_BUFFER_COPYING)  {
+			ASSERT_IF(pcom->m_flshlen == pcom->m_flshsize);
 			if (pcom->m_flshrlen == pcom->m_flshlen) {
 				pcom->m_flshstate = FLUSH_BUFFER_FINISHED;
 			}
@@ -588,6 +590,9 @@ int _prepare_flushing(pwin_serial_priv_t pcom)
 					goto fail;
 				}
 				completed = ret;
+			} else {
+				ASSERT_IF(pcom->m_prdptr == NULL);
+				pcom->m_inrd = 0;
 			}
 		}
 	} else {
@@ -747,6 +752,7 @@ int _complete_flush(pwin_serial_priv_t pcom)
 		ret = -ERROR_INTERNAL_STATE;
 		goto fail;
 	}  else if (pcom->m_flshstate == FLUSH_BUFFER_STARTING) {
+		cbread = 0;
 		bret = GetOverlappedResult(pcom->m_hfile, &(pcom->m_rdov), &cbread, FALSE);
 		if (!bret) {
 			GETERRNO(ret);
@@ -771,11 +777,29 @@ int _complete_flush(pwin_serial_priv_t pcom)
 				pcom->m_prdptr += leftlen;
 				pcom->m_flshrlen += leftlen;
 			}
-
 		}
 		if (pcom->m_rdleft == 0) {
 			pcom->m_prdptr = NULL;
 			completed = 1;
+		}
+
+		if (pcom->m_flshstate == FLUSH_BUFFER_COPYING) {
+			if (pcom->m_flshrlen == pcom->m_flshlen) {
+				pcom->m_flshstate = FLUSH_BUFFER_FINISHED;
+				if (pcom->m_rdleft > 0) {
+					ret = __inner_read_serial(pcom);
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					completed = ret;
+				} else {
+					/*nothing to handle */
+					ASSERT_IF(pcom->m_prdptr == NULL);
+					ASSERT_IF(completed == 1);
+					pcom->m_inrd = 0;
+				}
+			}
 		}
 	} else if (pcom->m_flshstate == FLUSH_BUFFER_COPYING) {
 		if (pcom->m_rdleft > 0) {
@@ -791,24 +815,30 @@ int _complete_flush(pwin_serial_priv_t pcom)
 			}
 		}
 
+		if (pcom->m_rdleft == 0) {
+			pcom->m_prdptr = NULL;
+			completed = 1;
+		}
+
 		if (pcom->m_flshlen == pcom->m_flshrlen) {
 			pcom->m_flshstate = FLUSH_BUFFER_FINISHED;
 		}
 
 		if (pcom->m_flshstate == FLUSH_BUFFER_FINISHED) {
 			if (pcom->m_rdleft > 0) {
+				/*read more data*/
 				ret = __inner_read_serial(pcom);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
 				}
 				completed = ret;
+			} else {
+				/*nothing to handle */
+				ASSERT_IF(pcom->m_prdptr == NULL);
+				ASSERT_IF(completed == 1);
+				pcom->m_inrd = 0;
 			}
-		}
-
-		if (pcom->m_rdleft == 0) {
-			pcom->m_prdptr = NULL;
-			completed = 1;
 		}
 	}
 
