@@ -46,7 +46,7 @@ do{                                                                             
 			_sval=256000;                                                                         \
 			break;                                                                                \
 	}                                                                                             \
-	fprintf(fp,"speed [0x%lx] [%d]\n",(pdcb)->BaudRate, _sval);                                   \
+	fprintf(fp,"speed [0x%lx] [%d]",(pdcb)->BaudRate, _sval);                                   \
 }while(0)
 
 #define TTY_VALUE_BOOL(fp,pdcb,member,desc)                                                       \
@@ -248,6 +248,7 @@ int sercfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	char* keyname=NULL;
 	int ival;
 	int iflag ;
+	char* valname=NULL;
 
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
@@ -319,15 +320,26 @@ int sercfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 			ival = atoi(parsestate->leftargs[idx]);
 			iflag = SERIAL_OUTDSRFLOW_VALUE;
 			idx += 1;
-		} else if (strcmp(keyname,"dtrctrl") == 0) {
+		} else if (strcmp(keyname,"dtr") == 0) {
 			if (parsestate->leftargs[idx] == NULL) {
 				ret = -ERROR_INVALID_PARAMETER;
 				ERROR_INFO("[%s] need an arg",keyname);
 				goto out;
 			}
-			ival = atoi(parsestate->leftargs[idx]);
-			iflag = SERIAL_DTRCTRL_VALUE;
+			valname = parsestate->leftargs[idx];
 			idx += 1;
+			if (strcmp(valname,"enable") == 0) {
+				ival = DTR_CONTROL_ENABLE;
+			} else if (strcmp(valname,"disable") == 0) {
+				ival = DTR_CONTROL_DISABLE;
+			} else if (strcmp(valname,"handshake") == 0) {
+				ival = DTR_CONTROL_HANDSHAKE;
+			} else {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] not valid for [%s]",valname, keyname);
+				goto out;
+			}
+			iflag = SERIAL_DTRCTRL_VALUE;
 		} else if (strcmp(keyname,"dsrsensitivity") == 0) {
 			if (parsestate->leftargs[idx] == NULL) {
 				ret = -ERROR_INVALID_PARAMETER;
@@ -382,15 +394,28 @@ int sercfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 			ival = atoi(parsestate->leftargs[idx]);
 			iflag = SERIAL_NULL_VALUE;
 			idx += 1;		
-		} else if (strcmp(keyname,"rtsctrl") == 0) {
+		} else if (strcmp(keyname,"rts") == 0) {
 			if (parsestate->leftargs[idx] == NULL) {
 				ret = -ERROR_INVALID_PARAMETER;
 				ERROR_INFO("[%s] need an arg",keyname);
 				goto out;
 			}
-			ival = atoi(parsestate->leftargs[idx]);
-			iflag = SERIAL_RTSCTRL_VALUE;
+			valname = parsestate->leftargs[idx];
 			idx += 1;
+			if (strcmp(valname,"enable") == 0) {
+				ival = RTS_CONTROL_ENABLE;
+			} else if (strcmp(valname,"disable") == 0) {
+				ival = RTS_CONTROL_DISABLE;
+			} else if (strcmp(valname,"handshake") == 0) {
+				ival = RTS_CONTROL_HANDSHAKE;
+			} else if (strcmp(valname,"toggle") == 0) {
+				ival = RTS_CONTROL_TOGGLE;
+			} else {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] not valid for [%s]",valname, keyname);
+				goto out;
+			}			
+			iflag = SERIAL_RTSCTRL_VALUE;
 		} else if (strcmp(keyname,"abortonerror") == 0) {
 			if (parsestate->leftargs[idx] == NULL) {
 				ret = -ERROR_INVALID_PARAMETER;
@@ -460,9 +485,20 @@ int sercfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 				ERROR_INFO("[%s] need an arg",keyname);
 				goto out;
 			}
-			ival = atoi(parsestate->leftargs[idx]);
-			iflag = SERIAL_STOPBITS_VALUE;
+			valname = parsestate->leftargs[idx];
 			idx += 1;
+			if (strcmp(valname,"1") == 0) {
+				ival = ONESTOPBIT;
+			} else if (strcmp(valname,"1.5") == 0) {
+				ival = ONE5STOPBITS;
+			} else if (strcmp(valname,"2") == 0) {
+				ival = TWOSTOPBITS;
+			} else {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] not valid for [%s]",valname, keyname);
+				goto out;
+			}			
+			iflag = SERIAL_STOPBITS_VALUE;
 		} else if (strcmp(keyname,"xonchar") == 0) {
 			if (parsestate->leftargs[idx] == NULL) {
 				ret = -ERROR_INVALID_PARAMETER;

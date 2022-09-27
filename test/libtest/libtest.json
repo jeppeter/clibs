@@ -430,16 +430,16 @@
     "disabledebug<disabledebug_handler>##to make change_log_level##" : {
         "$" : 0
     },
-    "sercfgget<sercfgget_handler>##serialname to get config##" : {
+    "ttycfgget<sercfgget_handler>##serialname to get config##" : {
         "$" : 1
     },
-    "sercfgset<sercfgset_handler>##serialname cfgs ... to set serialname cfg##" : {
+    "ttycfgset<sercfgset_handler>##serialname cfgs ... to set serialname cfg##" : {
         "$" : "+"
     },
-    "serread<serread_handler>##serialname bufsize timemills to read bufsize in timemills default bufsize 100 timemills 1000##" : {
+    "ttyread<serread_handler>##serialname bufsize timemills to read bufsize in timemills default bufsize 100 timemills 1000##" : {
         "$" : "+"
     },
-    "serwrite<serwrite_handler>##serialname rdfile timemills to write total buffer read from rdfile default timemills 1000##" : {
+    "ttywrite<serwrite_handler>##serialname rdfile timemills to write total buffer read from rdfile default timemills 1000##" : {
         "$" : "+"
     }
 }

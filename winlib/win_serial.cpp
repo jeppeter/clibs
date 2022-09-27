@@ -6,6 +6,12 @@
 
 #define  SERIAL_DATA_MAGIC   0x710129d3
 
+#define  FLUSH_BUFFER_NONE           0
+#define  FLUSH_BUFFER_STARTING       1
+#define  FLUSH_BUFFER_COPYING        2
+#define  FLUSH_BUFFER_FINISHED       3
+
+#define  FLUSH_BUFFER_SIZE           8192
 
 typedef struct __win_serial_priv {
 	uint32_t m_magic;
@@ -30,6 +36,11 @@ typedef struct __win_serial_priv {
 	DCB m_cacheddcb;
 	int m_cached;
 	int m_reserv4;
+	int m_flshstate;
+	char* m_flshbuf;
+	int m_flshsize;
+	int m_flshlen;
+	int m_flshrlen;
 } win_serial_priv_t, *pwin_serial_priv_t;
 
 void __free_serial(pwin_serial_priv_t* ppcom)
@@ -79,10 +90,20 @@ void __free_serial(pwin_serial_priv_t* ppcom)
 		}
 		pcom->m_hfile = NULL;
 
+		if (pcom->m_flshbuf != NULL) {
+			free(pcom->m_flshbuf);
+		}
+		pcom->m_flshbuf = NULL;
+		pcom->m_flshstate = FLUSH_BUFFER_NONE;
+		pcom->m_flshsize = 0;
+		pcom->m_flshlen = 0;
+		pcom->m_flshrlen = 0;
+
 		if (pcom->m_name != NULL) {
 			free(pcom->m_name);
 		}
 		pcom->m_name = NULL;
+
 
 		pcom->m_pwrptr = NULL;
 		pcom->m_wrleft = 0;
@@ -137,6 +158,11 @@ void* open_serial(const char* name)
 	pcom->m_rdleft = 0;
 	pcom->m_pwrptr = NULL;
 	pcom->m_wrleft = 0;
+	pcom->m_flshbuf = NULL;
+	pcom->m_flshsize = FLUSH_BUFFER_SIZE;
+	pcom->m_flshstate = FLUSH_BUFFER_NONE;
+	pcom->m_flshlen = 0;
+	pcom->m_flshrlen = 0;
 
 	memset(&(pcom->m_rdov), 0, sizeof(pcom->m_rdov));
 	memset(&(pcom->m_wrov), 0, sizeof(pcom->m_wrov));
@@ -195,6 +221,13 @@ void* open_serial(const char* name)
 	if (!bret) {
 		GETERRNO(ret);
 		ERROR_INFO("can not GetCommState [%s] error[%d]", pcom->m_name, ret);
+		goto fail;
+	}
+
+	ASSERT_IF(pcom->m_flshbuf == NULL);
+	pcom->m_flshbuf = malloc(pcom->m_flshsize);
+	if (pcom->m_flshbuf == NULL) {
+		GETERRNO(ret);
 		goto fail;
 	}
 
@@ -492,29 +525,117 @@ int __inner_read_serial(pwin_serial_priv_t pcom)
 	return completed;
 }
 
+int _prepare_flushing(pwin_serial_priv_t pcom)
+{
+	int completed = 0;
+	DWORD cbret = 0;
+	BOOL bret;
+	int curlen = 0;
+	int leftlen;
+	if (pcom->m_flshstate == FLUSH_BUFFER_NONE) {
+		pcom->m_flshstate = FLUSH_BUFFER_STARTING;
+		while (1) {
+			bret = ReadFile(pcom->m_hfile, pcom->m_flshbuf, pcom->m_flshsize, &cbret, &(pcom->m_rdov));
+			if (!bret) {
+				GETERRNO(ret);
+				if (ret == -ERROR_IO_PENDING ) {
+					break;
+				} else if (ret != -ERROR_MORE_DATA) {
+					ERROR_INFO("flush buffer [%s] error[%d]" , pcom->m_name, ret);
+					goto fail;
+				}
+			}
+			curlen = cbret;
+			if (curlen > 0x200) {
+				curlen = 0x200;
+				DEBUG_BUFFER_FMT(pcom->m_flshbuf, curlen, "flush start [%d]", cbret);
+				DEBUG_BUFFER_FMT(&(pcom->m_flshbuf[(cbret - curlen)]), curlen, "flush end [%d]", cbret);
+			} else {
+				DEBUG_BUFFER_FMT(pcom->m_flshbuf, curlen, "flush total");
+			}
+		}
+	} else if (pcom->m_flshstate == FLUSH_BUFFER_STARTING ||
+	           pcom->m_flshstate == FLUSH_BUFFER_COPYING) {
+		leftlen = pcom->m_flshlen - pcom->m_flshrlen;
+		if (leftlen > pcom->m_rdleft) {
+			leftlen = pcom->m_rdleft;
+		}
+		if (leftlen > 0) {
+			memcpy(pcom->m_prdptr, &(pcom->m_flshbuf[pcom->m_flshrlen]), leftlen);
+			pcom->m_flshrlen += leftlen;
+			pcom->m_prdptr += leftlen;
+			pcom->m_rdleft -= leftlen;
+		}
+
+		if (pcom->m_rdleft == 0) {
+			completed = 1;
+			pcom->m_prdptr = NULL;
+			pcom->m_rdleft = 0;
+		}
+
+		if (pcom->m_flshstate == FLUSH_BUFFER_COPYING)  {
+			if (pcom->m_flshrlen == pcom->m_flshlen) {
+				pcom->m_flshstate = FLUSH_BUFFER_FINISHED;
+			}
+		}
+
+		if (pcom->m_flshstate == FLUSH_BUFFER_FINISHED) {
+			/*we finished ,so we should give this ok*/
+			if (pcom->m_rdleft > 0) {
+				ret = __inner_read_serial(pcom);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				completed = ret;
+			}
+		}
+	} else {
+		ret = -ERROR_INTERNAL_STATE;
+		goto fail;
+	}
+
+	return completed;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 int read_serial(void* pcom1, void* pbuf, int bufsize)
 {
 	pwin_serial_priv_t pcom = (pwin_serial_priv_t) pcom1;
 	int completed = 0;
 	int ret;
 	if (pcom == NULL || pcom->m_magic != SERIAL_DATA_MAGIC ||
-	        pcom->m_inrd > 0) {
+	        pcom->m_hfile == NULL || pcom->m_prdptr != NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
 		return ret;
 	}
 
+
 	pcom->m_prdptr = (uint8_t*)pbuf;
 	pcom->m_rdleft = bufsize;
 	pcom->m_inrd = 1;
-	ret = __inner_read_serial(pcom);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
+
+	if (pcom->m_flshstate == FLUSH_BUFFER_FINISHED) {
+		ret = __inner_read_serial(pcom);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		if (pcom->m_inrd == 0) {
+			completed = 1;
+		}
+	} else {
+		ret = _prepare_flushing(pcom);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		completed = ret;
 	}
-	if (pcom->m_inrd == 0) {
-		completed = 1;
-	}
+
 	return completed;
 fail:
 	SETERRNO(ret);
@@ -615,6 +736,88 @@ HANDLE get_serial_write_handle(void* pcom1)
 	return hret;
 }
 
+int _complete_flush(pwin_serial_priv_t pcom)
+{
+	int ret;
+	int completed = 0;
+	DWORD cbread;
+	BOOL bret;
+	if (pcom->m_flshstate == FLUSH_BUFFER_NONE) {
+		ERROR_INFO("not valid state [FLUSH_BUFFER_NONE]");
+		ret = -ERROR_INTERNAL_STATE;
+		goto fail;
+	}  else if (pcom->m_flshstate == FLUSH_BUFFER_STARTING) {
+		bret = GetOverlappedResult(pcom->m_hfile, &(pcom->m_rdov), &cbread, FALSE);
+		if (!bret) {
+			GETERRNO(ret);
+			if (ret != -ERROR_IO_PENDING && ret != -ERROR_MORE_DATA) {
+				ERROR_INFO("get rdov [%s] error[%d]", pcom->m_name, ret);
+				goto fail;
+			}
+		}
+		pcom->m_flshlen += cbread;
+		if (pcom->m_flshlen == pcom->m_flshsize) {
+			pcom->m_flshstate == FLUSH_BUFFER_COPYING;
+		}
+		if (pcom->m_rdleft > 0) {
+			leftlen = pcom->m_flshlen - pcom->m_flshrlen;
+			if (leftlen > pcom->m_rdleft) {
+				leftlen = pcom->m_rdleft;
+			}
+
+			if (leftlen > 0) {
+				memcpy(pcom->m_prdptr, &(pcom->m_flshbuf[pcom->m_flshrlen]), leftlen);
+				pcom->m_rdleft -= leftlen;
+				pcom->m_prdptr += leftlen;
+				pcom->m_flshrlen += leftlen;
+			}
+
+		}
+		if (pcom->m_rdleft == 0) {
+			pcom->m_prdptr = NULL;
+			completed = 1;
+		}
+	} else if (pcom->m_flshstate == FLUSH_BUFFER_COPYING) {
+		if (pcom->m_rdleft > 0) {
+			leftlen = pcom->m_flshlen - pcom->m_flshrlen;
+			if (leftlen > pcom->m_rdleft) {
+				leftlen = pcom->m_rdleft;
+			}
+			if (leftlen > 0) {
+				memcpy(pcom->m_prdptr, &(pcom->m_flshbuf[pcom->m_flshrlen]), leftlen);
+				pcom->m_rdleft -= leftlen;
+				pcom->m_prdptr += leftlen;
+				pcom->m_flshrlen += leftlen;
+			}
+		}
+
+		if (pcom->m_flshlen == pcom->m_flshrlen) {
+			pcom->m_flshstate = FLUSH_BUFFER_FINISHED;
+		}
+
+		if (pcom->m_flshstate == FLUSH_BUFFER_FINISHED) {
+			if (pcom->m_rdleft > 0) {
+				ret = __inner_read_serial(pcom);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				completed = ret;
+			}
+		}
+
+		if (pcom->m_rdleft == 0) {
+			pcom->m_prdptr = NULL;
+			completed = 1;
+		}
+	}
+
+	return completed;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 int complete_serial_read(void* pcom1)
 {
 	int completed = 0;
@@ -630,6 +833,13 @@ int complete_serial_read(void* pcom1)
 
 	if (pcom->m_inrd == 0) {
 		completed = 1;
+	} else if (pcom->m_flshstate != FLUSH_BUFFER_FINISHED) {
+		ret = _complete_flush(pcom);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		completed = ret;
 	} else {
 		bret = GetOverlappedResult(pcom->m_hfile, &(pcom->m_rdov), &cbread, FALSE);
 		if (!bret) {
@@ -692,13 +902,13 @@ fail:
 }
 
 
-int get_serial_config_direct(void* pcom1,void** ppbuf,int* psize)
+int get_serial_config_direct(void* pcom1, void** ppbuf, int* psize)
 {
 	pwin_serial_priv_t pcom = (pwin_serial_priv_t) pcom1;
 	int ret;
 	int retlen = 0;
-	void* pretbuf=NULL;
-	int retsize=0;
+	void* pretbuf = NULL;
+	int retsize = 0;
 
 	if (pcom == NULL) {
 		if (ppbuf && *ppbuf) {
@@ -736,11 +946,11 @@ int get_serial_config_direct(void* pcom1,void** ppbuf,int* psize)
 			goto fail;
 		}
 	}
-	memset(pretbuf, 0,(size_t)retsize);
+	memset(pretbuf, 0, (size_t)retsize);
 	retlen = sizeof(pcom->m_dcb);
-	memcpy(pretbuf, &(pcom->m_dcb),(size_t)retlen);
+	memcpy(pretbuf, &(pcom->m_dcb), (size_t)retlen);
 
-	if(*ppbuf && *ppbuf != pretbuf) {
+	if (*ppbuf && *ppbuf != pretbuf) {
 		free(*ppbuf);
 	}
 	*ppbuf = pretbuf;

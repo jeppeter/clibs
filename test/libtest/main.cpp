@@ -473,6 +473,7 @@ void debug_buffer(FILE* fp, char* ptr, int size,const char* fmt,...)
     if (fmt) {
         va_start(ap,fmt);
         vfprintf(fp,fmt,ap);
+        fprintf(fp,"\n");
     }
 
 
