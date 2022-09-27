@@ -54,6 +54,7 @@
 #include <crypt_rsa.h>
 #include <crypt_aes.h>
 #include <crypt_sha256.h>
+#include <stdarg.h>
 
 #include <proto_api.h>
 #include <proto_win.h>
@@ -259,6 +260,8 @@ int handles_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int disabledebug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sercfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sercfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int serread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int serwrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
@@ -460,6 +463,61 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+void debug_buffer(FILE* fp, char* ptr, int size,const char* fmt,...)
+{
+    int i, lasti;
+    unsigned char* pcur = (unsigned char*)ptr;
+    unsigned char* plast = pcur;
+    va_list ap;
+    if (fmt) {
+        va_start(ap,fmt);
+        vfprintf(fp,fmt,ap);
+    }
+
+
+    for (i = 0; i < size; i++) {
+        if ((i % 16) == 0) {
+            if (i > 0) {
+                fprintf(fp, "    ");
+                while (plast != pcur) {
+                    if (isprint((char) *plast)) {
+                        fprintf(fp, "%c", *plast);
+                    } else {
+                        fprintf(fp, ".");
+                    }
+                    plast ++;
+                }
+                fprintf(fp, "\n");
+            }
+            fprintf(fp, "0x%08x:", i);
+        }
+        fprintf(fp, " 0x%02x", *pcur);
+        pcur ++;
+    }
+
+    if (plast != pcur) {
+        lasti = i;
+        /*now we should give out*/
+        while ((lasti % 16)) {
+            fprintf(fp, "     ");
+            lasti ++;
+        }
+        fprintf(fp, "    ");
+        while (plast != pcur) {
+            if (isprint((char) *plast)) {
+                fprintf(fp, "%c", *plast);
+            } else {
+                fprintf(fp, ".");
+            }
+            plast ++;
+        }
+        fprintf(fp, "\n");
+    }
+    fflush(fp);
+    return;
+}
+
 
 int readencode_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {

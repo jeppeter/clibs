@@ -58,6 +58,24 @@ do{                                                                             
 	}                                                                                             \
 }while(0)
 
+#define TTY_VALUE_WORD(fp,pdcb,member,desc)                                                       \
+do{                                                                                               \
+	fprintf(fp,"%s[0x%x:%d]",desc,(pdcb)->member,(pdcb)->member);                                 \
+}while(0)
+
+
+#define TTY_VALUE_BYTE(fp,pdcb,member,desc)                                                       \
+do{                                                                                               \
+	fprintf(fp,"%s[0x%x:%d]",desc,(pdcb)->member,(pdcb)->member);                                 \
+}while(0)
+
+
+#define TTY_VALUE_CHAR(fp,pdcb,member,desc)                                                       \
+do{                                                                                               \
+	fprintf(fp,"%s[0x%x:%d]",desc,(pdcb)->member,(pdcb)->member);                                 \
+}while(0)
+
+
 #define TTY_SPACE(fp)                                                                             \
 do{                                                                                               \
 	fprintf(fp," ");                                                                              \
@@ -144,36 +162,72 @@ int sercfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	TTY_LINE(stdout);
 
 	TTY_ALIGN(stdout);
-	TTY_VALUE_BOOL(stdout,pdcbbuf,fBinary,"fbinary");
+	TTY_VALUE_BOOL(stdout,pdcbbuf,fBinary,"binary");
 	TTY_SPACE(stdout);
 	TTY_VALUE_BOOL(stdout,pdcbbuf,fParity,"fparity");
 	TTY_SPACE(stdout);
-	TTY_VALUE_BOOL(stdout,pdcbbuf,fOutxCtsFlow,"foutxctsflow");
+	TTY_VALUE_BOOL(stdout,pdcbbuf,fOutxCtsFlow,"outxctsflow");
 	TTY_SPACE(stdout);
-	TTY_VALUE_BOOL(stdout,pdcbbuf,fOutxDsrFlow,"foutxdsrflow");
+	TTY_VALUE_BOOL(stdout,pdcbbuf,fOutxDsrFlow,"outxdsrflow");
 	TTY_LINE(stdout);
 
 	TTY_ALIGN(stdout);
 	TTY_DTRCONTROL(stdout,pdcbbuf);
 	TTY_SPACE(stdout);
-	TTY_VALUE_BOOL(stdout,pdcbbuf,fDsrSensitivity,"drtsensitivity");
+	TTY_VALUE_BOOL(stdout,pdcbbuf,fDsrSensitivity,"dsrsensitivity");
 	TTY_SPACE(stdout);
 	TTY_VALUE_BOOL(stdout,pdcbbuf,fTXContinueOnXoff,"txcontinueonxoff");
 	TTY_SPACE(stdout);
-	TTY_VALUE_BOOL(stdout,pdcbbuf,fOutX ,"foutx");
+	TTY_VALUE_BOOL(stdout,pdcbbuf,fOutX ,"outx");
 	TTY_LINE(stdout);
 
 	TTY_ALIGN(stdout);
-	TTY_VALUE_BOOL(stdout,pdcbbuf,fInX,"finx");
+	TTY_VALUE_BOOL(stdout,pdcbbuf,fInX,"inx");
 	TTY_SPACE(stdout);
 	TTY_VALUE_BOOL(stdout,pdcbbuf,fErrorChar,"ferrorchar");
 	TTY_SPACE(stdout);
-	TTY_VALUE_BOOL(stdout,pdcbbuf,fNull,"fnull");
+	TTY_VALUE_BOOL(stdout,pdcbbuf,fNull,"null");
 	TTY_SPACE(stdout);
 	TTY_RTSCONTROL(stdout,pdcbbuf);
 	TTY_LINE(stdout);
 
+	TTY_ALIGN(stdout);
+	TTY_VALUE_BOOL(stdout,pdcbbuf,fAbortOnError,"abortonerror");
+	TTY_SPACE(stdout);
+	fprintf(stdout,"dummy2[%ld]", pdcbbuf->fDummy2);
+	TTY_SPACE(stdout);
+	TTY_VALUE_WORD(stdout,pdcbbuf,wReserved,"reserved");
+	TTY_SPACE(stdout);
+	TTY_VALUE_WORD(stdout,pdcbbuf,XonLim,"xonlim");
+	TTY_LINE(stdout);	
 
+
+	TTY_ALIGN(stdout);
+	TTY_VALUE_WORD(stdout,pdcbbuf,XoffLim,"xofflim");
+	TTY_SPACE(stdout);
+	TTY_VALUE_BYTE(stdout,pdcbbuf,ByteSize,"bytesize");
+	TTY_SPACE(stdout);
+	TTY_VALUE_BYTE(stdout,pdcbbuf,Parity,"parity");
+	TTY_SPACE(stdout);
+	TTY_VALUE_BYTE(stdout,pdcbbuf,StopBits,"stopbits");
+	TTY_LINE(stdout);	
+
+
+	TTY_ALIGN(stdout);
+	TTY_VALUE_CHAR(stdout,pdcbbuf,XonChar,"xonchar");
+	TTY_SPACE(stdout);
+	TTY_VALUE_CHAR(stdout,pdcbbuf,XoffChar,"xoffchar");
+	TTY_SPACE(stdout);
+	TTY_VALUE_CHAR(stdout,pdcbbuf,ErrorChar,"errorchar");
+	TTY_SPACE(stdout);
+	TTY_VALUE_CHAR(stdout,pdcbbuf,EofChar,"eofchar");
+	TTY_LINE(stdout);	
+
+	TTY_ALIGN(stdout);
+	TTY_VALUE_CHAR(stdout,pdcbbuf,EvtChar,"evtchar");
+	TTY_SPACE(stdout);
+	TTY_VALUE_WORD(stdout,pdcbbuf,wReserved1,"reserv1");
+	TTY_LINE(stdout);	
 
 	ret = 0;
 out:
@@ -186,9 +240,514 @@ out:
 
 int sercfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
+	pargs_options_t pargs = (pargs_options_t)popt;
+	void* pserial=NULL;
+	char* devname = NULL;
+	int ret;
+	int idx;
+	char* keyname=NULL;
+	int ival;
+	int iflag ;
+
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
-	REFERENCE_ARG(popt);
-	REFERENCE_ARG(parsestate);
-	return 0;
+	init_log_level(pargs);
+
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		devname = parsestate->leftargs[0];
+	}
+
+	if (devname == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO("need devname for sercfgset");
+		goto out;
+	}
+
+	pserial = open_serial(devname);
+	if (pserial == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("open [%s] error[%d]",devname, ret);
+		goto out;
+	}
+
+	idx = 1;
+	while(parsestate->leftargs && parsestate->leftargs[idx]) {
+		keyname = parsestate->leftargs[idx];
+		idx += 1;
+		if (strcmp(keyname,"speed") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_SET_SPEED;
+			idx += 1;
+		} else if (strcmp(keyname,"binary") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_FBINARY_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"fparity") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_FPARITY_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"outxctsflow") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_OUTCTXFLOW_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"outxdsrflow") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_OUTDSRFLOW_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"dtrctrl") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_DTRCTRL_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"dsrsensitivity") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_DSRSENSITY_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"txcontinueonxoff") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_TXCONONXOFF_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"outx") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_OUTX_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"inx") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_INX_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"ferrorchar") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_FERRORCHAR_VALUE;
+			idx += 1;		
+		} else if (strcmp(keyname,"null") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_NULL_VALUE;
+			idx += 1;		
+		} else if (strcmp(keyname,"rtsctrl") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_RTSCTRL_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"abortonerror") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_ABORTONERROR_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"dummy2") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_DUMMY2_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"reserved") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_RESERVED_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"xonlim") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_XONLIMIT_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"xofflim") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_XOFFLIMIT_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"bytesize") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_BYTESIZE_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"parity") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_PARITY_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"stopbits") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_STOPBITS_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"xonchar") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_XONCHAR_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"xoffchar") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_XOFFCHAR_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"errorchar") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_ERRORCHAR_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"eofchar") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_EOFCHAR_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"evtchar") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_EVTCHAR_VALUE;
+			idx += 1;
+		} else if (strcmp(keyname,"reserv1") == 0) {
+			if (parsestate->leftargs[idx] == NULL) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] need an arg",keyname);
+				goto out;
+			}
+			ival = atoi(parsestate->leftargs[idx]);
+			iflag = SERIAL_RESERVED1_VALUE;
+			idx += 1;
+		} else {
+			ret = -ERROR_INVALID_PARAMETER;
+			ERROR_INFO("[%s] not supported", keyname);
+			goto out;
+		}
+
+		ret = prepare_config_serial(pserial,iflag,(void*)&ival);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("set [%s] error[%d]", keyname, ret);
+			goto out;
+		}
+	}
+
+	ret = commit_config_serial(pserial);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("config [%s] error[%d]", devname, ret);
+		goto out;
+	}
+
+	fprintf(stdout,"config %s succ\n", devname);
+	ret = 0;
+out:
+	close_serial(&pserial);
+	SETERRNO(ret);
+	return ret;
+}
+
+int serread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	pargs_options_t pargs = (pargs_options_t)popt;
+	void* pserial=NULL;
+	char* devname = NULL;
+	int ret;
+	char* pbuf= NULL;
+	int bufsize=100;
+	int timemills = 1000;
+	uint64_t smills = 0,cmills;
+	HANDLE waithds[2];
+	DWORD waitnum=0;
+	int wtime;
+	DWORD dret;
+
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	init_log_level(pargs);
+
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		devname = parsestate->leftargs[0];
+		if (parsestate->leftargs[1]) {
+			bufsize = atoi(parsestate->leftargs[1]);
+			if (parsestate->leftargs[2]) {
+				timemills = atoi(parsestate->leftargs[2]);
+			}
+		}
+	}
+
+	if (devname == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO("need devname for sercfgset");
+		goto out;
+	}
+
+
+	pbuf = (char*)malloc((size_t)bufsize);
+	if (pbuf == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	memset(pbuf,0,(size_t)bufsize);
+	pserial = open_serial(devname);
+	if (pserial == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("open [%s] error[%d]", devname, ret);
+		goto out;
+	}
+
+	ret = read_serial(pserial,pbuf,bufsize);
+	if (ret > 0) {
+		goto succ;
+	}
+
+	smills = get_current_ticks();
+	while(1) {
+		waitnum = 0;
+		waithds[waitnum] = get_serial_read_handle(pserial);
+		if (waithds[waitnum] != NULL) {
+			waitnum ++;
+		}
+		cmills = get_current_ticks();
+		ret = need_wait_times(smills,cmills,timemills);
+		if (ret < 0) {
+			ret = -ETIMEDOUT;
+			ERROR_INFO("read [%s] timedout",devname);
+			goto out;
+		}
+		wtime = ret;
+
+		dret = WaitForMultipleObjectsEx(waitnum,waithds,FALSE,(DWORD)wtime,FALSE);
+		if (dret == WAIT_OBJECT_0) {
+			ret = complete_serial_read(pserial);
+			if (ret < 0) {
+				GETERRNO(ret);
+				ERROR_INFO("complete [%s] error[%d]", devname, ret);
+				goto out;
+			} else if (ret > 0) {
+				goto succ;
+			}
+		} else {
+			GETERRNO(ret);
+			ERROR_INFO("wait error [%ld] [%d]",dret,ret);
+			goto out;
+		}
+	}
+
+succ:
+	debug_buffer(stdout,pbuf,bufsize,"read [%s] size[%d]", devname,bufsize);
+	ret = 0;
+out:
+	close_serial(&pserial);
+	if (pbuf) {
+		free(pbuf);
+	}
+	pbuf = NULL;
+	bufsize = 0;
+	SETERRNO(ret);
+	return ret;	
+}
+
+int serwrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	pargs_options_t pargs = (pargs_options_t)popt;
+	void* pserial=NULL;
+	char* devname = NULL;
+	char* infile=NULL;
+	int ret;
+	char* pbuf= NULL;
+	int bufsize=0;
+	int buflen=0;
+	int timemills = 1000;
+	uint64_t smills = 0,cmills;
+	HANDLE waithds[2];
+	DWORD waitnum=0;
+	int wtime;
+	DWORD dret;
+
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	init_log_level(pargs);
+
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		devname = parsestate->leftargs[0];
+		if (parsestate->leftargs[1]) {
+			infile = parsestate->leftargs[1];
+			if (parsestate->leftargs[2]) {
+				timemills = atoi(parsestate->leftargs[2]);
+			}
+		}
+	}
+
+	if (devname == NULL || infile == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO("need devname and infile for serwrite");
+		goto out;
+	}
+
+	ret = read_file_whole(infile,&pbuf,&bufsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("read [%s] error[%d]",infile,ret);
+		goto out;
+	}
+	buflen = ret;
+
+
+	pserial = open_serial(devname);
+	if (pserial == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("open [%s] error[%d]", devname, ret);
+		goto out;
+	}
+
+	ret = write_serial(pserial,pbuf,buflen);
+	if (ret > 0) {
+		goto succ;
+	}
+
+	smills = get_current_ticks();
+	while(1) {
+		waitnum = 0;
+		waithds[waitnum] = get_serial_write_handle(pserial);
+		if (waithds[waitnum] != NULL) {
+			waitnum ++;
+		}
+		cmills = get_current_ticks();
+		ret = need_wait_times(smills,cmills,timemills);
+		if (ret < 0) {
+			ret = -ETIMEDOUT;
+			ERROR_INFO("read [%s] timedout",devname);
+			goto out;
+		}
+		wtime = ret;
+
+		dret = WaitForMultipleObjectsEx(waitnum,waithds,FALSE,(DWORD)wtime,FALSE);
+		if (dret == WAIT_OBJECT_0) {
+			ret = complete_serial_write(pserial);
+			if (ret < 0) {
+				GETERRNO(ret);
+				ERROR_INFO("complete [%s] error[%d]", devname, ret);
+				goto out;
+			} else if (ret > 0) {
+				goto succ;
+			}
+		} else {
+			GETERRNO(ret);
+			ERROR_INFO("wait error [%ld] [%d]",dret,ret);
+			goto out;
+		}
+	}
+
+succ:
+	fprintf(stdout,"write [%s] => [%s] succ\n",infile,devname);
+	ret = 0;
+out:
+	close_serial(&pserial);
+	read_file_whole(NULL,&pbuf,&bufsize);
+	buflen = 0;
+	SETERRNO(ret);
+	return ret;	
 }

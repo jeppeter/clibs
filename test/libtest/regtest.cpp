@@ -45,7 +45,7 @@ int regbinget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
     nret = ret;
     fprintf(stdout, "get [%s].[%s] data [%d]\n", path, property, nret);
-    __debug_buf(stdout, (char*)pdata, nret);
+    debug_buffer(stdout, (char*)pdata, nret,NULL);
     ret = 0;
 
 out:
@@ -106,7 +106,7 @@ int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
     datalen = ret;
     fprintf(stdout, "[%s].[%s] datalen[%d]\n", path, property, datalen);
-    __debug_buf(stdout, (char*)pdata, datalen);
+    debug_buffer(stdout, (char*)pdata, datalen,NULL);
     idx = 2;
     while (idx < cnt) {
         GET_OPT_INT(offset, "offset");
@@ -135,7 +135,7 @@ int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
 
     fprintf(stdout, "[%s].[%s] set [%d]\n", path, property, datalen );
-    __debug_buf(stdout, (char*)pdata, datalen);
+    debug_buffer(stdout, (char*)pdata, datalen,NULL);
 
     ret = set_hklm_binary(pregop, property, pdata, datalen);
     if (ret < 0) {

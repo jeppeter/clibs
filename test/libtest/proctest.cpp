@@ -30,53 +30,6 @@ int pidargv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 }
 
 
-void __debug_buf(FILE* fp, char* ptr, int size)
-{
-    int i, lasti;
-    unsigned char* pcur = (unsigned char*)ptr;
-    unsigned char* plast = pcur;
-
-    for (i = 0; i < size; i++) {
-        if ((i % 16) == 0) {
-            if (i > 0) {
-                fprintf(fp, "    ");
-                while (plast != pcur) {
-                    if (isprint((char) *plast)) {
-                        fprintf(fp, "%c", *plast);
-                    } else {
-                        fprintf(fp, ".");
-                    }
-                    plast ++;
-                }
-                fprintf(fp, "\n");
-            }
-            fprintf(fp, "0x%08x:", i);
-        }
-        fprintf(fp, " 0x%02x", *pcur);
-        pcur ++;
-    }
-
-    if (plast != pcur) {
-        lasti = i;
-        /*now we should give out*/
-        while ((lasti % 16)) {
-            fprintf(fp, "     ");
-            lasti ++;
-        }
-        fprintf(fp, "    ");
-        while (plast != pcur) {
-            if (isprint((char) *plast)) {
-                fprintf(fp, "%c", *plast);
-            } else {
-                fprintf(fp, ".");
-            }
-            plast ++;
-        }
-        fprintf(fp, "\n");
-    }
-    fflush(fp);
-    return;
-}
 
 int runv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -178,19 +131,19 @@ int runv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt
         fprintf(stdout, "] succ [%d]\n", exitcode);
         if (pargs->m_input != NULL) {
             fprintf(stdout, "input --------------------\n");
-            __debug_buf(stdout, inbuf, insize);
+            debug_buffer(stdout, inbuf, insize,NULL);
             fprintf(stdout, "input ++++++++++++++++++++\n");
         }
 
         if (pargs->m_output != NULL) {
             fprintf(stdout, "output --------------------\n");
-            __debug_buf(stdout, outbuf, outsize);
+            debug_buffer(stdout, outbuf, outsize,NULL);
             fprintf(stdout, "output ++++++++++++++++++++\n");
         }
 
         if (pargs->m_errout != NULL) {
             fprintf(stdout, "errout --------------------\n");
-            __debug_buf(stdout, errbuf, errsize);
+            debug_buffer(stdout, errbuf, errsize,NULL);
             fprintf(stdout, "errout ++++++++++++++++++++\n");
         }
     }
@@ -254,19 +207,19 @@ int runsingle_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     fprintf(stdout, "run cmd [%s] succ\n", parsestate->leftargs[0]);
     if (pargs->m_input != NULL) {
         fprintf(stdout, "input --------------------\n");
-        __debug_buf(stdout, inbuf, insize);
+        debug_buffer(stdout, inbuf, insize,NULL);
         fprintf(stdout, "input ++++++++++++++++++++\n");
     }
 
     if (pargs->m_output != NULL) {
         fprintf(stdout, "output --------------------\n");
-        __debug_buf(stdout, outbuf, outsize);
+        debug_buffer(stdout, outbuf, outsize,NULL);
         fprintf(stdout, "output ++++++++++++++++++++\n");
     }
 
     if (pargs->m_errout != NULL) {
         fprintf(stdout, "errout --------------------\n");
-        __debug_buf(stdout, errbuf, errsize);
+        debug_buffer(stdout, errbuf, errsize,NULL);
         fprintf(stdout, "errout ++++++++++++++++++++\n");
     }
 
@@ -949,7 +902,7 @@ int svrlap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     if (wr == 0) {
         fprintf(stdout, "read [%s] --------------------\n", pipename);
-        __debug_buf(stdout, pinbuf, (int)inlen);
+        debug_buffer(stdout, pinbuf, (int)inlen,NULL);
         fprintf(stdout, "read [%s] ++++++++++++++++++++\n", pipename);
     }
     ret = 0;
@@ -1137,7 +1090,7 @@ int clilap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         }
 
         fprintf(stdout, "read [%s] ------------------------\n", pipename);
-        __debug_buf(stdout, pinbuf, inlen);
+        debug_buffer(stdout, pinbuf, inlen,NULL);
         fprintf(stdout, "read [%s] ++++++++++++++++++++++++\n", pipename);
     }
 
@@ -1302,19 +1255,19 @@ int runvevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     fprintf(stdout, "] succ\n");
     if (pargs->m_input != NULL) {
         fprintf(stdout, "input --------------------\n");
-        __debug_buf(stdout, inbuf, insize);
+        debug_buffer(stdout, inbuf, insize,NULL);
         fprintf(stdout, "input ++++++++++++++++++++\n");
     }
 
     if (pargs->m_output != NULL) {
         fprintf(stdout, "output --------------------\n");
-        __debug_buf(stdout, outbuf, outsize);
+        debug_buffer(stdout, outbuf, outsize,NULL);
         fprintf(stdout, "output ++++++++++++++++++++\n");
     }
 
     if (pargs->m_errout != NULL) {
         fprintf(stdout, "errout --------------------\n");
-        __debug_buf(stdout, errbuf, errsize);
+        debug_buffer(stdout, errbuf, errsize,NULL);
         fprintf(stdout, "errout ++++++++++++++++++++\n");
     }
 
@@ -1398,19 +1351,19 @@ int runsevt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     fprintf(stdout, "run cmd [%s] succ\n", parsestate->leftargs[0]);
     if (pargs->m_input != NULL) {
         fprintf(stdout, "input --------------------\n");
-        __debug_buf(stdout, inbuf, insize);
+        debug_buffer(stdout, inbuf, insize,NULL);
         fprintf(stdout, "input ++++++++++++++++++++\n");
     }
 
     if (pargs->m_output != NULL) {
         fprintf(stdout, "output --------------------\n");
-        __debug_buf(stdout, outbuf, outsize);
+        debug_buffer(stdout, outbuf, outsize,NULL);
         fprintf(stdout, "output ++++++++++++++++++++\n");
     }
 
     if (pargs->m_errout != NULL) {
         fprintf(stdout, "errout --------------------\n");
-        __debug_buf(stdout, errbuf, errsize);
+        debug_buffer(stdout, errbuf, errsize,NULL);
         fprintf(stdout, "errout ++++++++++++++++++++\n");
     }
 

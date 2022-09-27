@@ -435,5 +435,11 @@
     },
     "sercfgset<sercfgset_handler>##serialname cfgs ... to set serialname cfg##" : {
         "$" : "+"
+    },
+    "serread<serread_handler>##serialname bufsize timemills to read bufsize in timemills default bufsize 100 timemills 1000##" : {
+        "$" : "+"
+    },
+    "serwrite<serwrite_handler>##serialname rdfile timemills to write total buffer read from rdfile default timemills 1000##" : {
+        "$" : "+"
     }
 }

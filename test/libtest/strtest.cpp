@@ -464,9 +464,9 @@ int utf8toansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     ansilen = ret;
 
     fprintf(stdout, "utf8 buffer [%d]\n", utf8len);
-    __debug_buf(stdout, putf8, utf8len);
+    debug_buffer(stdout, putf8, utf8len,NULL);
     fprintf(stdout, "ansi buffer [%d]\n", ansilen);
-    __debug_buf(stdout, pansi, ansilen);
+    debug_buffer(stdout, pansi, ansilen,NULL);
     ret = 0;
 out:
     Utf8ToAnsi(NULL, &pansi, &ansisize);
@@ -503,9 +503,9 @@ int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     utf8len = ret;
 
     fprintf(stdout, "ansi buffer [%d]\n", ansilen);
-    __debug_buf(stdout, pansi, ansilen);
+    debug_buffer(stdout, pansi, ansilen,NULL);
     fprintf(stdout, "utf8 buffer [%d]\n", utf8len);
-    __debug_buf(stdout, putf8, utf8len);
+    debug_buffer(stdout, putf8, utf8len,NULL);
     ret = 0;
 out:
     AnsiToUtf8(NULL, &putf8, &utf8size);
@@ -524,7 +524,7 @@ int simpleansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     init_log_level(pargs);
     for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
         cstr = parsestate->leftargs[i];
-        __debug_buf(stdout,cstr,(int)strlen(cstr) + 1);
+        debug_buffer(stdout,cstr,(int)strlen(cstr) + 1,NULL);
     }
     return 0;
 }
@@ -579,7 +579,7 @@ try_again:
             goto try_again;
         }
         fprintf(stderr, "can not encode base\n");
-        __debug_buf(stderr, inbuf, insize);
+        debug_buffer(stderr, inbuf, insize,NULL);
         fprintf(stderr, "error [%d]\n", ret);
         goto out;
     }
@@ -676,7 +676,7 @@ try_again:
             goto try_again;
         }
         fprintf(stderr, "can not decode base\n");
-        __debug_buf(stderr, inbuf, insize);
+        debug_buffer(stderr, inbuf, insize,NULL);
         fprintf(stderr, "error [%d]\n", ret);
         goto out;
     }
@@ -909,9 +909,9 @@ int utf8touni_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     unilen = ret;
 
     fprintf(stdout, "utf8 buffer [%d]\n", utf8len);
-    __debug_buf(stdout, putf8, utf8len);
+    debug_buffer(stdout, putf8, utf8len,NULL);
     fprintf(stdout, "unicode buffer [%d]\n", unilen);
-    __debug_buf(stdout, (char*)puni, unilen);
+    debug_buffer(stdout, (char*)puni, unilen,NULL);
     ret = 0;
 out:
     Utf8ToUnicode(NULL, &puni, &unisize);
@@ -953,9 +953,9 @@ int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     utf8len = ret;
 
     fprintf(stdout, "unicode buffer [%d]\n", buflen);
-    __debug_buf(stdout, pbuf, buflen);
+    debug_buffer(stdout, pbuf, buflen,NULL);
     fprintf(stdout, "utf8 buffer [%d]\n", utf8len);
-    __debug_buf(stdout, putf8, utf8len);
+    debug_buffer(stdout, putf8, utf8len,NULL);
     ret = 0;
 out:
     UnicodeToUtf8(NULL, &putf8, &utf8size);
@@ -1071,7 +1071,7 @@ next:
         goto out;
     }
 
-    __debug_buf(stdout, poutbuf, (int)outbufsize);
+    debug_buffer(stdout, poutbuf, (int)outbufsize,NULL);
 
     ret = 0;
 out:
