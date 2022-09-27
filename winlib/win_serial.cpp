@@ -597,6 +597,7 @@ int _prepare_flushing(pwin_serial_priv_t pcom)
 		}
 	} else {
 		ret = -ERROR_INTERNAL_STATE;
+		ERROR_INFO("inner state [%d]",pcom->m_flshstate);
 		goto fail;
 	}
 
