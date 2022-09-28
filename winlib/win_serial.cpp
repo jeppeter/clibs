@@ -694,11 +694,12 @@ int __inner_write_serial(pwin_serial_priv_t pcom)
 	BOOL bret;
 
 	while (pcom->m_wrleft > 0) {
-		bret = ReadFile(pcom->m_hfile, pcom->m_pwrptr, (DWORD) pcom->m_wrleft, &cbret, &(pcom->m_wrov));
+		bret = WriteFile(pcom->m_hfile, pcom->m_pwrptr, (DWORD) pcom->m_wrleft, &cbret, &(pcom->m_wrov));
 		if (!bret) {
 			GETERRNO(ret);
+			DEBUG_INFO("write [%s][%d:0x%x] error[%d]", pcom->m_name, pcom->m_wrleft,pcom->m_wrleft,ret);
 			if (ret == -ERROR_IO_PENDING ) {
-				DEBUG_INFO("write pending on [%d] rdleft", pcom->m_rdleft);
+				DEBUG_INFO("write pending on [%d] wrleft", pcom->m_wrleft);
 				return 0;
 			} else if (ret == -ERROR_MORE_DATA) {
 				pcom->m_wrleft -= cbret;
@@ -709,6 +710,7 @@ int __inner_write_serial(pwin_serial_priv_t pcom)
 					completed = 1;
 					pcom->m_inwr = 0;
 				}
+				DEBUG_INFO("completed %d", completed);
 				return completed;
 			}
 			ERROR_INFO("can not write [%s] on [%d] error[%d]", pcom->m_name, pcom->m_wrleft, ret);
@@ -967,14 +969,22 @@ int complete_serial_write(void* pcom1)
 	if (pcom->m_inwr == 0) {
 		completed = 1;
 	} else {
+		cbwrite = 0;
 		bret = GetOverlappedResult(pcom->m_hfile, &(pcom->m_wrov), &cbwrite, FALSE);
 		if (!bret) {
 			GETERRNO(ret);
-			if (ret != -ERROR_IO_PENDING && ret != -ERROR_MORE_DATA) {
+			DEBUG_INFO("ret [%d]", ret);
+			if (ret != -ERROR_IO_PENDING && ret != -ERROR_MORE_DATA && ret != -ERROR_IO_INCOMPLETE) {
 				ERROR_INFO("get rdov [%s] error[%d]", pcom->m_name, ret);
 				goto fail;
 			}
+
+			if (ret == -ERROR_IO_INCOMPLETE) {
+				/*io not complete*/
+				return 0;
+			}
 		}
+		DEBUG_INFO("cbwrite [%d:0x%x]",cbwrite,cbwrite);
 		pcom->m_wrleft -= cbwrite;
 		pcom->m_pwrptr += cbwrite;
 		if (pcom->m_wrleft == 0) {
