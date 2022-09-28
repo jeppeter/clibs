@@ -78,7 +78,7 @@ do{                                                                             
 
 #define TTY_SPACE(fp)                                                                             \
 do{                                                                                               \
-	fprintf(fp," ");                                                                              \
+	fprintf(fp,"|");                                                                              \
 }while(0)
 
 #define TTY_LINE(fp) do{fprintf(fp,"\n");}while(0)
@@ -116,6 +116,30 @@ do{                                                                             
 			break;                                                                                \
 		case RTS_CONTROL_TOGGLE:                                                                  \
 			fprintf(fp,"rts toggle");                                                             \
+			break;                                                                                \
+	}                                                                                             \
+}while(0)
+
+#define TTY_PARITY_VALUE(fp,pdcb)                                                                 \
+do{                                                                                               \
+	switch((pdcb)->Parity) {                                                                      \
+		case EVENPARITY:                                                                          \
+			fprintf(fp,"parity even");                                                            \
+			break;                                                                                \
+		case ODDPARITY:                                                                           \
+			fprintf(fp,"parity odd");                                                             \
+			break;                                                                                \
+		case NOPARITY:                                                                            \
+			fprintf(fp,"parity no");                                                              \
+			break;                                                                                \
+		case MARKPARITY:                                                                          \
+			fprintf(fp,"parity mark");                                                            \
+			break;                                                                                \
+		case SPACEPARITY:                                                                         \
+			fprintf(fp,"parity space");                                                           \
+			break;                                                                                \
+		default:                                                                                  \
+			fprintf(fp,"parity [%d]", (pdcb)->Parity);                                            \
 			break;                                                                                \
 	}                                                                                             \
 }while(0)
@@ -207,7 +231,7 @@ int sercfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	TTY_SPACE(stdout);
 	TTY_VALUE_BYTE(stdout,pdcbbuf,ByteSize,"bytesize");
 	TTY_SPACE(stdout);
-	TTY_VALUE_BYTE(stdout,pdcbbuf,Parity,"parity");
+	TTY_PARITY_VALUE(stdout,pdcbbuf);
 	TTY_SPACE(stdout);
 	TTY_VALUE_BYTE(stdout,pdcbbuf,StopBits,"stopbits");
 	TTY_LINE(stdout);	

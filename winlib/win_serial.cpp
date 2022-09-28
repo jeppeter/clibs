@@ -13,6 +13,8 @@
 
 #define  FLUSH_BUFFER_SIZE           8192
 
+#define  DISABLED_FLUSHED            1
+
 typedef struct __win_serial_priv {
 	uint32_t m_magic;
 	uint32_t m_reserv1;
@@ -35,12 +37,12 @@ typedef struct __win_serial_priv {
 	DCB m_dcb;
 	DCB m_cacheddcb;
 	int m_cached;
-	int m_reserv4;
 	int m_flshstate;
 	char* m_flshbuf;
 	int m_flshsize;
 	int m_flshlen;
 	int m_flshrlen;
+	int m_reserv4;
 } win_serial_priv_t, *pwin_serial_priv_t;
 
 void __free_serial(pwin_serial_priv_t* ppcom)
@@ -225,7 +227,7 @@ void* open_serial(const char* name)
 	}
 
 	ASSERT_IF(pcom->m_flshbuf == NULL);
-	pcom->m_flshbuf = malloc(pcom->m_flshsize);
+	pcom->m_flshbuf = (char*)malloc((size_t)pcom->m_flshsize);
 	if (pcom->m_flshbuf == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -488,6 +490,7 @@ int __inner_read_serial(pwin_serial_priv_t pcom)
 	DWORD cbret;
 	BOOL bret;
 
+	ASSERT_IF(pcom->m_flshstate == FLUSH_BUFFER_FINISHED || DISABLED_FLUSHED > 0);
 	while (pcom->m_rdleft > 0) {
 		bret = ReadFile(pcom->m_hfile, pcom->m_prdptr, (DWORD) pcom->m_rdleft, &cbret, &(pcom->m_rdov));
 		if (!bret) {
@@ -525,29 +528,30 @@ int __inner_read_serial(pwin_serial_priv_t pcom)
 	return completed;
 }
 
-int _prepare_flushing(pwin_serial_priv_t pcom)
+int _read_flushing(pwin_serial_priv_t pcom)
 {
 	int completed = 0;
 	DWORD cbret = 0;
 	BOOL bret;
 	int curlen = 0;
 	int leftlen;
+	int ret;
 	if (pcom->m_flshstate == FLUSH_BUFFER_NONE) {
 		pcom->m_flshstate = FLUSH_BUFFER_STARTING;
 		while (1) {
 			cbret = 0;
-			bret = ReadFile(pcom->m_hfile, pcom->m_flshbuf, pcom->m_flshsize, &cbret, &(pcom->m_rdov));
+			bret = ReadFile(pcom->m_hfile, pcom->m_flshbuf, (DWORD)pcom->m_flshsize, &cbret, &(pcom->m_rdov));
 			if (!bret) {
 				GETERRNO(ret);
 				if (ret == -ERROR_IO_PENDING ) {
-					DEBUG_INFO("cbret %ld ret[%d]", cbret,ret);
+					DEBUG_INFO("cbret %ld ret[%d]", cbret, ret);
 					break;
 				} else if (ret != -ERROR_MORE_DATA) {
 					ERROR_INFO("flush buffer [%s] error[%d]" , pcom->m_name, ret);
 					goto fail;
 				}
 			}
-			curlen = cbret;
+			curlen = (int)cbret;
 			if (curlen > 0x200) {
 				curlen = 0x200;
 				DEBUG_BUFFER_FMT(pcom->m_flshbuf, curlen, "flush start [%d]", cbret);
@@ -558,12 +562,45 @@ int _prepare_flushing(pwin_serial_priv_t pcom)
 		}
 	} else if (pcom->m_flshstate == FLUSH_BUFFER_STARTING ||
 	           pcom->m_flshstate == FLUSH_BUFFER_COPYING) {
+		if (pcom->m_flshstate == FLUSH_BUFFER_STARTING) {
+		read_again:
+			ASSERT_IF(pcom->m_flshlen < pcom->m_flshsize);
+			curlen = pcom->m_flshsize - pcom->m_flshlen;
+			if (curlen > 0) {
+				cbret = 0;
+				bret = ReadFile(pcom->m_hfile, &(pcom->m_flshbuf[pcom->m_flshlen]), (DWORD)curlen, &cbret, &(pcom->m_rdov));
+				if (!bret) {
+					GETERRNO(ret);
+					if (ret != -ERROR_IO_PENDING && ret != -ERROR_MORE_DATA) {
+						ERROR_INFO("flush buffer [%s] error[%d]" , pcom->m_name, ret);
+						goto fail;
+					}
+				}
+				DEBUG_INFO("cbret [%ld:0x%lx]",cbret,cbret);
+				curlen = (int)cbret;
+				if (curlen > 0x200) {
+					curlen = 0x200;
+					DEBUG_BUFFER_FMT(pcom->m_flshbuf, curlen, "flush start [%d]", cbret);
+					DEBUG_BUFFER_FMT(&(pcom->m_flshbuf[(cbret - curlen)]), curlen, "flush end [%d]", cbret);
+				} else {
+					DEBUG_BUFFER_FMT(pcom->m_flshbuf, curlen, "flush total");
+				}
+				pcom->m_flshlen += cbret;
+				if (pcom->m_flshrlen == pcom->m_flshsize) {
+					pcom->m_flshstate = FLUSH_BUFFER_COPYING;
+				}
+				if (cbret > 0 && pcom->m_flshstate == FLUSH_BUFFER_STARTING){
+					goto read_again;
+				}
+			}
+		}
+
 		leftlen = pcom->m_flshlen - pcom->m_flshrlen;
 		if (leftlen > pcom->m_rdleft) {
 			leftlen = pcom->m_rdleft;
 		}
 		if (leftlen > 0) {
-			memcpy(pcom->m_prdptr, &(pcom->m_flshbuf[pcom->m_flshrlen]), leftlen);
+			memcpy(pcom->m_prdptr, &(pcom->m_flshbuf[pcom->m_flshrlen]), (size_t)leftlen);
 			pcom->m_flshrlen += leftlen;
 			pcom->m_prdptr += leftlen;
 			pcom->m_rdleft -= leftlen;
@@ -591,13 +628,14 @@ int _prepare_flushing(pwin_serial_priv_t pcom)
 				}
 				completed = ret;
 			} else {
+				/*that is read all over*/
 				ASSERT_IF(pcom->m_prdptr == NULL);
 				pcom->m_inrd = 0;
 			}
 		}
 	} else {
-		ret = -ERROR_INTERNAL_STATE;
-		ERROR_INFO("inner state [%d]",pcom->m_flshstate);
+		ret = -ERROR_INTERNAL_ERROR;
+		ERROR_INFO("inner state [%d]", pcom->m_flshstate);
 		goto fail;
 	}
 
@@ -624,7 +662,7 @@ int read_serial(void* pcom1, void* pbuf, int bufsize)
 	pcom->m_rdleft = bufsize;
 	pcom->m_inrd = 1;
 
-	if (pcom->m_flshstate == FLUSH_BUFFER_FINISHED) {
+	if (pcom->m_flshstate == FLUSH_BUFFER_FINISHED || DISABLED_FLUSHED > 0) {
 		ret = __inner_read_serial(pcom);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -634,7 +672,7 @@ int read_serial(void* pcom1, void* pbuf, int bufsize)
 			completed = 1;
 		}
 	} else {
-		ret = _prepare_flushing(pcom);
+		ret = _read_flushing(pcom);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -748,9 +786,10 @@ int _complete_flush(pwin_serial_priv_t pcom)
 	int completed = 0;
 	DWORD cbread;
 	BOOL bret;
+	int leftlen;
 	if (pcom->m_flshstate == FLUSH_BUFFER_NONE) {
 		ERROR_INFO("not valid state [FLUSH_BUFFER_NONE]");
-		ret = -ERROR_INTERNAL_STATE;
+		ret = -ERROR_INTERNAL_ERROR;
 		goto fail;
 	}  else if (pcom->m_flshstate == FLUSH_BUFFER_STARTING) {
 		cbread = 0;
@@ -762,9 +801,17 @@ int _complete_flush(pwin_serial_priv_t pcom)
 				goto fail;
 			}
 		}
+		DEBUG_INFO("cbread [%ld:0x%lx]",cbread,cbread);
 		pcom->m_flshlen += cbread;
 		if (pcom->m_flshlen == pcom->m_flshsize) {
-			pcom->m_flshstate == FLUSH_BUFFER_COPYING;
+			pcom->m_flshstate = FLUSH_BUFFER_COPYING;
+		} else {
+			/*we need to read*/
+			ret = _read_flushing(pcom);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
 		}
 		if (pcom->m_rdleft > 0) {
 			leftlen = pcom->m_flshlen - pcom->m_flshrlen;
@@ -773,7 +820,7 @@ int _complete_flush(pwin_serial_priv_t pcom)
 			}
 
 			if (leftlen > 0) {
-				memcpy(pcom->m_prdptr, &(pcom->m_flshbuf[pcom->m_flshrlen]), leftlen);
+				memcpy(pcom->m_prdptr, &(pcom->m_flshbuf[pcom->m_flshrlen]), (size_t)leftlen);
 				pcom->m_rdleft -= leftlen;
 				pcom->m_prdptr += leftlen;
 				pcom->m_flshrlen += leftlen;
@@ -801,7 +848,7 @@ int _complete_flush(pwin_serial_priv_t pcom)
 					pcom->m_inrd = 0;
 				}
 			}
-		}
+		} 
 	} else if (pcom->m_flshstate == FLUSH_BUFFER_COPYING) {
 		if (pcom->m_rdleft > 0) {
 			leftlen = pcom->m_flshlen - pcom->m_flshrlen;
@@ -809,7 +856,7 @@ int _complete_flush(pwin_serial_priv_t pcom)
 				leftlen = pcom->m_rdleft;
 			}
 			if (leftlen > 0) {
-				memcpy(pcom->m_prdptr, &(pcom->m_flshbuf[pcom->m_flshrlen]), leftlen);
+				memcpy(pcom->m_prdptr, &(pcom->m_flshbuf[pcom->m_flshrlen]), (size_t)leftlen);
 				pcom->m_rdleft -= leftlen;
 				pcom->m_prdptr += leftlen;
 				pcom->m_flshrlen += leftlen;
@@ -864,7 +911,7 @@ int complete_serial_read(void* pcom1)
 
 	if (pcom->m_inrd == 0) {
 		completed = 1;
-	} else if (pcom->m_flshstate != FLUSH_BUFFER_FINISHED) {
+	} else if (pcom->m_flshstate != FLUSH_BUFFER_FINISHED && DISABLED_FLUSHED == 0) {
 		ret = _complete_flush(pcom);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -872,6 +919,7 @@ int complete_serial_read(void* pcom1)
 		}
 		completed = ret;
 	} else {
+		cbread = 0;
 		bret = GetOverlappedResult(pcom->m_hfile, &(pcom->m_rdov), &cbread, FALSE);
 		if (!bret) {
 			GETERRNO(ret);
@@ -880,12 +928,21 @@ int complete_serial_read(void* pcom1)
 				goto fail;
 			}
 		}
+		DEBUG_INFO("cbread [%d]", cbread);
 		pcom->m_rdleft -= cbread;
 		pcom->m_prdptr += cbread;
 		if (pcom->m_rdleft == 0) {
 			pcom->m_prdptr = NULL;
 			pcom->m_inrd = 0;
 			completed = 1;
+		} else {
+			/*now to start again read*/
+			ret = __inner_read_serial(pcom);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			completed = ret;
 		}
 	}
 	return completed;
@@ -924,6 +981,13 @@ int complete_serial_write(void* pcom1)
 			pcom->m_pwrptr = NULL;
 			pcom->m_inwr = 0;
 			completed = 1;
+		} else {
+			ret = __inner_write_serial(pcom);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			completed = ret;
 		}
 	}
 	return completed;
