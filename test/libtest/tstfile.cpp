@@ -697,6 +697,7 @@ int serread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
 succ:
 	debug_buffer(stdout, pbuf, bufsize, "read [%s] size[%d]", devname, bufsize);
+	DEBUG_BUFFER_FMT(pbuf,bufsize,"read [%s] size[%d]", devname, bufsize);
 	ret = 0;
 out:
 	close_serial(&pserial);
