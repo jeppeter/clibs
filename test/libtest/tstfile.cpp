@@ -500,9 +500,24 @@ int sercfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 				ERROR_INFO("[%s] need an arg", keyname);
 				goto out;
 			}
-			ival = atoi(parsestate->leftargs[idx]);
-			iflag = SERIAL_PARITY_VALUE;
+			valname = parsestate->leftargs[idx];
 			idx += 1;
+			if (strcmp(valname, "no") == 0) {
+				ival = NOPARITY;
+			} else if (strcmp(valname, "even") == 0) {
+				ival = EVENPARITY;
+			} else if (strcmp(valname, "mark") == 0) {
+				ival = MARKPARITY;
+			} else if (strcmp(valname, "odd") == 0) {
+				ival = ODDPARITY;
+			} else if (strcmp(valname, "space") == 0) {
+				ival = SPACEPARITY;
+			} else {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] not valid for [%s]", valname, keyname);
+				goto out;
+			}
+			iflag = SERIAL_PARITY_VALUE;
 		} else if (strcmp(keyname, "stopbits") == 0) {
 			if (parsestate->leftargs[idx] == NULL) {
 				ret = -ERROR_INVALID_PARAMETER;
@@ -577,6 +592,9 @@ int sercfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 			ival = atoi(parsestate->leftargs[idx]);
 			iflag = SERIAL_RESERVED1_VALUE;
 			idx += 1;
+		} else if (strcmp(keyname, "raw") == 0) {
+			ival = 0;
+			iflag = SERIAL_SET_RAW;
 		} else {
 			ret = -ERROR_INVALID_PARAMETER;
 			ERROR_INFO("[%s] not supported", keyname);

@@ -443,6 +443,34 @@ int prepare_config_serial(void* pcom1, int flag, void* pval)
 		ival = *pival;
 		pcom->m_cacheddcb.wReserved1 = (WORD) ival;
 		break;
+	case SERIAL_SET_RAW:
+		pcom->m_cacheddcb.fBinary = 1;
+		pcom->m_cacheddcb.fParity = 0;
+		pcom->m_cacheddcb.fOutxCtsFlow = 0;
+		pcom->m_cacheddcb.fOutxDsrFlow = 0;
+		pcom->m_cacheddcb.fDtrControl = DTR_CONTROL_DISABLE;
+		pcom->m_cacheddcb.fDsrSensitivity = 0;
+		pcom->m_cacheddcb.fTXContinueOnXoff = 1;
+		pcom->m_cacheddcb.fOutX = 0;
+		pcom->m_cacheddcb.fInX = 0;
+		pcom->m_cacheddcb.fErrorChar = 0;
+		pcom->m_cacheddcb.fNull = 0;
+		pcom->m_cacheddcb.fRtsControl = RTS_CONTROL_DISABLE;
+		pcom->m_cacheddcb.fAbortOnError = 0;
+		pcom->m_cacheddcb.fDummy2 = 0;
+		pcom->m_cacheddcb.wReserved = 0;
+		pcom->m_cacheddcb.XonLim = 0x800;
+		pcom->m_cacheddcb.XoffLim = 0x200;
+		pcom->m_cacheddcb.ByteSize = 8;
+		pcom->m_cacheddcb.Parity = NOPARITY;
+		pcom->m_cacheddcb.StopBits = ONESTOPBIT;
+		pcom->m_cacheddcb.XonChar = 0x11;
+		pcom->m_cacheddcb.XoffChar = 0x13;
+		pcom->m_cacheddcb.ErrorChar = 0x0;
+		pcom->m_cacheddcb.EofChar = 0x0;
+		pcom->m_cacheddcb.EvtChar = 0x0;
+		pcom->m_cacheddcb.wReserved1 = 0x0;
+		break;
 	default:
 		ret = -ERROR_NOT_SUPPORTED;
 		goto fail;

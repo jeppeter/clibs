@@ -33,6 +33,7 @@
 #define  SERIAL_EOFCHAR_VALUE             25  /*void* for byte*/
 #define  SERIAL_EVTCHAR_VALUE             26  /*void* for byte*/
 #define  SERIAL_RESERVED1_VALUE           27  /*void* for word*/
+#define  SERIAL_SET_RAW                   28  /*void* not use*/
 
 
 #ifdef __cplusplus
