@@ -9,6 +9,7 @@
 #include <authenticode.h>
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
+#include <openssl/x509v3.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -40,6 +41,8 @@ int asn1timeenc_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int asn1bignumenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int aes256cfbenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int aes256cfbdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int spcstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int spcstrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
@@ -95,8 +98,10 @@ int init_log_verbose(pargs_options_t pargs)
 }
 
 #include "peauth.cpp"
+#include "asn1comp.cpp"
 #include "pkcs7.cpp"
 #include "aes.cpp"
+#include "ossldump.cpp"
 
 int main(int argc, char* argv[])
 {

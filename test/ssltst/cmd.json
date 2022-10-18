@@ -43,6 +43,12 @@
     },
     "aes256cfbdec<aes256cfbdec_handler>##key iv to decrypt from input ot output##" : {
         "$" : "+"
+    },
+    "spcstrenc<spcstrenc_handler>##file to enc spcstring##" : {
+        "$" : 1
+    },
+    "spcstrdec<spcstrdec_handler>##binfile to decode spcstring##" : {
+        "$" : "+"
     }
 
 
