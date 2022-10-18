@@ -97,6 +97,54 @@ int init_log_verbose(pargs_options_t pargs)
     return 0;
 }
 
+void dump_buffer_out(FILE* fp, uint8_t* pbuf, int len, const char* fmt, ...)
+{
+    int i, lasti;
+    if (fmt != NULL) {
+        va_list ap;
+        va_start(ap, fmt);
+        vfprintf(fp, fmt, ap);
+        fprintf(fp, " ");
+    }
+
+    fprintf(fp, "buffer [%p] len[0x%x:%d]", pbuf, len, len);
+    for (i = 0, lasti = 0; i < len; i++) {
+        if ((i % 16) == 0) {
+            if (i > 0) {
+                fprintf(fp, "    ");
+                while (lasti < i) {
+                    if (pbuf[lasti] >= 0x20 && pbuf[lasti] <= 0x7e) {
+                        fprintf(fp, "%c", pbuf[lasti]);
+                    } else {
+                        fprintf(fp, ".");
+                    }
+                    lasti ++;
+                }
+            }
+            fprintf(fp, "\n0x%08x:", i);
+        }
+        fprintf(fp, " 0x%02x", pbuf[i]);
+    }
+
+    if (lasti != i) {
+        while ((i % 16) != 0) {
+            fprintf(fp, "     ");
+            i ++;
+        }
+        fprintf(fp, "    ");
+        while (lasti < len) {
+            if (pbuf[lasti] >= 0x20 && pbuf[lasti] <= 0x7e) {
+                fprintf(fp, "%c", pbuf[lasti]);
+            } else {
+                fprintf(fp, ".");
+            }
+            lasti ++;
+        }
+    }
+    fprintf(fp,"\n");
+    return;
+}
+
 #include "peauth.cpp"
 #include "asn1comp.cpp"
 #include "pkcs7.cpp"

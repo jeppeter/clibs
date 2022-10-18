@@ -377,12 +377,266 @@ ASN1_SEQUENCE(TimeStampToken) = {
 
 IMPLEMENT_ASN1_FUNCTIONS(TimeStampToken)
 
+
+
+int encode_spcstr(jvalue* pj,SpcString* pstr)
+{
+	int ret;
+	int type = -1;
+	ret = set_asn1_bmpstr(&(pstr->value.unicode),"unicode",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	} else if (ret > 0) {
+		type = 0;
+	}
+
+	ret = set_asn1_ia5str(&(pstr->value.ascii),"ascii",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	} else if (ret > 0) {
+		type = 1;
+	}
+
+	if (type < 0) {
+		ret = -EINVAL;
+		ERROR_INFO("can not find type SpcString");
+		goto fail;
+	}
+
+	pstr->type = type;
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_spcstr(SpcString* pstr, jvalue* pj)
+{
+	int ret = 0;
+	if (pstr->type == 1) {
+		ret = get_asn1_ia5str(&(pstr->value.ascii),"ascii",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	} else if (pstr->type == 0) {
+		ret=  get_asn1_bmpstr(&(pstr->value.unicode),"unicode",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 int spcstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	return 0;
+	SpcString* pstr=NULL;
+	int ret;
+	jvalue *pj=NULL;
+	char* jsonfile=NULL;
+	char* jbuf=NULL;
+	int jsize=0,jlen=0;
+	unsigned int jsonlen;
+	uint8_t* pp=NULL;
+	uint8_t* pin=NULL;
+	int plen=0;
+	pargs_options_t pargs = (pargs_options_t) popt;
+
+	init_log_verbose(pargs);
+	pstr = SpcString_new();
+	if (pstr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	if (parsestate->leftargs && parsestate->leftargs[0] != NULL) {
+		jsonfile = parsestate->leftargs[0];
+	}
+
+	if (jsonfile == NULL) {
+		ret = -EINVAL;
+		ERROR_INFO("no jsonfile specified");
+		goto out;
+	}
+
+	ret = read_file_whole(jsonfile,&jbuf,&jsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+	jlen = ret;
+	jbuf[jlen] = 0x0;
+	jsonlen = jlen + 1;
+
+	pj = jvalue_read(jbuf,&jsonlen);
+	if (pj == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("parse [%s] error[%d]", jsonfile,ret);
+		goto out;
+	}
+
+	ret = encode_spcstr(pj,pstr);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = i2d_SpcString(pstr,NULL);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("can not i2d spcstring [%d]", ret);
+		goto out;
+	}
+	plen = ret;
+
+	pp = (uint8_t*)malloc(plen);
+	if (pp == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	pin = pp;
+	ret = i2d_SpcString(pstr,&pin);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("can not i2d spcstring [%d]", ret);
+		goto out;
+	}
+
+	if (pargs->m_output != NULL) {
+		ret = write_file_whole(pargs->m_output,(char*)pp,plen);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("write [%s] failed", pargs->m_output);
+			goto out;
+		}
+	} else {
+		dump_buffer_out(stdout,pp,plen,"spcstring");	
+	}
+	
+	ret = 0;
+out:
+	if (pp != NULL) {
+		OPENSSL_free(pp);
+	}
+	pp = NULL;
+
+	if (pstr != NULL) {
+		SpcString_free(pstr);	
+	}	
+	pstr = NULL;
+	if (pj) {
+		jvalue_destroy(pj);
+	}
+	pj = NULL;
+	read_file_whole(NULL,&jbuf,&jsize);
+	jlen = 0;
+	SETERRNO(ret);
+	return ret;
 }
 
 int spcstrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	return 0;
-}
+	SpcString* pstr=NULL;
+	int ret;
+	jvalue *pj=NULL;
+	char* binfile=NULL;
+	char* pbin=NULL;
+	int blen=0,bsize=0;
+	char* jbuf=NULL;
+	int jlen=0;
+	unsigned int jsonlen;
+	const unsigned char* pin=NULL;
+	int i;
+	pargs_options_t pargs = (pargs_options_t) popt;
+
+	init_log_verbose(pargs);
+
+	for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+		binfile = parsestate->leftargs[i];
+		ret = read_file_whole(binfile,&pbin,&bsize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("read [%s] error[%d]", binfile,ret);
+			goto out;
+		}
+		blen = ret;
+		if (pstr != NULL) {
+			SpcString_free(pstr);
+		}
+		pstr=  NULL;
+
+		pin = (const unsigned char*)pbin;
+		pstr = d2i_SpcString(NULL,&pin,blen);
+		if (pstr ==NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("[%s] not valid SpcString",binfile);
+			goto out;
+		}
+		DEBUG_INFO("pstr->type [%d]", pstr->type);
+
+		if (pj != NULL) {
+			jvalue_destroy(pj);
+		}
+		pj = NULL;
+
+		pj = jobject_create();
+		if (pj == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+
+		ret = decode_spcstr(pstr,pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+
+		if (jbuf != NULL) {
+			free(jbuf);
+		}
+		jbuf = NULL;
+
+		jsonlen = 0;
+		jbuf = jvalue_write_pretty(pj,&jsonlen);
+		if (jbuf == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+		if (pargs->m_output) {
+			ret = write_file_whole(pargs->m_output,jbuf,jlen);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto out;
+			}
+		} else {
+			fprintf(stdout,"%s\n",jbuf);
+		}
+	}
+	ret = 0;
+out:
+	if (pstr != NULL) {
+		SpcString_free(pstr);	
+	}	
+	pstr = NULL;
+	if (pj) {
+		jvalue_destroy(pj);
+	}
+	pj = NULL;
+	if (jbuf != NULL) {
+		free(jbuf);
+	}
+	jbuf = NULL;
+	jlen = 0;
+	read_file_whole(NULL,&pbin,&bsize);
+	blen = 0;
+	SETERRNO(ret);
+	return ret;}
