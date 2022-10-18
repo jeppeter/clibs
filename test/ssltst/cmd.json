@@ -55,5 +55,11 @@
     },
     "spcserialobjdec<spcserialobjdec_handler>##binfile... to decode spcserialobject##" : {
         "$" : "+"
+    },
+    "spclinkenc<spclinkenc_handler>##jsonfile to encode SpcLink##" : {
+        "$" : 1
+    },
+    "spclinkdec<spclinkdec_handler>##binfile... to decode SpcLink##" : {
+        "$" : "+"
     }
 }

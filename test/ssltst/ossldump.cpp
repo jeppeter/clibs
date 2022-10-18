@@ -890,3 +890,14 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+
+int spclinkenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	return 0;
+}
+
+int spclinkdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	return 0;
+}

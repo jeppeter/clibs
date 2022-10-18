@@ -45,6 +45,8 @@ int spcstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int spcstrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int spcserialobjenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int spcserialobjdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int spclinkenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int spclinkdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
