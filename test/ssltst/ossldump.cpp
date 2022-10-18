@@ -379,11 +379,11 @@ IMPLEMENT_ASN1_FUNCTIONS(TimeStampToken)
 
 
 
-int encode_spcstr(jvalue* pj,SpcString* pstr)
+int encode_spcstr(jvalue* pj, SpcString* pstr)
 {
 	int ret;
 	int type = -1;
-	ret = set_asn1_bmpstr(&(pstr->value.unicode),"unicode",pj);
+	ret = set_asn1_bmpstr(&(pstr->value.unicode), "unicode", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -391,7 +391,7 @@ int encode_spcstr(jvalue* pj,SpcString* pstr)
 		type = 0;
 	}
 
-	ret = set_asn1_ia5str(&(pstr->value.ascii),"ascii",pj);
+	ret = set_asn1_ia5str(&(pstr->value.ascii), "ascii", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -417,13 +417,13 @@ int decode_spcstr(SpcString* pstr, jvalue* pj)
 {
 	int ret = 0;
 	if (pstr->type == 1) {
-		ret = get_asn1_ia5str(&(pstr->value.ascii),"ascii",pj);
+		ret = get_asn1_ia5str(&(pstr->value.ascii), "ascii", pj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 	} else if (pstr->type == 0) {
-		ret=  get_asn1_bmpstr(&(pstr->value.unicode),"unicode",pj);
+		ret =  get_asn1_bmpstr(&(pstr->value.unicode), "unicode", pj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -436,18 +436,60 @@ fail:
 	return ret;
 }
 
+int encode_spcserialobject(jvalue* pj, SpcSerializedObject* pobj)
+{
+	int ret;
+	ret = set_asn1_octstr(&(pobj->classId), "classid", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_octstr(&(pobj->serializedData), "serializeddata", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_spcserialobject(SpcSerializedObject* pobj, jvalue* pj)
+{
+	int ret = 0;
+	ret = get_asn1_octstr(&(pobj->classId), "classid", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ret =  get_asn1_octstr(&(pobj->serializedData), "serializeddata", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
 int spcstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	SpcString* pstr=NULL;
+	SpcString* pstr = NULL;
 	int ret;
-	jvalue *pj=NULL;
-	char* jsonfile=NULL;
-	char* jbuf=NULL;
-	int jsize=0,jlen=0;
+	jvalue *pj = NULL;
+	char* jsonfile = NULL;
+	char* jbuf = NULL;
+	int jsize = 0, jlen = 0;
 	unsigned int jsonlen;
-	uint8_t* pp=NULL;
-	uint8_t* pin=NULL;
-	int plen=0;
+	uint8_t* pp = NULL;
+	uint8_t* pin = NULL;
+	int plen = 0;
 	pargs_options_t pargs = (pargs_options_t) popt;
 
 	init_log_verbose(pargs);
@@ -467,7 +509,7 @@ int spcstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
-	ret = read_file_whole(jsonfile,&jbuf,&jsize);
+	ret = read_file_whole(jsonfile, &jbuf, &jsize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto out;
@@ -476,20 +518,20 @@ int spcstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	jbuf[jlen] = 0x0;
 	jsonlen = jlen + 1;
 
-	pj = jvalue_read(jbuf,&jsonlen);
+	pj = jvalue_read(jbuf, &jsonlen);
 	if (pj == NULL) {
 		GETERRNO(ret);
-		ERROR_INFO("parse [%s] error[%d]", jsonfile,ret);
+		ERROR_INFO("parse [%s] error[%d]", jsonfile, ret);
 		goto out;
 	}
 
-	ret = encode_spcstr(pj,pstr);
+	ret = encode_spcstr(pj, pstr);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto out;
 	}
 
-	ret = i2d_SpcString(pstr,NULL);
+	ret = i2d_SpcString(pstr, NULL);
 	if (ret <= 0) {
 		GETERRNO(ret);
 		ERROR_INFO("can not i2d spcstring [%d]", ret);
@@ -504,7 +546,7 @@ int spcstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	}
 
 	pin = pp;
-	ret = i2d_SpcString(pstr,&pin);
+	ret = i2d_SpcString(pstr, &pin);
 	if (ret <= 0) {
 		GETERRNO(ret);
 		ERROR_INFO("can not i2d spcstring [%d]", ret);
@@ -512,16 +554,16 @@ int spcstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	}
 
 	if (pargs->m_output != NULL) {
-		ret = write_file_whole(pargs->m_output,(char*)pp,plen);
+		ret = write_file_whole(pargs->m_output, (char*)pp, plen);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("write [%s] failed", pargs->m_output);
 			goto out;
 		}
 	} else {
-		dump_buffer_out(stdout,pp,plen,"spcstring");	
+		dump_buffer_out(stdout, pp, plen, "spcstring");
 	}
-	
+
 	ret = 0;
 out:
 	if (pp != NULL) {
@@ -530,14 +572,14 @@ out:
 	pp = NULL;
 
 	if (pstr != NULL) {
-		SpcString_free(pstr);	
-	}	
+		SpcString_free(pstr);
+	}
 	pstr = NULL;
 	if (pj) {
 		jvalue_destroy(pj);
 	}
 	pj = NULL;
-	read_file_whole(NULL,&jbuf,&jsize);
+	read_file_whole(NULL, &jbuf, &jsize);
 	jlen = 0;
 	SETERRNO(ret);
 	return ret;
@@ -545,40 +587,40 @@ out:
 
 int spcstrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	SpcString* pstr=NULL;
+	SpcString* pstr = NULL;
 	int ret;
-	jvalue *pj=NULL;
-	char* binfile=NULL;
-	char* pbin=NULL;
-	int blen=0,bsize=0;
-	char* jbuf=NULL;
-	int jlen=0;
+	jvalue *pj = NULL;
+	char* binfile = NULL;
+	char* pbin = NULL;
+	int blen = 0, bsize = 0;
+	char* jbuf = NULL;
+	int jlen = 0;
 	unsigned int jsonlen;
-	const unsigned char* pin=NULL;
+	const unsigned char* pin = NULL;
 	int i;
 	pargs_options_t pargs = (pargs_options_t) popt;
 
 	init_log_verbose(pargs);
 
-	for (i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+	for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
 		binfile = parsestate->leftargs[i];
-		ret = read_file_whole(binfile,&pbin,&bsize);
+		ret = read_file_whole(binfile, &pbin, &bsize);
 		if (ret < 0) {
 			GETERRNO(ret);
-			ERROR_INFO("read [%s] error[%d]", binfile,ret);
+			ERROR_INFO("read [%s] error[%d]", binfile, ret);
 			goto out;
 		}
 		blen = ret;
 		if (pstr != NULL) {
 			SpcString_free(pstr);
 		}
-		pstr=  NULL;
+		pstr =  NULL;
 
 		pin = (const unsigned char*)pbin;
-		pstr = d2i_SpcString(NULL,&pin,blen);
-		if (pstr ==NULL) {
+		pstr = d2i_SpcString(NULL, &pin, blen);
+		if (pstr == NULL) {
 			GETERRNO(ret);
-			ERROR_INFO("[%s] not valid SpcString",binfile);
+			ERROR_INFO("[%s] not valid SpcString", binfile);
 			goto out;
 		}
 		DEBUG_INFO("pstr->type [%d]", pstr->type);
@@ -594,7 +636,7 @@ int spcstrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 			goto out;
 		}
 
-		ret = decode_spcstr(pstr,pj);
+		ret = decode_spcstr(pstr, pj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto out;
@@ -606,26 +648,26 @@ int spcstrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		jbuf = NULL;
 
 		jsonlen = 0;
-		jbuf = jvalue_write_pretty(pj,&jsonlen);
+		jbuf = jvalue_write_pretty(pj, &jsonlen);
 		if (jbuf == NULL) {
 			GETERRNO(ret);
 			goto out;
 		}
 		if (pargs->m_output) {
-			ret = write_file_whole(pargs->m_output,jbuf,jlen);
+			ret = write_file_whole(pargs->m_output, jbuf, jlen);
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto out;
 			}
 		} else {
-			fprintf(stdout,"%s\n",jbuf);
+			fprintf(stdout, "%s\n", jbuf);
 		}
 	}
 	ret = 0;
 out:
 	if (pstr != NULL) {
-		SpcString_free(pstr);	
-	}	
+		SpcString_free(pstr);
+	}
 	pstr = NULL;
 	if (pj) {
 		jvalue_destroy(pj);
@@ -636,7 +678,215 @@ out:
 	}
 	jbuf = NULL;
 	jlen = 0;
-	read_file_whole(NULL,&pbin,&bsize);
+	read_file_whole(NULL, &pbin, &bsize);
 	blen = 0;
 	SETERRNO(ret);
-	return ret;}
+	return ret;
+}
+
+
+int spcserialobjenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	SpcSerializedObject* pobj = NULL;
+	int ret;
+	jvalue *pj = NULL;
+	char* jsonfile = NULL;
+	char* jbuf = NULL;
+	int jsize = 0, jlen = 0;
+	unsigned int jsonlen;
+	uint8_t* pp = NULL;
+	uint8_t* pin = NULL;
+	int plen = 0;
+	pargs_options_t pargs = (pargs_options_t) popt;
+
+	init_log_verbose(pargs);
+	pobj = SpcSerializedObject_new();
+	if (pobj == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	if (parsestate->leftargs && parsestate->leftargs[0] != NULL) {
+		jsonfile = parsestate->leftargs[0];
+	}
+
+	if (jsonfile == NULL) {
+		ret = -EINVAL;
+		ERROR_INFO("no jsonfile specified");
+		goto out;
+	}
+
+	ret = read_file_whole(jsonfile, &jbuf, &jsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+	jlen = ret;
+	jbuf[jlen] = 0x0;
+	jsonlen = jlen + 1;
+
+	pj = jvalue_read(jbuf, &jsonlen);
+	if (pj == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("parse [%s] error[%d]", jsonfile, ret);
+		goto out;
+	}
+
+	ret = encode_spcserialobject(pj, pobj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = i2d_SpcSerializedObject(pobj, NULL);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("can not i2d spcstring [%d]", ret);
+		goto out;
+	}
+	plen = ret;
+
+	pp = (uint8_t*)malloc(plen);
+	if (pp == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	pin = pp;
+	ret = i2d_SpcSerializedObject(pobj, &pin);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("can not i2d spcstring [%d]", ret);
+		goto out;
+	}
+
+	if (pargs->m_output != NULL) {
+		ret = write_file_whole(pargs->m_output, (char*)pp, plen);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("write [%s] failed", pargs->m_output);
+			goto out;
+		}
+	} else {
+		dump_buffer_out(stdout, pp, plen, "SpcSerializedObject");
+	}
+
+	ret = 0;
+out:
+	if (pp != NULL) {
+		OPENSSL_free(pp);
+	}
+	pp = NULL;
+
+	if (pobj != NULL) {
+		SpcSerializedObject_free(pobj);
+	}
+	pobj = NULL;
+	if (pj) {
+		jvalue_destroy(pj);
+	}
+	pj = NULL;
+	read_file_whole(NULL, &jbuf, &jsize);
+	jlen = 0;
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int spcserialobjdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	SpcSerializedObject* pobj = NULL;
+	int ret;
+	jvalue *pj = NULL;
+	char* binfile = NULL;
+	char* pbin = NULL;
+	int blen = 0, bsize = 0;
+	char* jbuf = NULL;
+	int jlen = 0;
+	unsigned int jsonlen;
+	const unsigned char* pin = NULL;
+	int i;
+	pargs_options_t pargs = (pargs_options_t) popt;
+
+	init_log_verbose(pargs);
+
+	for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+		binfile = parsestate->leftargs[i];
+		ret = read_file_whole(binfile, &pbin, &bsize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("read [%s] error[%d]", binfile, ret);
+			goto out;
+		}
+		blen = ret;
+		if (pobj != NULL) {
+			SpcSerializedObject_free(pobj);
+		}
+		pobj =  NULL;
+
+		pin = (const unsigned char*)pbin;
+		pobj = d2i_SpcSerializedObject(NULL, &pin, blen);
+		if (pobj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("[%s] not valid SpcSerializedObject", binfile);
+			goto out;
+		}
+
+		if (pj != NULL) {
+			jvalue_destroy(pj);
+		}
+		pj = NULL;
+
+		pj = jobject_create();
+		if (pj == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+
+		ret = decode_spcserialobject(pobj, pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+
+		if (jbuf != NULL) {
+			free(jbuf);
+		}
+		jbuf = NULL;
+
+		jsonlen = 0;
+		jbuf = jvalue_write_pretty(pj, &jsonlen);
+		if (jbuf == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+		if (pargs->m_output) {
+			ret = write_file_whole(pargs->m_output, jbuf, jlen);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto out;
+			}
+		} else {
+			fprintf(stdout, "%s\n", jbuf);
+		}
+	}
+	ret = 0;
+out:
+	if (pobj != NULL) {
+		SpcSerializedObject_free(pobj);
+	}
+	pobj = NULL;
+	if (pj) {
+		jvalue_destroy(pj);
+	}
+	pj = NULL;
+	if (jbuf != NULL) {
+		free(jbuf);
+	}
+	jbuf = NULL;
+	jlen = 0;
+	read_file_whole(NULL, &pbin, &bsize);
+	blen = 0;
+	SETERRNO(ret);
+	return ret;
+}

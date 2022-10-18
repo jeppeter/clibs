@@ -43,6 +43,8 @@ int aes256cfbenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int aes256cfbdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int spcstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int spcstrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int spcserialobjenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int spcserialobjdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
