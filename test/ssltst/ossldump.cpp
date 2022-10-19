@@ -482,7 +482,7 @@ int encode_SpcLink(jvalue* pj,SpcLink* plink)
 	int type = -1;
 	int ret = 0;
 	jvalue* chldpj=NULL;
-	ret = get_asn1_ia5str(&(plink->value.url),"url",pj);
+	ret = set_asn1_ia5str(&(plink->value.url),"url",pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -493,6 +493,11 @@ int encode_SpcLink(jvalue* pj,SpcLink* plink)
 	if (type < 0) {
 		chldpj = jobject_get(pj,"moniker");
 		if (chldpj != NULL) {
+			plink->value.moniker = SpcSerializedObject_new();
+			if (plink->value.moniker == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
 			ret = encode_SpcSerializedObject(chldpj,plink->value.moniker);
 			if (ret < 0) {
 				GETERRNO(ret);
@@ -505,6 +510,11 @@ int encode_SpcLink(jvalue* pj,SpcLink* plink)
 	if (type < 0) {
 		chldpj = jobject_get(pj,"file");
 		if (chldpj != NULL) {
+			plink->value.file = SpcString_new();
+			if (plink->value.file == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
 			ret = encode_SpcString(chldpj,plink->value.file);
 			if (ret < 0) {
 				GETERRNO(ret);
