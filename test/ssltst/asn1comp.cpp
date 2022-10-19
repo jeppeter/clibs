@@ -741,6 +741,88 @@ int set_asn1_int32(int32_t* pint32, const char* key, const jvalue *pj)
 	return 1;
 }
 
+int set_asn1_any(ASN1_TYPE** ppany , const char* key, const jvalue* pj)
+{
+	jvalue* parr=NULL;
+	jint* jival=NULL;
+	unsigned int i;
+	unsigned int size;
+	ASN1_TYPE* pat=NULL;
+	jvalue* curval = NULL;
+	unsigned char* pbuf;
+	int ret;
+	int error;
+
+	if (ppany ==NULL) {
+		ret = -EINVAL;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	parr = jobject_get(pj,key);
+	if (parr == NULL) {
+		return 0;
+	}
+
+	size = jarray_size(parr);
+	if (size == 0) {
+		return 0;
+	}
+
+	if (*ppany == NULL) {
+		*ppany = ASN1_TYPE_new();
+		if (*ppany == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	pat = *ppany;
+	if (pat->value.asn1_string->data) {
+		OPENSSL_free(pat->value.asn1_string->data);
+	}
+	pat->value.asn1_string->data = NULL;
+	pat->value.asn1_string->data = (unsigned char*)OPENSSL_malloc(size);
+	pat->value.asn1_string->length = size;
+	if (pat->value.asn1_string->data == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	pbuf = pat->value.asn1_string->data;
+
+
+	for(i=0;i<size;i++) {
+		ASSERT_IF(curval == NULL);
+		error = 0;
+		curval = jarray_get(parr,i,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("can not get [%s].[%d] error[%d]", key,i,ret);
+			goto fail;
+		}
+		if (curval == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("[%s].[%d] get null", key,i);
+			goto fail;
+		}
+		if (curval->type !=  JINT) {
+			ret = -EINVAL;
+			ERROR_INFO("[%s].[%d] not int type",key,i);
+			goto fail;
+		}
+		jival = (jint*)curval;
+
+		pbuf[i] = (unsigned char)jival->value;
+		curval = NULL;
+	}
+
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 int get_asn1_integer(ASN1_INTEGER** ppint, const char* key, jvalue* pj)
 {
 	ASN1_INTEGER* pint;
@@ -1273,6 +1355,81 @@ int get_asn1_int32(int32_t* pint32, const char* key, jvalue* pj)
 	}
 	return 1;
 fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int get_asn1_any(ASN1_TYPE** ppany, const char* key, jvalue* pj)
+{
+	jvalue *parr = NULL;
+	jvalue * curval = NULL;
+	jvalue *retpj = NULL;
+	ASN1_TYPE* at;
+	int i;
+	int ret;
+	unsigned char *pbuf;
+	int setted = 0;
+	int error;
+	if (ppany == NULL || *ppany == NULL) {
+		return 0;
+	}
+	at = *ppany;
+
+	if (at->value.asn1_string->data != NULL) {
+		parr = jarray_create();
+		if (parr == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("can not create [%s] array", key);
+			goto fail;
+		}
+		pbuf = at->value.asn1_string->data;
+		for(i=0;i<at->value.asn1_string->length;i++) {
+			ASSERT_IF(curval == NULL);
+			curval = jint_create((int)pbuf[i]);
+			if (curval == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("create [%s].[%d] item error[%d]", key,i,ret);
+				goto fail;
+			}
+	
+			ret = jarray_put(parr,curval);
+			if (ret != 0) {
+				GETERRNO(ret);
+				ERROR_INFO("can not input [%s].[%d] item", key,i);
+				goto fail;
+			}
+			curval = NULL;
+		}
+
+		error = 0;
+		retpj = jobject_put(pj,key,parr,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("can not put [%s] any error[%d]", key,ret);
+			goto fail;
+		}
+		parr = NULL;
+		if (retpj) {
+			jvalue_destroy(retpj);
+		}
+		retpj = NULL;
+		setted = 1;
+	}
+
+	return setted;
+fail:
+	if (retpj) {
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+	if (curval) {
+		jvalue_destroy(curval);
+	}
+	curval = NULL;
+	if (parr) {
+		jvalue_destroy(parr);
+	}
+	parr = NULL;
 	SETERRNO(ret);
 	return ret;
 }
