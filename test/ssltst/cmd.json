@@ -67,5 +67,11 @@
     },
     "spcopusinfodec<spcopusinfodec_handler>##binfile... to decode SpcSpOpusInfo##" : {
         "$" : "+"
+    },
+    "spcattrvalenc<spcattrvalenc_handler>##jsonfile to encode SpcAttributeTypeAndOptionalValue##" : {
+        "$" : 1
+    },
+    "spcattrvaldec<spcattrvaldec_handler>##binfile... to decode SpcAttributeTypeAndOptionalValue##" : {
+        "$" : "+"
     }
 }

@@ -49,6 +49,8 @@ int spclinkenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int spclinkdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int spcopusinfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int spcopusinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int spcattrvalenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int spcattrvaldec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

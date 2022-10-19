@@ -732,6 +732,54 @@ fail:
 	return ret;
 }
 
+int encode_SpcAttributeTypeAndOptionalValue(jvalue* pj, SpcAttributeTypeAndOptionalValue* pobj)
+{
+	int ret;
+
+	DEBUG_INFO(" ");
+	ret = set_asn1_object(&(pobj->type),"type",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	DEBUG_INFO(" ");
+	ret=  set_asn1_any(&(pobj->value), "value",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	DEBUG_INFO(" ");
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_SpcAttributeTypeAndOptionalValue(SpcAttributeTypeAndOptionalValue* pobj, jvalue* pj)
+{
+	int ret = 0;
+
+	ret = get_asn1_object(&(pobj->type),"type",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_any(&(pobj->value),"value",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
 	typev* pstr = NULL;                                                                           \
@@ -756,22 +804,23 @@ do{                                                                             
 	if (parsestate->leftargs && parsestate->leftargs[0] != NULL) {                                \
 		jsonfile = parsestate->leftargs[0];                                                       \
 	}                                                                                             \
-                                                                                                  \
+    DEBUG_INFO(" ");                                                                              \
 	if (jsonfile == NULL) {                                                                       \
 		ret = -EINVAL;                                                                            \
 		ERROR_INFO("no jsonfile specified");                                                      \
 		goto out;                                                                                 \
 	}                                                                                             \
-                                                                                                  \
+    DEBUG_INFO(" ");                                                                              \
 	ret = read_file_whole(jsonfile, &jbuf, &jsize);                                               \
 	if (ret < 0) {                                                                                \
 		GETERRNO(ret);                                                                            \
 		goto out;                                                                                 \
 	}                                                                                             \
-	jlen = ret;                                                                                   \
+    DEBUG_INFO(" ");                                                                              \
+    jlen = ret;                                                                                   \
 	jbuf[jlen] = 0x0;                                                                             \
 	jsonlen = jlen + 1;                                                                           \
-                                                                                                  \
+    DEBUG_INFO(" ");                                                                              \
 	pj = jvalue_read(jbuf, &jsonlen);                                                             \
 	if (pj == NULL) {                                                                             \
 		GETERRNO(ret);                                                                            \
@@ -979,4 +1028,14 @@ int spcopusinfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 int spcopusinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(SpcSpOpusInfo);
+}
+
+int spcattrvalenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(SpcAttributeTypeAndOptionalValue);
+}
+
+int spcattrvaldec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(SpcAttributeTypeAndOptionalValue);
 }
