@@ -800,6 +800,7 @@ int set_asn1_any(ASN1_TYPE** ppany , const char* key, const jvalue* pj)
 
 	if (strcmp(stype, "bool") == 0) {
 		itype = V_ASN1_BOOLEAN;
+	try_bool:
 		bval = jobject_get_bool(ptype, "value", &error);
 		if (error != 0) {
 			ret = -EINVAL;
@@ -812,10 +813,11 @@ int set_asn1_any(ASN1_TYPE** ppany , const char* key, const jvalue* pj)
 		ret = ASN1_TYPE_set1(pat, itype, bptr);
 	} else if (strcmp(stype, "null") == 0) {
 		itype = V_ASN1_NULL;
+	try_null:
 		ret = ASN1_TYPE_set1(pat,itype,NULL);
 	} else if (strcmp(stype, "object") == 0) {
 		itype = V_ASN1_OBJECT;
-
+	try_object:
 		ret = set_asn1_object(&pnobj,"value",ptype);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -836,6 +838,17 @@ int set_asn1_any(ASN1_TYPE** ppany , const char* key, const jvalue* pj)
 			goto fail;
 		}
 		itype = (int)num;
+		if (itype == V_ASN1_OBJECT) {
+			goto try_object;
+		}
+		if (itype == V_ASN1_NULL) {
+			goto try_null;
+		}
+
+		if (itype == V_ASN1_BOOLEAN) {
+			goto try_bool;
+		}
+
 		parr = jobject_get(ptype, "data");
 		if (parr == NULL) {
 			GETERRNO(ret);
@@ -1477,61 +1490,107 @@ int get_asn1_any(ASN1_TYPE** ppany, const char* key, jvalue* pj)
 	jvalue *parr = NULL;
 	jvalue * curval = NULL;
 	jvalue *retpj = NULL;
+	jvalue *pinsert=NULL;
 	ASN1_TYPE* at;
+	ASN1_OBJECT* pnobj=NULL;
 	int i;
 	int ret;
-	unsigned char *pbuf;
+	unsigned char *pbuf=NULL;
+	int buflen=0;
 	int setted = 0;
 	int error;
+	int typ;
+	ASN1_INTEGER* pinteger=NULL;
+	ASN1_STRING* pstr=NULL;
+	long lval;
 	if (ppany == NULL || *ppany == NULL) {
 		DEBUG_INFO("no [%s] any", key);
 		return 0;
 	}
 	at = *ppany;
-
-	if (at->value.asn1_string->data != NULL) {
-		parr = jarray_create();
-		if (parr == NULL) {
+	typ = ASN1_TYPE_get(at);
+	pinsert = jobject_create();
+	if (pinsert == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("create [%s] insert error[%d]", key,ret);
+		goto fail;
+	}
+	if (typ == V_ASN1_OBJECT) {
+		ret = jobject_put_string(pinsert,"type","object");
+		if (ret != 0) {
 			GETERRNO(ret);
-			ERROR_INFO("can not create [%s] array", key);
+			ERROR_INFO("put [%s] type object error[%d]", key, ret);
 			goto fail;
 		}
-		pbuf = at->value.asn1_string->data;
-		for (i = 0; i < at->value.asn1_string->length; i++) {
-			ASSERT_IF(curval == NULL);
-			curval = jint_create((int)pbuf[i]);
-			if (curval == NULL) {
-				GETERRNO(ret);
-				ERROR_INFO("create [%s].[%d] item error[%d]", key, i, ret);
-				goto fail;
-			}
-
-			ret = jarray_put(parr, curval);
-			if (ret != 0) {
-				GETERRNO(ret);
-				ERROR_INFO("can not input [%s].[%d] item", key, i);
-				goto fail;
-			}
-			curval = NULL;
-		}
-
-		error = 0;
-		retpj = jobject_put(pj, key, parr, &error);
-		if (error != 0) {
-			GETERRNO(ret);
-			ERROR_INFO("can not put [%s] any error[%d]", key, ret);
+		pnobj = at->value.object;
+		if (pnobj == NULL) {
+			ret = -EINVAL;
+			ERROR_INFO("no object for [%s]", key);
 			goto fail;
 		}
-		parr = NULL;
-		if (retpj) {
-			jvalue_destroy(retpj);
+		ret = get_asn1_object(&pnobj,"value",pinsert);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		} else if (ret == 0) {
+			ret=  -EINVAL;
+			ERROR_INFO("no [%s] value for object",key);
+			goto fail;
 		}
-		retpj = NULL;
-		setted = 1;
+
+	} else if (typ == V_ASN1_NULL) {
+		ret = jobject_put_string(pinsert,"type","null");
+		if (ret != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put [%s] type null error[%d]", key, ret);
+			goto fail;
+		}
+	} else if (typ == V_ASN1_BOOLEAN) {
+		ret = jobject_put_string(pinsert,"type","bool");
+		if (ret != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put [%s] type null error[%d]", key, ret);
+			goto fail;
+		}
+		bval = at->value.boolean;
+		ret = jobject_put_bool(pinsert,"value",bval);
+		if (ret != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put [%s] value bool error[%d]", key,ret);
+			goto fail;
+		}
+	} else if (typ == V_ASN1_INTEGER || typ == V_ASN1_ENUMERATED) {
+		pinteger = at->value.integer;
+		lval = ASN1_INTEGER_get(pinteger);
+		pbuf = &lval;
+		buflen = sizeof(lval);
+		goto put_data;
+	} else if (typ == V_ASN1_BIT_STRING || typ == V_ASN1_OCTET_STRING || typ == V_ASN1_UTF8STRING || typ == V_ASN1_SEQUENCE || typ == V_ASN1_SET || typ == V_ASN1_NUMERICSTRING || typ == V_ASN1_PRINTABLESTRING || typ == V_ASN1_T61STRING || typ == V_ASN1_T61STRING || typ == V_ASN1_TELETEXSTRING || typ == V_ASN1_VIDEOTEXSTRING || typ == V_ASN1_IA5STRING) {
+		pstr = at->value.set;
+		pbuf = ASN1_STRING_get0_data(pstr);
+		buflen = ASN1_STRING_length(pstr);
+		goto put_data;
+	} else if (typ == V_ASN1_UTCTIME) {
+		
+	} else if (typ == V_ASN1_GENERALIZEDTIME) {
+		
+	} else if (typ == V_ASN1_GRAPHICSTRING) {
+		
+	} else if (typ == V_ASN1_ISO64STRING) {
+		
+	} else if (typ == V_ASN1_VISIBLESTRING) {
+		
+	} else if (typ == V_ASN1_GENERALSTRING) {
+		
+	} else if (typ == V_ASN1_UNIVERSALSTRING) {
+		
+	} else {
+	put_data:
 	}
 
+
 	return setted;
-fail:
+fail:	
 	if (retpj) {
 		jvalue_destroy(retpj);
 	}
@@ -1544,6 +1603,10 @@ fail:
 		jvalue_destroy(parr);
 	}
 	parr = NULL;
+	if (pinsert) {
+		jvalue_destroy(pinsert);
+	}
+	pinsert = NULL;
 	SETERRNO(ret);
 	return ret;
 }
