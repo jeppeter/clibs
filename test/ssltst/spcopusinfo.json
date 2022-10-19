@@ -1,0 +1,11 @@
+{
+	"programname" : {
+		"ascii" : "ccasci"
+	},
+	"moreinfo" : {
+		"moniker" : {
+			"classid" : "class value",
+			"serializeddata" : "serial data"
+		}
+	}
+}

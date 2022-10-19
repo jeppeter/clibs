@@ -616,6 +616,122 @@ fail:
 	return ret;
 }
 
+int encode_SpcSpOpusInfo(jvalue* pj, SpcSpOpusInfo* pobj)
+{
+	int ret;
+	jvalue* chldpj = NULL;
+	chldpj = jobject_get(pj,"programname");
+	if (chldpj != NULL) {
+		if (pobj->programName == NULL) {
+			pobj->programName = SpcString_new();
+			if (pobj->programName == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+		ret = encode_SpcString(chldpj,pobj->programName);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+	chldpj = NULL;
+
+	chldpj = jobject_get(pj,"moreinfo");
+	if (chldpj != NULL) {
+		if (pobj->moreInfo == NULL) {
+			pobj->moreInfo = SpcLink_new();
+			if (pobj->moreInfo == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+		ret = encode_SpcLink(chldpj,pobj->moreInfo);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_SpcSpOpusInfo(SpcSpOpusInfo* pobj, jvalue* pj)
+{
+	int ret = 0;
+	jvalue* retpj = NULL;
+	jvalue* chldpj = NULL;
+	int error;
+	if (pobj->programName != NULL) {
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create programName chldpj error[%d]", ret);
+			goto fail;
+		}
+		ret = decode_SpcString(pobj->programName,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		error = 0;
+		retpj = jobject_put(pj,"programname",chldpj,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("replace programname error[%d]", ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (retpj) {
+			jvalue_destroy(retpj);
+		}
+		retpj = NULL;
+	}
+
+	if (pobj->moreInfo) {
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create moreInfo chldpj error[%d]", ret);
+			goto fail;
+		}
+		ret = decode_SpcLink(pobj->moreInfo,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		error = 0;
+		retpj = jobject_put(pj,"moreinfo",chldpj,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("replace moreinfo error[%d]", ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (retpj) {
+			jvalue_destroy(retpj);
+		}
+		retpj = NULL;		
+	}
+
+	return 0;
+fail:
+	if (retpj) {
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+	if (chldpj) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
 	typev* pstr = NULL;                                                                           \
@@ -852,4 +968,15 @@ int spclinkenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int spclinkdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(SpcLink);
+}
+
+
+int spcopusinfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(SpcSpOpusInfo);
+}
+
+int spcopusinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(SpcSpOpusInfo);
 }

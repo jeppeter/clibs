@@ -61,5 +61,11 @@
     },
     "spclinkdec<spclinkdec_handler>##binfile... to decode SpcLink##" : {
         "$" : "+"
+    },
+    "spcopusinfoenc<spcopusinfoenc_handler>##jsonfile to encode SpcSpOpusInfo##" : {
+        "$" : 1
+    },
+    "spcopusinfodec<spcopusinfodec_handler>##binfile... to decode SpcSpOpusInfo##" : {
+        "$" : "+"
     }
 }
