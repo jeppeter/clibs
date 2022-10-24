@@ -779,6 +779,53 @@ fail:
 	return ret;
 }
 
+int encode_AlgorithmIdentifier(jvalue* pj, AlgorithmIdentifier* pobj)
+{
+	int ret;
+
+	DEBUG_INFO(" ");
+	ret = set_asn1_object(&(pobj->algorithm),"algorithm",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	DEBUG_INFO(" ");
+	ret=  set_asn1_any(&(pobj->parameters), "parameters",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	DEBUG_INFO(" ");
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_AlgorithmIdentifier(AlgorithmIdentifier* pobj, jvalue* pj)
+{
+	int ret = 0;
+
+	ret = get_asn1_object(&(pobj->algorithm),"algorithm",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_any(&(pobj->parameters),"parameters",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
@@ -1038,4 +1085,14 @@ int spcattrvalenc_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 int spcattrvaldec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(SpcAttributeTypeAndOptionalValue);
+}
+
+int algoidentenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(AlgorithmIdentifier);	
+}
+
+int algoidentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(AlgorithmIdentifier);	
 }

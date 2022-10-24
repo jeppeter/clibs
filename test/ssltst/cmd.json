@@ -73,5 +73,11 @@
     },
     "spcattrvaldec<spcattrvaldec_handler>##binfile... to decode SpcAttributeTypeAndOptionalValue##" : {
         "$" : "+"
+    },
+    "algoidentenc<algoidentenc_handler>##jsonfile to encode AlgorithmIdentifier##" : {
+        "$" : 1
+    },
+    "algoidentdec<algoidentdec_handler>##binfile... to decode AlgorithmIdentifier##" : {
+        "$" : "+"
     }
 }

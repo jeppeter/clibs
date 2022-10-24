@@ -1628,7 +1628,7 @@ int get_asn1_any(ASN1_TYPE** ppany, const char* key, jvalue* pj)
 	}
 
 	error = 0;
-	retpj = jobject_put(pj,"value",pinsert,&error);
+	retpj = jobject_put(pj,key,pinsert,&error);
 	if (error != 0) {
 		GETERRNO(ret);
 		ERROR_INFO("put value error[%d]", error);
