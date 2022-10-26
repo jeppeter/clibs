@@ -826,6 +826,92 @@ fail:
 	return ret;
 }
 
+int encode_DigestInfo(jvalue* pj, DigestInfo* pobj)
+{
+	int ret;
+	jvalue* chldpj = NULL;
+
+	chldpj = jobject_get(pj,"digestalgorithm");
+	if (chldpj != NULL) {
+		if (chldpj->type != JOBJECT) {
+			ret = -EINVAL;
+			ERROR_INFO("digestalgorithm not object");
+			goto fail;
+		}
+		ret = encode_AlgorithmIdentifier(chldpj,pobj->digestAlgorithm);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	ret = set_asn1_octstr(&(pobj->digest),"digest",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_DigestInfo(DigestInfo* pobj, jvalue* pj)
+{
+	int ret = 0;
+	jvalue* chldpj = NULL;
+	jvalue* retpj = NULL;	
+	int error;
+
+	chldpj = jobject_create();
+	if (chldpj == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("could not create digestalgorithm object [%d]", ret);
+		goto fail;
+	}
+
+	ret = decode_AlgorithmIdentifier(pobj->digestAlgorithm,chldpj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	error = 0;
+	retpj = jobject_put(pj,"digestalgorithm",chldpj,&error);
+	if (error != 0) {
+		GETERRNO(ret);
+		ERROR_INFO("could not insert digestalgorithm [%d]", ret);
+		goto fail;
+	}
+	chldpj = NULL;
+	if (retpj != NULL){
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+
+	ret = get_asn1_octstr(&(pobj->digest),"digest",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}	
+
+	return 0;
+fail:
+	if (chldpj != NULL) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+
+	if (retpj != NULL){
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+
+	SETERRNO(ret);
+	return ret;
+}
+
 
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
@@ -1095,4 +1181,15 @@ int algoidentenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int algoidentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(AlgorithmIdentifier);	
+}
+
+
+int diginfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(DigestInfo);	
+}
+
+int diginfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(DigestInfo);	
 }

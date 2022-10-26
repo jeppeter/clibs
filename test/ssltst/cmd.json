@@ -79,5 +79,11 @@
     },
     "algoidentdec<algoidentdec_handler>##binfile... to decode AlgorithmIdentifier##" : {
         "$" : "+"
+    },
+    "diginfoenc<diginfoenc_handler>##jsonfile to encode DigestInfo##" : {
+        "$" : 1
+    },
+    "diginfodec<diginfodec_handler>##binfile... to decode DigestInfo##" : {
+        "$" : "+"
     }
 }

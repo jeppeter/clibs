@@ -54,6 +54,8 @@ int spcattrvalenc_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 int spcattrvaldec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int algoidentenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int algoidentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int diginfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int diginfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
