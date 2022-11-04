@@ -85,5 +85,11 @@
     },
     "diginfodec<diginfodec_handler>##binfile... to decode DigestInfo##" : {
         "$" : "+"
+    },
+    "spcinddatacontentenc<spcinddatacontentenc_handler>##jsonfile to encode SpcIndirectDataContent##" : {
+        "$" : 1
+    },
+    "spcinddatacontentdec<spcinddatacontentdec_handler>##binfile... to decode SpcIndirectDataContent##" : {
+        "$" : "+"
     }
 }

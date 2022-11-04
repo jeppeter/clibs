@@ -1,0 +1,19 @@
+{
+	"data" : {
+		"type" : "1.3.4.5.66",
+		"value" : {
+			"type" : "0x31",
+			"data" : [25,33,22]	
+		}		
+	},
+	"messagedigest" : {
+		"digestalgorithm" : {
+			"algorithm" : "2.1.22225.311.22",
+			"parameters" : {
+				"type" : "0x12",
+				"data" : [52,221,34,66]
+			}		
+		},
+		"digest" : "digestinformation"		
+	}
+}

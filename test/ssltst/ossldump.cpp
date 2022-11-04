@@ -913,6 +913,123 @@ fail:
 }
 
 
+int encode_SpcIndirectDataContent(jvalue* pj, SpcIndirectDataContent* pobj)
+{
+	int ret;
+	jvalue* chldpj = NULL;
+
+	chldpj = jobject_get(pj,"data");
+	if (chldpj != NULL) {
+		if (chldpj->type != JOBJECT) {
+			ret = -EINVAL;
+			ERROR_INFO("data not object");
+			goto fail;
+		}
+		ret = encode_SpcAttributeTypeAndOptionalValue(chldpj,pobj->data);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		chldpj = NULL;
+	}
+
+	chldpj = jobject_get(pj,"messagedigest");
+	if (chldpj != NULL) {
+		if (chldpj->type != JOBJECT) {
+			ret = -EINVAL;
+			ERROR_INFO("messagedigest not object");
+			goto fail;
+		}
+		ret = encode_DigestInfo(chldpj,pobj->messageDigest);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		chldpj = NULL;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_SpcIndirectDataContent(SpcIndirectDataContent* pobj, jvalue* pj)
+{
+	int ret = 0;
+	jvalue* chldpj = NULL;
+	jvalue* retpj = NULL;	
+	int error;
+
+	chldpj = jobject_create();
+	if (chldpj == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("could not create data object [%d]", ret);
+		goto fail;
+	}
+
+	ret = decode_SpcAttributeTypeAndOptionalValue(pobj->data,chldpj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	error = 0;
+	retpj = jobject_put(pj,"data",chldpj,&error);
+	if (error != 0) {
+		GETERRNO(ret);
+		ERROR_INFO("could not insert data [%d]", ret);
+		goto fail;
+	}
+	chldpj = NULL;
+	if (retpj != NULL){
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+
+	chldpj = jobject_create();
+	if (chldpj == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("could not create messagedigest object [%d]", ret);
+		goto fail;
+	}
+
+	ret = decode_DigestInfo(pobj->messageDigest,chldpj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	error = 0;
+	retpj = jobject_put(pj,"messagedigest",chldpj,&error);
+	if (error != 0) {
+		GETERRNO(ret);
+		ERROR_INFO("could not insert messagedigest [%d]", ret);
+		goto fail;
+	}
+	chldpj = NULL;
+	if (retpj != NULL){
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+
+	return 0;
+fail:
+	if (chldpj != NULL) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+
+	if (retpj != NULL){
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+
+	SETERRNO(ret);
+	return ret;
+}
+
+
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
 	typev* pstr = NULL;                                                                           \
@@ -1192,4 +1309,14 @@ int diginfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int diginfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(DigestInfo);	
+}
+
+int spcinddatacontentenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(SpcIndirectDataContent);
+}
+
+int spcinddatacontentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(SpcIndirectDataContent);	
 }
