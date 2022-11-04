@@ -58,6 +58,8 @@ int diginfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int diginfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int spcinddatacontentenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int spcinddatacontentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int cataauthattrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int cataauthattrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

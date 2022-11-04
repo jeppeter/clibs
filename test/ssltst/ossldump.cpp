@@ -1029,6 +1029,50 @@ fail:
 	return ret;
 }
 
+int encode_CatalogAuthAttr(jvalue* pj, CatalogAuthAttr* pobj)
+{
+	int ret;
+
+	ret = set_asn1_object(&(pobj->type),"type",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ret = set_asn1_any(&(pobj->contents),"contents", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_CatalogAuthAttr(CatalogAuthAttr* pobj, jvalue* pj)
+{
+	int ret = 0;
+
+	ret = get_asn1_object(&(pobj->type),"type",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret=  get_asn1_any(&(pobj->contents),"contents",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
 
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
@@ -1319,4 +1363,14 @@ int spcinddatacontentenc_handler(int argc, char* argv[], pextargs_state_t parses
 int spcinddatacontentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(SpcIndirectDataContent);	
+}
+
+
+int cataauthattrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(CatalogAuthAttr);	
+}
+int cataauthattrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(CatalogAuthAttr);	
 }

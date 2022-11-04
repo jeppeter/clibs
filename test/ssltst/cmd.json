@@ -91,5 +91,10 @@
     },
     "spcinddatacontentdec<spcinddatacontentdec_handler>##binfile... to decode SpcIndirectDataContent##" : {
         "$" : "+"
-    }
-}
+    },
+    "cataauthattrenc<cataauthattrenc_handler>##jsonfile to encode CatalogAuthAttr##" : {
+        "$" : 1
+    },
+    "cataauthattrdec<cataauthattrdec_handler>##binfile... to decode CatalogAuthAttr##" : {
+        "$" : "+"
+    }}
