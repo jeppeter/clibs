@@ -477,12 +477,12 @@ fail:
 	return ret;
 }
 
-int encode_SpcLink(jvalue* pj,SpcLink* plink)
+int encode_SpcLink(jvalue* pj, SpcLink* plink)
 {
 	int type = -1;
 	int ret = 0;
-	jvalue* chldpj=NULL;
-	ret = set_asn1_ia5str(&(plink->value.url),"url",pj);
+	jvalue* chldpj = NULL;
+	ret = set_asn1_ia5str(&(plink->value.url), "url", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -491,14 +491,16 @@ int encode_SpcLink(jvalue* pj,SpcLink* plink)
 	}
 
 	if (type < 0) {
-		chldpj = jobject_get(pj,"moniker");
+		chldpj = jobject_get(pj, "moniker");
 		if (chldpj != NULL) {
-			plink->value.moniker = SpcSerializedObject_new();
 			if (plink->value.moniker == NULL) {
-				GETERRNO(ret);
-				goto fail;
+				plink->value.moniker = SpcSerializedObject_new();
+				if (plink->value.moniker == NULL) {
+					GETERRNO(ret);
+					goto fail;
+				}
 			}
-			ret = encode_SpcSerializedObject(chldpj,plink->value.moniker);
+			ret = encode_SpcSerializedObject(chldpj, plink->value.moniker);
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
@@ -508,14 +510,15 @@ int encode_SpcLink(jvalue* pj,SpcLink* plink)
 	}
 
 	if (type < 0) {
-		chldpj = jobject_get(pj,"file");
+		DEBUG_INFO(" ");
+		chldpj = jobject_get(pj, "file");
 		if (chldpj != NULL) {
 			plink->value.file = SpcString_new();
 			if (plink->value.file == NULL) {
 				GETERRNO(ret);
 				goto fail;
 			}
-			ret = encode_SpcString(chldpj,plink->value.file);
+			ret = encode_SpcString(chldpj, plink->value.file);
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
@@ -531,38 +534,38 @@ int encode_SpcLink(jvalue* pj,SpcLink* plink)
 	}
 
 	plink->type = type;
-	return 0;	
+	return 0;
 fail:
 	SETERRNO(ret);
 	return ret;
 }
 
-int decode_SpcLink(SpcLink* plink,jvalue* pj)
+int decode_SpcLink(SpcLink* plink, jvalue* pj)
 {
-	jvalue* chldpj=NULL;
-	jvalue* retpj= NULL;
+	jvalue* chldpj = NULL;
+	jvalue* retpj = NULL;
 	int ret;
-	int error=0;
+	int error = 0;
 	if (plink->type == 0) {
-		ret = get_asn1_ia5str(&(plink->value.url),"url",pj);
+		ret = get_asn1_ia5str(&(plink->value.url), "url", pj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 	} else if (plink->type == 1) {
 		chldpj = jobject_create();
-		if (chldpj ==NULL) {
+		if (chldpj == NULL) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
-		ret = decode_SpcSerializedObject(plink->value.moniker,chldpj);
+		ret = decode_SpcSerializedObject(plink->value.moniker, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 		error = 0;
-		retpj = jobject_put(pj,"moniker",chldpj,&error);
+		retpj = jobject_put(pj, "moniker", chldpj, &error);
 		if (error != 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -574,18 +577,18 @@ int decode_SpcLink(SpcLink* plink,jvalue* pj)
 		retpj = NULL;
 	} else if (plink->type == 2) {
 		chldpj = jobject_create();
-		if (chldpj ==NULL) {
+		if (chldpj == NULL) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
-		ret = decode_SpcString(plink->value.file,chldpj);
+		ret = decode_SpcString(plink->value.file, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 		error = 0;
-		retpj = jobject_put(pj,"file",chldpj,&error);
+		retpj = jobject_put(pj, "file", chldpj, &error);
 		if (error != 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -620,7 +623,7 @@ int encode_SpcSpOpusInfo(jvalue* pj, SpcSpOpusInfo* pobj)
 {
 	int ret;
 	jvalue* chldpj = NULL;
-	chldpj = jobject_get(pj,"programname");
+	chldpj = jobject_get(pj, "programname");
 	if (chldpj != NULL) {
 		if (pobj->programName == NULL) {
 			pobj->programName = SpcString_new();
@@ -629,7 +632,7 @@ int encode_SpcSpOpusInfo(jvalue* pj, SpcSpOpusInfo* pobj)
 				goto fail;
 			}
 		}
-		ret = encode_SpcString(chldpj,pobj->programName);
+		ret = encode_SpcString(chldpj, pobj->programName);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -637,7 +640,7 @@ int encode_SpcSpOpusInfo(jvalue* pj, SpcSpOpusInfo* pobj)
 	}
 	chldpj = NULL;
 
-	chldpj = jobject_get(pj,"moreinfo");
+	chldpj = jobject_get(pj, "moreinfo");
 	if (chldpj != NULL) {
 		if (pobj->moreInfo == NULL) {
 			pobj->moreInfo = SpcLink_new();
@@ -646,7 +649,7 @@ int encode_SpcSpOpusInfo(jvalue* pj, SpcSpOpusInfo* pobj)
 				goto fail;
 			}
 		}
-		ret = encode_SpcLink(chldpj,pobj->moreInfo);
+		ret = encode_SpcLink(chldpj, pobj->moreInfo);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -673,13 +676,13 @@ int decode_SpcSpOpusInfo(SpcSpOpusInfo* pobj, jvalue* pj)
 			ERROR_INFO("create programName chldpj error[%d]", ret);
 			goto fail;
 		}
-		ret = decode_SpcString(pobj->programName,chldpj);
+		ret = decode_SpcString(pobj->programName, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 		error = 0;
-		retpj = jobject_put(pj,"programname",chldpj,&error);
+		retpj = jobject_put(pj, "programname", chldpj, &error);
 		if (error != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("replace programname error[%d]", ret);
@@ -699,13 +702,13 @@ int decode_SpcSpOpusInfo(SpcSpOpusInfo* pobj, jvalue* pj)
 			ERROR_INFO("create moreInfo chldpj error[%d]", ret);
 			goto fail;
 		}
-		ret = decode_SpcLink(pobj->moreInfo,chldpj);
+		ret = decode_SpcLink(pobj->moreInfo, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 		error = 0;
-		retpj = jobject_put(pj,"moreinfo",chldpj,&error);
+		retpj = jobject_put(pj, "moreinfo", chldpj, &error);
 		if (error != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("replace moreinfo error[%d]", ret);
@@ -715,7 +718,7 @@ int decode_SpcSpOpusInfo(SpcSpOpusInfo* pobj, jvalue* pj)
 		if (retpj) {
 			jvalue_destroy(retpj);
 		}
-		retpj = NULL;		
+		retpj = NULL;
 	}
 
 	return 0;
@@ -737,14 +740,14 @@ int encode_SpcAttributeTypeAndOptionalValue(jvalue* pj, SpcAttributeTypeAndOptio
 	int ret;
 
 	DEBUG_INFO(" ");
-	ret = set_asn1_object(&(pobj->type),"type",pj);
+	ret = set_asn1_object(&(pobj->type), "type", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
 	DEBUG_INFO(" ");
-	ret=  set_asn1_any(&(pobj->value), "value",pj);
+	ret =  set_asn1_any(&(pobj->value), "value", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -761,13 +764,13 @@ int decode_SpcAttributeTypeAndOptionalValue(SpcAttributeTypeAndOptionalValue* po
 {
 	int ret = 0;
 
-	ret = get_asn1_object(&(pobj->type),"type",pj);
+	ret = get_asn1_object(&(pobj->type), "type", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_any(&(pobj->value),"value",pj);
+	ret = get_asn1_any(&(pobj->value), "value", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -784,14 +787,14 @@ int encode_AlgorithmIdentifier(jvalue* pj, AlgorithmIdentifier* pobj)
 	int ret;
 
 	DEBUG_INFO(" ");
-	ret = set_asn1_object(&(pobj->algorithm),"algorithm",pj);
+	ret = set_asn1_object(&(pobj->algorithm), "algorithm", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
 	DEBUG_INFO(" ");
-	ret=  set_asn1_any(&(pobj->parameters), "parameters",pj);
+	ret =  set_asn1_any(&(pobj->parameters), "parameters", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -808,13 +811,13 @@ int decode_AlgorithmIdentifier(AlgorithmIdentifier* pobj, jvalue* pj)
 {
 	int ret = 0;
 
-	ret = get_asn1_object(&(pobj->algorithm),"algorithm",pj);
+	ret = get_asn1_object(&(pobj->algorithm), "algorithm", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_any(&(pobj->parameters),"parameters",pj);
+	ret = get_asn1_any(&(pobj->parameters), "parameters", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -831,21 +834,21 @@ int encode_DigestInfo(jvalue* pj, DigestInfo* pobj)
 	int ret;
 	jvalue* chldpj = NULL;
 
-	chldpj = jobject_get(pj,"digestalgorithm");
+	chldpj = jobject_get(pj, "digestalgorithm");
 	if (chldpj != NULL) {
 		if (chldpj->type != JOBJECT) {
 			ret = -EINVAL;
 			ERROR_INFO("digestalgorithm not object");
 			goto fail;
 		}
-		ret = encode_AlgorithmIdentifier(chldpj,pobj->digestAlgorithm);
+		ret = encode_AlgorithmIdentifier(chldpj, pobj->digestAlgorithm);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 	}
 
-	ret = set_asn1_octstr(&(pobj->digest),"digest",pj);
+	ret = set_asn1_octstr(&(pobj->digest), "digest", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -861,7 +864,7 @@ int decode_DigestInfo(DigestInfo* pobj, jvalue* pj)
 {
 	int ret = 0;
 	jvalue* chldpj = NULL;
-	jvalue* retpj = NULL;	
+	jvalue* retpj = NULL;
 	int error;
 
 	chldpj = jobject_create();
@@ -871,30 +874,30 @@ int decode_DigestInfo(DigestInfo* pobj, jvalue* pj)
 		goto fail;
 	}
 
-	ret = decode_AlgorithmIdentifier(pobj->digestAlgorithm,chldpj);
+	ret = decode_AlgorithmIdentifier(pobj->digestAlgorithm, chldpj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
 	error = 0;
-	retpj = jobject_put(pj,"digestalgorithm",chldpj,&error);
+	retpj = jobject_put(pj, "digestalgorithm", chldpj, &error);
 	if (error != 0) {
 		GETERRNO(ret);
 		ERROR_INFO("could not insert digestalgorithm [%d]", ret);
 		goto fail;
 	}
 	chldpj = NULL;
-	if (retpj != NULL){
+	if (retpj != NULL) {
 		jvalue_destroy(retpj);
 	}
 	retpj = NULL;
 
-	ret = get_asn1_octstr(&(pobj->digest),"digest",pj);
+	ret = get_asn1_octstr(&(pobj->digest), "digest", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
-	}	
+	}
 
 	return 0;
 fail:
@@ -903,7 +906,7 @@ fail:
 	}
 	chldpj = NULL;
 
-	if (retpj != NULL){
+	if (retpj != NULL) {
 		jvalue_destroy(retpj);
 	}
 	retpj = NULL;
@@ -918,14 +921,14 @@ int encode_SpcIndirectDataContent(jvalue* pj, SpcIndirectDataContent* pobj)
 	int ret;
 	jvalue* chldpj = NULL;
 
-	chldpj = jobject_get(pj,"data");
+	chldpj = jobject_get(pj, "data");
 	if (chldpj != NULL) {
 		if (chldpj->type != JOBJECT) {
 			ret = -EINVAL;
 			ERROR_INFO("data not object");
 			goto fail;
 		}
-		ret = encode_SpcAttributeTypeAndOptionalValue(chldpj,pobj->data);
+		ret = encode_SpcAttributeTypeAndOptionalValue(chldpj, pobj->data);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -933,14 +936,14 @@ int encode_SpcIndirectDataContent(jvalue* pj, SpcIndirectDataContent* pobj)
 		chldpj = NULL;
 	}
 
-	chldpj = jobject_get(pj,"messagedigest");
+	chldpj = jobject_get(pj, "messagedigest");
 	if (chldpj != NULL) {
 		if (chldpj->type != JOBJECT) {
 			ret = -EINVAL;
 			ERROR_INFO("messagedigest not object");
 			goto fail;
 		}
-		ret = encode_DigestInfo(chldpj,pobj->messageDigest);
+		ret = encode_DigestInfo(chldpj, pobj->messageDigest);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -958,7 +961,7 @@ int decode_SpcIndirectDataContent(SpcIndirectDataContent* pobj, jvalue* pj)
 {
 	int ret = 0;
 	jvalue* chldpj = NULL;
-	jvalue* retpj = NULL;	
+	jvalue* retpj = NULL;
 	int error;
 
 	chldpj = jobject_create();
@@ -968,21 +971,21 @@ int decode_SpcIndirectDataContent(SpcIndirectDataContent* pobj, jvalue* pj)
 		goto fail;
 	}
 
-	ret = decode_SpcAttributeTypeAndOptionalValue(pobj->data,chldpj);
+	ret = decode_SpcAttributeTypeAndOptionalValue(pobj->data, chldpj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
 	error = 0;
-	retpj = jobject_put(pj,"data",chldpj,&error);
+	retpj = jobject_put(pj, "data", chldpj, &error);
 	if (error != 0) {
 		GETERRNO(ret);
 		ERROR_INFO("could not insert data [%d]", ret);
 		goto fail;
 	}
 	chldpj = NULL;
-	if (retpj != NULL){
+	if (retpj != NULL) {
 		jvalue_destroy(retpj);
 	}
 	retpj = NULL;
@@ -994,21 +997,21 @@ int decode_SpcIndirectDataContent(SpcIndirectDataContent* pobj, jvalue* pj)
 		goto fail;
 	}
 
-	ret = decode_DigestInfo(pobj->messageDigest,chldpj);
+	ret = decode_DigestInfo(pobj->messageDigest, chldpj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
 	error = 0;
-	retpj = jobject_put(pj,"messagedigest",chldpj,&error);
+	retpj = jobject_put(pj, "messagedigest", chldpj, &error);
 	if (error != 0) {
 		GETERRNO(ret);
 		ERROR_INFO("could not insert messagedigest [%d]", ret);
 		goto fail;
 	}
 	chldpj = NULL;
-	if (retpj != NULL){
+	if (retpj != NULL) {
 		jvalue_destroy(retpj);
 	}
 	retpj = NULL;
@@ -1020,7 +1023,7 @@ fail:
 	}
 	chldpj = NULL;
 
-	if (retpj != NULL){
+	if (retpj != NULL) {
 		jvalue_destroy(retpj);
 	}
 	retpj = NULL;
@@ -1033,12 +1036,12 @@ int encode_CatalogAuthAttr(jvalue* pj, CatalogAuthAttr* pobj)
 {
 	int ret;
 
-	ret = set_asn1_object(&(pobj->type),"type",pj);
+	ret = set_asn1_object(&(pobj->type), "type", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
-	ret = set_asn1_any(&(pobj->contents),"contents", pj);
+	ret = set_asn1_any(&(pobj->contents), "contents", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1054,13 +1057,13 @@ int decode_CatalogAuthAttr(CatalogAuthAttr* pobj, jvalue* pj)
 {
 	int ret = 0;
 
-	ret = get_asn1_object(&(pobj->type),"type",pj);
+	ret = get_asn1_object(&(pobj->type), "type", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret=  get_asn1_any(&(pobj->contents),"contents",pj);
+	ret =  get_asn1_any(&(pobj->contents), "contents", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1074,29 +1077,29 @@ fail:
 
 int set_cataattr_array(STACK_OF(CatalogAuthAttr)** ppattr, const char* key, jvalue* pj)
 {
-	jvalue* arrobj=NULL;
+	jvalue* arrobj = NULL;
 	int error;
-	unsigned int arrsize=0;
-	jvalue* curobj=NULL;
+	unsigned int arrsize = 0;
+	jvalue* curobj = NULL;
 	CatalogAuthAttr* curattr = NULL;
 	unsigned int i;
 	int ret;
 
 
 	error = 0;
-	arrobj = (jvalue*)jobject_get_array(pj,key,&error);
+	arrobj = (jvalue*)jobject_get_array(pj, key, &error);
 	if (arrobj == NULL) {
-		DEBUG_INFO("no [%s] CatalogAuthAttr",key);
+		DEBUG_INFO("no [%s] CatalogAuthAttr", key);
 		return 0;
 	}
 
 	arrsize = jarray_size(arrobj);
-	for(i=0;i<arrsize;i++) {
+	for (i = 0; i < arrsize; i++) {
 		error = 0;
-		curobj = jarray_get(arrobj,i,&error);
+		curobj = jarray_get(arrobj, i, &error);
 		if (curobj == NULL || error != 0) {
 			GETERRNO(ret);
-			ERROR_INFO("get [%s].[%d] error[%d]", key,i,ret);
+			ERROR_INFO("get [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
 
@@ -1104,10 +1107,10 @@ int set_cataattr_array(STACK_OF(CatalogAuthAttr)** ppattr, const char* key, jval
 		curattr = CatalogAuthAttr_new();
 		if (curattr == NULL) {
 			GETERRNO(ret);
-			ERROR_INFO("create [%s].[%d] error[%d]", key,i,ret);
+			ERROR_INFO("create [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
-		ret = encode_CatalogAuthAttr(curobj,curattr);
+		ret = encode_CatalogAuthAttr(curobj, curattr);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -1122,10 +1125,10 @@ int set_cataattr_array(STACK_OF(CatalogAuthAttr)** ppattr, const char* key, jval
 			}
 		}
 
-		ret = sk_CatalogAuthAttr_push(*ppattr,curattr);
+		ret = sk_CatalogAuthAttr_push(*ppattr, curattr);
 		if (ret == 0) {
 			GETERRNO(ret);
-			ERROR_INFO("push [%s].[%d] error[%d]", key,i,ret);
+			ERROR_INFO("push [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
 		curattr = NULL;
@@ -1142,18 +1145,18 @@ fail:
 	return ret;
 }
 
-int get_cataattr_array(STACK_OF(CatalogAuthAttr)** ppattr,const char* key,jvalue* pj)
+int get_cataattr_array(STACK_OF(CatalogAuthAttr)** ppattr, const char* key, jvalue* pj)
 {
 	STACK_OF(CatalogAuthAttr)* pattr = NULL;
-	jvalue* parr= NULL;
+	jvalue* parr = NULL;
 	jvalue* retpj = NULL;
 	CatalogAuthAttr* pcurattr = NULL;
 	jvalue* pcurobj = NULL;
 	int ret;
-	int arrsize=0;
+	int arrsize = 0;
 	int i;
 	int error;
-	if (ppattr ==NULL || *ppattr == NULL) {
+	if (ppattr == NULL || *ppattr == NULL) {
 		DEBUG_INFO("[%s] has no array", key);
 		return 0;
 	}
@@ -1169,12 +1172,12 @@ int get_cataattr_array(STACK_OF(CatalogAuthAttr)** ppattr,const char* key,jvalue
 	}
 
 	arrsize = sk_CatalogAuthAttr_num(pattr);
-	for(i=0;i< sk_CatalogAuthAttr_num(pattr);i++) {
+	for (i = 0; i < sk_CatalogAuthAttr_num(pattr); i++) {
 		ASSERT_IF(pcurattr == NULL);
-		pcurattr = sk_CatalogAuthAttr_value(pattr,i);
+		pcurattr = sk_CatalogAuthAttr_value(pattr, i);
 		if (pcurattr == NULL) {
 			GETERRNO(ret);
-			ERROR_INFO("get [%s].[%d] error[%d]", key,i,ret);
+			ERROR_INFO("get [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
 
@@ -1182,20 +1185,20 @@ int get_cataattr_array(STACK_OF(CatalogAuthAttr)** ppattr,const char* key,jvalue
 		pcurobj = jobject_create();
 		if (pcurobj == NULL) {
 			GETERRNO(ret);
-			ERROR_INFO("create [%s].[%d] object error[%d]", key,i,ret);
+			ERROR_INFO("create [%s].[%d] object error[%d]", key, i, ret);
 			goto fail;
 		}
 
-		ret = decode_CatalogAuthAttr(pcurattr,pcurobj);
+		ret = decode_CatalogAuthAttr(pcurattr, pcurobj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
-		ret = jarray_put_object(parr,pcurobj);
+		ret = jarray_put_object(parr, pcurobj);
 		if (ret != 0) {
 			GETERRNO(ret);
-			ERROR_INFO("put [%s].[%d] error[%d]", key,i,ret);
+			ERROR_INFO("put [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
 		pcurobj = NULL;
@@ -1203,10 +1206,10 @@ int get_cataattr_array(STACK_OF(CatalogAuthAttr)** ppattr,const char* key,jvalue
 	}
 
 	error = 0;
-	retpj = jobject_put(pj,key,parr,&error);
+	retpj = jobject_put(pj, key, parr, &error);
 	if (error != 0) {
 		GETERRNO(ret);
-		ERROR_INFO("put [%s] error[%d]", key,ret);
+		ERROR_INFO("put [%s] error[%d]", key, ret);
 		goto fail;
 	}
 	parr = NULL;
@@ -1239,12 +1242,12 @@ int encode_CatalogInfo(jvalue* pj, CatalogInfo* pobj)
 {
 	int ret;
 
-	ret = set_asn1_octstr(&(pobj->digest),"digest",pj);
+	ret = set_asn1_octstr(&(pobj->digest), "digest", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
-	ret = set_cataattr_array(&(pobj->attributes),"attributes", pj);
+	ret = set_cataattr_array(&(pobj->attributes), "attributes", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1260,13 +1263,13 @@ int decode_CatalogInfo(CatalogInfo* pobj, jvalue* pj)
 {
 	int ret = 0;
 
-	ret = get_asn1_octstr(&(pobj->digest),"digest",pj);
+	ret = get_asn1_octstr(&(pobj->digest), "digest", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret=  get_cataattr_array(&(pobj->attributes),"attributes",pj);
+	ret =  get_cataattr_array(&(pobj->attributes), "attributes", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1280,29 +1283,29 @@ fail:
 
 int set_catainfo_array(STACK_OF(CatalogInfo)** ppinfo, const char* key, jvalue* pj)
 {
-	jvalue* arrobj=NULL;
+	jvalue* arrobj = NULL;
 	int error;
-	unsigned int arrsize=0;
-	jvalue* curobj=NULL;
+	unsigned int arrsize = 0;
+	jvalue* curobj = NULL;
 	CatalogInfo* curinfo = NULL;
 	unsigned int i;
 	int ret;
 
 
 	error = 0;
-	arrobj = (jvalue*)jobject_get_array(pj,key,&error);
+	arrobj = (jvalue*)jobject_get_array(pj, key, &error);
 	if (arrobj == NULL) {
-		DEBUG_INFO("no [%s] CatalogInfo",key);
+		DEBUG_INFO("no [%s] CatalogInfo", key);
 		return 0;
 	}
 
 	arrsize = jarray_size(arrobj);
-	for(i=0;i<arrsize;i++) {
+	for (i = 0; i < arrsize; i++) {
 		error = 0;
-		curobj = jarray_get(arrobj,i,&error);
+		curobj = jarray_get(arrobj, i, &error);
 		if (curobj == NULL || error != 0) {
 			GETERRNO(ret);
-			ERROR_INFO("get [%s].[%d] error[%d]", key,i,ret);
+			ERROR_INFO("get [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
 
@@ -1310,10 +1313,10 @@ int set_catainfo_array(STACK_OF(CatalogInfo)** ppinfo, const char* key, jvalue* 
 		curinfo = CatalogInfo_new();
 		if (curinfo == NULL) {
 			GETERRNO(ret);
-			ERROR_INFO("create [%s].[%d] error[%d]", key,i,ret);
+			ERROR_INFO("create [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
-		ret = encode_CatalogInfo(curobj,curinfo);
+		ret = encode_CatalogInfo(curobj, curinfo);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -1328,10 +1331,10 @@ int set_catainfo_array(STACK_OF(CatalogInfo)** ppinfo, const char* key, jvalue* 
 			}
 		}
 
-		ret = sk_CatalogInfo_push(*ppinfo,curinfo);
+		ret = sk_CatalogInfo_push(*ppinfo, curinfo);
 		if (ret == 0) {
 			GETERRNO(ret);
-			ERROR_INFO("push [%s].[%d] error[%d]", key,i,ret);
+			ERROR_INFO("push [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
 		curinfo = NULL;
@@ -1348,18 +1351,18 @@ fail:
 	return ret;
 }
 
-int get_catainfo_array(STACK_OF(CatalogInfo)** ppinfo,const char* key,jvalue* pj)
+int get_catainfo_array(STACK_OF(CatalogInfo)** ppinfo, const char* key, jvalue* pj)
 {
 	STACK_OF(CatalogInfo)* pinfo = NULL;
-	jvalue* parr= NULL;
+	jvalue* parr = NULL;
 	jvalue* retpj = NULL;
 	CatalogInfo* pcurinfo = NULL;
 	jvalue* pcurobj = NULL;
 	int ret;
-	int arrsize=0;
+	int arrsize = 0;
 	int i;
 	int error;
-	if (ppinfo ==NULL || *ppinfo == NULL) {
+	if (ppinfo == NULL || *ppinfo == NULL) {
 		DEBUG_INFO("[%s] has no array", key);
 		return 0;
 	}
@@ -1375,12 +1378,12 @@ int get_catainfo_array(STACK_OF(CatalogInfo)** ppinfo,const char* key,jvalue* pj
 	}
 
 	arrsize = sk_CatalogInfo_num(pinfo);
-	for(i=0;i< sk_CatalogInfo_num(pinfo);i++) {
+	for (i = 0; i < sk_CatalogInfo_num(pinfo); i++) {
 		ASSERT_IF(pcurinfo == NULL);
-		pcurinfo = sk_CatalogInfo_value(pinfo,i);
+		pcurinfo = sk_CatalogInfo_value(pinfo, i);
 		if (pcurinfo == NULL) {
 			GETERRNO(ret);
-			ERROR_INFO("get [%s].[%d] error[%d]", key,i,ret);
+			ERROR_INFO("get [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
 
@@ -1388,20 +1391,20 @@ int get_catainfo_array(STACK_OF(CatalogInfo)** ppinfo,const char* key,jvalue* pj
 		pcurobj = jobject_create();
 		if (pcurobj == NULL) {
 			GETERRNO(ret);
-			ERROR_INFO("create [%s].[%d] object error[%d]", key,i,ret);
+			ERROR_INFO("create [%s].[%d] object error[%d]", key, i, ret);
 			goto fail;
 		}
 
-		ret = decode_CatalogInfo(pcurinfo,pcurobj);
+		ret = decode_CatalogInfo(pcurinfo, pcurobj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
-		ret = jarray_put_object(parr,pcurobj);
+		ret = jarray_put_object(parr, pcurobj);
 		if (ret != 0) {
 			GETERRNO(ret);
-			ERROR_INFO("put [%s].[%d] error[%d]", key,i,ret);
+			ERROR_INFO("put [%s].[%d] error[%d]", key, i, ret);
 			goto fail;
 		}
 		pcurobj = NULL;
@@ -1409,10 +1412,10 @@ int get_catainfo_array(STACK_OF(CatalogInfo)** ppinfo,const char* key,jvalue* pj
 	}
 
 	error = 0;
-	retpj = jobject_put(pj,key,parr,&error);
+	retpj = jobject_put(pj, key, parr, &error);
 	if (error != 0) {
 		GETERRNO(ret);
-		ERROR_INFO("put [%s] error[%d]", key,ret);
+		ERROR_INFO("put [%s] error[%d]", key, ret);
 		goto fail;
 	}
 	parr = NULL;
@@ -1445,7 +1448,7 @@ int encode_MsCtlContent(jvalue* pj, MsCtlContent* pobj)
 {
 	int ret;
 	jvalue* chldpj = NULL;
-	chldpj = jobject_get(pj,"type");
+	chldpj = jobject_get(pj, "type");
 	if (chldpj != NULL) {
 		ret = encode_SpcAttributeTypeAndOptionalValue(chldpj, pobj->type);
 		if (ret < 0) {
@@ -1455,34 +1458,34 @@ int encode_MsCtlContent(jvalue* pj, MsCtlContent* pobj)
 	}
 
 
-	ret = set_asn1_octstr(&(pobj->identifier),"identifier",pj);
+	ret = set_asn1_octstr(&(pobj->identifier), "identifier", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = set_asn1_utctime(&(pobj->time),"time",pj);
+	ret = set_asn1_utctime(&(pobj->time), "time", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	chldpj = jobject_get(pj,"version");
+	chldpj = jobject_get(pj, "version");
 	if (chldpj != NULL) {
-		ret = encode_SpcAttributeTypeAndOptionalValue(chldpj,pobj->version);
+		ret = encode_SpcAttributeTypeAndOptionalValue(chldpj, pobj->version);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 	}
 
-	ret = set_catainfo_array(&(pobj->header_attributes),"headerattributes",pj);
+	ret = set_catainfo_array(&(pobj->header_attributes), "headerattributes", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = set_asn1_any(&(pobj->filename),"filename",pj);
+	ret = set_asn1_any(&(pobj->filename), "filename", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1497,7 +1500,7 @@ fail:
 int decode_MsCtlContent(MsCtlContent* pobj, jvalue* pj)
 {
 	int ret = 0;
-	jvalue* chldpj=NULL;
+	jvalue* chldpj = NULL;
 	jvalue* retpj = NULL;
 	int error;
 
@@ -1508,14 +1511,14 @@ int decode_MsCtlContent(MsCtlContent* pobj, jvalue* pj)
 			ERROR_INFO("create type object error[%d]", ret);
 			goto fail;
 		}
-		ret = decode_SpcAttributeTypeAndOptionalValue(pobj->type,chldpj);
+		ret = decode_SpcAttributeTypeAndOptionalValue(pobj->type, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
 		error = 0;
-		retpj = jobject_put(pj,"type",chldpj,&error);
+		retpj = jobject_put(pj, "type", chldpj, &error);
 		if (error != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("put type object error[%d]", ret);
@@ -1528,33 +1531,33 @@ int decode_MsCtlContent(MsCtlContent* pobj, jvalue* pj)
 		retpj = NULL;
 	}
 
-	ret = get_asn1_octstr(&(pobj->identifier),"identifier",pj);
+	ret = get_asn1_octstr(&(pobj->identifier), "identifier", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_utctime(&(pobj->time),"time",pj);
+	ret = get_asn1_utctime(&(pobj->time), "time", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	if (pobj->version != NULL){
+	if (pobj->version != NULL) {
 		chldpj = jobject_create();
 		if (chldpj == NULL) {
 			GETERRNO(ret);
 			ERROR_INFO("create version object error[%d]", ret);
 			goto fail;
 		}
-		ret = decode_SpcAttributeTypeAndOptionalValue(pobj->version,chldpj);
+		ret = decode_SpcAttributeTypeAndOptionalValue(pobj->version, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
 		error = 0;
-		retpj = jobject_put(pj,"version",chldpj,&error);
+		retpj = jobject_put(pj, "version", chldpj, &error);
 		if (error != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("put version object error[%d]", ret);
@@ -1564,16 +1567,16 @@ int decode_MsCtlContent(MsCtlContent* pobj, jvalue* pj)
 		if (retpj) {
 			jvalue_destroy(retpj);
 		}
-		retpj = NULL;		
+		retpj = NULL;
 	}
 
-	ret = get_catainfo_array(&(pobj->header_attributes),"headerattributes",pj);
+	ret = get_catainfo_array(&(pobj->header_attributes), "headerattributes", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_any(&(pobj->filename),"filename",pj);
+	ret = get_asn1_any(&(pobj->filename), "filename", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1599,15 +1602,23 @@ int encode_SpcPeImageData(jvalue* pj, SpcPeImageData* pobj)
 	int ret;
 	jvalue* chldpj = NULL;
 
-	ret = set_asn1_bitstr(&(pobj->flags),"flags",pj);
+	ret = set_asn1_bitstr(&(pobj->flags), "flags", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	chldpj = jobject_get(pj,"file");
+	chldpj = jobject_get(pj, "file");
 	if (chldpj != NULL) {
-		ret = encode_SpcLink(chldpj,pobj->file);
+		if (pobj->file == NULL) {
+			pobj->file = SpcLink_new();
+			if (pobj->file == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("new file error[%d]", ret);
+				goto fail;
+			}
+		}
+		ret = encode_SpcLink(chldpj, pobj->file);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -1625,8 +1636,9 @@ int decode_SpcPeImageData(SpcPeImageData* pobj, jvalue* pj)
 	int ret = 0;
 	jvalue* chldpj = NULL;
 	jvalue* retpj = NULL;
+	int error;
 
-	ret = get_asn1_bitstr(&(pobj->flags),"flags",pj);
+	ret = get_asn1_bitstr(&(pobj->flags), "flags", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1640,14 +1652,14 @@ int decode_SpcPeImageData(SpcPeImageData* pobj, jvalue* pj)
 			goto fail;
 		}
 
-		ret = decode_SpcLink(pobj->file,chldpj);
+		ret = decode_SpcLink(pobj->file, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
 		error = 0;
-		retpj = jobject_put(pj,"file",chldpj,&error);
+		retpj = jobject_put(pj, "file", chldpj, &error);
 		if (error != 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -1935,23 +1947,23 @@ int spcattrvaldec_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 
 int algoidentenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_ENCODE_HANDLER(AlgorithmIdentifier);	
+	EXPAND_ENCODE_HANDLER(AlgorithmIdentifier);
 }
 
 int algoidentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_DECODE_HANDLER(AlgorithmIdentifier);	
+	EXPAND_DECODE_HANDLER(AlgorithmIdentifier);
 }
 
 
 int diginfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_ENCODE_HANDLER(DigestInfo);	
+	EXPAND_ENCODE_HANDLER(DigestInfo);
 }
 
 int diginfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_DECODE_HANDLER(DigestInfo);	
+	EXPAND_DECODE_HANDLER(DigestInfo);
 }
 
 int spcinddatacontentenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
@@ -1961,17 +1973,17 @@ int spcinddatacontentenc_handler(int argc, char* argv[], pextargs_state_t parses
 
 int spcinddatacontentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_DECODE_HANDLER(SpcIndirectDataContent);	
+	EXPAND_DECODE_HANDLER(SpcIndirectDataContent);
 }
 
 int cataauthattrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_ENCODE_HANDLER(CatalogAuthAttr);	
+	EXPAND_ENCODE_HANDLER(CatalogAuthAttr);
 }
 
 int cataauthattrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_DECODE_HANDLER(CatalogAuthAttr);	
+	EXPAND_DECODE_HANDLER(CatalogAuthAttr);
 }
 
 int catainfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
