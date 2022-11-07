@@ -60,6 +60,8 @@ int spcinddatacontentenc_handler(int argc, char* argv[], pextargs_state_t parses
 int spcinddatacontentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int cataauthattrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int cataauthattrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int catainfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int catainfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

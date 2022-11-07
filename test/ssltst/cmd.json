@@ -97,4 +97,11 @@
     },
     "cataauthattrdec<cataauthattrdec_handler>##binfile... to decode CatalogAuthAttr##" : {
         "$" : "+"
-    }}
+    },
+    "catainfoenc<catainfoenc_handler>##jsonfile to encode CatalogInfo##" : {
+        "$" : 1
+    },
+    "catainfodec<catainfodec_handler>##binfile... to decode CatalogInfo##" : {
+        "$" : "+"
+    }
+}
