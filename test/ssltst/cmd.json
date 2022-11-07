@@ -115,5 +115,11 @@
     },
     "spcpeimgdec<spcpeimgdec_handler>##binfile... to decode SpcPeImageData##" : {
         "$" : "+"
+    },
+    "spcsipinfoenc<spcsipinfoenc_handler>##jsonfile to encode SpcSipInfo##" : {
+        "$" : 1
+    },
+    "spcsipinfodec<spcsipinfodec_handler>##binfile... to decode SpcSipInfo##" : {
+        "$" : "+"
     }
 }

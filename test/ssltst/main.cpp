@@ -66,6 +66,8 @@ int msctlconenc_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int msctlcondec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int spcpeimgenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int spcpeimgdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int spcsipinfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int spcsipinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

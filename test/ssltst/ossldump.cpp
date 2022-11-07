@@ -1685,6 +1685,107 @@ fail:
 	return ret;
 }
 
+int encode_SpcSipInfo(jvalue* pj, SpcSipInfo* pobj)
+{
+	int ret;
+
+	ret = set_asn1_integer(&(pobj->a), "a", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_octstr(&(pobj->string),"string",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_integer(&(pobj->b), "b", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ret = set_asn1_integer(&(pobj->c), "c", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ret = set_asn1_integer(&(pobj->d), "d", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ret = set_asn1_integer(&(pobj->e), "e", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_integer(&(pobj->f), "f", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_SpcSipInfo(SpcSipInfo* pobj, jvalue* pj)
+{
+	int ret = 0;
+
+	ret = get_asn1_integer(&(pobj->a),"a",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_octstr(&(pobj->string),"string",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_integer(&(pobj->b),"b",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_integer(&(pobj->c),"c",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_integer(&(pobj->d),"d",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_integer(&(pobj->e),"e",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_integer(&(pobj->f),"f",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
 	typev* pstr = NULL;                                                                           \
@@ -2015,4 +2116,14 @@ int spcpeimgenc_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int spcpeimgdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(SpcPeImageData);
+}
+
+int spcsipinfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(SpcSipInfo);
+}
+
+int spcsipinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(SpcSipInfo);
 }
