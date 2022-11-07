@@ -247,19 +247,31 @@ fail:
 int set_asn1_integer(ASN1_INTEGER** ppint, const char* key, const jvalue* pj)
 {
 	long long int ival;
+	const char* sval = NULL;
 	int error;
 	int ret;
-	ASN1_INTEGER* pint = NULL;
+	ASN1_INTEGER* pint = NULL,*pretint=NULL;
+	BIGNUM* bn=NULL;
+
 
 	error = 0;
 	ival = jobject_get_int64(pj, key, &error);
 	if (error != 0) {
-
 		error = 0;
 		ival = (long long int) jobject_get_int(pj, key, &error);
 		if (error != 0) {
-			DEBUG_INFO("no [%s] set", key);
-			return 0;
+			error = 0;
+			sval = jobject_get_string(pj, key, &error);
+			if (sval == NULL || error != 0) {
+				DEBUG_INFO("no [%s] set", key);
+				return 0;
+			}
+			ret = BN_hex2bn(&bn,sval);
+			if (ret == 0) {
+				GETERRNO(ret);
+				ERROR_INFO("hex2bn [%s] error[%d]", sval,ret);
+				goto fail;
+			}
 		}
 	}
 
@@ -274,15 +286,33 @@ int set_asn1_integer(ASN1_INTEGER** ppint, const char* key, const jvalue* pj)
 		*ppint = pint;
 	}
 
-	ret = ASN1_INTEGER_set_int64(pint, ival);
-	if (ret <= 0) {
-		GETERRNO(ret);
-		ERROR_INFO( "can not set [%s] ival [%lld] error[%d]", key, ival, ret);
-		goto fail;
+	if (bn != NULL) {
+		pretint = BN_to_ASN1_INTEGER(bn,pint);
+		if (pretint == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("bn set error[%d]", ret);
+			goto fail;
+		}
+	} else {
+		ret = ASN1_INTEGER_set_int64(pint, ival);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO( "can not set [%s] ival [%lld] error[%d]", key, ival, ret);
+			goto fail;
+		}		
 	}
+
+	if (bn) {
+		BN_free(bn);
+	}
+	bn = NULL;
+
 	return 1;
 fail:
-
+	if (bn) {
+		BN_free(bn);
+	}
+	bn = NULL;
 	SETERRNO(ret);
 	return ret;
 }
@@ -569,9 +599,12 @@ int set_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppobjarr, const char* key, j
 	jvalue* curobj = NULL;
 	jint* curint = NULL;
 	jint64* curint64 = NULL;
+	jstring* curs = NULL;
+	ASN1_INTEGER*pretint=NULL;
 	unsigned int arrsize = 0;
 	int cnt = 0;
 	unsigned int i;
+	BIGNUM* bn=NULL;
 
 	error = 0;
 	arrobj = (jvalue*)jobject_get_array(pj, key, &error);
@@ -585,6 +618,7 @@ int set_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppobjarr, const char* key, j
 		error = 0;
 		curint = NULL;
 		curint64 = NULL;
+		curs = NULL;
 		curobj = jarray_get(arrobj, i, &error);
 		if (curobj == NULL) {
 			GETERRNO(ret);
@@ -596,6 +630,8 @@ int set_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppobjarr, const char* key, j
 			curint = (jint*) curobj;
 		} else if (curobj->type == JINT64) {
 			curint64 = (jint64*) curobj;
+		} else if (curobj->type == JSTRING) {
+			curs = (jstring*) curobj;
 		} else {
 			ret = -EINVAL;
 			ERROR_INFO( "[%s].[%d] not JSTRING", key, i);
@@ -612,8 +648,24 @@ int set_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppobjarr, const char* key, j
 
 		if (curint) {
 			ret = ASN1_INTEGER_set_int64(pobj, (int64_t)curint->value);
-		} else {
+		} else if(curint64 ) {
 			ret = ASN1_INTEGER_set_int64(pobj, (int64_t)curint64->value);
+		} else  {
+			ASSERT_IF(bn == NULL);
+			ret = BN_hex2bn(&bn,curs->value);
+			if (ret == 0) {
+				GETERRNO(ret);
+				ERROR_INFO("bn [%s] error[%d]",curs->value,ret);
+				goto fail;
+			}
+			pretint = BN_to_ASN1_INTEGER(bn,pobj);
+			if (pretint == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("set integer [%s] error[%d]", curs->value,ret);
+				goto fail;
+			}
+			BN_free(bn);
+			bn = NULL;
 		}
 		if (ret <= 0) {
 			GETERRNO(ret);
@@ -641,9 +693,14 @@ int set_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppobjarr, const char* key, j
 		cnt ++;
 	}
 
+	ASSERT_IF(bn == NULL);
 	ASN1_INTEGER_free(pobj);
 	return cnt;
 fail:
+	if(bn) {
+		BN_free(bn);
+	}
+	bn = NULL;
 	ASN1_INTEGER_free(pobj);
 	SETERRNO(ret);
 	return ret;
@@ -996,34 +1053,57 @@ fail:
 int get_asn1_integer(ASN1_INTEGER** ppint, const char* key, jvalue* pj)
 {
 	ASN1_INTEGER* pint;
-	int64_t pr;
 	int ret;
+	BIGNUM* bn=NULL;
+	char* buf=NULL;
 	if (ppint == NULL || *ppint == NULL) {
 		DEBUG_INFO("no [%s]", key);
 		return 0;
 	}
 
 	pint = *ppint;
-	pr = 0;
-	ret = ASN1_INTEGER_get_int64(&pr, pint);
-	if (ret < 0) {
+
+	bn = ASN1_INTEGER_to_BN(pint,NULL);
+	if (bn == NULL) {
 		GETERRNO(ret);
-		ERROR_INFO("can not get [%s] int", key);
+		ERROR_INFO("get [%s] error[%d]", key,ret);
 		goto fail;
-	} else if (ret == 0) {
-		ret = jobject_put_int64(pj, key, 0);
-	} else {
-		ret = jobject_put_int64(pj, key, pr);
 	}
 
+	buf = BN_bn2hex(bn);
+	if (buf == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("bn2hex [%s] error[%d]",key,ret);
+		goto fail;
+	}
+
+	ret = jobject_put_string(pj,key,buf);
 	if (ret != 0) {
 		GETERRNO(ret);
 		ERROR_INFO("can not put [%s] in json", key);
 		goto fail;
 	}
 
+	if (buf) {
+		free(buf);
+	}
+	buf = NULL;
+	if (bn) {
+		BN_free(bn);
+	}
+	bn = NULL;
+
 	return 1;
 fail:
+	if (buf) {
+		free(buf);
+	}
+	buf = NULL;
+	if (bn) {
+		BN_free(bn);
+	}
+	bn = NULL;
+
 	SETERRNO(ret);
 	return ret;
 }
@@ -1444,8 +1524,9 @@ int get_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppintarr, const char* key, j
 	ASN1_INTEGER* pcurint = NULL;
 	int cnt = 0;
 	int ret;
-	int64_t pr;
 	int i;
+	BIGNUM* bn=NULL;
+	char* buf=NULL;
 	if (ppintarr == NULL || *ppintarr == NULL) {
 		DEBUG_INFO("no [%s] array", key);
 		return 0;
@@ -1469,21 +1550,35 @@ int get_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppintarr, const char* key, j
 			goto fail;
 		}
 
-		ret = ASN1_INTEGER_get_int64(&pr, pcurint);
-		if (ret <= 0) {
+		ASSERT_IF(bn == NULL);
+		bn = ASN1_INTEGER_to_BN(pcurint,NULL);
+		if (bn == NULL) {
 			GETERRNO(ret);
-			ERROR_INFO("can not get [%s].[%d] error[%d]", key, i, ret);
+			ERROR_INFO("get [%s].[%d] bn error[%d]", key,i,ret);
+			goto fail;
+		}
+
+		ASSERT_IF(buf == NULL);
+		buf = BN_bn2hex(bn);
+		if (buf == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("get [%s].[%d] buffer error[%d]", key,i,ret);
 			goto fail;
 		}
 
 
-		ret = jarray_put_int64(parr, pr);
+
+		ret = jarray_put_string(parr, buf);
 		if (ret != 0) {
 			GETERRNO(ret);
-			ERROR_INFO("put string [%s] [%lld] error[%d]", key, pr, ret);
+			ERROR_INFO("put string [%s] [%s] error[%d]", key, buf, ret);
 			goto fail;
 		}
 		cnt ++;
+		BN_free(bn);
+		free(buf);
+		bn = NULL;
+		buf = NULL;
 	}
 
 	if (parr != NULL) {
@@ -1503,6 +1598,15 @@ int get_asn1_integer_array(STACK_OF(ASN1_INTEGER)** ppintarr, const char* key, j
 	parr = NULL;
 	return cnt;
 fail:
+	if (buf) {
+		free(buf);
+	}
+	buf = NULL;
+	if (bn) {
+		BN_free(bn);
+	}
+	bn = NULL;
+
 	if (parr != NULL) {
 		jvalue_destroy(parr);
 	}
