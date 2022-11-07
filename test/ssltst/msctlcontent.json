@@ -1,0 +1,41 @@
+{
+	"type" : {
+		"type" : "1.3.4.5.66",
+		"value" : {
+			"type" : "0x31",
+			"data" : [25,33,22]	
+		}
+	},
+	"identifier" : "identifier used",
+	"time" : "221105220306Z",
+	"version" : {
+		"type" : "1.3.4.5.65",
+		"value" : {
+			"type" : "0x31",
+			"data" : [25,33,77]	
+		}
+	},
+	"headerattributes" : [{
+		"attributes" : [{
+			"type" : "1.3.4.5.66",
+			"contents" : {
+				"type" : "0x31",
+				"data" : [25,33,22]	
+			}
+		}],
+		"digest" : "ccs digest"
+	},{	
+		"attributes" : [{
+			"type" : "1.3.4.5.31",
+			"contents" : {
+				"type" : "0x31",
+				"data" : [25,90,22]	
+			}
+		}],
+		"digest" : "ccs digest"
+	}],
+	"filename" : {
+		"type" : "0x35",
+		"data" : [25,90,22]	
+	}
+}

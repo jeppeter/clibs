@@ -1278,6 +1278,323 @@ fail:
 	return ret;
 }
 
+int set_catainfo_array(STACK_OF(CatalogInfo)** ppinfo, const char* key, jvalue* pj)
+{
+	jvalue* arrobj=NULL;
+	int error;
+	unsigned int arrsize=0;
+	jvalue* curobj=NULL;
+	CatalogInfo* curinfo = NULL;
+	unsigned int i;
+	int ret;
+
+
+	error = 0;
+	arrobj = (jvalue*)jobject_get_array(pj,key,&error);
+	if (arrobj == NULL) {
+		DEBUG_INFO("no [%s] CatalogInfo",key);
+		return 0;
+	}
+
+	arrsize = jarray_size(arrobj);
+	for(i=0;i<arrsize;i++) {
+		error = 0;
+		curobj = jarray_get(arrobj,i,&error);
+		if (curobj == NULL || error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("get [%s].[%d] error[%d]", key,i,ret);
+			goto fail;
+		}
+
+		ASSERT_IF(curinfo == NULL);
+		curinfo = CatalogInfo_new();
+		if (curinfo == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create [%s].[%d] error[%d]", key,i,ret);
+			goto fail;
+		}
+		ret = encode_CatalogInfo(curobj,curinfo);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		if (ppinfo && *ppinfo == NULL) {
+			*ppinfo = sk_CatalogInfo_new_null();
+			if (*ppinfo == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("new [%s] error[%d]", key);
+				goto fail;
+			}
+		}
+
+		ret = sk_CatalogInfo_push(*ppinfo,curinfo);
+		if (ret == 0) {
+			GETERRNO(ret);
+			ERROR_INFO("push [%s].[%d] error[%d]", key,i,ret);
+			goto fail;
+		}
+		curinfo = NULL;
+	}
+
+
+	return (int)arrsize;
+fail:
+	if (curinfo != NULL) {
+		CatalogInfo_free(curinfo);
+	}
+	curinfo = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int get_catainfo_array(STACK_OF(CatalogInfo)** ppinfo,const char* key,jvalue* pj)
+{
+	STACK_OF(CatalogInfo)* pinfo = NULL;
+	jvalue* parr= NULL;
+	jvalue* retpj = NULL;
+	CatalogInfo* pcurinfo = NULL;
+	jvalue* pcurobj = NULL;
+	int ret;
+	int arrsize=0;
+	int i;
+	int error;
+	if (ppinfo ==NULL || *ppinfo == NULL) {
+		DEBUG_INFO("[%s] has no array", key);
+		return 0;
+	}
+
+	pinfo = *ppinfo;
+	if (parr == NULL) {
+		parr = jarray_create();
+		if (parr == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create [%s] array error[%d]", key, ret);
+			goto fail;
+		}
+	}
+
+	arrsize = sk_CatalogInfo_num(pinfo);
+	for(i=0;i< sk_CatalogInfo_num(pinfo);i++) {
+		ASSERT_IF(pcurinfo == NULL);
+		pcurinfo = sk_CatalogInfo_value(pinfo,i);
+		if (pcurinfo == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("get [%s].[%d] error[%d]", key,i,ret);
+			goto fail;
+		}
+
+		ASSERT_IF(pcurobj == NULL);
+		pcurobj = jobject_create();
+		if (pcurobj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create [%s].[%d] object error[%d]", key,i,ret);
+			goto fail;
+		}
+
+		ret = decode_CatalogInfo(pcurinfo,pcurobj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = jarray_put_object(parr,pcurobj);
+		if (ret != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put [%s].[%d] error[%d]", key,i,ret);
+			goto fail;
+		}
+		pcurobj = NULL;
+		pcurinfo = NULL;
+	}
+
+	error = 0;
+	retpj = jobject_put(pj,key,parr,&error);
+	if (error != 0) {
+		GETERRNO(ret);
+		ERROR_INFO("put [%s] error[%d]", key,ret);
+		goto fail;
+	}
+	parr = NULL;
+	if (retpj) {
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+
+
+	return (int)arrsize;
+fail:
+	if (retpj) {
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+	if (pcurobj) {
+		jvalue_destroy(pcurobj);
+	}
+	pcurobj = NULL;
+	if (parr) {
+		jvalue_destroy(parr);
+	}
+	parr = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int encode_MsCtlContent(jvalue* pj, MsCtlContent* pobj)
+{
+	int ret;
+	jvalue* chldpj = NULL;
+	chldpj = jobject_get(pj,"type");
+	if (chldpj != NULL) {
+		ret = encode_SpcAttributeTypeAndOptionalValue(chldpj, pobj->type);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+
+	ret = set_asn1_octstr(&(pobj->identifier),"identifier",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_utctime(&(pobj->time),"time",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	chldpj = jobject_get(pj,"version");
+	if (chldpj != NULL) {
+		ret = encode_SpcAttributeTypeAndOptionalValue(chldpj,pobj->version);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	ret = set_catainfo_array(&(pobj->header_attributes),"headerattributes",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_any(&(pobj->filename),"filename",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_MsCtlContent(MsCtlContent* pobj, jvalue* pj)
+{
+	int ret = 0;
+	jvalue* chldpj=NULL;
+	jvalue* retpj = NULL;
+	int error;
+
+	if (pobj->type != NULL) {
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create type object error[%d]", ret);
+			goto fail;
+		}
+		ret = decode_SpcAttributeTypeAndOptionalValue(pobj->type,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		error = 0;
+		retpj = jobject_put(pj,"type",chldpj,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put type object error[%d]", ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (retpj) {
+			jvalue_destroy(retpj);
+		}
+		retpj = NULL;
+	}
+
+	ret = get_asn1_octstr(&(pobj->identifier),"identifier",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_utctime(&(pobj->time),"time",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (pobj->version != NULL){
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create version object error[%d]", ret);
+			goto fail;
+		}
+		ret = decode_SpcAttributeTypeAndOptionalValue(pobj->version,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		error = 0;
+		retpj = jobject_put(pj,"version",chldpj,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put version object error[%d]", ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (retpj) {
+			jvalue_destroy(retpj);
+		}
+		retpj = NULL;		
+	}
+
+	ret = get_catainfo_array(&(pobj->header_attributes),"headerattributes",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_any(&(pobj->filename),"filename",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+	return 0;
+fail:
+	if (retpj) {
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+	if (chldpj) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
 	typev* pstr = NULL;                                                                           \
@@ -1581,10 +1898,20 @@ int cataauthattrdec_handler(int argc, char* argv[], pextargs_state_t parsestate,
 
 int catainfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_ENCODE_HANDLER(CatalogInfo);	
+	EXPAND_ENCODE_HANDLER(CatalogInfo);
 }
 
 int catainfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_DECODE_HANDLER(CatalogInfo);	
+	EXPAND_DECODE_HANDLER(CatalogInfo);
+}
+
+int msctlconenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(MsCtlContent);
+}
+
+int msctlcondec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(MsCtlContent);
 }

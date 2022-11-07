@@ -103,5 +103,11 @@
     },
     "catainfodec<catainfodec_handler>##binfile... to decode CatalogInfo##" : {
         "$" : "+"
+    },
+    "msctlconenc<msctlconenc_handler>##jsonfile to encode MsCtlContent##" : {
+        "$" : 1
+    },
+    "msctlcondec<msctlcondec_handler>##binfile... to decode MsCtlContent##" : {
+        "$" : "+"
     }
 }

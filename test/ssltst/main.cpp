@@ -62,6 +62,8 @@ int cataauthattrenc_handler(int argc, char* argv[], pextargs_state_t parsestate,
 int cataauthattrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int catainfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int catainfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int msctlconenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int msctlcondec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
