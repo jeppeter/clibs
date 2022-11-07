@@ -2126,7 +2126,7 @@ fail:
             (pproc->vpipename->m_state == PIPE_WAIT_CONNECT ||                                    \
             pproc->vpipename->m_state == waitstate) &&                                            \
             hd == pproc->vpipename->m_evt) {                                                      \
-            DEBUG_INFO("handle %s", #vpipename);                                                  \
+            /*DEBUG_INFO("handle %s", #vpipename);*/                                              \
             ret= __get_overlapped(pproc->vpipename->m_pipesvr,&(pproc->vpipename->m_ov),          \
                     &(memlen),#vpipename" result");                                               \
             if (ret < 0) {                                                                        \
@@ -2576,7 +2576,7 @@ int run_cmd_event_output_single(HANDLE hevt, char* pin, int insize, char** ppout
 	int ret;
 	int createflag = 0;
 
-	DEBUG_INFO(" ");
+
 	if (prog == NULL) {
 		if (ppout != NULL) {
 			if (*ppout != NULL) {
@@ -2627,7 +2627,7 @@ int run_cmd_event_output_single(HANDLE hevt, char* pin, int insize, char** ppout
 	}
 	createflag |= PROC_NO_WINDOW;
 
-	DEBUG_INFO(" ");
+
 
 	pproc = (pproc_handle_t)start_cmd_single(createflag, prog);
 	if (pproc == NULL) {
@@ -2682,7 +2682,7 @@ int run_cmd_event_outputv(HANDLE hevt, char* pin, int insize, char** ppout, int 
 		if (perrsize) {
 			*perrsize = 0;
 		}
-		DEBUG_INFO(" ");
+
 		return 0;
 	}
 
@@ -2837,7 +2837,7 @@ int wts_run_cmd_event_output_single(HANDLE hevt, char* pin, int insize, char** p
 	int ret;
 	int createflag = 0;
 
-	DEBUG_INFO(" ");
+
 	if (prog == NULL) {
 		if (ppout != NULL) {
 			if (*ppout != NULL) {
@@ -2888,7 +2888,7 @@ int wts_run_cmd_event_output_single(HANDLE hevt, char* pin, int insize, char** p
 	}
 	createflag |= PROC_NO_WINDOW;
 
-	DEBUG_INFO(" ");
+
 
 	pproc = (pproc_handle_t)wts_start_cmd_single(createflag, prog);
 	if (pproc == NULL) {
@@ -2943,7 +2943,7 @@ int wts_run_cmd_event_outputv(HANDLE hevt, char* pin, int insize, char** ppout, 
 		if (perrsize) {
 			*perrsize = 0;
 		}
-		DEBUG_INFO(" ");
+
 		return 0;
 	}
 
