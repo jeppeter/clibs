@@ -1594,6 +1594,84 @@ fail:
 	return ret;
 }
 
+int encode_SpcPeImageData(jvalue* pj, SpcPeImageData* pobj)
+{
+	int ret;
+	jvalue* chldpj = NULL;
+
+	ret = set_asn1_bitstr(&(pobj->flags),"flags",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	chldpj = jobject_get(pj,"file");
+	if (chldpj != NULL) {
+		ret = encode_SpcLink(chldpj,pobj->file);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_SpcPeImageData(SpcPeImageData* pobj, jvalue* pj)
+{
+	int ret = 0;
+	jvalue* chldpj = NULL;
+	jvalue* retpj = NULL;
+
+	ret = get_asn1_bitstr(&(pobj->flags),"flags",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (pobj->file != NULL) {
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create file object error[%d]", ret);
+			goto fail;
+		}
+
+		ret = decode_SpcLink(pobj->file,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		error = 0;
+		retpj = jobject_put(pj,"file",chldpj,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (retpj) {
+			jvalue_destroy(retpj);
+		}
+		retpj = NULL;
+	}
+
+	return 0;
+fail:
+	if (retpj) {
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+	if (chldpj) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
 
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
@@ -1914,4 +1992,15 @@ int msctlconenc_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int msctlcondec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(MsCtlContent);
+}
+
+
+int spcpeimgenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(SpcPeImageData);
+}
+
+int spcpeimgdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(SpcPeImageData);
 }

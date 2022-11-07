@@ -109,5 +109,11 @@
     },
     "msctlcondec<msctlcondec_handler>##binfile... to decode MsCtlContent##" : {
         "$" : "+"
+    },
+    "spcpeimgenc<spcpeimgenc_handler>##jsonfile to encode SpcPeImageData##" : {
+        "$" : 1
+    },
+    "spcpeimgdec<spcpeimgdec_handler>##binfile... to decode SpcPeImageData##" : {
+        "$" : "+"
     }
 }

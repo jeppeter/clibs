@@ -1,0 +1,9 @@
+{
+	"file" : {
+		"moniker" : {
+			"classid" : "class value",
+			"serializeddata" : "serial data"
+		}
+	},
+	"flags" : "bit string v"
+}
