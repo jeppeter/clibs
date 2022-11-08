@@ -121,5 +121,17 @@
     },
     "spcsipinfodec<spcsipinfodec_handler>##binfile... to decode SpcSipInfo##" : {
         "$" : "+"
+    },
+    "msgimpprnenc<msgimpprnenc_handler>##jsonfile to encode MessageImprint##" : {
+        "$" : 1
+    },
+    "msgimpprndec<msgimpprndec_handler>##binfile... to decode MessageImprint##" : {
+        "$" : "+"
+    },
+    "timestampreqblobenc<timestampreqblobenc_handler>##jsonfile to encode TimeStampRequestBlob##" : {
+        "$" : 1
+    },
+    "timestampreqblobdec<timestampreqblobdec_handler>##binfile... to decode TimeStampRequestBlob##" : {
+        "$" : "+"
     }
 }

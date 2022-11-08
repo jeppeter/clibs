@@ -1,0 +1,10 @@
+{
+	"digestalgorithm" : {
+		"algorithm" : "2.1.22225.311.22",
+		"parameters" : {
+			"type" : "0x12",
+			"data" : [52,221,34,66]
+		}
+	},
+	"digest" : "digest octstr"
+}

@@ -68,6 +68,10 @@ int spcpeimgenc_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int spcpeimgdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int spcsipinfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int spcsipinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int msgimpprnenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int msgimpprndec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int timestampreqblobenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int timestampreqblobdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

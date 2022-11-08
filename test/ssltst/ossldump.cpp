@@ -241,6 +241,8 @@ ASN1_SEQUENCE(MessageImprint) = {
 
 IMPLEMENT_ASN1_FUNCTIONS(MessageImprint)
 
+#define ENABLE_CURL   1
+
 #ifdef ENABLE_CURL
 
 typedef struct {
@@ -1695,7 +1697,7 @@ int encode_SpcSipInfo(jvalue* pj, SpcSipInfo* pobj)
 		goto fail;
 	}
 
-	ret = set_asn1_octstr(&(pobj->string),"string",pj);
+	ret = set_asn1_octstr(&(pobj->string), "string", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1738,43 +1740,176 @@ int decode_SpcSipInfo(SpcSipInfo* pobj, jvalue* pj)
 {
 	int ret = 0;
 
-	ret = get_asn1_integer(&(pobj->a),"a",pj);
+	ret = get_asn1_integer(&(pobj->a), "a", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_octstr(&(pobj->string),"string",pj);
+	ret = get_asn1_octstr(&(pobj->string), "string", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_integer(&(pobj->b),"b",pj);
+	ret = get_asn1_integer(&(pobj->b), "b", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_integer(&(pobj->c),"c",pj);
+	ret = get_asn1_integer(&(pobj->c), "c", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_integer(&(pobj->d),"d",pj);
+	ret = get_asn1_integer(&(pobj->d), "d", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_integer(&(pobj->e),"e",pj);
+	ret = get_asn1_integer(&(pobj->e), "e", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_integer(&(pobj->f),"f",pj);
+	ret = get_asn1_integer(&(pobj->f), "f", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int encode_MessageImprint(jvalue* pj, MessageImprint* pobj)
+{
+	int ret;
+	jvalue* chldpj = NULL;
+
+	chldpj = jobject_get(pj, "digestalgorithm");
+	if (chldpj != NULL) {
+		if (pobj->digestAlgorithm == NULL) {
+			pobj->digestAlgorithm = AlgorithmIdentifier_new();
+			if (pobj->digestAlgorithm == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("AlgorithmIdentifier_new error[%d]", ret);
+				goto fail;
+			}
+		}
+		ret = encode_AlgorithmIdentifier(chldpj, pobj->digestAlgorithm);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	ret = set_asn1_octstr(&(pobj->digest),"digest",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_MessageImprint(MessageImprint* pobj, jvalue* pj)
+{
+	int ret = 0;
+	jvalue* chldpj = NULL;
+	jvalue* retpj = NULL;
+	int error;
+
+	if (pobj->digestAlgorithm !=NULL) {
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("jobject_create error[%d]",ret);
+			goto fail;
+		}
+		ret = decode_AlgorithmIdentifier(pobj->digestAlgorithm,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		error = 0;
+		retpj = jobject_put(pj,"digestalgorithm",chldpj,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put digestalgorithm error[%d]", ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (retpj) {
+			jvalue_destroy(retpj);
+		}
+		retpj = NULL;
+	}
+
+	ret = get_asn1_octstr(&(pobj->digest),"digest",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	if (retpj) {
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+	if (chldpj) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int encode_TimeStampRequestBlob(jvalue* pj, TimeStampRequestBlob* pobj)
+{
+	int ret;
+
+	ret = set_asn1_object(&(pobj->type),"type",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_octstr(&(pobj->signature),"signature",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_TimeStampRequestBlob(TimeStampRequestBlob* pobj, jvalue* pj)
+{
+	int ret = 0;
+
+	ret = get_asn1_object(&(pobj->type),"type",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_octstr(&(pobj->signature),"signature",pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -2126,4 +2261,24 @@ int spcsipinfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 int spcsipinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(SpcSipInfo);
+}
+
+int msgimpprnenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(MessageImprint);	
+}
+
+int msgimpprndec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(MessageImprint);
+}
+
+int timestampreqblobenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(TimeStampRequestBlob);
+}
+
+int timestampreqblobdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(TimeStampRequestBlob);
 }
