@@ -2373,12 +2373,12 @@ int timestampreqblobdec_handler(int argc, char* argv[], pextargs_state_t parsest
 	EXPAND_DECODE_HANDLER(TimeStampRequestBlob);
 }
 
-int timestampreqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+int timestamprqstenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_ENCODE_HANDLER(TimeStampRequest);
 }
 
-int timestampreqdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+int timestamprqstdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(TimeStampRequest);
 }

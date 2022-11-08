@@ -72,8 +72,8 @@ int msgimpprnenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int msgimpprndec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int timestampreqblobenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int timestampreqblobdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int timestampreqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int timestampreqdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int timestamprqstenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int timestamprqstdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
