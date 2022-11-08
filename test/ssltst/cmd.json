@@ -133,5 +133,11 @@
     },
     "timestampreqblobdec<timestampreqblobdec_handler>##binfile... to decode TimeStampRequestBlob##" : {
         "$" : "+"
+    },
+    "timestampreqenc<timestampreqenc_handler>##jsonfile to encode TimeStampRequest##" : {
+        "$" : 1
+    },
+    "timestampreqdec<timestampreqdec_handler>##binfile... to decode TimeStampRequest##" : {
+        "$" : "+"
     }
 }

@@ -1921,6 +1921,96 @@ fail:
 	return ret;
 }
 
+int encode_TimeStampRequest(jvalue* pj, TimeStampRequest* pobj)
+{
+	int ret;
+	jvalue* chldpj = NULL;
+
+	ret = set_asn1_object(&(pobj->type),"type",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	chldpj = jobject_get(pj,"blob");
+	if (chldpj != NULL) {
+		if (pobj->blob == NULL) {
+			pobj->blob = TimeStampRequestBlob_new();
+			if (pobj->blob == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("TimeStampRequestBlob_new error[%d]", ret);
+				goto fail;
+			}
+		}
+
+		ret = encode_TimeStampRequestBlob(chldpj,pobj->blob);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_TimeStampRequest(TimeStampRequest* pobj, jvalue* pj)
+{
+	int ret = 0;
+	jvalue* chldpj = NULL;
+	jvalue* retpj = NULL;
+	int error;
+
+	ret = get_asn1_object(&(pobj->type),"type",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (pobj->blob != NULL) {
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("jobject_create error[%d]", ret);
+			goto fail;
+		}
+
+		ret = decode_TimeStampRequestBlob(pobj->blob,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		error = 0;
+		retpj = jobject_put(pj,"blob", chldpj,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put blob error[%d]", ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (retpj) {
+			jvalue_destroy(retpj);
+		}
+		retpj = NULL;
+	}
+
+	return 0;
+fail:
+	if (retpj) {
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+	if (chldpj) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
 	typev* pstr = NULL;                                                                           \
@@ -2281,4 +2371,14 @@ int timestampreqblobenc_handler(int argc, char* argv[], pextargs_state_t parsest
 int timestampreqblobdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(TimeStampRequestBlob);
+}
+
+int timestampreqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(TimeStampRequest);
+}
+
+int timestampreqdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(TimeStampRequest);
 }
