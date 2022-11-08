@@ -2011,6 +2011,61 @@ fail:
 	return ret;
 }
 
+int encode_PKIStatusInfo(jvalue* pj, PKIStatusInfo* pobj)
+{
+	int ret;
+
+	ret = set_asn1_integer(&(pobj->status),"status",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_string_array(&(pobj->statusString),"statusstring",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_bitstr(&(pobj->failInfo),"failinfo",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_PKIStatusInfo(PKIStatusInfo* pobj, jvalue* pj)
+{
+	int ret = 0;
+	ret = get_asn1_integer(&(pobj->status),"status",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_string_array(&(pobj->statusString),"statusstring",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_bitstr(&(pobj->failInfo),"failinfo",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
 	typev* pstr = NULL;                                                                           \
@@ -2381,4 +2436,14 @@ int timestamprqstenc_handler(int argc, char* argv[], pextargs_state_t parsestate
 int timestamprqstdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(TimeStampRequest);
+}
+
+int pkistatusinfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(PKIStatusInfo);
+}
+
+int pkistatusinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(PKIStatusInfo);	
 }

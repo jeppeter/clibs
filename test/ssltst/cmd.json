@@ -139,5 +139,11 @@
     },
     "timestamprqstdec<timestamprqstdec_handler>##binfile... to decode TimeStampRequest##" : {
         "$" : "+"
+    },
+    "pkistatusinfoenc<pkistatusinfoenc_handler>##jsonfile to encode PKIStatusInfo##" : {
+        "$" : 1
+    },
+    "pkistatusinfodec<pkistatusinfodec_handler>##binfile... to decode PKIStatusInfo##" : {
+        "$" : "+"
     }
 }

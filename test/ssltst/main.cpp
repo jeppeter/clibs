@@ -74,6 +74,8 @@ int timestampreqblobenc_handler(int argc, char* argv[], pextargs_state_t parsest
 int timestampreqblobdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int timestamprqstenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int timestamprqstdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int pkistatusinfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int pkistatusinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
