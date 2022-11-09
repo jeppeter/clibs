@@ -2107,6 +2107,48 @@ fail:
 	return ret;
 }
 
+int encode_EDIPARTYNAME(jvalue* pj, EDIPARTYNAME* pobj)
+{
+	int ret;
+	ret = set_asn1_string(&(pobj->nameAssigner), "nameassigner", pj);
+	if (ret < 0 || ret == 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_string(&(pobj->partyName), "partyname", pj);
+	if (ret < 0 || ret == 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_EDIPARTYNAME(EDIPARTYNAME* pobj, jvalue* pj)
+{
+	int ret = 0;
+	ret = get_asn1_string(&(pobj->nameAssigner), "nameassigner", pj);
+	if (ret < 0 || ret == 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_string(&(pobj->partyName), "partyname", pj);
+	if (ret < 0 || ret == 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
 int encode_GENERAL_NAME(jvalue* pj, GENERAL_NAME* pobj)
 {
 	int ret;
@@ -2157,6 +2199,26 @@ int encode_GENERAL_NAME(jvalue* pj, GENERAL_NAME* pobj)
 			goto fail;
 		} else if (ret > 0) {
 			type = GEN_X400;
+		}
+	}
+
+	if (type < 0) {
+		chldpj = jobject_get(pj,"edipartyname");
+		if (chldpj != NULL) {
+			if (pobj->d.ediPartyName == NULL) {
+				pobj->d.ediPartyName = EDIPARTYNAME_new();
+				if (pobj->d.ediPartyName == NULL) {
+					GETERRNO(ret);
+					ERROR_INFO("EDIPARTYNAME_new error[%d]", ret);
+					goto fail;
+				}
+			}
+			ret = encode_EDIPARTYNAME(chldpj,pobj->d.ediPartyName);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			type = GEN_EDIPARTY;
 		}
 	}
 
@@ -2224,6 +2286,30 @@ int decode_GENERAL_NAME(GENERAL_NAME* pobj, jvalue* pj)
 			GETERRNO(ret);
 			goto fail;
 		}
+	} else if (type == GEN_EDIPARTY) {
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create EDIPARTYNAME object error[%d]", ret);
+			goto fail;
+		}
+		ret = decode_OTHERNAME(pobj->d.ediPartyName, chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		error = 0;
+		retpj = jobject_put(pj, "edipartyname", chldpj, &error);
+		if (error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put edipartyname error[%d]" , ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (retpj) {
+			jvalue_destroy(retpj);
+		}
+		retpj = NULL;
 	} else {
 		ret = -EINVAL;
 		ERROR_INFO("GENERAL_NAME type [%d] not supported", type);

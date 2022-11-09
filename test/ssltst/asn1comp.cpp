@@ -38,6 +38,45 @@ fail:
 	return ret;
 }
 
+int set_asn1_string(ASN1_STRING **ppstr, const char* key, jvalue* pj)
+{
+	const char* pstr = NULL;
+	int error;
+	int ret;
+	int rlen;
+	ASN1_STRING* pasn1str = NULL;
+
+	error = 0;
+	pstr = jobject_get_string(pj, key, &error);
+	if (pstr == NULL) {
+		DEBUG_INFO("no [%s] set", key);
+		return 0;
+	}
+
+	pasn1str = *ppstr;
+	if (pasn1str == NULL) {
+		pasn1str = ASN1_STRING_new();
+		if (pasn1str == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO( "alloc [%s] error[%d]", key, ret);
+			goto fail;
+		}
+		*ppstr = pasn1str;
+	}
+	rlen = strlen(pstr);
+	ret = ASN1_STRING_set(pasn1str, (unsigned char*)pstr, rlen);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO( "set [%s] error[%d]", key, ret);
+		goto fail;
+	}
+
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 
 int set_asn1_ia5str(ASN1_IA5STRING **ppia5, const char* key, jvalue* pj)
 {
@@ -1277,6 +1316,38 @@ int get_asn1_ia5str(ASN1_IA5STRING** ppia5, const char* key, jvalue* pj)
 
 
 	pout = (const char*)ASN1_STRING_get0_data(pia5str);
+	if (pout != NULL) {
+		ret = jobject_put_string(pj, key, pout);
+		if (ret != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("can not put [%s] [%s] error[%d]", key, pout, ret);
+			goto fail;
+		}
+		setted = 1;
+	}
+
+	return setted;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int get_asn1_string(ASN1_STRING** ppstr, const char* key, jvalue* pj)
+{
+	int ret;
+	const char* pout = NULL;
+	int setted = 0;
+	ASN1_STRING* pasn1str = NULL;
+	if (ppstr == NULL || *ppstr == NULL) {
+		DEBUG_INFO("no [%s] get", key);
+		return 0;
+	}
+
+	pasn1str = *ppstr;
+
+
+	pout = (const char*)ASN1_STRING_get0_data(pasn1str);
 	if (pout != NULL) {
 		ret = jobject_put_string(pj, key, pout);
 		if (ret != 0) {
