@@ -2148,6 +2148,162 @@ fail:
 	return ret;
 }
 
+int encode_X509_NAME_ENTRY(jvalue* pj, X509_NAME_ENTRY* pobj)
+{
+	ASN1_OBJECT* obj=NULL;
+	int ret;
+	const char* pobjstr=NULL;
+	const char* pvalstr= NULL;
+	int setted = 0;
+	X509_NAME_ENTRY* pretobj=NULL;
+	int error;	
+
+	pobjstr = jobject_get_string(pj,"object",&error);
+	pvalstr = jobject_get_string(pj,"value",&error);
+	if (pobjstr != NULL && pvalstr != NULL) {
+		ret = set_asn1_object(&obj,"object",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+
+		pretobj = X509_NAME_ENTRY_create_by_OBJ(&pobj,obj,V_ASN1_UTF8STRING,(const unsigned char*)pvalstr,strlen(pvalstr));
+		if (pretobj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("X509_NAME_ENTRY_create_by_OBJ error[%d] ",ret);
+			goto fail;
+		}
+		setted = 1;
+	}
+
+
+	if (obj) {
+		ASN1_OBJECT_free(obj);
+	}
+	obj = NULL;
+
+	return setted;
+fail:
+	if (obj) {
+		ASN1_OBJECT_free(obj);
+	}
+	obj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_X509_NAME_ENTRY(X509_NAME_ENTRY* pobj, jvalue* pj)
+{
+	ASN1_OBJECT* obj=NULL;
+	ASN1_STRING* pval=NULL;
+	int ret;
+
+	obj = X509_NAME_ENTRY_get_object(pobj);
+	pval = X509_NAME_ENTRY_get_data(pobj);
+	if (obj == NULL || pval == NULL) {
+		ret= -EINVAL;
+		goto fail;
+	}
+
+	ret = get_asn1_object(&obj,"object",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_string(&pval,"value",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int encode_X509_NAME(jvalue* pj, X509_NAME* pobj)
+{
+	int ret;
+	unsigned int size;
+	unsigned int i;
+	jvalue* chldpj = NULL;
+	X509_NAME_ENTRY* pentry=NULL;
+	int error;
+
+	size = jarray_size(pj);
+	for(i=0;i<size;i++) {
+		error = 0;
+		chldpj = jarray_get(pj,i,&error);
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("get [%d] error[%d]", i, ret);
+			goto fail;
+		}
+		ASSERT_IF(pentry == NULL);
+		pentry = X509_NAME_ENTRY_new();
+		if (pentry == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create [%d] entry error[%d]", i,ret);
+			goto fail;
+		}
+		ret = encode_X509_NAME_ENTRY(chldpj,pentry);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = X509_NAME_add_entry(pobj,pentry,-1,0);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("push [%d] entry error[%d]",i, ret);
+			goto fail;
+		}
+		pentry = NULL;
+	}
+
+	return (int)size;
+fail:
+	if (pentry) {
+		X509_NAME_ENTRY_free(pentry);
+	}
+	pentry = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_X509_NAME(X509_NAME* pobj, jvalue* pj)
+{
+	jvalue* chldpj = NULL;
+	int size=0;
+	int i;
+	int ret;
+
+	size = X509_NAME_entry_count(pobj);
+	for(i=0;i<size;i++) {
+		ASSERT_IF(chldpj == NULL);
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create entry [%d] error[%d]",i,ret);
+			goto fail;
+		}
+	}
+
+
+	return size;
+fail:
+	if (chldpj) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+
 
 int encode_GENERAL_NAME(jvalue* pj, GENERAL_NAME* pobj)
 {
@@ -2193,7 +2349,7 @@ int encode_GENERAL_NAME(jvalue* pj, GENERAL_NAME* pobj)
 	}
 
 	if (type < 0) {
-		ret = set_asn1_any(&(pobj->d.x400Address),"x400address",pj);
+		ret = set_asn1_seq((ASN1_STRING**)&(pobj->d.x400Address),"x400address",pj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -2205,6 +2361,7 @@ int encode_GENERAL_NAME(jvalue* pj, GENERAL_NAME* pobj)
 
 	if (type < 0) {
 		chldpj = jobject_get(pj,"edipartyname");
+		DEBUG_INFO("edipartyname [%p]",chldpj);
 		if (chldpj != NULL) {
 			if (pobj->d.ediPartyName == NULL) {
 				pobj->d.ediPartyName = EDIPARTYNAME_new();
@@ -2235,6 +2392,7 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
 
 int decode_GENERAL_NAME(GENERAL_NAME* pobj, jvalue* pj)
 {
@@ -2282,7 +2440,7 @@ int decode_GENERAL_NAME(GENERAL_NAME* pobj, jvalue* pj)
 			goto fail;
 		}
 	} else if (type == GEN_X400) {
-		ret = get_asn1_any(&(pobj->d.x400Address),"x400address",pj);
+		ret = get_asn1_seq((ASN1_STRING**)&(pobj->d.x400Address),"x400address",pj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;

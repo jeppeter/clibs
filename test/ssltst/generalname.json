@@ -8,8 +8,9 @@
 	},
 	"rfc822name-" : "rfc822",
 	"dnsname--" : "dnsname",
-	"x400address" : {
-		"type" : "0xf",
-		"data" : [52,221,34,77]
+	"x400address--" :	[52,221,34,77],
+	"edipartyname" : {
+		"nameassigner" : "name assign",
+		"partyname" : "party user"
 	}
 }

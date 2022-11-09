@@ -1050,13 +1050,13 @@ int set_asn1_seq(ASN1_STRING** ppstr , const char* key, const jvalue* pj)
 {
 	jvalue* parr = NULL;
 	jvalue* curval = NULL;
-	jint* jval=NULL;
+	jint* jval = NULL;
 	int ret;
 	unsigned char* pbuf = NULL;
-	unsigned int size=0;
+	unsigned int size = 0;
 	unsigned int i;
 	int error;
-	ASN1_STRING* pstr=NULL;
+	ASN1_STRING* pstr = NULL;
 
 
 	if (ppstr == NULL) {
@@ -1065,19 +1065,14 @@ int set_asn1_seq(ASN1_STRING** ppstr , const char* key, const jvalue* pj)
 		return ret;
 	}
 
-	DEBUG_INFO(" ");
 	error = 0;
-	parr = (jvalue*)jobject_get_array(pj, key,&error);
-	if (error != 0) {
-		GETERRNO(ret);
-		ERROR_INFO("get [%s] error[%d]", key, ret);
-		return ret;
-	}
+	parr = (jvalue*)jobject_get_array(pj, key, &error);
 	if (parr == NULL) {
 		DEBUG_INFO("no [%s] for json", key);
 		return 0;
 	}
 
+	DEBUG_INFO(" ");
 	if (parr->type != JARRAY) {
 		ret = -EINVAL;
 		ERROR_INFO("[%s] not valid object", key);
@@ -1987,6 +1982,67 @@ fail:
 		jvalue_destroy(pinsert);
 	}
 	pinsert = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int get_asn1_seq(ASN1_STRING** ppstr, const char* key, jvalue* pj)
+{
+	jvalue *parr = NULL;
+	jvalue * curval = NULL;
+	ASN1_STRING* pstr = NULL;
+	unsigned char* pbuf=NULL;
+	unsigned int buflen;
+	unsigned int i;
+	int ret;
+	if (ppstr == NULL || *ppstr == NULL) {
+		DEBUG_INFO("no [%s] any", key);
+		return 0;
+	}
+	pstr = *ppstr;
+	parr = jarray_create();
+	if (parr == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("create [%s] insert error[%d]", key, ret);
+		goto fail;
+	}
+	pbuf = (unsigned char*)ASN1_STRING_get0_data(pstr);
+	buflen = ASN1_STRING_length(pstr);
+
+	for (i = 0; i < buflen; i++) {
+		ASSERT_IF(curval == NULL);
+		curval = jint_create(pbuf[i]);
+		if (curval == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		ret = jarray_put(parr, curval);
+		if (ret != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put [%d] [0x%02x] error[%d]", i, pbuf[i], ret);
+			goto fail;
+		}
+		/*all is insert*/
+		curval = NULL;
+	}
+
+	ret = jobject_put_array(pj, key, parr);
+	if (ret != 0) {
+		GETERRNO(ret);
+		ERROR_INFO("insert %s error[%d]",key, ret);
+		goto fail;
+	}
+	parr = NULL;
+	return 1;
+fail:
+	if (curval) {
+		jvalue_destroy(curval);
+	}
+	curval = NULL;
+	if (parr) {
+		jvalue_destroy(parr);
+	}
+	parr = NULL;
 	SETERRNO(ret);
 	return ret;
 }
