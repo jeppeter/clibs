@@ -2447,3 +2447,75 @@ int pkistatusinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate
 {
 	EXPAND_DECODE_HANDLER(PKIStatusInfo);	
 }
+
+int ia5strset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	ASN1_IA5STRING* pia5=NULL;
+	int ret;
+	int idx=0;
+	char* str;
+	unsigned char* pbuf=NULL;
+	int buflen=0;
+	int bufsize=0;
+	unsigned char* pform=NULL;
+	pargs_options_t pargs = (pargs_options_t)popt;
+
+	init_log_verbose(pargs);
+	pia5 = ASN1_IA5STRING_new();
+	if (pia5 == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	for(idx=0;parsestate->leftargs && parsestate->leftargs[idx];idx++) {
+		str = parsestate->leftargs[idx];
+		ret = ASN1_STRING_set(pia5,str,-1);
+		if (ret == 0) {
+			GETERRNO(ret);
+			ERROR_INFO("set [%s] error[%d]", str,ret);
+			goto out;
+		}
+
+		buflen = i2d_ASN1_IA5STRING(pia5,NULL);
+		if (buflen >= bufsize || pbuf == NULL) {
+			if (buflen >= bufsize) {
+				bufsize = buflen + 1;
+			}
+			if (pbuf != NULL) {
+				free(pbuf);
+			}
+			pbuf = NULL;
+			pbuf = (unsigned char*)malloc(bufsize);
+			if (pbuf == NULL) {
+				GETERRNO(ret);
+				goto out;
+			}
+		}
+		memset(pbuf,0,bufsize);
+		pform = pbuf;
+		buflen = i2d_ASN1_IA5STRING(pia5,&pform);
+		if (pargs->m_output != NULL) {
+			ret = write_file_whole(pargs->m_output,(char*)pbuf,buflen);
+		} else {
+			dump_buffer_out(stdout,pbuf,buflen,"iastr");
+			ret = 0;
+		}
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+	}
+
+	ret = 0;
+out:
+	if (pbuf) {
+		free(pbuf);
+	}
+	pbuf = NULL;
+	if (pia5) {
+		ASN1_IA5STRING_free(pia5);
+	}
+	pia5 = NULL;
+	SETERRNO(ret);
+	return ret;
+}

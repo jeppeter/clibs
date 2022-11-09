@@ -145,5 +145,8 @@
     },
     "pkistatusinfodec<pkistatusinfodec_handler>##binfile... to decode PKIStatusInfo##" : {
         "$" : "+"
+    },
+    "ia5strset<ia5strset_handler>##str ... to set string##" : {
+        "$" : "+"
     }
 }

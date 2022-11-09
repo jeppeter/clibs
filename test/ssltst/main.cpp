@@ -76,6 +76,7 @@ int timestamprqstenc_handler(int argc, char* argv[], pextargs_state_t parsestate
 int timestamprqstdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int pkistatusinfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int pkistatusinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ia5strset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
