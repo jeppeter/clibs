@@ -148,5 +148,11 @@
     },
     "ia5strset<ia5strset_handler>##str ... to set string##" : {
         "$" : "+"
+    },
+    "generalnameenc<generalnameenc_handler>##jsonfile to encode GENERAL_NAME##" : {
+        "$" : 1
+    },
+    "generalnamedec<generalnamedec_handler>##binfile... to decode GENERAL_NAME##" : {
+        "$" : "+"
     }
 }

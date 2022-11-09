@@ -1811,7 +1811,7 @@ int encode_MessageImprint(jvalue* pj, MessageImprint* pobj)
 		}
 	}
 
-	ret = set_asn1_octstr(&(pobj->digest),"digest",pj);
+	ret = set_asn1_octstr(&(pobj->digest), "digest", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1830,21 +1830,21 @@ int decode_MessageImprint(MessageImprint* pobj, jvalue* pj)
 	jvalue* retpj = NULL;
 	int error;
 
-	if (pobj->digestAlgorithm !=NULL) {
+	if (pobj->digestAlgorithm != NULL) {
 		chldpj = jobject_create();
 		if (chldpj == NULL) {
 			GETERRNO(ret);
-			ERROR_INFO("jobject_create error[%d]",ret);
+			ERROR_INFO("jobject_create error[%d]", ret);
 			goto fail;
 		}
-		ret = decode_AlgorithmIdentifier(pobj->digestAlgorithm,chldpj);
+		ret = decode_AlgorithmIdentifier(pobj->digestAlgorithm, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
 		error = 0;
-		retpj = jobject_put(pj,"digestalgorithm",chldpj,&error);
+		retpj = jobject_put(pj, "digestalgorithm", chldpj, &error);
 		if (error != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("put digestalgorithm error[%d]", ret);
@@ -1857,7 +1857,7 @@ int decode_MessageImprint(MessageImprint* pobj, jvalue* pj)
 		retpj = NULL;
 	}
 
-	ret = get_asn1_octstr(&(pobj->digest),"digest",pj);
+	ret = get_asn1_octstr(&(pobj->digest), "digest", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1881,13 +1881,13 @@ int encode_TimeStampRequestBlob(jvalue* pj, TimeStampRequestBlob* pobj)
 {
 	int ret;
 
-	ret = set_asn1_object(&(pobj->type),"type",pj);
+	ret = set_asn1_object(&(pobj->type), "type", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = set_asn1_octstr(&(pobj->signature),"signature",pj);
+	ret = set_asn1_octstr(&(pobj->signature), "signature", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1903,13 +1903,13 @@ int decode_TimeStampRequestBlob(TimeStampRequestBlob* pobj, jvalue* pj)
 {
 	int ret = 0;
 
-	ret = get_asn1_object(&(pobj->type),"type",pj);
+	ret = get_asn1_object(&(pobj->type), "type", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_octstr(&(pobj->signature),"signature",pj);
+	ret = get_asn1_octstr(&(pobj->signature), "signature", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1926,13 +1926,13 @@ int encode_TimeStampRequest(jvalue* pj, TimeStampRequest* pobj)
 	int ret;
 	jvalue* chldpj = NULL;
 
-	ret = set_asn1_object(&(pobj->type),"type",pj);
+	ret = set_asn1_object(&(pobj->type), "type", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	chldpj = jobject_get(pj,"blob");
+	chldpj = jobject_get(pj, "blob");
 	if (chldpj != NULL) {
 		if (pobj->blob == NULL) {
 			pobj->blob = TimeStampRequestBlob_new();
@@ -1943,7 +1943,7 @@ int encode_TimeStampRequest(jvalue* pj, TimeStampRequest* pobj)
 			}
 		}
 
-		ret = encode_TimeStampRequestBlob(chldpj,pobj->blob);
+		ret = encode_TimeStampRequestBlob(chldpj, pobj->blob);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -1964,7 +1964,7 @@ int decode_TimeStampRequest(TimeStampRequest* pobj, jvalue* pj)
 	jvalue* retpj = NULL;
 	int error;
 
-	ret = get_asn1_object(&(pobj->type),"type",pj);
+	ret = get_asn1_object(&(pobj->type), "type", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1978,13 +1978,13 @@ int decode_TimeStampRequest(TimeStampRequest* pobj, jvalue* pj)
 			goto fail;
 		}
 
-		ret = decode_TimeStampRequestBlob(pobj->blob,chldpj);
+		ret = decode_TimeStampRequestBlob(pobj->blob, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 		error = 0;
-		retpj = jobject_put(pj,"blob", chldpj,&error);
+		retpj = jobject_put(pj, "blob", chldpj, &error);
 		if (error != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("put blob error[%d]", ret);
@@ -2015,19 +2015,19 @@ int encode_PKIStatusInfo(jvalue* pj, PKIStatusInfo* pobj)
 {
 	int ret;
 
-	ret = set_asn1_integer(&(pobj->status),"status",pj);
+	ret = set_asn1_integer(&(pobj->status), "status", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = set_asn1_string_array(&(pobj->statusString),"statusstring",pj);
+	ret = set_asn1_string_array(&(pobj->statusString), "statusstring", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = set_asn1_bitstr(&(pobj->failInfo),"failinfo",pj);
+	ret = set_asn1_bitstr(&(pobj->failInfo), "failinfo", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -2042,19 +2042,19 @@ fail:
 int decode_PKIStatusInfo(PKIStatusInfo* pobj, jvalue* pj)
 {
 	int ret = 0;
-	ret = get_asn1_integer(&(pobj->status),"status",pj);
+	ret = get_asn1_integer(&(pobj->status), "status", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_string_array(&(pobj->statusString),"statusstring",pj);
+	ret = get_asn1_string_array(&(pobj->statusString), "statusstring", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = get_asn1_bitstr(&(pobj->failInfo),"failinfo",pj);
+	ret = get_asn1_bitstr(&(pobj->failInfo), "failinfo", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -2065,6 +2065,185 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int encode_OTHERNAME(jvalue* pj, OTHERNAME* pobj)
+{
+	int ret;
+	ret = set_asn1_object(&(pobj->type_id), "typeid", pj);
+	if (ret < 0 || ret == 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_any(&(pobj->value), "value", pj);
+	if (ret < 0 || ret == 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_OTHERNAME(OTHERNAME* pobj, jvalue* pj)
+{
+	int ret = 0;
+	ret = get_asn1_object(&(pobj->type_id), "typeid", pj);
+	if (ret < 0 || ret == 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_any(&(pobj->value), "value", pj);
+	if (ret < 0 || ret == 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int encode_GENERAL_NAME(jvalue* pj, GENERAL_NAME* pobj)
+{
+	int ret;
+	int type = -1;
+	jvalue* chldpj = NULL;
+	chldpj = jobject_get(pj, "othername");
+	if (chldpj != NULL) {
+		if (pobj->d.otherName == NULL) {
+			pobj->d.otherName = OTHERNAME_new();
+			if (pobj->d.otherName == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("OTHER_NAME_new error[%d]", ret);
+				goto fail;
+			}
+		}
+		ret = encode_OTHERNAME(chldpj, pobj->d.otherName);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		type = GEN_OTHERNAME;
+	}
+
+	if (type < 0) {
+		ret = set_asn1_ia5str(&(pobj->d.rfc822Name),"rfc822name",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		} else if (ret > 0) {
+			type = GEN_EMAIL;
+		}
+	}
+
+	if (type < 0) {
+		ret = set_asn1_ia5str(&(pobj->d.dNSName),"dnsname",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		} else if (ret > 0) {
+			type = GEN_DNS;
+		}
+	}
+
+	if (type < 0) {
+		ret = set_asn1_any(&(pobj->d.x400Address),"x400address",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		} else if (ret > 0) {
+			type = GEN_X400;
+		}
+	}
+
+
+	if (type < 0) {
+		ret = -EINVAL;
+		ERROR_INFO("no type specified for GENERAL_NAME");
+		goto fail;
+	}
+	pobj->type = type;
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_GENERAL_NAME(GENERAL_NAME* pobj, jvalue* pj)
+{
+	int ret = 0;
+	int type = -1;
+	int error = 0;
+	jvalue* chldpj = NULL;
+	jvalue* retpj = NULL;
+	type = pobj->type;
+	DEBUG_INFO("GENERAL_NAME type [%d]", type);
+	if (type == GEN_OTHERNAME) {
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create OTHERNAME object error[%d]", ret);
+			goto fail;
+		}
+		ret = decode_OTHERNAME(pobj->d.otherName, chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		error = 0;
+		retpj = jobject_put(pj, "othername", chldpj, &error);
+		if (error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put othername error[%d]" , ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (retpj) {
+			jvalue_destroy(retpj);
+		}
+		retpj = NULL;
+	} else if (type == GEN_EMAIL) {
+		ret = get_asn1_ia5str(&(pobj->d.rfc822Name),"rfc822name",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	} else if (type == GEN_DNS) {
+		ret = get_asn1_ia5str(&(pobj->d.dNSName),"dnsname",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	} else if (type == GEN_X400) {
+		ret = get_asn1_any(&(pobj->d.x400Address),"x400address",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	} else {
+		ret = -EINVAL;
+		ERROR_INFO("GENERAL_NAME type [%d] not supported", type);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	if (retpj) {
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+	if (chldpj) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
 
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
@@ -2410,7 +2589,7 @@ int spcsipinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 
 int msgimpprnenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_ENCODE_HANDLER(MessageImprint);	
+	EXPAND_ENCODE_HANDLER(MessageImprint);
 }
 
 int msgimpprndec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
@@ -2445,19 +2624,19 @@ int pkistatusinfoenc_handler(int argc, char* argv[], pextargs_state_t parsestate
 
 int pkistatusinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_DECODE_HANDLER(PKIStatusInfo);	
+	EXPAND_DECODE_HANDLER(PKIStatusInfo);
 }
 
 int ia5strset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	ASN1_IA5STRING* pia5=NULL;
+	ASN1_IA5STRING* pia5 = NULL;
 	int ret;
-	int idx=0;
+	int idx = 0;
 	char* str;
-	unsigned char* pbuf=NULL;
-	int buflen=0;
-	int bufsize=0;
-	unsigned char* pform=NULL;
+	unsigned char* pbuf = NULL;
+	int buflen = 0;
+	int bufsize = 0;
+	unsigned char* pform = NULL;
 	pargs_options_t pargs = (pargs_options_t)popt;
 
 	init_log_verbose(pargs);
@@ -2467,16 +2646,16 @@ int ia5strset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
-	for(idx=0;parsestate->leftargs && parsestate->leftargs[idx];idx++) {
+	for (idx = 0; parsestate->leftargs && parsestate->leftargs[idx]; idx++) {
 		str = parsestate->leftargs[idx];
-		ret = ASN1_STRING_set(pia5,str,-1);
+		ret = ASN1_STRING_set(pia5, str, -1);
 		if (ret == 0) {
 			GETERRNO(ret);
-			ERROR_INFO("set [%s] error[%d]", str,ret);
+			ERROR_INFO("set [%s] error[%d]", str, ret);
 			goto out;
 		}
 
-		buflen = i2d_ASN1_IA5STRING(pia5,NULL);
+		buflen = i2d_ASN1_IA5STRING(pia5, NULL);
 		if (buflen >= bufsize || pbuf == NULL) {
 			if (buflen >= bufsize) {
 				bufsize = buflen + 1;
@@ -2491,13 +2670,13 @@ int ia5strset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 				goto out;
 			}
 		}
-		memset(pbuf,0,bufsize);
+		memset(pbuf, 0, bufsize);
 		pform = pbuf;
-		buflen = i2d_ASN1_IA5STRING(pia5,&pform);
+		buflen = i2d_ASN1_IA5STRING(pia5, &pform);
 		if (pargs->m_output != NULL) {
-			ret = write_file_whole(pargs->m_output,(char*)pbuf,buflen);
+			ret = write_file_whole(pargs->m_output, (char*)pbuf, buflen);
 		} else {
-			dump_buffer_out(stdout,pbuf,buflen,"iastr");
+			dump_buffer_out(stdout, pbuf, buflen, "iastr");
 			ret = 0;
 		}
 		if (ret < 0) {
@@ -2518,4 +2697,14 @@ out:
 	pia5 = NULL;
 	SETERRNO(ret);
 	return ret;
+}
+
+int generalnameenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(GENERAL_NAME);
+}
+
+int generalnamedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(GENERAL_NAME);
 }
