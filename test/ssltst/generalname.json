@@ -9,7 +9,7 @@
 	"rfc822name-" : "rfc822",
 	"dnsname--" : "dnsname",
 	"x400address" : {
-		"type" : "0x08",
+		"type" : "0xf",
 		"data" : [52,221,34,77]
 	}
 }

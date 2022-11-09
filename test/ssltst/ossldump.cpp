@@ -2198,6 +2198,7 @@ int encode_GENERAL_NAME(jvalue* pj, GENERAL_NAME* pobj)
 			GETERRNO(ret);
 			goto fail;
 		} else if (ret > 0) {
+			DEBUG_INFO("d.x400Address [%p]", pobj->d.x400Address);
 			type = GEN_X400;
 		}
 	}
@@ -2293,7 +2294,7 @@ int decode_GENERAL_NAME(GENERAL_NAME* pobj, jvalue* pj)
 			ERROR_INFO("create EDIPARTYNAME object error[%d]", ret);
 			goto fail;
 		}
-		ret = decode_OTHERNAME(pobj->d.ediPartyName, chldpj);
+		ret = decode_EDIPARTYNAME(pobj->d.ediPartyName, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
