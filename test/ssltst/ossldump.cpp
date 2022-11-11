@@ -2280,6 +2280,7 @@ int decode_X509_NAME(X509_NAME* pobj, jvalue* pj)
 	int size=0;
 	int i;
 	int ret;
+	X509_NAME_ENTRY* pentry=NULL;
 
 	size = X509_NAME_entry_count(pobj);
 	for(i=0;i<size;i++) {
@@ -2290,6 +2291,27 @@ int decode_X509_NAME(X509_NAME* pobj, jvalue* pj)
 			ERROR_INFO("create entry [%d] error[%d]",i,ret);
 			goto fail;
 		}
+		ASSERT_IF(pentry == NULL);
+		pentry = X509_NAME_get_entry(pobj,i);
+		if (pentry == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("get [%d] entry error[%d]", i ,ret);
+			goto fail;
+		}
+
+		ret = decode_X509_NAME_ENTRY(pentry,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = jarray_put(pj,chldpj);
+		if (ret < 0){
+			GETERRNO(ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		pentry = NULL;
 	}
 
 
@@ -2309,6 +2331,7 @@ int encode_GENERAL_NAME(jvalue* pj, GENERAL_NAME* pobj)
 {
 	int ret;
 	int type = -1;
+	int error ;
 	jvalue* chldpj = NULL;
 	chldpj = jobject_get(pj, "othername");
 	if (chldpj != NULL) {
@@ -2356,6 +2379,27 @@ int encode_GENERAL_NAME(jvalue* pj, GENERAL_NAME* pobj)
 		} else if (ret > 0) {
 			DEBUG_INFO("d.x400Address [%p]", pobj->d.x400Address);
 			type = GEN_X400;
+		}
+	}
+
+	if (type < 0) {
+		error = 0;
+		chldpj = (jvalue*)jobject_get_array(pj,"directoryname",&error);
+		if (chldpj != NULL) {
+			if (pobj->d.directoryName == NULL) {
+				pobj->d.directoryName = X509_NAME_new();
+				if (pobj->d.directoryName == NULL) {
+					GETERRNO(ret);
+					ERROR_INFO("X509_NAME_new error[%d]", ret);
+					goto fail;
+				}
+			}
+			ret = encode_X509_NAME(chldpj,pobj->d.directoryName);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			type = GEN_DIRNAME;
 		}
 	}
 
@@ -2445,6 +2489,25 @@ int decode_GENERAL_NAME(GENERAL_NAME* pobj, jvalue* pj)
 			GETERRNO(ret);
 			goto fail;
 		}
+	} else if (type == GEN_DIRNAME) {
+		chldpj = jarray_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("create directoryname array error[%d]", ret);
+			goto fail;
+		}
+		ret = decode_X509_NAME(pobj->d.directoryName,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		ret = jobject_put_array(pj,"directoryname",chldpj);
+		if (ret != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put directoryname error[%d]", ret);
+			goto fail;
+		}
+		chldpj = NULL;
 	} else if (type == GEN_EDIPARTY) {
 		chldpj = jobject_create();
 		if (chldpj == NULL) {
