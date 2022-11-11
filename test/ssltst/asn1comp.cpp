@@ -1819,7 +1819,6 @@ int get_asn1_any(ASN1_TYPE** ppany, const char* key, jvalue* pj)
 	int ret;
 	unsigned char *pbuf = NULL;
 	int buflen = 0;
-	int setted = 0;
 	int error;
 	int typ;
 	ASN1_INTEGER* pinteger = NULL;
@@ -1963,7 +1962,7 @@ put_data:
 
 	snprintf_safe(&typestr, &typesize, NULL);
 
-	return setted;
+	return 1;
 fail:
 	snprintf_safe(&typestr, &typesize, NULL);
 	if (retpj) {

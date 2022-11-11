@@ -2069,6 +2069,7 @@ fail:
 int encode_OTHERNAME(jvalue* pj, OTHERNAME* pobj)
 {
 	int ret;
+
 	ret = set_asn1_object(&(pobj->type_id), "typeid", pj);
 	if (ret < 0 || ret == 0) {
 		GETERRNO(ret);
@@ -3063,4 +3064,14 @@ int generalnameenc_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 int generalnamedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(GENERAL_NAME);
+}
+
+int othernameenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(OTHERNAME);	
+}
+
+int othernamedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(OTHERNAME);	
 }

@@ -79,6 +79,8 @@ int pkistatusinfodec_handler(int argc, char* argv[], pextargs_state_t parsestate
 int ia5strset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int generalnameenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int generalnamedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int othernameenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int othernamedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

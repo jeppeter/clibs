@@ -154,5 +154,11 @@
     },
     "generalnamedec<generalnamedec_handler>##binfile... to decode GENERAL_NAME##" : {
         "$" : "+"
+    },
+    "othernameenc<othernameenc_handler>##jsonfile to encode OTHERNAME##" : {
+        "$" : 1
+    },
+    "othernamedec<othernamedec_handler>##binfile... to decode OTHERNAME##" : {
+        "$" : "+"
     }
 }

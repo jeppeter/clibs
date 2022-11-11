@@ -1,5 +1,5 @@
 {
-	"othername-" : {
+	"othername" : {
 		"typeid" : "2.22.111.44",
 		"value" : {
 			"type" : "0x12",
@@ -16,5 +16,5 @@
 	},
 	"uniformresourceidentifier-" : "uni value 22",
 	"ipaddress-" : "ip xxxx",
-	"registerid" : "2.11.333"
+	"registerid-" : "2.11.333"
 }
