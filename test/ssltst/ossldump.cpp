@@ -2424,6 +2424,36 @@ int encode_GENERAL_NAME(jvalue* pj, GENERAL_NAME* pobj)
 		}
 	}
 
+	if (type < 0) {
+		ret = set_asn1_ia5str(&(pobj->d.uniformResourceIdentifier),"uniformresourceidentifier",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		} else if (ret > 0) {
+			type = GEN_URI;
+		}
+	}
+
+	if (type < 0) {
+		ret = set_asn1_octstr(&(pobj->d.iPAddress),"ipaddress", pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		} else if (ret > 0) {
+			type = GEN_IPADD;
+		}
+	}
+
+	if (type < 0) {
+		ret = set_asn1_object(&(pobj->d.registeredID),"registerid",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		} else if (ret > 0) {
+			type = GEN_RID;
+		}
+	}
+
 
 	if (type < 0) {
 		ret = -EINVAL;
@@ -2532,6 +2562,24 @@ int decode_GENERAL_NAME(GENERAL_NAME* pobj, jvalue* pj)
 			jvalue_destroy(retpj);
 		}
 		retpj = NULL;
+	} else if (type == GEN_URI) {
+		ret = get_asn1_ia5str(&(pobj->d.uniformResourceIdentifier),"uniformresourceidentifier",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	} else if (type == GEN_IPADD) {
+		ret = get_asn1_octstr(&(pobj->d.iPAddress),"ipaddress",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	} else if (type == GEN_RID) {
+		ret = get_asn1_object(&(pobj->d.registeredID),"registerid",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
 	} else {
 		ret = -EINVAL;
 		ERROR_INFO("GENERAL_NAME type [%d] not supported", type);
