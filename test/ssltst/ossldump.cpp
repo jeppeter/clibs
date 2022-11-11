@@ -2112,13 +2112,13 @@ int encode_EDIPARTYNAME(jvalue* pj, EDIPARTYNAME* pobj)
 {
 	int ret;
 	ret = set_asn1_string(&(pobj->nameAssigner), "nameassigner", pj);
-	if (ret < 0 || ret == 0) {
+	if (ret < 0 ) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
 	ret = set_asn1_string(&(pobj->partyName), "partyname", pj);
-	if (ret < 0 || ret == 0) {
+	if (ret < 0 ) {
 		GETERRNO(ret);
 		goto fail;
 	}
@@ -2131,17 +2131,20 @@ fail:
 int decode_EDIPARTYNAME(EDIPARTYNAME* pobj, jvalue* pj)
 {
 	int ret = 0;
+	DEBUG_INFO(" ");
 	ret = get_asn1_string(&(pobj->nameAssigner), "nameassigner", pj);
 	if (ret < 0 || ret == 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
+	DEBUG_INFO(" ");
 	ret = get_asn1_string(&(pobj->partyName), "partyname", pj);
 	if (ret < 0 || ret == 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
+	DEBUG_INFO(" ");
 
 	return 0;
 fail:
@@ -2539,7 +2542,7 @@ int decode_GENERAL_NAME(GENERAL_NAME* pobj, jvalue* pj)
 			goto fail;
 		}
 		chldpj = NULL;
-	} else if (type == GEN_EDIPARTY) {
+	} else if (type == GEN_EDIPARTY) {		
 		chldpj = jobject_create();
 		if (chldpj == NULL) {
 			GETERRNO(ret);
@@ -3068,10 +3071,31 @@ int generalnamedec_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 
 int othernameenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_ENCODE_HANDLER(OTHERNAME);	
+	EXPAND_ENCODE_HANDLER(OTHERNAME);
 }
 
 int othernamedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(OTHERNAME);	
+}
+
+int edipartynameenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(EDIPARTYNAME);
+}
+
+int edipartynamedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(EDIPARTYNAME);
+}
+
+
+int x509nameenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(X509_NAME);	
+}
+
+int x509namedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(X509_NAME);	
 }

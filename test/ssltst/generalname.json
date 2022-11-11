@@ -7,10 +7,10 @@
 		}
 	},
 	"rfc822name-" : "rfc822",
-	"dnsname--" : "dnsname",
+	"dnsname-" : "dnsname",
 	"x400address--" :	[52,221,34,77],
 	"directoryname--" : [{"object" : "2.22.11","value": "value1"}, {"object" : "2.11","value":"value2"}],
-	"edipartyname--" : {
+	"edipartyname-" : {
 		"nameassigner" : "name assign",
 		"partyname" : "party user"
 	},
