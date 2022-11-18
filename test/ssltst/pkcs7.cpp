@@ -424,6 +424,77 @@ out:
 	return ret;
 }
 
+int asn1objdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	ASN1_OBJECT* ita = NULL;
+	const unsigned char* p = NULL;
+	int i;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	unsigned char* ccbuf = NULL;
+	int ccsize = 0;
+	int cclen = 0;
+	char* hexstr = NULL;
+	int ret;
+	char* pout=NULL;
+	int outsize=0;
+
+	init_log_verbose(pargs);
+
+	for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+		hexstr = parsestate->leftargs[i];
+		ret = parse_hex_string(hexstr, &ccbuf, &ccsize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("[%s] not valid code", hexstr);
+			goto out;
+		}
+		cclen = ret;
+
+		ASSERT_IF(ita == NULL);
+
+		p = ccbuf;
+		ita = d2i_ASN1_OBJECT(NULL, &p, cclen);
+		if (ita == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("d2i [%s] error[%d]", hexstr, ret);
+			goto out;
+		}
+
+format_again:
+		if (pout != NULL) {
+			free(pout);
+		}
+		pout = NULL;
+		pout = (char*)malloc(outsize);
+		if (pout == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+		ret = i2t_ASN1_OBJECT(pout, outsize, ita);
+		if (ret < 0) {
+			outsize <<= 1;
+			goto format_again;
+		}
+
+		fprintf(stdout,"[%s] => [%s]\n", hexstr, pout);
+		ASN1_OBJECT_free(ita);
+		ita = NULL;
+	}
+
+
+	ret = 0;
+out:
+	if (pout) {
+		OPENSSL_free(pout);	
+	}	
+	pout = NULL;
+	ASN1_OBJECT_free(ita);
+	ita = NULL;
+	parse_hex_string(NULL,&ccbuf,&ccsize);
+	SETERRNO(ret);
+	return ret;
+}
+
 int asn1enumerateenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	ASN1_ENUMERATED* ita = NULL;
@@ -598,7 +669,7 @@ ASN1_SEQUENCE(ASN1_SEQ_DATA) = {
 	ASN1_SIMPLE(ASN1_SEQ_DATA, simpstr, ASN1_UTF8STRING),
 	ASN1_SIMPLE(ASN1_SEQ_DATA, simpobj, ASN1_OBJECT),
 	ASN1_EMBED(ASN1_SEQ_DATA, embint, ZINT32),
-	ASN1_EMBED(ASN1_SEQ_DATA,embstr, ASN1_UTF8STRING),
+	ASN1_EMBED(ASN1_SEQ_DATA, embstr, ASN1_UTF8STRING),
 	ASN1_OPT(ASN1_SEQ_DATA, optstr, ASN1_UTF8STRING),
 	ASN1_OPT(ASN1_SEQ_DATA, optobj, ASN1_OBJECT),
 	ASN1_OPT(ASN1_SEQ_DATA, optint, ASN1_INTEGER),
@@ -667,13 +738,6 @@ ASN1_SEQUENCE(ASN1_SEQ_DATA) = {
 
 
 IMPLEMENT_ASN1_FUNCTIONS(ASN1_SEQ_DATA)
-
-
-
-
-
-
-
 
 
 
@@ -1231,9 +1295,9 @@ fail:
 
 int asn1timeenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	ASN1_TIME* ptime=NULL;
+	ASN1_TIME* ptime = NULL;
 	ASN1_TIME* prettime = NULL;
-	unsigned char* pout=NULL;
+	unsigned char* pout = NULL;
 	int outlen = 0;
 	int ret;
 	pargs_options_t pargs = (pargs_options_t)popt;
@@ -1245,19 +1309,19 @@ int asn1timeenc_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 	ptime = ASN1_TIME_new();
 	if (ptime == NULL) {
 		GETERRNO(ret);
-		ERROR_INFO("can not new ASN1_TIME [%d]",ret);
+		ERROR_INFO("can not new ASN1_TIME [%d]", ret);
 		goto out;
 	}
 
-	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+	for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
 		timestr = parsestate->leftargs[i];
-		ret = get_time_str(timestr,&settm);
+		ret = get_time_str(timestr, &settm);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("get time [%s] error[%d]", timestr, ret);
 			goto out;
 		}
-		DEBUG_INFO("[%s] to [0x%lx:%ld]", timestr, settm,settm);
+		DEBUG_INFO("[%s] to [0x%lx:%ld]", timestr, settm, settm);
 
 		prettime = ASN1_TIME_set(ptime, settm);
 		if (prettime == NULL) {
@@ -1267,10 +1331,10 @@ int asn1timeenc_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 		}
 		OPENSSL_free(pout);
 		pout = NULL;
-		ret = i2d_ASN1_TIME(ptime,&pout);
+		ret = i2d_ASN1_TIME(ptime, &pout);
 		if (ret <= 0) {
 			GETERRNO(ret);
-			ERROR_INFO("can not format ASN1_TIME for [%s] error[%d]", timestr,ret);
+			ERROR_INFO("can not format ASN1_TIME for [%s] error[%d]", timestr, ret);
 			goto out;
 		}
 		outlen = ret;
@@ -1303,16 +1367,16 @@ IMPLEMENT_ASN1_FUNCTIONS(ASN1_SEQ_BIGNUM)
 
 int asn1bignumenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	int cnt=0;
+	int cnt = 0;
 	int neg = 0;
-	pargs_options_t pargs =(pargs_options_t)popt;
-	ASN1_SEQ_BIGNUM* pbnum=NULL;
+	pargs_options_t pargs = (pargs_options_t)popt;
+	ASN1_SEQ_BIGNUM* pbnum = NULL;
 	int i;
 	int ret;
-	unsigned char* pout= NULL;
-	BIGNUM*pb=NULL;
+	unsigned char* pout = NULL;
+	BIGNUM*pb = NULL;
 	init_log_verbose(pargs);
-	for(i=0;parsestate->leftargs&&parsestate->leftargs[i];i++) {
+	for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
 		cnt ++;
 	}
 
@@ -1326,16 +1390,16 @@ int asn1bignumenc_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 
 	if (cnt > 0 ) {
 		i = 0;
-		if (strcmp(parsestate->leftargs[0],"-") == 0) {
+		if (strcmp(parsestate->leftargs[0], "-") == 0) {
 			neg = 1;
 			i = 1;
 		}
 
 		if (i < cnt) {
 			ret = BN_hex2bn(&pb, parsestate->leftargs[i]);
-			if (ret <= 0){
+			if (ret <= 0) {
 				GETERRNO(ret);
-				ERROR_INFO("can not set [%s] error[%d]", parsestate->leftargs[i],ret);
+				ERROR_INFO("can not set [%s] error[%d]", parsestate->leftargs[i], ret);
 				goto out;
 			}
 		} else {
@@ -1347,9 +1411,9 @@ int asn1bignumenc_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 		}
 
 		if (neg > 0) {
-			BN_set_negative(pb,neg);
+			BN_set_negative(pb, neg);
 		}
-		
+
 		if (pbnum->pb == NULL) {
 			pbnum->pb = BN_new();
 			if (pbnum->pb == NULL) {
@@ -1364,14 +1428,14 @@ int asn1bignumenc_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 			BN_set_negative(pbnum->pb, neg);
 		}
 
-		ret = i2d_ASN1_SEQ_BIGNUM(pbnum,&pout);
+		ret = i2d_ASN1_SEQ_BIGNUM(pbnum, &pout);
 		if (ret <= 0) {
 			GETERRNO(ret);
 			ERROR_INFO("BIGNUM format error[%d]", ret);
 			goto out;
 		}
 
-		DEBUG_BUFFER_FMT(pout,ret,"BIGNUM value");
+		DEBUG_BUFFER_FMT(pout, ret, "BIGNUM value");
 	}
 
 	ret = 0;

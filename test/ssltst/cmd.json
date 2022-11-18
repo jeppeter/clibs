@@ -20,6 +20,9 @@
     "asn1objenc<asn1objenc_handler>##objsn ... to encode asn1obj##" : {
         "$" : "+"
     },
+    "asn1objdec<asn1objdec_handler>##objsn ... to encode asn1obj##" : {
+        "$" : "+"
+    },
     "asn1enumerateenc<asn1enumerateenc_handler>##val ... to encode asn1enumerate##" : {
         "$" : "+"
     },

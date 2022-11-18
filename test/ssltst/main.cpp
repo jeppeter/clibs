@@ -34,6 +34,7 @@ int pkcs7dump_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int asn1intenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1octstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1objenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int asn1objdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1enumerateenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1strenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1seqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
@@ -185,6 +186,113 @@ void dump_buffer_out(FILE* fp, uint8_t* pbuf, int len, const char* fmt, ...)
     }
     fprintf(fp,"\n");
     return;
+}
+
+int hex_value(char v,int* perr)
+{
+    int retval = 0;
+    if (v >= '0' && v <= '9') {
+        retval = v - '0';
+    } else if (v >= 'a' && v <= 'f') {
+        retval = v - 'a' + 10;
+    } else if (v >= 'A' && v <= 'F') {
+        retval = v - 'A' + 10;
+    } else {
+        if (perr) {
+            *perr = 1;
+        }
+    }
+    return retval;
+}
+
+
+int parse_hex_string(const char* hexstr,uint8_t** ppv8,int* psize)
+{
+    int ret;
+    int slen = 0;
+    int idx;
+    int didx;
+    uint8_t* pretv8=NULL;
+    int retsize=0;
+    int retlen=0;
+    int errnum = 0;
+    if (hexstr == NULL) {
+        if (ppv8 && *ppv8) {
+            free(*ppv8);
+            *ppv8 = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (ppv8 == NULL || psize == NULL) {
+        ret=  -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if (*ppv8 == NULL && *psize != 0) {
+        ret=  -EINVAL;
+        SETERRNO(ret);
+        return ret;     
+    }
+
+    pretv8 = *ppv8;
+    retsize = *psize;
+
+    slen = (int)strlen(hexstr);
+    if (slen > 0) {
+        idx = 0;
+        didx = 0;
+        retlen = slen / 2;
+        if ((slen % 2) != 0){
+            retlen ++;
+            idx = 1;
+        }
+        if (retlen > retsize) {
+            retsize = retlen;
+            pretv8 = (uint8_t*)malloc(retlen);
+            if (pretv8 ==NULL) {
+                GETERRNO(ret);
+                goto fail;
+            }
+        }
+        memset(pretv8,0,retsize);
+
+        if (idx > 0) {
+            pretv8[didx] = hex_value(hexstr[0],&errnum);
+            didx = 1;
+        }
+
+        while (idx < slen) {
+            pretv8[didx] |= (hex_value(hexstr[idx],&errnum) << 4);
+            pretv8[didx] |= hex_value(hexstr[idx+1],&errnum);
+            idx += 2;
+            didx += 1;
+        }
+    }
+
+    if (errnum != 0) {
+        ret = -EINVAL;
+        goto fail;
+    }
+
+    if (*ppv8 && *ppv8 != pretv8) {
+        free(*ppv8);
+    }
+    *ppv8 = pretv8;
+    *psize = retsize;
+    return retlen;
+fail:
+    if (pretv8 && pretv8 != *ppv8) {
+        free(pretv8);
+    }
+    pretv8 = NULL;
+    retsize = 0;
+    SETERRNO(ret);
+    return ret;
 }
 
 #include "peauth.cpp"
