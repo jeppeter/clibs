@@ -184,5 +184,11 @@
     },
     "spcasn1codedec<spcasn1codedec_handler>##binfile... to decode SpcAsn1Code##" : {
         "$" : "+"
+    },
+    "x509algrenc<x509algrenc_handler>##jsonfile to encode X509_ALGOR##" : {
+        "$" : 1
+    },
+    "x509algrdec<x509algrdec_handler>##binfile... to decode X509_ALGOR##" : {
+        "$" : "+"
     }
 }
