@@ -3099,3 +3099,101 @@ int x509namedec_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 {
 	EXPAND_DECODE_HANDLER(X509_NAME);	
 }
+
+int timestamprespdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	char* fname = NULL;
+	TimeStampResp* resp=NULL;
+	unsigned char* p = NULL;
+	int i;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	unsigned char* ccbuf = NULL;
+	int ccsize = 0;
+	int cclen = 0;
+	int ret;
+	char* pout=NULL;
+	int outsize=0;
+
+	init_log_verbose(pargs);
+
+	for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+		fname = parsestate->leftargs[i];
+		ret = read_file_whole(fname,(char**)&ccbuf,&ccsize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("read [%s] error[%d]", fname,ret);
+			goto out;
+		}
+		cclen = ret;
+		p = ccbuf;
+
+		ASSERT_IF(resp == NULL);
+		resp = d2i_TimeStampResp(NULL,(const unsigned char**)&p,cclen);
+		if (resp == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("decode [%s] error[%d]",fname,ret);
+			goto out;
+		}
+
+
+		if (pout != NULL) {
+			free(pout);
+		}
+		pout = NULL;
+		pout = (char*)malloc(outsize);
+		if (pout == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+
+		ret = i2d_TimeStampResp(resp,NULL);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("d2i_TimeStampResp error[%d]",ret);
+			goto out;
+		}
+
+		outsize = ret;
+		pout = (char*)malloc(outsize);
+		if (pout == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+
+		p= (unsigned char*)pout;
+		ret = i2d_TimeStampResp(resp,&p);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("d2i_TimeStampResp error[%d]",ret);
+			goto out;
+		}
+
+		if (pargs->m_output) {
+			ret = write_file_whole(pargs->m_output,pout,outsize);
+			if (ret < 0) {
+				GETERRNO(ret);
+				ERROR_INFO("write [%s] error[%d]", pargs->m_output,ret);
+				goto out;
+			}
+		} else {
+			dump_buffer_out(stdout,(uint8_t*)pout,outsize,"TimeStampResp");
+		}
+
+		TimeStampResp_free(resp);
+		resp = NULL;
+	}
+
+	ret = 0;
+out:
+	if (resp) {
+		TimeStampResp_free(resp);
+	}
+	resp = NULL;
+	if (pout) {
+		OPENSSL_free(pout);	
+	}	
+	pout = NULL;
+	read_file_whole(NULL,(char**)&ccbuf,&ccsize);	
+	SETERRNO(ret);
+	return ret;	
+}

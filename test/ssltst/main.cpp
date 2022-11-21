@@ -86,6 +86,7 @@ int edipartynameenc_handler(int argc, char* argv[], pextargs_state_t parsestate,
 int edipartynamedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int x509nameenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int x509namedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int timestamprespdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

@@ -175,5 +175,8 @@
     },
     "x509namedec<x509namedec_handler>##binfile... to decode X509_NAME##" : {
         "$" : "+"
+    },
+    "timestamprespdec<timestamprespdec_handler>##binfile to decode TimeStampResp##" : {
+        "$" : 1
     }
 }
