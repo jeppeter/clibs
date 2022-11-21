@@ -178,5 +178,11 @@
     },
     "timestamprespdec<timestamprespdec_handler>##binfile to decode TimeStampResp##" : {
         "$" : 1
+    },
+    "spcasn1codeenc<spcasn1codeenc_handler>##jsonfile to encode SpcAsn1Code##" : {
+        "$" : 1
+    },
+    "spcasn1codedec<spcasn1codedec_handler>##binfile... to decode SpcAsn1Code##" : {
+        "$" : "+"
     }
 }

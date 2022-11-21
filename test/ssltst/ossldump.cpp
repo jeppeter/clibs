@@ -380,6 +380,24 @@ ASN1_SEQUENCE(TimeStampToken) = {
 IMPLEMENT_ASN1_FUNCTIONS(TimeStampToken)
 
 
+typedef struct {
+	ASN1_OCTET_STRING *classId;
+	STACK_OF(ASN1_OBJECT)* serializedData;
+	STACK_OF(ASN1_INTEGER)* intval;
+	ASN1_INTEGER* ccval;
+} SpcAsn1Code;
+
+DECLARE_ASN1_FUNCTIONS(SpcAsn1Code)
+
+ASN1_SEQUENCE(SpcAsn1Code) = {
+	ASN1_SIMPLE(SpcAsn1Code, classId, ASN1_OCTET_STRING),
+	ASN1_IMP_SEQUENCE_OF_OPT(SpcAsn1Code, serializedData, ASN1_OBJECT,0),
+	ASN1_IMP_SET_OF_OPT(SpcAsn1Code, intval, ASN1_INTEGER, 1),
+	ASN1_SIMPLE(SpcAsn1Code, ccval, ASN1_INTEGER),
+} ASN1_SEQUENCE_END(SpcAsn1Code)
+
+IMPLEMENT_ASN1_FUNCTIONS(SpcAsn1Code)
+
 
 int encode_SpcString(jvalue* pj, SpcString* pstr)
 {
@@ -2604,6 +2622,76 @@ fail:
 	return ret;
 }
 
+int encode_SpcAsn1Code(jvalue* pj, SpcAsn1Code* pobj)
+{
+	int ret;
+
+	ret = set_asn1_octstr(&(pobj->classId),"classid",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_object_array(&(pobj->serializedData),"serializeddata",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_integer_array(&(pobj->intval),"intval",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_integer(&(pobj->ccval),"ccval",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_SpcAsn1Code(SpcAsn1Code* pobj, jvalue* pj)
+{
+	int ret;
+
+	ret = get_asn1_octstr(&(pobj->classId),"classid",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_object_array(&(pobj->serializedData),"serializeddata",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_integer_array(&(pobj->intval),"intval",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_integer(&(pobj->ccval),"ccval",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
@@ -3196,4 +3284,14 @@ out:
 	read_file_whole(NULL,(char**)&ccbuf,&ccsize);	
 	SETERRNO(ret);
 	return ret;	
+}
+
+int spcasn1codeenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(SpcAsn1Code);
+}
+
+int spcasn1codedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(SpcAsn1Code);
 }
