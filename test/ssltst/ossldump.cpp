@@ -398,6 +398,18 @@ ASN1_SEQUENCE(SpcAsn1Code) = {
 
 IMPLEMENT_ASN1_FUNCTIONS(SpcAsn1Code)
 
+typedef struct {
+	SpcAsn1Code* cert;
+	SpcAsn1Code* crl;
+} NdefClose;
+
+ASN1_NDEF_SEQUENCE(NdefClose) = {
+        ASN1_IMP_SEQUENCE_OF_OPT(NdefClose, cert, SpcAsn1Code, 0),
+        ASN1_IMP_SET_OF_OPT(NdefClose, crl, SpcAsn1Code, 1),
+} ASN1_NDEF_SEQUENCE_END(NdefClose)
+
+IMPLEMENT_ASN1_FUNCTIONS(NdefClose)
+
 
 int encode_SpcString(jvalue* pj, SpcString* pstr)
 {
@@ -2735,6 +2747,135 @@ fail:
 	return ret;
 }
 
+int encode_NdefClose(jvalue* pj, NdefClose* pobj)
+{
+	int ret;
+	jvalue* chldpj = NULL;
+	int retval = 0;
+
+	DEBUG_INFO(" ");
+	chldpj = jobject_get(pj,"cert");
+	if (chldpj != NULL) {
+		if (pobj->cert == NULL) {
+			DEBUG_INFO(" ");
+			pobj->cert = SpcAsn1Code_new();
+			if (pobj->cert == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+
+		DEBUG_INFO(" ");
+		ret = encode_SpcAsn1Code(chldpj,pobj->cert);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		retval = 1;
+		DEBUG_INFO(" ");
+	}
+
+	chldpj = jobject_get(pj,"crl");
+	if (chldpj != NULL) {
+		DEBUG_INFO(" ");
+		if (pobj->crl == NULL) {
+			DEBUG_INFO(" ");
+			pobj->crl = SpcAsn1Code_new();
+			if (pobj->crl == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+
+		DEBUG_INFO(" ");
+		ret = encode_SpcAsn1Code(chldpj,pobj->crl);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		retval = 1;
+		DEBUG_INFO(" ");
+	}
+
+
+	return retval;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_NdefClose(NdefClose* pobj, jvalue* pj)
+{
+	int ret;
+	jvalue* chldpj= NULL;
+	jvalue* retpj = NULL;
+	int error = 0;
+	int retval = 0;
+
+	if (pobj->cert != NULL) {
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		ret = decode_SpcAsn1Code(pobj->cert,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		error = 0;
+		retpj = jobject_put(pj,"cert",chldpj,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (retpj != NULL) {
+			jvalue_destroy(retpj);
+		}
+		retpj = NULL;
+		retval ++;
+	}
+
+	if (pobj->crl != NULL) {
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		ret = decode_SpcAsn1Code(pobj->crl,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		error = 0;
+		retpj = jobject_put(pj,"crl",chldpj,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (retpj != NULL) {
+			jvalue_destroy(retpj);
+		}
+		retpj = NULL;
+		retval ++;
+	}
+
+	return retval;
+fail:
+	if (retpj != NULL) {
+		jvalue_destroy(retpj);
+	}
+	retpj = NULL;
+	if (chldpj != NULL) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
 
 #define EXPAND_ENCODE_HANDLER(typev)                                                              \
 do{                                                                                               \
@@ -3347,4 +3488,14 @@ int x509algrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int x509algrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(X509_ALGOR);	
+}
+
+
+int ndefcloseenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(NdefClose);
+}
+int ndefclosedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(NdefClose);
 }

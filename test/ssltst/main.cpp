@@ -91,6 +91,10 @@ int spcasn1codeenc_handler(int argc, char* argv[], pextargs_state_t parsestate, 
 int spcasn1codedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int x509algrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int x509algrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ndefcloseenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ndefclosedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+
+
 
 #ifdef __cplusplus
 };

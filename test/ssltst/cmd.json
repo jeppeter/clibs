@@ -190,5 +190,11 @@
     },
     "x509algrdec<x509algrdec_handler>##binfile... to decode X509_ALGOR##" : {
         "$" : "+"
+    },
+    "ndefcloseenc<ndefcloseenc_handler>##jsonfile to encode NdefClose##" : {
+        "$" : 1
+    },
+    "ndefclosedec<ndefclosedec_handler>##binfile... to decode NdefClose##" : {
+        "$" : "+"
     }
 }
