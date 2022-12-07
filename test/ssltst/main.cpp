@@ -93,6 +93,7 @@ int x509algrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int x509algrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ndefcloseenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ndefclosedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int pkcs7vfy_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 

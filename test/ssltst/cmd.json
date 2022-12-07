@@ -196,5 +196,8 @@
     },
     "ndefclosedec<ndefclosedec_handler>##binfile... to decode NdefClose##" : {
         "$" : "+"
+    },
+    "pkcs7vfy<pkcs7vfy_handler>##pkcs7file certfile binmap to test PKCS7_verify##" : {
+        "$" : 3
     }
 }

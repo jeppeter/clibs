@@ -3499,3 +3499,142 @@ int ndefclosedec_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 {
 	EXPAND_DECODE_HANDLER(NdefClose);
 }
+
+
+int pkcs7vfy_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	char* p7file=NULL;
+	char* certfile = NULL;
+	char* mapfile = NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	const unsigned char* p=NULL;
+	char* p7buf=NULL;
+	int p7len=0,p7size=0;
+	PKCS7* p7ptr=NULL;
+	char* mapbuf=NULL;
+	int mapsize=0,maplen=0;
+	int ret;
+	X509_STORE* store = NULL;
+	X509_LOOKUP* lookup = NULL;
+	X509_VERIFY_PARAM* param = NULL;
+	BIO* bio=NULL;
+
+	init_log_verbose(pargs);
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		p7file = parsestate->leftargs[0];
+		if (parsestate->leftargs[1]) {
+			certfile = parsestate->leftargs[1];
+			if (parsestate->leftargs[2]) {
+				mapfile = parsestate->leftargs[2];
+			}
+		}
+	}
+
+	if (p7file == NULL || certfile == NULL || mapfile == NULL) {
+		ret = -EINVAL;
+		ERROR_INFO("need p7file certfile mapfile");
+		goto out;
+	}
+
+	ret = read_file_whole(p7file,&p7buf,&p7size);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	p7len = ret;
+	p = (unsigned char*) p7buf;
+	p7ptr = d2i_PKCS7(NULL,&p,p7len);
+	if (p7ptr == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("decode [%s] PKCS7 error [%d]", p7file,ret);
+		goto out;
+	}
+
+	store = X509_STORE_new();
+	if (store == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("X509_STORE_new error[%d]", ret);
+		goto out;
+	}
+
+	lookup = X509_STORE_add_lookup(store,X509_LOOKUP_file());
+	if (lookup == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("X509_STORE_add_lookup error[%d]", ret);
+		goto out;
+	}
+
+	ret = X509_load_cert_file(lookup,certfile,X509_FILETYPE_PEM);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("load [%s] error[%d]",certfile,ret);
+		goto out;
+	}
+
+
+	param = X509_STORE_get0_param(store);
+	if (param == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("X509_STORE_get0_param error[%d]", ret);
+		goto out;
+	}
+
+	ret = X509_VERIFY_PARAM_set_purpose(param,X509_PURPOSE_ANY);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("X509_VERIFY_PARAM_set_purpose error[%d]", ret);
+		goto out;
+	}
+
+	ret = X509_STORE_set1_param(store,param);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("X509_STORE_set1_param error[%d]", ret);
+		goto out;
+	}
+
+	ret = read_file_whole(mapfile,&mapbuf,&mapsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+	maplen = ret;
+
+	bio = BIO_new_mem_buf(mapbuf,maplen);
+	if (bio == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("map [%s] error[%d]", mapfile,ret);
+		goto out;
+	}
+
+	ret = PKCS7_verify(p7ptr,NULL,store,bio,NULL,0);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("PKCS7_verify error[%d]", ret);
+		goto out;
+	}
+
+	fprintf(stdout, "verify [%s] [%s] [%s] succ\n", p7file,certfile,mapfile);
+	ret = 0;
+out:
+	if (bio != NULL) {
+		BIO_free(bio);
+	}
+	bio = NULL;
+	read_file_whole(NULL,&mapbuf,&mapsize);
+	maplen = 0;
+	if (store) {
+		X509_STORE_free(store);
+	}
+	store = NULL;
+
+	if (p7ptr) {
+		PKCS7_free(p7ptr);
+	}
+	p7ptr = NULL;
+	read_file_whole(NULL,&p7buf,&p7size);
+	p7len = 0;
+	SETERRNO(ret);
+	return ret;
+}
