@@ -200,10 +200,10 @@
     "pkcs7vfy<pkcs7vfy_handler>##pkcs7file certfile binmap to test PKCS7_verify##" : {
         "$" : 3
     },
-    "x962fieldenc<x962fieldenc_handler>##jsonfile to encode X9_62_FIELDID##" : {
+    "ecprivkeyenc<ecprivkeyenc_handler>##jsonfile to encode EC_PRIVATEKEY##" : {
         "$" : 1
     },
-    "x962fielddec<x962fielddec_handler>##binfile ... to decode X9_62_FIELDID##" : {
+    "ecprivkeydec<ecprivkeydec_handler>##binfile ... to decode EC_PRIVATEKEY##" : {
         "$" : "+"
     }
 }

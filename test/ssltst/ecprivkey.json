@@ -1,0 +1,8 @@
+{
+	"version" : 33,
+	"privatekey" : [22,211,42,32],
+	"parameters" : {
+		"named_curve" : "1.2.3.22.22"
+	},
+	"publickey" : [90,22,13,28]
+}

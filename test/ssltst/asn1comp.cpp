@@ -156,6 +156,97 @@ fail:
 	return ret;
 }
 
+int set_asn1_octdata(ASN1_OCTET_STRING** ppoct, const char* key, jvalue* pj)
+{
+	int error;
+	int ret;
+	ASN1_OCTET_STRING* poctstr = NULL;
+	jvalue* arrobj = NULL;
+	unsigned char* pbuf = NULL;
+	jvalue* curobj = NULL;
+	int arrsize = 0;
+	int i;
+	jint* curint=NULL;
+	jint64* curint64=NULL;
+
+
+	arrobj = (jvalue*)jobject_get_array(pj, key, &error);
+	if (arrobj == NULL) {
+		return 0;
+	}
+
+	poctstr = ASN1_OCTET_STRING_new();
+	if (poctstr == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("ASN1_OCTET_STRING_new error[%d]", ret);
+		goto fail;
+	}
+
+	arrsize = (int)jarray_size(arrobj);
+
+	pbuf = (unsigned char*)malloc(arrsize);
+	if (pbuf == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(pbuf,0,arrsize);
+
+	for (i = 0; i < arrsize; i++) {
+		error = 0;
+		curint = NULL;
+		curint64 = NULL;
+		curobj = jarray_get(arrobj, i, &error);
+		if (curobj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO( "get [%s].[%d] error[%d]", key, i, ret);
+			goto fail;
+		}
+
+		if (curobj->type == JINT) {
+			curint = (jint*) curobj;
+			pbuf[i] = (unsigned char)curint->value;
+		} else if (curobj->type == JINT64) {
+			curint64 = (jint64*) curobj;
+			pbuf[i] = (unsigned char) curint64->value;
+		} else {
+			ret = -EINVAL;
+			ERROR_INFO( "[%s].[%d] not JSTRING", key, i);
+			goto fail;
+		}
+	}
+
+	if (arrsize > 0) {
+		ASN1_STRING_set0((ASN1_STRING*)poctstr,pbuf,arrsize);
+		/*we replaced*/
+		pbuf = NULL;
+	}
+	if (pbuf) {
+		free(pbuf);
+	}
+	pbuf = NULL;
+
+	if (*ppoct) {
+		ASN1_OCTET_STRING_free(*ppoct);
+		*ppoct = NULL;
+	}
+	*ppoct = poctstr;
+	poctstr = NULL;
+
+	return (int) arrsize;
+fail:
+	if (poctstr) {
+		ASN1_OCTET_STRING_free(poctstr);
+	}
+	poctstr = NULL;
+	if (pbuf) {
+		free(pbuf);
+	}
+	pbuf = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+
 int set_asn1_object(ASN1_OBJECT** ppobj, const char* key, jvalue* pj)
 {
 	int ret;
@@ -393,6 +484,96 @@ int set_asn1_bitstr(ASN1_BIT_STRING** ppbitstr, const char* key, const jvalue* p
 fail:
 	SETERRNO(ret);
 	return ret;
+}
+
+int set_asn1_bitdata(ASN1_BIT_STRING** ppbitstr, const char* key, const jvalue* pj)
+{
+	int error;
+	int ret;
+	ASN1_BIT_STRING* pbitstr = NULL;
+	jvalue* arrobj = NULL;
+	unsigned char* pbuf = NULL;
+	jvalue* curobj = NULL;
+	int arrsize = 0;
+	int i;
+	jint* curint=NULL;
+	jint64* curint64=NULL;
+
+
+	arrobj = (jvalue*)jobject_get_array(pj, key, &error);
+	if (arrobj == NULL) {
+		return 0;
+	}
+
+	pbitstr = ASN1_BIT_STRING_new();
+	if (pbitstr == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("ASN1_OCTET_STRING_new error[%d]", ret);
+		goto fail;
+	}
+
+	arrsize = (int)jarray_size(arrobj);
+
+	pbuf = (unsigned char*)malloc(arrsize);
+	if (pbuf == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(pbuf,0,arrsize);
+
+	for (i = 0; i < arrsize; i++) {
+		error = 0;
+		curint = NULL;
+		curint64 = NULL;
+		curobj = jarray_get(arrobj, i, &error);
+		if (curobj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO( "get [%s].[%d] error[%d]", key, i, ret);
+			goto fail;
+		}
+
+		if (curobj->type == JINT) {
+			curint = (jint*) curobj;
+			pbuf[i] = (unsigned char)curint->value;
+		} else if (curobj->type == JINT64) {
+			curint64 = (jint64*) curobj;
+			pbuf[i] = (unsigned char) curint64->value;
+		} else {
+			ret = -EINVAL;
+			ERROR_INFO( "[%s].[%d] not JSTRING", key, i);
+			goto fail;
+		}
+	}
+
+	if (arrsize > 0) {
+		ASN1_STRING_set0((ASN1_STRING*)pbitstr,pbuf,arrsize);
+		/*we replaced*/
+		pbuf = NULL;
+	}
+	if (pbuf) {
+		free(pbuf);
+	}
+	pbuf = NULL;
+
+	if (*ppbitstr) {
+		ASN1_BIT_STRING_free(*ppbitstr);
+		*ppbitstr = NULL;
+	}
+	*ppbitstr = pbitstr;
+	pbitstr = NULL;
+
+	return (int) arrsize;
+fail:
+	if (pbitstr) {
+		ASN1_BIT_STRING_free(pbitstr);
+	}
+	pbitstr = NULL;
+	if (pbuf) {
+		free(pbuf);
+	}
+	pbuf = NULL;
+	SETERRNO(ret);
+	return ret;	
 }
 
 int set_asn1_utfstr(ASN1_UTF8STRING** ppobjstr, const char* key, const jvalue* pj)
@@ -1379,6 +1560,83 @@ fail:
 	return ret;
 }
 
+int get_asn1_bitdata(ASN1_BIT_STRING** ppbitstr, const char* key, jvalue* pj)
+{
+	int ret;
+	ASN1_BIT_STRING* pbitstr;
+	ASN1_STRING* pstr;
+	jvalue* arrobj = NULL;
+	jvalue* replpj = NULL;
+	unsigned char* pbuf=NULL;
+	int bufsize=0;
+	int i;
+	jint* curval = NULL;
+	int error=0;
+	if (ppbitstr == NULL || *ppbitstr == NULL) {
+		DEBUG_INFO("no [%s] get", key);
+		return 0;
+	}
+
+	pbitstr = *ppbitstr;
+
+	pstr = (ASN1_STRING*)pbitstr;
+	pbuf = (unsigned char*)ASN1_STRING_get0_data(pstr);
+	bufsize = ASN1_STRING_length(pstr);
+	arrobj = jarray_create();
+	if (arrobj == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	if (bufsize > 0) {
+		for(i=0;i<bufsize;i++) {
+			ASSERT_IF(curval == NULL);
+			curval = (jint*)jint_create(pbuf[i]);
+			if (curval == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			ret = jarray_put(arrobj,(jvalue*)curval);
+			if (ret != 0) {
+				GETERRNO(ret);
+				ERROR_INFO("put [%s].[%d] error[%d]",key,i,ret);
+				goto fail;
+			}
+
+			curval = NULL;
+		}
+	}
+
+	error = 0;
+	replpj = jobject_put(pj,key,arrobj,&error);
+	if (error != 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	arrobj = NULL;
+	if (replpj) {
+		jvalue_destroy(replpj);
+	}
+	replpj = NULL;
+
+	return bufsize;
+fail:
+	if (replpj) {
+		jvalue_destroy(replpj);
+	}
+	replpj = NULL;
+	if (curval) {
+		jvalue_destroy((jvalue*)curval);
+	}
+	curval = NULL;
+	if (arrobj) {
+		jvalue_destroy(arrobj);
+	}
+	arrobj = NULL;
+	SETERRNO(ret);
+	return ret;	
+}
+
 int get_asn1_bmpstr(ASN1_BMPSTRING** ppbmpstr, const char* key, jvalue* pj)
 {
 	int ret;
@@ -1505,6 +1763,84 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int get_asn1_octdata(ASN1_OCTET_STRING** ppoctstr, const char* key, jvalue* pj)
+{
+	int ret;
+	ASN1_UTF8STRING* poctstr;
+	ASN1_STRING* pstr;
+	jvalue* arrobj = NULL;
+	jvalue* replpj = NULL;
+	unsigned char* pbuf=NULL;
+	int bufsize=0;
+	int i;
+	jint* curval = NULL;
+	int error=0;
+	if (ppoctstr == NULL || *ppoctstr == NULL) {
+		DEBUG_INFO("no [%s] get", key);
+		return 0;
+	}
+
+	poctstr = *ppoctstr;
+
+	pstr = (ASN1_STRING*)poctstr;
+	pbuf = (unsigned char*)ASN1_STRING_get0_data(pstr);
+	bufsize = ASN1_STRING_length(pstr);
+	arrobj = jarray_create();
+	if (arrobj == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	if (bufsize > 0) {
+		for(i=0;i<bufsize;i++) {
+			ASSERT_IF(curval == NULL);
+			curval = (jint*)jint_create(pbuf[i]);
+			if (curval == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			ret = jarray_put(arrobj,(jvalue*)curval);
+			if (ret != 0) {
+				GETERRNO(ret);
+				ERROR_INFO("put [%s].[%d] error[%d]",key,i,ret);
+				goto fail;
+			}
+
+			curval = NULL;
+		}
+	}
+
+	error = 0;
+	replpj = jobject_put(pj,key,arrobj,&error);
+	if (error != 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	arrobj = NULL;
+	if (replpj) {
+		jvalue_destroy(replpj);
+	}
+	replpj = NULL;
+
+	return bufsize;
+fail:
+	if (replpj) {
+		jvalue_destroy(replpj);
+	}
+	replpj = NULL;
+	if (curval) {
+		jvalue_destroy((jvalue*)curval);
+	}
+	curval = NULL;
+	if (arrobj) {
+		jvalue_destroy(arrobj);
+	}
+	arrobj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
 
 int get_asn1_embstr(ASN1_UTF8STRING* pstr, const char* key, jvalue* pj)
 {
