@@ -453,6 +453,7 @@ int asn1objdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 		ASSERT_IF(ita == NULL);
 
 		p = ccbuf;
+		DEBUG_BUFFER_FMT(p,cclen,"debug buffer");
 		ita = d2i_ASN1_OBJECT(NULL, &p, cclen);
 		if (ita == NULL) {
 			GETERRNO(ret);
@@ -460,6 +461,7 @@ int asn1objdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 			goto out;
 		}
 
+		outsize = 4;
 format_again:
 		if (pout != NULL) {
 			free(pout);
@@ -471,10 +473,11 @@ format_again:
 			goto out;
 		}
 		ret = i2t_ASN1_OBJECT(pout, outsize, ita);
-		if (ret < 0) {
+		if (ret <= 0 || ret >= (outsize)) {
 			outsize <<= 1;
 			goto format_again;
 		}
+		DEBUG_BUFFER_FMT(pout,outsize,"outbuffer ret [%d]", ret);
 
 		fprintf(stdout,"[%s] => [%s]\n", hexstr, pout);
 		ASN1_OBJECT_free(ita);

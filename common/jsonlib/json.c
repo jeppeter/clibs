@@ -107,9 +107,10 @@ static const char *parse_json_number(jvalue **parent, const char* src)
       /* number could be 0, 1-9, ., e, E, +, - */
       while (*pp) {
         if (number_characters[*pp & 0xFF] >= 3) {
+          UTIL_DEBUG("*pp %c 0x%02x",*pp,(unsigned char)*pp);
           if (number_characters[*pp & 0xFF] == 4) type = JREAL;
         } else {
-          if (*pp != ' ') {
+          if (*pp != ' ' && *pp != '\t') {
             /*we skip white space ok*/
             UTIL_DEBUG("*pp %c 0x%02x",*pp,(unsigned char)*pp);
             /* not a number character */
@@ -121,6 +122,7 @@ static const char *parse_json_number(jvalue **parent, const char* src)
       }
       /* not a number */
       if (type == JNONE) {
+        UTIL_DEBUG(" ");
         value = jnull_create();
       }
       /* real number */

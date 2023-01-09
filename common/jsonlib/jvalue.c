@@ -314,6 +314,7 @@ int jobject_get_int(const jvalue *value, const char* key, int *error)
       if (error) *error = 0;
       return v->value;
     } else {
+      UTIL_DEBUG("type [%d]", data->type);
       if (error) *error = JERROR_WRONG_VALUE_TYPE;
       return 0;
     }
@@ -329,7 +330,7 @@ long long int jobject_get_int64(const jvalue *value, const char* key, int *error
     if (error) *error = JERROR_NULL_PARAM;
     return 0;
   }
-  if (value->type != JOBJECT) {
+  if (value->type != JOBJECT) {    
     if (error) *error = JERROR_WRONG_PARAM_TYPE;
     return 0;
   }
@@ -340,6 +341,7 @@ long long int jobject_get_int64(const jvalue *value, const char* key, int *error
       if (error) *error = 0;
       return v->value;
     } else {
+      UTIL_DEBUG("type [%d]", data->type);
       if (error) *error = JERROR_WRONG_VALUE_TYPE;
       return 0;
     }

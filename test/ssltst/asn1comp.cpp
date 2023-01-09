@@ -827,11 +827,19 @@ fail:
 int set_asn1_int32(int32_t* pint32, const char* key, const jvalue *pj)
 {
 	int val;
+	long long int val64;
 	int error = 0;
 
 	val = jobject_get_int(pj, key, &error);
 	if (error != 0) {
-		return 0;
+		error = 0;
+		val64 = jobject_get_int64(pj,key,&error);
+		if (error != 0) {
+			return 0;	
+		}
+		*pint32 = (int32_t)val64;
+		return 1;
+		
 	}
 	*pint32 = val;
 	return 1;
@@ -2072,3 +2080,210 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+
+#define EXPAND_ENCODE_HANDLER(typev)                                                              \
+do{                                                                                               \
+	typev* pstr = NULL;                                                                           \
+	int ret;                                                                                      \
+	jvalue *pj = NULL;                                                                            \
+	char* jsonfile = NULL;                                                                        \
+	char* jbuf = NULL;                                                                            \
+	int jsize = 0, jlen = 0;                                                                      \
+	unsigned int jsonlen;                                                                         \
+	uint8_t* pp = NULL;                                                                           \
+	uint8_t* pin = NULL;                                                                          \
+	int plen = 0;                                                                                 \
+	pargs_options_t pargs = (pargs_options_t) popt;                                               \
+                                                                                                  \
+	init_log_verbose(pargs);                                                                      \
+	pstr = typev##_new();                                                                         \
+	if (pstr == NULL) {                                                                           \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+                                                                                                  \
+	if (parsestate->leftargs && parsestate->leftargs[0] != NULL) {                                \
+		jsonfile = parsestate->leftargs[0];                                                       \
+	}                                                                                             \
+    DEBUG_INFO(" ");                                                                              \
+	if (jsonfile == NULL) {                                                                       \
+		ret = -EINVAL;                                                                            \
+		ERROR_INFO("no jsonfile specified");                                                      \
+		goto out;                                                                                 \
+	}                                                                                             \
+    DEBUG_INFO(" ");                                                                              \
+	ret = read_file_whole(jsonfile, &jbuf, &jsize);                                               \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+    DEBUG_INFO(" ");                                                                              \
+    jlen = ret;                                                                                   \
+	jbuf[jlen] = 0x0;                                                                             \
+	jsonlen = jlen + 1;                                                                           \
+    DEBUG_INFO(" ");                                                                              \
+	pj = jvalue_read(jbuf, &jsonlen);                                                             \
+	if (pj == NULL) {                                                                             \
+		GETERRNO(ret);                                                                            \
+		ERROR_INFO("parse [%s] error[%d]", jsonfile, ret);                                        \
+		goto out;                                                                                 \
+	}                                                                                             \
+                                                                                                  \
+	ret = encode_##typev(pj, pstr);                                                                \
+	if (ret < 0) {                                                                                \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+                                                                                                  \
+	ret = i2d_##typev(pstr, NULL);                                                                \
+	if (ret <= 0) {                                                                               \
+		GETERRNO(ret);                                                                            \
+		ERROR_INFO("can not i2d %s [%d]",#typev, ret);                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+	plen = ret;                                                                                   \
+                                                                                                  \
+	pp = (uint8_t*)malloc(plen);                                                                  \
+	if (pp == NULL) {                                                                             \
+		GETERRNO(ret);                                                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+                                                                                                  \
+	pin = pp;                                                                                     \
+	ret = i2d_##typev(pstr, &pin);                                                                \
+	if (ret <= 0) {                                                                               \
+		GETERRNO(ret);                                                                            \
+		ERROR_INFO("can not i2d %s [%d]",#typev, ret);                                            \
+		goto out;                                                                                 \
+	}                                                                                             \
+                                                                                                  \
+	if (pargs->m_output != NULL) {                                                                \
+		ret = write_file_whole(pargs->m_output, (char*)pp, plen);                                 \
+		if (ret < 0) {                                                                            \
+			GETERRNO(ret);                                                                        \
+			ERROR_INFO("write [%s] failed", pargs->m_output);                                     \
+			goto out;                                                                             \
+		}                                                                                         \
+	} else {                                                                                      \
+		dump_buffer_out(stdout, pp, plen, "%s",#typev);                                           \
+	}                                                                                             \
+                                                                                                  \
+	ret = 0;                                                                                      \
+out:                                                                                              \
+	if (pp != NULL) {                                                                             \
+		OPENSSL_free(pp);                                                                         \
+	}                                                                                             \
+	pp = NULL;                                                                                    \
+                                                                                                  \
+	if (pstr != NULL) {                                                                           \
+		typev##_free(pstr);                                                                       \
+	}                                                                                             \
+	pstr = NULL;                                                                                  \
+	if (pj) {                                                                                     \
+		jvalue_destroy(pj);                                                                       \
+	}                                                                                             \
+	pj = NULL;                                                                                    \
+	read_file_whole(NULL, &jbuf, &jsize);                                                         \
+	jlen = 0;                                                                                     \
+	SETERRNO(ret);                                                                                \
+	return ret;                                                                                   \
+}while(0)
+
+#define  EXPAND_DECODE_HANDLER(typev)                                                             \
+do{                                                                                               \
+	typev* pstr = NULL;                                                                           \
+	int ret;                                                                                      \
+	jvalue *pj = NULL;                                                                            \
+	char* binfile = NULL;                                                                         \
+	char* pbin = NULL;                                                                            \
+	int blen = 0, bsize = 0;                                                                      \
+	char* jbuf = NULL;                                                                            \
+	int jlen = 0;                                                                                 \
+	unsigned int jsonlen;                                                                         \
+	const unsigned char* pin = NULL;                                                              \
+	int i;                                                                                        \
+	pargs_options_t pargs = (pargs_options_t) popt;                                               \
+                                                                                                  \
+	init_log_verbose(pargs);                                                                      \
+                                                                                                  \
+	for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {                           \
+		binfile = parsestate->leftargs[i];                                                        \
+		ret = read_file_whole(binfile, &pbin, &bsize);                                            \
+		if (ret < 0) {                                                                            \
+			GETERRNO(ret);                                                                        \
+			ERROR_INFO("read [%s] error[%d]", binfile, ret);                                      \
+			goto out;                                                                             \
+		}                                                                                         \
+		blen = ret;                                                                               \
+		if (pstr != NULL) {                                                                       \
+			typev##_free(pstr);                                                                   \
+		}                                                                                         \
+		pstr =  NULL;                                                                             \
+                                                                                                  \
+		pin = (const unsigned char*)pbin;                                                         \
+		pstr = d2i_##typev(NULL, &pin, blen);                                                     \
+		if (pstr == NULL) {                                                                       \
+			GETERRNO(ret);                                                                        \
+			ERROR_INFO("[%s] not valid %s", binfile,#typev);                                      \
+			goto out;                                                                             \
+		}                                                                                         \
+                                                                                                  \
+		if (pj != NULL) {                                                                         \
+			jvalue_destroy(pj);                                                                   \
+		}                                                                                         \
+		pj = NULL;                                                                                \
+                                                                                                  \
+		pj = jobject_create();                                                                    \
+		if (pj == NULL) {                                                                         \
+			GETERRNO(ret);                                                                        \
+			goto out;                                                                             \
+		}                                                                                         \
+                                                                                                  \
+		ret = decode_##typev(pstr, pj);                                                           \
+		if (ret < 0) {                                                                            \
+			GETERRNO(ret);                                                                        \
+			goto out;                                                                             \
+		}                                                                                         \
+                                                                                                  \
+		if (jbuf != NULL) {                                                                       \
+			free(jbuf);                                                                           \
+		}                                                                                         \
+		jbuf = NULL;                                                                              \
+                                                                                                  \
+		jsonlen = 0;                                                                              \
+		jbuf = jvalue_write_pretty(pj, &jsonlen);                                                 \
+		if (jbuf == NULL) {                                                                       \
+			GETERRNO(ret);                                                                        \
+			goto out;                                                                             \
+		}                                                                                         \
+		if (pargs->m_output) {                                                                    \
+			ret = write_file_whole(pargs->m_output, jbuf, jlen);                                  \
+			if (ret < 0) {                                                                        \
+				GETERRNO(ret);                                                                    \
+				goto out;                                                                         \
+			}                                                                                     \
+		} else {                                                                                  \
+			fprintf(stdout, "%s\n", jbuf);                                                        \
+		}                                                                                         \
+	}                                                                                             \
+	ret = 0;                                                                                      \
+out:                                                                                              \
+	if (pstr != NULL) {                                                                           \
+		typev##_free(pstr);                                                                       \
+	}                                                                                             \
+	pstr = NULL;                                                                                  \
+	if (pj) {                                                                                     \
+		jvalue_destroy(pj);                                                                       \
+	}                                                                                             \
+	pj = NULL;                                                                                    \
+	if (jbuf != NULL) {                                                                           \
+		free(jbuf);                                                                               \
+	}                                                                                             \
+	jbuf = NULL;                                                                                  \
+	jlen = 0;                                                                                     \
+	read_file_whole(NULL, &pbin, &bsize);                                                         \
+	blen = 0;                                                                                     \
+	SETERRNO(ret);                                                                                \
+	return ret;                                                                                   \
+}while(0)

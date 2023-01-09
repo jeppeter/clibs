@@ -94,6 +94,8 @@ int x509algrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int ndefcloseenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ndefclosedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int pkcs7vfy_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int x962twoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int x962twodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 
@@ -310,6 +312,7 @@ fail:
 #include "pkcs7.cpp"
 #include "aes.cpp"
 #include "ossldump.cpp"
+#include "ecdump.cpp"
 
 int main(int argc, char* argv[])
 {
