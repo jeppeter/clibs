@@ -2,7 +2,25 @@
 	"version" : 33,
 	"privatekey" : [22,211,42,32],
 	"parameters" : {
-		"named_curve" : "1.2.3.22.22"
+		"--named_curve" : "1.2.3.22.22",
+		"parameters" : {
+			"version" : 3,
+			"fieldid" : {
+				"fieldtype" : "1.2.33",
+				"other" : {
+					"type" : "0x31",
+					"data" : [25,33,22]
+				}
+			},
+			"curve" : {
+				"a" : [220,31,97,83],
+				"b" : [80,120,110,130],
+				"seed" : [33,60,54,66]
+			},
+			"base" : [77,33,22,99,202],
+			"order" : "3322ddcc",
+			"cofactor" : "99221f"
+		}
 	},
 	"publickey" : [90,22,13,28]
 }
