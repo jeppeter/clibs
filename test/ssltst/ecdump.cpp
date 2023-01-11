@@ -151,6 +151,291 @@ DECLARE_ASN1_FUNCTIONS(EC_PRIVATEKEY)
 DECLARE_ASN1_ENCODE_FUNCTIONS_name(EC_PRIVATEKEY, EC_PRIVATEKEY)
 IMPLEMENT_ASN1_FUNCTIONS(EC_PRIVATEKEY)
 
+int encode_X9_62_PENTANOMIAL(jvalue* pj, X9_62_PENTANOMIAL* pobj)
+{
+	int ret;
+	int setted = 0;
+
+	ret = set_asn1_int32(&(pobj->k1),"k1",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("set k1 error[%d]", ret);
+		goto fail;
+	} else if (ret > 0) {
+		setted = 1;
+	}
+
+	ret = set_asn1_int32(&(pobj->k2),"k2",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("set k2 error[%d]", ret);
+		goto fail;
+	} else if (ret > 0) {
+		setted = 1;
+	}
+
+
+	ret = set_asn1_int32(&(pobj->k3),"k3",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("set k3 error[%d]", ret);
+		goto fail;
+	} else if (ret > 0) {
+		setted = 1;
+	}
+
+	return setted;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_X9_62_PENTANOMIAL(X9_62_PENTANOMIAL* pobj, jvalue* pj)
+{
+	int ret;
+	int setted = 0;
+
+	ret = get_asn1_int32(&(pobj->k1),"k1",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("get k1 error[%d]", ret);
+		goto fail;
+	} else if (ret > 0) {
+		setted = 1;
+	}
+
+	ret = get_asn1_int32(&(pobj->k2),"k2",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("get k2 error[%d]", ret);
+		goto fail;
+	} else if (ret > 0) {
+		setted = 1;
+	}
+
+
+	ret = get_asn1_int32(&(pobj->k3),"k3",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("get k3 error[%d]", ret);
+		goto fail;
+	} else if (ret > 0) {
+		setted = 1;
+	}
+
+	return setted;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+#define  X962_ONBASIS_OBJ               "1.2.840.10045.1.2.3.1"
+#define  X962_ONBASIS_STR               ""
+
+#define  X962_TPBASIS_OBJ               "1.2.840.10045.1.2.3.2"
+#define  X962_TPBASIS_STR               ""
+
+#define  X962_PPBASIS_OBJ               "1.2.840.10045.1.2.3.3"
+#define  X962_PPBASIS_STR               ""
+
+int encode_X9_62_CHARACTERISTIC_TWO(jvalue* pj, X9_62_CHARACTERISTIC_TWO* pobj)
+{
+	int ret;
+	const char* otype=NULL;
+	int error;
+	jvalue* chldpj = NULL;
+
+	ret = set_asn1_int32(&(pobj->m),"m",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("set m error[%d]", ret);
+		goto fail;
+	}
+
+	ret = set_asn1_object(&(pobj->type),"type",pj);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("set type error[%d]", ret);
+		goto fail;
+	}
+
+	otype = jobject_get_string(pj,"type",&error);
+	if (otype == NULL) {
+		ret = -EINVAL;
+		ERROR_INFO("no type");
+		goto fail;
+	}
+
+	if (strcmp(otype,X962_ONBASIS_OBJ) == 0) {
+		if (pobj->p.onBasis != NULL) {
+			ret = -EINVAL;
+			ERROR_INFO("onBasis already");
+			goto fail;
+		}
+		pobj->p.onBasis = ASN1_NULL_new();
+		if (pobj->p.onBasis == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("ASN1_NULL_new error[%d]", ret);
+			goto fail;
+		}
+	} else if (strcmp(otype,X962_TPBASIS_OBJ) == 0) {
+		if (pobj->p.tpBasis != NULL) {
+			ret = -EINVAL;
+			ERROR_INFO("tpBasis already");
+			goto fail;
+		}
+		ret = set_asn1_integer(&(pobj->p.tpBasis),"tpbasis",pj);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("set tpbasis error[%d]", ret);
+			goto fail;
+		}
+	} else if (strcmp(otype,X962_PPBASIS_OBJ) == 0) {
+		chldpj = jobject_get(pj,"ppbasis");
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("no ppbasis");
+			goto fail;
+		}
+		if (pobj->p.ppBasis != NULL) {
+			ret = -EINVAL;
+			ERROR_INFO("ppbasis already");
+			goto fail;
+		}
+		pobj->p.ppBasis = X9_62_PENTANOMIAL_new();
+		if (pobj->p.ppBasis == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("X9_62_PENTANOMIAL_new error[%d]", ret);
+			goto fail;
+		}
+		ret = encode_X9_62_PENTANOMIAL(chldpj,pobj->p.ppBasis);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	} else {
+		if(pobj->p.other != NULL) {
+			ret = -EINVAL;
+			ERROR_INFO("other already");
+			goto fail;
+		}
+		ret = set_asn1_any(&(pobj->p.other),"other",pj);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("other error[%d]", ret);
+			goto fail;
+		}
+	}
+
+
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int decode_X9_62_CHARACTERISTIC_TWO(X9_62_CHARACTERISTIC_TWO* pobj, jvalue* pj)
+{
+	int ret;
+	int error;
+	jvalue* chldpj = NULL, *replpj= NULL;
+	const char* otype = NULL;
+
+	ret = get_asn1_int32(&(pobj->m),"m",pj);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("get m error[%d]", ret);
+		goto fail;
+	}
+
+	ret = get_asn1_object(&(pobj->type),"type",pj);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("get type error[%d]", ret);
+		goto fail;
+	}
+
+	otype = jobject_get_string(pj,"type",&error);
+	if (otype == NULL) {
+		ret = -EINVAL;
+		ERROR_INFO("no type get");
+		goto fail;
+	}
+
+	DEBUG_INFO("otype [%s]", otype);
+	if (strcmp(otype,X962_ONBASIS_OBJ) == 0 || 
+		strcmp(otype,X962_ONBASIS_STR) == 0) {
+		ret = jobject_put_null(pj,"onbasis");
+		if (ret != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put onbasis error[%d]", ret);
+			goto fail;
+		}
+	} else if (strcmp(otype, X962_TPBASIS_OBJ) == 0 ||
+		strcmp(otype, X962_TPBASIS_STR) == 0) {
+		ret = get_asn1_integer(&(pobj->p.tpBasis),"tpbasis",pj);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put tpbasis error[%d]", ret);
+			goto fail;
+		}
+	} else if (strcmp(otype, X962_PPBASIS_OBJ) == 0 || 
+		strcmp(otype, X962_PPBASIS_STR) == 0) {
+		ASSERT_IF(chldpj == NULL);
+		ASSERT_IF(replpj == NULL);
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("ppbasis object create error[%d]", ret);
+			goto fail;
+		}
+		if (pobj->p.ppBasis == NULL) {
+			ret = -EINVAL;
+			ERROR_INFO("no ppBasis");
+			goto fail;
+		}
+		ret = decode_X9_62_PENTANOMIAL(pobj->p.ppBasis,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		error = 0;
+		replpj = jobject_put(pj,"ppbasis",chldpj,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put ppbasis error[%d]", ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (replpj != NULL) {
+			jvalue_destroy(replpj);
+		}
+		replpj = NULL;
+	} else {
+		ret = get_asn1_any(&(pobj->p.other),"other",pj);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put other error[%d]", ret);
+			goto fail;
+		}
+	}
+
+	return 1;
+fail:
+	if (chldpj != NULL) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	if (replpj != NULL) {
+		jvalue_destroy(replpj);
+	}
+	replpj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
 #define X962_PRIME_FIELD_OBJ               "1.2.840.10045.1.1"
 #define X962_PRIME_FIELD_STR               "prime-field"
 
