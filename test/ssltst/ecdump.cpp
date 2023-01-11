@@ -151,6 +151,253 @@ DECLARE_ASN1_FUNCTIONS(EC_PRIVATEKEY)
 DECLARE_ASN1_ENCODE_FUNCTIONS_name(EC_PRIVATEKEY, EC_PRIVATEKEY)
 IMPLEMENT_ASN1_FUNCTIONS(EC_PRIVATEKEY)
 
+#define X962_PRIME_FIELD_OBJ               "1.2.840.10045.1.1"
+#define X962_PRIME_FIELD_STR               "prime-field"
+
+#define X962_CHAR_TWO_FIELD_OBJ            "1.2.840.10045.1.2"
+#define X962_CHAR_TWO_FIELD_STR            "char-two-field"
+
+
+int encode_X9_62_FIELDID(jvalue* pj, X9_62_FIELDID* pobj)
+{
+	int ret;
+	const char* otype=NULL;
+	jvalue* chldpj = NULL;
+	int error;
+
+	ret = set_asn1_object(&(pobj->fieldType),"fieldtype",pj);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("set fieldtype error[%d]", ret);
+		goto fail;
+	}
+
+	otype = jobject_get_string(pj,"fieldtype",&error);
+	if (otype == NULL) {
+		ret = -EINVAL;
+		ERROR_INFO("fieldtype error[%d]", ret);
+		goto fail;
+	}
+
+	if (strcmp(otype,X962_PRIME_FIELD_OBJ) == 0) {
+		ret = set_asn1_integer(&(pobj->p.prime),"prime",pj);
+		if (ret <= 0 ) {
+			GETERRNO(ret);
+			ERROR_INFO("set prime error[%d]", ret);
+			goto fail;
+		}
+	} else if (strcmp(otype,X962_CHAR_TWO_FIELD_OBJ) == 0) {
+		chldpj= jobject_get(pj,"tow_field");
+		if (chldpj != NULL) {
+			if (pobj->p.char_two != NULL) {
+				ret = -EINVAL;
+				ERROR_INFO("char_tow already set");
+				goto fail;
+			}
+			pobj->p.char_two = X9_62_CHARACTERISTIC_TWO_new();
+			if (pobj->p.char_two == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("X9_62_CHARACTERISTIC_TWO_new error[%d]" ,ret);
+				goto fail;
+			}
+
+			ret = encode_X9_62_CHARACTERISTIC_TWO(chldpj,pobj->p.char_two);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		} else {
+			ret = -EINVAL;
+			ERROR_INFO("no tow_field");
+			goto fail;
+		}
+	} else {
+		ret = set_asn1_any(&(pobj->p.other),"other",pj);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("set other error[%d]", ret);
+			goto fail;
+		}
+	}
+
+
+
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_X9_62_FIELDID(X9_62_FIELDID* pobj, jvalue* pj)
+{
+	int ret;
+	int error;
+	const char* otype = NULL;
+	jvalue* chldpj = NULL;
+	jvalue* replpj = NULL;
+
+	ret = get_asn1_object(&(pobj->fieldType),"fieldtype",pj);
+	if (ret <=0 ) {
+		GETERRNO(ret);
+		ERROR_INFO("get fieldtype error[%d]", ret);
+		goto fail;
+	}
+
+	error = 0;
+	otype = jobject_get_string(pj,"fieldtype",&error);
+	if (otype == NULL) {
+		ret = -EINVAL;
+		ERROR_INFO("get fieldtype error[%d]", ret);
+		goto fail;
+	}
+
+	DEBUG_INFO("otype [%s]", otype);
+	if (strcmp(otype,X962_PRIME_FIELD_OBJ) == 0) {
+		if (pobj->p.prime == NULL) {
+			ret = -EINVAL;
+			ERROR_INFO("[%s] for prime null", otype);
+			goto fail;
+		}
+		ret = get_asn1_integer(&(pobj->p.prime),"prime",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("get prime error[%d]", ret);
+			goto fail;
+		}
+	} else if (strcmp(otype,X962_CHAR_TWO_FIELD_OBJ) == 0) {
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("char_two object create error[%d]", ret);
+			goto fail;
+		}
+		if (pobj->p.char_two == NULL) {
+			ret = -EINVAL;
+			ERROR_INFO("no char_two");
+			goto fail;
+		}
+		ret = decode_X9_62_CHARACTERISTIC_TWO(pobj->p.char_two,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		error = 0;
+		replpj = jobject_put(pj,"char_two",chldpj,&error);
+		if (error != 0) {
+			GETERRNO(ret);
+			ERROR_INFO("put char_two error[%d]", ret);
+			goto fail;
+		}
+		chldpj = NULL;
+		if (replpj != NULL) {
+			jvalue_destroy(replpj);
+		}
+		replpj = NULL;
+	} else {
+		if (pobj->p.other == NULL) {
+			ret = -EINVAL;
+			ERROR_INFO("[%s] for other null", otype);
+			goto fail;
+		}
+		ret = get_asn1_any(&(pobj->p.other),"other",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("get other error[%d]", ret);
+			goto fail;
+		}
+	}
+
+	return 1;
+fail:
+	if (chldpj != NULL) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	if (replpj != NULL) {
+		jvalue_destroy(replpj);
+	}
+	replpj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int encode_X9_62_CURVE(jvalue* pj, X9_62_CURVE* pobj)
+{
+	int ret;
+	int setted = 0;
+
+	ret = set_asn1_octdata(&(pobj->a),"a",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("set a error[%d]", ret);
+		goto fail;
+	} else if (ret > 0) {
+		setted = 1;
+	}
+
+	ret = set_asn1_octdata(&(pobj->b),"b",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("set b error[%d]", ret);
+		goto fail;
+	} else if (ret > 0) {
+		setted = 1;
+	}
+
+	ret = set_asn1_bitdata(&(pobj->seed),"seed",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("set seed error[%d]", ret);
+		goto fail;
+	} else if (ret > 0) {
+		setted = 1;
+	}
+
+	return setted;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_X9_62_CURVE(X9_62_CURVE* pobj, jvalue* pj)
+{
+	int ret;
+	int setted = 0;
+
+	ret = get_asn1_octdata(&(pobj->a),"a",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("get a error[%d]", ret);
+		goto fail;
+	} else if (ret > 0) {
+		setted = 1;
+	}
+
+	ret = get_asn1_octdata(&(pobj->b),"b",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("get b error[%d]", ret);
+		goto fail;
+	} else if (ret > 0) {
+		setted = 1;
+	}
+
+	ret = get_asn1_bitdata(&(pobj->seed),"seed",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("get seed error[%d]", ret);
+		goto fail;
+	} else if (ret > 0) {
+		setted = 1;
+	}
+
+
+	return setted;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 int encode_ECPARAMETERS(jvalue* pj, ECPARAMETERS* pobj)
 {
 	int ret;
@@ -295,7 +542,7 @@ int decode_ECPARAMETERS(ECPARAMETERS* pobj, jvalue* pj)
 			goto fail;
 		}
 
-		ret = encode_X9_62_CURVE(pobj->curve, chldpj);
+		ret = decode_X9_62_CURVE(pobj->curve, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
