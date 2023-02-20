@@ -441,5 +441,8 @@
     },
     "ttywrite<serwrite_handler>##serialname rdfile timemills to write total buffer read from rdfile default timemills 1000##" : {
         "$" : "+"
+    },
+    "bootuptime<bootuptime_handler>##to get bootuptime for windows##" : {
+        "$" : 0
     }
 }

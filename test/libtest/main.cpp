@@ -59,6 +59,7 @@
 #include <proto_api.h>
 #include <proto_win.h>
 #include <Lm.h>
+#include <time.h>
 
 #pragma warning(push)
 #pragma warning(disable:4530)
@@ -262,6 +263,7 @@ int sercfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int sercfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int serread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int serwrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int bootuptime_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1

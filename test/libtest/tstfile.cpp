@@ -849,3 +849,39 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int bootuptime_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	uint64_t bootuptime;
+	int ret;
+	pargs_options_t pargs=(pargs_options_t)popt;
+	struct tm tmz;
+
+	REFERENCE_ARG(parsestate);
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	init_log_level(pargs);
+
+	ret=  get_last_bootuptime(NULL,&bootuptime);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr,"get bootuptime error[%d]\n",ret);
+		goto out;
+	}
+
+	ret = gmtime_s(&tmz,(const time_t*)&bootuptime);
+	if (ret  != 0) {
+		GETERRNO(ret);
+		fprintf(stderr,"bootuptime localtime_r error[%d]\n", ret);
+		goto out;
+	}
+
+	fprintf(stdout,"[%lld]  %d/%d/%d %d:%d:%d\n",bootuptime, tmz.tm_year+1900,tmz.tm_mon,tmz.tm_mday,tmz.tm_hour,tmz.tm_min,tmz.tm_sec);
+
+
+
+	ret = 0;
+out:
+	SETERRNO(ret);
+	return ret;
+}

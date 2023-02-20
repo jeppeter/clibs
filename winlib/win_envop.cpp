@@ -692,6 +692,7 @@ fail:
 }
 
 
+
 typedef NTSYSCALLAPI NTSTATUS  (NTAPI *NtSetSecurityObject_func_t)(HANDLE Handle,SECURITY_INFORMATION SecurityInformation,PSECURITY_DESCRIPTOR SecurityDescriptor);
 
 typedef NTSYSCALLAPI NTSTATUS  (NTAPI *NtQuerySecurityObject_func_t)( _In_ HANDLE Handle,    _In_ SECURITY_INFORMATION SecurityInformation, _Out_writes_bytes_opt_(Length) PSECURITY_DESCRIPTOR SecurityDescriptor,    _In_ ULONG Length,    _Out_ PULONG LengthNeeded);

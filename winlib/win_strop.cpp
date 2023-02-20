@@ -872,6 +872,7 @@ int split_lines(const char* str, char*** ppplines, int *psize)
         return __inner_free(ppplines, psize);
     }
 
+
     if (ppplines == NULL || psize == NULL) {
         ret =  -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);

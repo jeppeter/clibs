@@ -16,6 +16,7 @@ WINLIB_API uint64_t get_current_ticks(void);
 WINLIB_API uint64_t get_ms_from_epoch(void);
 WINLIB_API int need_wait_times(uint64_t sticks, uint64_t eticks, int timeout);
 WINLIB_API int sleep_mill(int mills);
+WINLIB_API int get_last_bootuptime(HANDLE hevt,uint64_t *pboottime);
 
 #ifdef __cplusplus
 };
