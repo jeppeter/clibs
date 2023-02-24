@@ -80,8 +80,10 @@ ASN1_SEQUENCE(X9_62_PENTANOMIAL) = {
 	ASN1_EMBED(X9_62_PENTANOMIAL, k3, INT32)
 } static_ASN1_SEQUENCE_END(X9_62_PENTANOMIAL)
 
-DECLARE_ASN1_ALLOC_FUNCTIONS(X9_62_PENTANOMIAL)
-IMPLEMENT_ASN1_ALLOC_FUNCTIONS(X9_62_PENTANOMIAL)
+//DECLARE_ASN1_ALLOC_FUNCTIONS(X9_62_PENTANOMIAL)
+//IMPLEMENT_ASN1_ALLOC_FUNCTIONS(X9_62_PENTANOMIAL)
+DECLARE_ASN1_FUNCTIONS(X9_62_PENTANOMIAL)
+IMPLEMENT_ASN1_FUNCTIONS(X9_62_PENTANOMIAL)
 
 ASN1_ADB_TEMPLATE(char_two_def) = ASN1_SIMPLE(X9_62_CHARACTERISTIC_TWO, p.other, ASN1_ANY);
 
@@ -1187,4 +1189,13 @@ int ecpkparamsenc_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 int ecpkparamsdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(ECPKPARAMETERS);
+}
+
+int ecx9pentenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(X9_62_PENTANOMIAL);
+}
+int ecx9pentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(X9_62_PENTANOMIAL);	
 }

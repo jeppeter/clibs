@@ -98,6 +98,8 @@ int ecprivkeyenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int ecprivkeydec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecpkparamsenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecpkparamsdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ecx9pentenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ecx9pentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 

@@ -209,7 +209,13 @@
     "ecpkparamsenc<ecpkparamsenc_handler>##jsonfile to encode ECPKPARAMETERS##" : {
         "$" : 1
     },
-    "ecpkparamsdec<ecpkparamsdec_handler>##binfile to decode ECPKPARAMETERS##" : {
+    "ecpkparamsdec<ecpkparamsdec_handler>##binfile ... to decode ECPKPARAMETERS##" : {
+        "$" : "+"
+    },
+    "ecx9pentenc<ecx9pentenc_handler>##jsonfile to encode X9_62_PENTANOMIAL##" : {
+        "$" : 1
+    },
+    "ecx9pentdec<ecx9pentdec_handler>##binfile ... to decode X9_62_PENTANOMIAL##" : {
         "$" : "+"
     }
 }
