@@ -96,6 +96,8 @@ int ndefclosedec_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int pkcs7vfy_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecprivkeyenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecprivkeydec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ecpkparamsenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ecpkparamsdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 

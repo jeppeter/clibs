@@ -1180,3 +1180,11 @@ int ecprivkeydec_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 	EXPAND_DECODE_HANDLER(EC_PRIVATEKEY);
 }
 
+int ecpkparamsenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(ECPKPARAMETERS);
+}
+int ecpkparamsdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(ECPKPARAMETERS);
+}

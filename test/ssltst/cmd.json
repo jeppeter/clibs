@@ -205,5 +205,11 @@
     },
     "ecprivkeydec<ecprivkeydec_handler>##binfile ... to decode EC_PRIVATEKEY##" : {
         "$" : "+"
+    },
+    "ecpkparamsenc<ecpkparamsenc_handler>##jsonfile to encode ECPKPARAMETERS##" : {
+        "$" : 1
+    },
+    "ecpkparamsdec<ecpkparamsdec_handler>##binfile to decode ECPKPARAMETERS##" : {
+        "$" : "+"
     }
 }
