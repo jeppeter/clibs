@@ -118,6 +118,10 @@ ASN1_SEQUENCE(X9_62_FIELDID) = {
 	ASN1_ADB_OBJECT(X9_62_FIELDID)
 } static_ASN1_SEQUENCE_END(X9_62_FIELDID)
 
+DECLARE_ASN1_FUNCTIONS(X9_62_FIELDID)
+IMPLEMENT_ASN1_FUNCTIONS(X9_62_FIELDID)
+
+
 ASN1_SEQUENCE(X9_62_CURVE) = {
 	ASN1_SIMPLE(X9_62_CURVE, a, ASN1_OCTET_STRING),
 	ASN1_SIMPLE(X9_62_CURVE, b, ASN1_OCTET_STRING),
@@ -445,7 +449,7 @@ fail:
 #define X962_PRIME_FIELD_STR               "prime-field"
 
 #define X962_CHAR_TWO_FIELD_OBJ            "1.2.840.10045.1.2"
-#define X962_CHAR_TWO_FIELD_STR            "char-two-field"
+#define X962_CHAR_TWO_FIELD_STR            "characteristic-two-field"
 
 
 int encode_X9_62_FIELDID(jvalue* pj, X9_62_FIELDID* pobj)
@@ -477,7 +481,7 @@ int encode_X9_62_FIELDID(jvalue* pj, X9_62_FIELDID* pobj)
 			goto fail;
 		}
 	} else if (strcmp(otype,X962_CHAR_TWO_FIELD_OBJ) == 0) {
-		chldpj= jobject_get(pj,"tow_field");
+		chldpj= jobject_get(pj,"two_field");
 		if (chldpj != NULL) {
 			if (pobj->p.char_two != NULL) {
 				ret = -EINVAL;
@@ -526,6 +530,8 @@ int decode_X9_62_FIELDID(X9_62_FIELDID* pobj, jvalue* pj)
 	jvalue* chldpj = NULL;
 	jvalue* replpj = NULL;
 
+	DEBUG_INFO(" ");
+
 	ret = get_asn1_object(&(pobj->fieldType),"fieldtype",pj);
 	if (ret <=0 ) {
 		GETERRNO(ret);
@@ -542,7 +548,8 @@ int decode_X9_62_FIELDID(X9_62_FIELDID* pobj, jvalue* pj)
 	}
 
 	DEBUG_INFO("otype [%s]", otype);
-	if (strcmp(otype,X962_PRIME_FIELD_OBJ) == 0) {
+	if (strcmp(otype,X962_PRIME_FIELD_OBJ) == 0 || 
+		strcmp(otype,X962_PRIME_FIELD_STR) == 0) {
 		if (pobj->p.prime == NULL) {
 			ret = -EINVAL;
 			ERROR_INFO("[%s] for prime null", otype);
@@ -554,7 +561,8 @@ int decode_X9_62_FIELDID(X9_62_FIELDID* pobj, jvalue* pj)
 			ERROR_INFO("get prime error[%d]", ret);
 			goto fail;
 		}
-	} else if (strcmp(otype,X962_CHAR_TWO_FIELD_OBJ) == 0) {
+	} else if (strcmp(otype,X962_CHAR_TWO_FIELD_OBJ) == 0 || 
+		strcmp(otype,X962_CHAR_TWO_FIELD_STR) == 0) {
 		chldpj = jobject_create();
 		if (chldpj == NULL) {
 			GETERRNO(ret);
@@ -1205,9 +1213,18 @@ int ecx9pentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 
 int ecchartwoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_ENCODE_HANDLER(X9_62_CHARACTERISTIC_TWO);	
+	EXPAND_ENCODE_HANDLER(X9_62_CHARACTERISTIC_TWO);
 }
 int ecchartwodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(X9_62_CHARACTERISTIC_TWO);
+}
+
+int ecfieldidenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(X9_62_FIELDID);
+}
+int ecfieldiddec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(X9_62_FIELDID);	
 }

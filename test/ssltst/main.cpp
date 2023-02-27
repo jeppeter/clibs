@@ -102,6 +102,8 @@ int ecx9pentenc_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int ecx9pentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecchartwoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecchartwodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ecfieldidenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ecfieldiddec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus

@@ -223,5 +223,11 @@
     },
     "ecchartwodec<ecchartwodec_handler>##binfile ... to decode X9_62_CHARACTERISTIC_TWO##" : {
         "$" : "+"
+    },
+    "ecfieldidenc<ecfieldidenc_handler>##jsonfile to encode X9_62_FIELDID##" : {
+        "$" : 1
+    },
+    "ecfieldiddec<ecfieldiddec_handler>##binfile ... to decode X9_62_FIELDID##" : {
+        "$" : "+"
     }
 }
