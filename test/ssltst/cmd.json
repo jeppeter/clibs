@@ -217,5 +217,11 @@
     },
     "ecx9pentdec<ecx9pentdec_handler>##binfile ... to decode X9_62_PENTANOMIAL##" : {
         "$" : "+"
+    },
+    "ecchartwoenc<ecchartwoenc_handler>##jsonfile to encode X9_62_CHARACTERISTIC_TWO##" : {
+        "$" : 1
+    },
+    "ecchartwodec<ecchartwodec_handler>##binfile ... to decode X9_62_CHARACTERISTIC_TWO##" : {
+        "$" : "+"
     }
 }

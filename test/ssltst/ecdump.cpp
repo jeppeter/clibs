@@ -99,8 +99,12 @@ ASN1_SEQUENCE(X9_62_CHARACTERISTIC_TWO) = {
 	ASN1_ADB_OBJECT(X9_62_CHARACTERISTIC_TWO)
 } static_ASN1_SEQUENCE_END(X9_62_CHARACTERISTIC_TWO)
 
-DECLARE_ASN1_ALLOC_FUNCTIONS(X9_62_CHARACTERISTIC_TWO)
-IMPLEMENT_ASN1_ALLOC_FUNCTIONS(X9_62_CHARACTERISTIC_TWO)
+//DECLARE_ASN1_ALLOC_FUNCTIONS(X9_62_CHARACTERISTIC_TWO)
+//IMPLEMENT_ASN1_ALLOC_FUNCTIONS(X9_62_CHARACTERISTIC_TWO)
+DECLARE_ASN1_FUNCTIONS(X9_62_CHARACTERISTIC_TWO)
+IMPLEMENT_ASN1_FUNCTIONS(X9_62_CHARACTERISTIC_TWO)
+
+
 
 ASN1_ADB_TEMPLATE(fieldID_def) = ASN1_SIMPLE(X9_62_FIELDID, p.other, ASN1_ANY);
 
@@ -232,13 +236,13 @@ fail:
 }
 
 #define  X962_ONBASIS_OBJ               "1.2.840.10045.1.2.3.1"
-#define  X962_ONBASIS_STR               ""
+#define  X962_ONBASIS_STR               "onBasis"
 
 #define  X962_TPBASIS_OBJ               "1.2.840.10045.1.2.3.2"
-#define  X962_TPBASIS_STR               ""
+#define  X962_TPBASIS_STR               "tpBasis"
 
 #define  X962_PPBASIS_OBJ               "1.2.840.10045.1.2.3.3"
-#define  X962_PPBASIS_STR               ""
+#define  X962_PPBASIS_STR               "ppBasis"
 
 int encode_X9_62_CHARACTERISTIC_TWO(jvalue* pj, X9_62_CHARACTERISTIC_TWO* pobj)
 {
@@ -423,7 +427,6 @@ int decode_X9_62_CHARACTERISTIC_TWO(X9_62_CHARACTERISTIC_TWO* pobj, jvalue* pj)
 			goto fail;
 		}
 	}
-
 	return 1;
 fail:
 	if (chldpj != NULL) {
@@ -1198,4 +1201,13 @@ int ecx9pentenc_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int ecx9pentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(X9_62_PENTANOMIAL);	
+}
+
+int ecchartwoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(X9_62_CHARACTERISTIC_TWO);	
+}
+int ecchartwodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(X9_62_CHARACTERISTIC_TWO);
 }
