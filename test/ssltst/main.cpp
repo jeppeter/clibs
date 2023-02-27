@@ -104,6 +104,8 @@ int ecchartwoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int ecchartwodec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecfieldidenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecfieldiddec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int eccurveenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int eccurvedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus

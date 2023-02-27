@@ -229,5 +229,11 @@
     },
     "ecfieldiddec<ecfieldiddec_handler>##binfile ... to decode X9_62_FIELDID##" : {
         "$" : "+"
+    },
+    "eccurveenc<eccurveenc_handler>##jsonfile to encode X9_62_CURVE##" : {
+        "$" : 1
+    },
+    "eccurvedec<eccurvedec_handler>##binfile ... to decode X9_62_CURVE##" : {
+        "$" : "+"
     }
 }

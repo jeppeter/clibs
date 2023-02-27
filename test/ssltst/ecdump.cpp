@@ -128,6 +128,10 @@ ASN1_SEQUENCE(X9_62_CURVE) = {
 	ASN1_OPT(X9_62_CURVE, seed, ASN1_BIT_STRING)
 } static_ASN1_SEQUENCE_END(X9_62_CURVE)
 
+DECLARE_ASN1_FUNCTIONS(X9_62_CURVE)
+IMPLEMENT_ASN1_FUNCTIONS(X9_62_CURVE)
+
+
 ASN1_SEQUENCE(ECPARAMETERS) = {
 	ASN1_EMBED(ECPARAMETERS, version, INT32),
 	ASN1_SIMPLE(ECPARAMETERS, fieldID, X9_62_FIELDID),
@@ -1227,4 +1231,14 @@ int ecfieldidenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 int ecfieldiddec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(X9_62_FIELDID);	
+}
+
+int eccurveenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(X9_62_CURVE);	
+}
+
+int eccurvedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(X9_62_CURVE);
 }
