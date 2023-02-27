@@ -235,5 +235,11 @@
     },
     "eccurvedec<eccurvedec_handler>##binfile ... to decode X9_62_CURVE##" : {
         "$" : "+"
+    },
+    "ecparamsenc<ecparamsenc_handler>##jsonfile to encode ECPARAMETERS##" : {
+        "$" : 1
+    },
+    "ecparamsdec<ecparamsdec_handler>##binfile ... to decode ECPARAMETERS##" : {
+        "$" : "+"
     }
 }

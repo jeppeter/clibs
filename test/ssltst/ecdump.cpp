@@ -141,8 +141,12 @@ ASN1_SEQUENCE(ECPARAMETERS) = {
 	ASN1_OPT(ECPARAMETERS, cofactor, ASN1_INTEGER)
 } ASN1_SEQUENCE_END(ECPARAMETERS)
 
-DECLARE_ASN1_ALLOC_FUNCTIONS(ECPARAMETERS)
-IMPLEMENT_ASN1_ALLOC_FUNCTIONS(ECPARAMETERS)
+//DECLARE_ASN1_ALLOC_FUNCTIONS(ECPARAMETERS)
+//IMPLEMENT_ASN1_ALLOC_FUNCTIONS(ECPARAMETERS)
+DECLARE_ASN1_FUNCTIONS(ECPARAMETERS)
+IMPLEMENT_ASN1_FUNCTIONS(ECPARAMETERS)
+
+
 
 ASN1_CHOICE(ECPKPARAMETERS) = {
 	ASN1_SIMPLE(ECPKPARAMETERS, value.named_curve, ASN1_OBJECT),
@@ -1241,4 +1245,13 @@ int eccurveenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int eccurvedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(X9_62_CURVE);
+}
+
+int ecparamsenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(ECPARAMETERS);	
+}
+int ecparamsdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(ECPARAMETERS);
 }
