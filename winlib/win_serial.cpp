@@ -1001,7 +1001,7 @@ int complete_serial_write(void* pcom1)
 		bret = GetOverlappedResult(pcom->m_hfile, &(pcom->m_wrov), &cbwrite, FALSE);
 		if (!bret) {
 			GETERRNO(ret);
-			DEBUG_INFO("ret [%d]", ret);
+			//DEBUG_INFO("ret [%d]", ret);
 			if (ret != -ERROR_IO_PENDING && ret != -ERROR_MORE_DATA && ret != -ERROR_IO_INCOMPLETE) {
 				ERROR_INFO("get rdov [%s] error[%d]", pcom->m_name, ret);
 				goto fail;
