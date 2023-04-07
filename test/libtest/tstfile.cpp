@@ -872,13 +872,21 @@ int bootuptime_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	ret = gmtime_s(&tmz,(const time_t*)&bootuptime);
 	if (ret  != 0) {
 		GETERRNO(ret);
-		fprintf(stderr,"bootuptime localtime_r error[%d]\n", ret);
+		fprintf(stderr,"bootuptime gmtime_s error[%d]\n", ret);
 		goto out;
 	}
 
-	fprintf(stdout,"[%lld]  %d/%d/%d %d:%d:%d\n",bootuptime, tmz.tm_year+1900,tmz.tm_mon,tmz.tm_mday,tmz.tm_hour,tmz.tm_min,tmz.tm_sec);
+	fprintf(stdout,"gmtime [%lld]  %d/%d/%d %d:%d:%d\n",bootuptime, tmz.tm_year+1900,tmz.tm_mon,tmz.tm_mday,tmz.tm_hour,tmz.tm_min,tmz.tm_sec);
 
-
+	memset(&tmz,0,sizeof(tmz));
+	//pret = localtime_s((const time_t*)&bootuptime,&tmz);
+	ret = localtime_s(&tmz,(const time_t*)&bootuptime);
+	if (ret != 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "bootuptime localtime_s error[%d]\n", ret);
+		goto out;
+	}
+	fprintf(stdout,"localtime [%lld] %d/%d/%d %d:%d:%d\n",bootuptime, tmz.tm_year+1900,tmz.tm_mon,tmz.tm_mday,tmz.tm_hour,tmz.tm_min,tmz.tm_sec);
 
 	ret = 0;
 out:
