@@ -47,6 +47,7 @@
 #include <win_sock.h>
 #include <win_hdl.h>
 #include <win_serial.h>
+#include <win_usb.h>
 
 
 #include <jvalue.h>
@@ -264,6 +265,7 @@ int sercfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int serread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int serwrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bootuptime_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int lsusb_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1

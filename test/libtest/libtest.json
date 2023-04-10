@@ -444,5 +444,8 @@
     },
     "bootuptime<bootuptime_handler>##to get bootuptime for windows##" : {
         "$" : 0
+    },
+    "lsusb<lsusb_handler>##to list usb devices##" : {
+        "$" : 0
     }
 }

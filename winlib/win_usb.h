@@ -3,15 +3,15 @@
 
 #include <win_types.h>
 
-typedef struct __usb_root {	
-} usb_root_t, *pusb_root_t;
+typedef struct __usb_dev {	
+} usb_dev_t, *pusb_dev_t;
 
 #undef __WINLIB_INNER_INCLUDE__
 #define __WINLIB_INNER_INCLUDE__
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
-WINLIB_API int list_usb_roots(int freed, pusb_root_t* ppur, int *psize);
+WINLIB_API int list_usb_roots(int freed, pusb_dev_t* ppur, int *psize);
 
 
 #ifdef __cplusplus
