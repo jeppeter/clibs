@@ -252,7 +252,6 @@ try_again:
 					int setpid = -1;
 					int setvid = -1;
 					pwptr = (wchar_t*)ppropbuf;
-#if 0					
 					DEBUG_BUFFER_FMT(ppropbuf, propbuflen, "[%ld].[%d]prop [%s] pid[%ld:0x%lx]", nindex, i, fmtid, propkey[i].pid, propkey[i].pid);
 					ret = UnicodeToAnsi(pwptr, &propansi, &propansisize);
 					if (ret < 0) {
@@ -263,12 +262,12 @@ try_again:
 					DEBUG_INFO("[%ld].[%s].[%d] prop[%s]", nindex, fmtid, i, propansi);
 					if (propkey[i].pid == HWID_PROPERTY_PID || propkey[i].pid == INSTID_PROPERTY_PID) {
 						while (*ppcptr != '\0') {
-							DEBUG_INFO("ppcptr [%s]", ppcptr);
+							//DEBUG_INFO("ppcptr [%s]", ppcptr);
 							if (setpid < 0) {
 								if (_strnicmp(ppcptr, "pid_", 4) == 0) {
 									setpid = 0;
 									ppcptr += 4;
-									while (*ppcptr != '\0' && *ppcptr != '&') {
+									while (*ppcptr != '\0' && *ppcptr != '&' && *ppcptr != '\\') {
 										if (*ppcptr >= '0' && *ppcptr <= '9') {
 											setpid <<= 4;
 											setpid += *ppcptr - '0';
@@ -288,7 +287,7 @@ try_again:
 									pretdata[retlen].m_prodid = (uint32_t) setpid;
 								}
 							}
-							DEBUG_INFO("ppcptr [%s]", ppcptr);
+							//DEBUG_INFO("ppcptr [%s]", ppcptr);
 							if (setvid < 0 ) {
 								if (_strnicmp(ppcptr, "vid_", 4) == 0) {
 									setvid = 0;
@@ -313,7 +312,7 @@ try_again:
 									pretdata[retlen].m_vendorid = (uint32_t) setvid;
 								}
 							}
-							DEBUG_INFO("ppcptr [%s]", ppcptr);
+							//DEBUG_INFO("ppcptr [%s]", ppcptr);
 
 							if (setvid >= 0 && setpid >= 0) {
 								DEBUG_INFO("setvid [0x%x] setpid [0x%x]",setvid,setpid);
@@ -325,15 +324,24 @@ try_again:
 						if (setvid < 0 || setpid < 0) {
 							ret = -ERROR_INVALID_PARAMETER;
 							ERROR_INFO("no pid or vid in [%s]", propansi);
-							goto fail;
+							matchid = -1;
 						}
 
-						//strncpy_s((char*)pretdata[retlen].m_path, sizeof(pretdata[retlen].m_path) - 1, propansi, sizeof(pretdata[retlen].m_path) - 1);
-						//DEBUG_INFO("[%d].m_path [%s]", retlen,pretdata[retlen].m_path);
+						if (matchid >= 0) {							
+							//strncpy_s((char*)pretdata[retlen].m_path, sizeof(pretdata[retlen].m_path) - 1, propansi, sizeof(pretdata[retlen].m_path) - 1);
+							int clen = strlen(propansi);
+							if (clen > 256) {
+								clen = 255;
+							}
+							//memcpy(pretdata[retlen].m_path,propansi,clen);
+							//DEBUG_INFO("[%d].m_path [%s]", retlen,pretdata[retlen].m_path);
+							DEBUG_INFO("[%d].m_path [%s]", retlen,propansi);
+						}
 					} 
-#endif					
+#if 0					
 					retlen ++;
 					DEBUG_INFO("retlen [%d]", retlen);
+#endif					
 				} else {
 					if (cfgret == CR_BUFFER_SMALL) {
 						propbufsize <<= 1;
