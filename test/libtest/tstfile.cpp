@@ -900,6 +900,8 @@ int lsusb_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	pargs_options_t pargs=(pargs_options_t)popt;
 	pusb_dev_t pusbdev=NULL;
 	int usbsize=0;
+	int usblen=0;
+	int i;
 
 
 
@@ -908,16 +910,20 @@ int lsusb_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	REFERENCE_ARG(argv);
 	init_log_level(pargs);
 
-	ret = list_usb_roots(0,&pusbdev,&usbsize);
+	ret = list_usb_devices(0,&pusbdev,&usbsize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		fprintf(stderr, "list usb error[%d]\n", ret);
 		goto out;
 	}
+	usblen = ret;
+	for(i=0;i<usblen;i++) {
+		fprintf(stdout,"[%s] vendorid [0x%04x] prodid [0x%04x]\n", pusbdev[i].m_path,pusbdev[i].m_vendorid, pusbdev[i].m_prodid);
+	}
 
 	ret = 0;
 out:
-	list_usb_roots(1,&pusbdev,&usbsize);
+	list_usb_devices(1,&pusbdev,&usbsize);
 	SETERRNO(ret);
 	return ret;
 }

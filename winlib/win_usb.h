@@ -3,7 +3,10 @@
 
 #include <win_types.h>
 
-typedef struct __usb_dev {	
+typedef struct __usb_dev {
+	uint32_t m_vendorid;
+	uint32_t m_prodid;
+	uint8_t  m_path[256];
 } usb_dev_t, *pusb_dev_t;
 
 #undef __WINLIB_INNER_INCLUDE__
@@ -11,7 +14,7 @@ typedef struct __usb_dev {
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
-WINLIB_API int list_usb_roots(int freed, pusb_dev_t* ppur, int *psize);
+WINLIB_API int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize);
 
 
 #ifdef __cplusplus
