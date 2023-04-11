@@ -100,6 +100,7 @@ int __get_guid_dev(LPGUID pguid, const char* guidstr, pusb_dev_t* ppdata, int *p
 	uint8_t* propbuf = NULL;
 	ULONG propbufsize = 0;
 	ULONG propbuflen = 0;
+	ULONG wi = 0;
 	wchar_t* pwptr = NULL;
 	char* propansi = NULL;
 	int ansisize = 0;
@@ -193,6 +194,64 @@ int __get_guid_dev(LPGUID pguid, const char* guidstr, pusb_dev_t* ppdata, int *p
 		}
 		//DEBUG_INFO("[%s].[%ld] get prop keys [%ld]", guidstr, nindex, propkeylen);
 
+		for (i = 0; i < propkeylen ; i ++) {
+			ret = __get_guid_str(&propkeys[i].fmtid, &fmtid, &ccmax);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+try_2:
+			//proptype = 0;
+			if (propbuf) {
+				memset(propbuf, 0, propbufsize);
+			}
+			propbuflen = propbufsize;
+			cfgret = CM_Get_DevNode_PropertyW(pndata->DevInst, &(propkeys[i]), &proptype, propbuf, &propbuflen, 0);
+			if (cfgret == CR_SUCCESS) {
+				pwptr = (wchar_t*) propbuf;
+				wi = 0;
+				DEBUG_BUFFER_FMT(propbuf,propbuflen,"[%ld].[%ld] [%s].[0x%lx] property", nindex,i,fmtid,propkeys[i].pid);
+				while (wi < propbuflen) {
+					while (wi < propbuflen && *pwptr == 0) {
+						pwptr += 1;
+						wi += 2;
+					}
+
+					if (wi < propbuflen) {
+						ret = UnicodeToUtf8(pwptr, &propansi,&ansisize)	;
+						if (ret < 0) {
+							GETERRNO(ret);
+							goto fail;
+						}
+						DEBUG_INFO("    [%s]", propansi);
+					}
+
+					while(wi < propbuflen && *pwptr != 0) {
+						pwptr += 1;
+						wi += 2;
+					}
+				}
+			} else {
+				if (cfgret == CR_BUFFER_SMALL) {
+					propbufsize = propbuflen;
+					if (propbuf) {
+						free(propbuf);
+					}
+					propbuf = NULL;
+					propbuf = (uint8_t*) malloc(propbufsize);
+					if (propbuf == NULL) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					goto try_2;
+				}
+				GETERRNO(ret);
+				ERROR_INFO("[%s].[%ld].[%ld] prop [%s].[0x%lx] error[%d]", guidstr, nindex, i, fmtid,propkeys[i].pid, cfgret);
+			}
+
+		}
+
+
 		matchid = -1;
 		for (i = 0; i < propkeylen; i++) {
 			if (propkeys[i].pid == HWID_PROPERTY_PID || propkeys[i].pid == INSTID_PROPERTY_PID) {
@@ -274,7 +333,7 @@ try_again:
 											setvid += (*ppcptr - 'A' + 10);
 										} else {
 											setvid = -1;
-											ERROR_INFO("[%ld].[%ld] prop [%s] not valid vid", nindex,i,propansi);
+											ERROR_INFO("[%ld].[%ld] prop [%s] not valid vid", nindex, i, propansi);
 											break;
 										}
 										ppcptr ++;
@@ -300,7 +359,7 @@ try_again:
 											setpid += (*ppcptr - 'A' + 10);
 										} else {
 											setpid = -1;
-											ERROR_INFO("[%ld].[%ld] prop [%s] not valid pid", nindex,i,propansi);
+											ERROR_INFO("[%ld].[%ld] prop [%s] not valid pid", nindex, i, propansi);
 											break;
 										}
 										ppcptr ++;
