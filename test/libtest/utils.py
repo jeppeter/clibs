@@ -118,6 +118,20 @@ def init_propmaps():
 
 PROP_MAPS,REV_PROP_MAPS = init_propmaps()
 
+def get_guid_idx(name):
+    global PROP_MAPS
+
+    if name in PROP_MAPS.keys():
+        return PROP_MAPS[name][0],PROP_MAPS[name][1]
+    raise Exception('not accept [%s]'%(name))
+
+def get_name(guid,idx):
+    global REV_PROP_MAPS
+    nk = '%s %d'%(guid,idx)
+    if nk in REV_PROP_MAPS.keys():
+        return REV_PROP_MAPS[nk]
+    raise Exception('guid [%s] idx [%d] not supported'%(guid,idx))
+
 
 def usblist_handler(args,parser):
     fileop.set_logging(args)
@@ -259,17 +273,22 @@ def usbprop_handler(args,parser):
     indxexpr = re.compile('.*nindex\\[%d\\].*'%(indx),re.I)
     filterindexexpr = re.compile('.*nindex\\[([0-9]+)\\]',re.I)
     guidpropexprs = []
-    if len(args.subnargs) % 2 != 1:
-        raise Exception('need propguid or idx')
     cidx = 1
     while cidx < len(args.subnargs):
-        guidstr = re.sub('\\-','\\\\-',args.subnargs[cidx])
-        indx = fileop.parse_int(args.subnargs[cidx + 1])
+        nameset = False
+        try:
+            guidstr, indx = get_guid_idx(args.subnargs[cidx])
+            cidx += 1
+        except:
+            pass
+        if not nameset :
+            guidstr = re.sub('\\-','\\\\-',args.subnargs[cidx])
+            indx = fileop.parse_int(args.subnargs[cidx + 1])
+            cidx += 2
         exprstr = '.*property\\[\\{%s\\}\\]\\.\\[0x%x\\].*'%(guidstr,indx)
         logging.info('guidstr [%s] exprstr[%s]'%(guidstr,exprstr))
         guidexpr = re.compile(exprstr,re.I)
         guidpropexprs.append(guidexpr)
-        cidx += 2
     guidgetexpr = re.compile('property\\[\\{([^\\}]+)\\}\\]\\.\\[0x([a-f0-9A-F]+)\\]',re.I)
     propexpr = re.compile('PROP\\s+\\[([^\\]]+)\\]',re.I)
     sb = fileop.read_file_bytes(args.input)
@@ -304,7 +323,8 @@ def usbprop_handler(args,parser):
             else:
                 m = filterindexexpr.findall(l)
                 if m is not None and len(m) > 0:
-                    dictmap['{%s}[%d]'%(curpropguid,curpropidx)] = curvals
+                    name = get_name(curpropguid,curpropidx)
+                    dictmap[name] = curvals
                     curpropguid = None
                     curpropidx = -1
                     curval = fileop.parse_int(m[0])
@@ -339,7 +359,7 @@ def formatprop_handler(args,parser):
             propguid = m[0][0]
             propidx = fileop.parse_int(m[0][1])
             propname = m[0][2]
-            outs += format_line(1,'newmaps[\'%s\'] = ( \'%s\',%d )'%(propname,propguid,propidx))
+            outs += format_line(1,'newmaps[\'%s\'] = ( \'%s\',%d )'%(propname.lowercase(),propguid.lowercase(),propidx))
 
     outs += format_line(1,'revmap = dict()')
     outs += format_line(1,'for k in newmaps.keys():')
