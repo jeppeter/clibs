@@ -919,7 +919,7 @@ int lsusb_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	usblen = ret;
 	fprintf(stdout,"usb device [%d]\n",usblen);
 	for(i=0;i<usblen;i++) {
-		fprintf(stdout,"[%s] vendorid [0x%04x] prodid [0x%04x]\n", pusbdev[i].m_path,pusbdev[i].m_vendorid, pusbdev[i].m_prodid);
+		fprintf(stdout,"[%d][%s] vendorid [0x%04x] prodid [0x%04x]\n", i,pusbdev[i].m_path,pusbdev[i].m_vendorid, pusbdev[i].m_prodid);
 	}
 
 	ret = 0;
