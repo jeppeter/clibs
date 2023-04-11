@@ -12,6 +12,26 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 import fileop
 
 
+def init_propmaps():
+	newmaps = dict()
+	newmaps['System.Devices.ModelId'] = ('80D81EA6-7473-4B0C-8216-EFC11A2C4C8B',2)
+	newmaps['System.Devices.ModelName'] = ('656A3BB3-ECC0-43FD-8477-4AE0404A96CD',8194)
+	newmaps['System.Devices.ModelNumber'] = ('656A3BB3-ECC0-43FD-8477-4AE0404A96CD',8195)
+	newmaps['System.Devices.FriendlyName'] = ('656A3BB3-ECC0-43FD-8477-4AE0404A96CD',12288)
+	newmaps['System.ItemNameDisplay'] = ('B725F130-47EF-101A-A5F1-02608C9EEBAC', 10)
+	newmaps['System.Devices.DevNodeStatus'] = ('4340A6C5-93FA-4706-972C-7B648008A5A7',2)
+	newmaps['System.Devices.ProblemCode'] = ('4340A6C5-93FA-4706-972C-7B648008A5A7',3)
+	newmaps['System.Devices.EjectionRelations'] = ('4340A6C5-93FA-4706-972C-7B648008A5A7',4)
+	newmaps['System.Devices.RemovalRelations'] = ('4340A6C5-93FA-4706-972C-7B648008A5A7',5)
+	newmaps['System.Devices.PowerRelations'] = ('4340A6C5-93FA-4706-972C-7B648008A5A7',6)
+	newmaps['System.Devices.BusRelations'] = ('4340A6C5-93FA-4706-972C-7B648008A5A7',7)
+	newmaps['System.Devices.Parent'] = ('4340A6C5-93FA-4706-972C-7B648008A5A7', 8)
+
+	return newmaps
+
+PROP_MAPS = init_propmaps()
+
+
 def usblist_handler(args,parser):
 	fileop.set_logging(args)
 
@@ -136,11 +156,22 @@ def usblist_handler(args,parser):
 	sys.exit(0)
 	return
 
+def get_guid_prop_value(l,getexpr):
+	m = getexpr.findall(l)
+	guidprop = None
+	propidx = -1
+	if m is not None and len(m) > 0 and len(m[0]) > 1:
+		guidprop = m[0][0]
+		propidx = int(m[0][1],16)
+	return guidprop,propidx
+
+
 def usbprop_handler(args,parser):
 	fileop.set_logging(args)
 	indx = fileop.parse_int(args.subnargs[0])
-	indxexpr = re.compile('nindex\\[%d\\]'%(indx),re.I)
-	propexprs = []
+	indxexpr = re.compile('.*nindex\\[%d\\].*'%(indx),re.I)
+	filterindexexpr = re.compile('.*nindex\\[([0-9]+)\\]',re.I)
+	guidpropexprs = []
 	if len(args.subnargs) % 2 != 1:
 		raise Exception('need propguid or idx')
 	cidx = 1
@@ -150,14 +181,53 @@ def usbprop_handler(args,parser):
 		exprstr = '.*property\\[\\{%s\\}\\]\\.\\[0x%x\\].*'%(guidstr,indx)
 		logging.info('guidstr [%s] exprstr[%s]'%(guidstr,exprstr))
 		guidexpr = re.compile(exprstr,re.I)
-		propexprs.append(guidexpr)
+		guidpropexprs.append(guidexpr)
 		cidx += 2
+	guidgetexpr = re.compile('property\\[\\{([^\\}]+)\\}\\]\\.\\[0x([a-f0-9A-F]+)\\]',re.I)
+	propexpr = re.compile('PROP\\s+\\[([^\\]]+)\\]',re.I)
 	sb = fileop.read_file_bytes(args.input)
 	s = sb.decode('utf-8')
 	sarr = re.split('\n',s)
+	dictmap = dict()
+	searchstart = False
+	curpropguid = None
+	curpropidx = -1
 	for l in sarr:
 		l = l.rstrip('\r\n')
-
+		if not searchstart:
+			if indxexpr.match(l):
+				curvals = []
+				bmatched = False
+				if len(guidpropexprs) > 0:
+					for e in guidpropexprs:
+						if e.match(l):
+							bmatched = True
+							curpropguid,curpropidx = get_guid_prop_value(l,guidgetexpr)
+							break
+				else:
+					curpropguid,curpropidx = get_guid_prop_value(l,guidgetexpr)
+					bmatched = True
+				if bmatched:
+					searchstart = True
+					curvals = []
+		else:
+			m = propexpr.findall(l)
+			if m is not None and len(m) > 0:
+				curvals.append(m[0])
+			else:
+				m = filterindexexpr.findall(l)
+				if m is not None and len(m) > 0:
+					dictmap['{%s}[%d]'%(curpropguid,curpropidx)] = curvals
+					curpropguid = None
+					curpropidx = -1
+					curval = fileop.parse_int(m[0])
+					searchstart = False
+					if curval == indx:
+						searchstart = True
+						curvals = []
+						curpropguid, curpropidx = get_guid_prop_value(l,guidgetexpr)
+	for k in dictmap.keys():
+		sys.stdout.write('%s=%s\n'%(k,dictmap[k]))
 	sys.exit(0)
 
 def main():
