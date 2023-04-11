@@ -210,7 +210,7 @@ try_2:
 			if (cfgret == CR_SUCCESS) {
 				pwptr = (wchar_t*) propbuf;
 				wi = 0;
-				DEBUG_BUFFER_FMT(propbuf,propbuflen,"[%ld].[%ld] [%s].[0x%lx] property", nindex,i,fmtid,propkeys[i].pid);
+				DEBUG_BUFFER_FMT(propbuf,propbuflen,"nindex[%ld].[%ld] property[%s].[0x%lx]", nindex,i,fmtid,propkeys[i].pid);
 				while (wi < propbuflen) {
 					while (wi < propbuflen && *pwptr == 0) {
 						pwptr += 1;
