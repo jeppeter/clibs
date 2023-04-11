@@ -23,6 +23,12 @@ DEFINE_GUID(GUID_DEVINTERFACE_USB_HUB,
             0xF18A0E88L, 0xC30C, 0x11D0, 0x88, 0x15, 0x00, 0xA0, 0xC9, 0x06, 0xBE, 0xD8);
 // ({F18A0E88-C30C-11D0-8815-00A0C906BED8})
 
+// This is the GUID for the USB hub class
+DEFINE_GUID(GUID_DEVINTERFACE_USB_HOST_CONTROLLER,
+            0x3ABF6F2DL, 0x71C4, 0x462a, 0x8a, 0x92, 0x1e, 0x68, 0x61, 0xe6, 0xaf, 0x27);
+// ({3ABF6F2D-71C4-462A-8A92-1E6861E6AF27})
+
+
 
 #define  HWID_PROPERTY_GUID     "{A45C254E-DF1C-4EFD-8020-67D146A850E0}"
 #define  HWID_PROPERTY_PID      0x3
@@ -223,7 +229,7 @@ try_2:
 							GETERRNO(ret);
 							goto fail;
 						}
-						DEBUG_INFO("    [%s]", propansi);
+						DEBUG_INFO("PROP    [%s]", propansi);
 					}
 
 					while(wi < propbuflen && *pwptr != 0) {
@@ -509,6 +515,8 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 	char* guidstr = NULL;
 	int ccmax = 0;
 	int ret;
+	pusb_dev_t ccdev=NULL;
+	int ccdevsize=0;
 	if (freed) {
 		if (ppur && *ppur) {
 			free(*ppur);
@@ -527,6 +535,7 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 	}
 
 
+	/*
 	ret = __get_guid_dev((LPGUID)&GUID_DEVINTERFACE_USB_DEVICE, guidstr, ppur, psize);
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -534,6 +543,23 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 	}
 
 	retlen = ret;
+	*/
+
+	ret = __get_guid_str((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER,&guidstr,&ccmax);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = __get_guid_dev((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER,guidstr,&ccdev,&ccdevsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+	__get_guid_dev(NULL,NULL,&ccdev,&ccdevsize);
+
 	if (guidstr) {
 		free(guidstr);
 	}
@@ -541,6 +567,7 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 
 	return retlen;
 fail:
+	__get_guid_dev(NULL,NULL,&ccdev,&ccdevsize);
 	__get_guid_str(NULL, &guidstr, &ccmax);
 	SETERRNO(ret);
 	return ret;
