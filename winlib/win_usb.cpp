@@ -255,7 +255,7 @@ try_again:
 							GETERRNO(ret);
 							goto fail;
 						}
-						DEBUG_INFO("[%s].[%ld].[%ld] prop [%s] setvid [%d] setpid [%d]", guidstr, nindex, i, propansi,setvid,setpid);
+						//DEBUG_INFO("[%s].[%ld].[%ld] [%s].[0x%lx] prop [%s] setvid [%d] setpid [%d]", guidstr, nindex, i, fmtid, propkeys[i].pid, propansi,setvid,setpid);
 						ppcptr = propansi;
 						while (*ppcptr != '\0') {
 							if (setvid < 0) {
