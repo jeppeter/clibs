@@ -1,6 +1,7 @@
 #include <win_usb.h>
 #include <win_err.h>
 #include <win_uniansi.h>
+#include <win_hwinfo.h>
 
 #pragma warning(push)
 #pragma warning(disable:4820)
@@ -39,50 +40,6 @@ DEFINE_GUID(GUID_DEVINTERFACE_USB_HOST_CONTROLLER,
 #pragma comment(lib,"Cfgmgr32.lib")
 #pragma comment(lib,"SetupAPI.lib")
 
-int __get_guid_str(LPGUID pguid, char** ppstr, int *psize)
-{
-	wchar_t* puni = NULL;
-	int ccmax = 256;
-	int ret;
-	int retlen = 0;
-
-	if (pguid == NULL) {
-		return UnicodeToAnsi(NULL, ppstr, psize);
-	}
-
-	puni = (wchar_t*) malloc(ccmax * sizeof(wchar_t));
-	if (puni == NULL) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	ret = StringFromGUID2((*pguid), puni, ccmax);
-	if (ret == 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	ret = UnicodeToAnsi(puni, ppstr, psize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	retlen = ret;
-	if (puni) {
-		free(puni);
-	}
-	puni = NULL;
-
-	return retlen;
-fail:
-	if (puni) {
-		free(puni);
-	}
-	puni = NULL;
-	SETERRNO(ret);
-	return ret;
-}
 
 
 int __get_guid_dev(LPGUID pguid, const char* guidstr, pusb_dev_t* ppdata, int *psize,DWORD *pindex)
@@ -204,7 +161,7 @@ int __get_guid_dev(LPGUID pguid, const char* guidstr, pusb_dev_t* ppdata, int *p
 		//DEBUG_INFO("[%s].[%ld] get prop keys [%ld]", guidstr, nindex, propkeylen);
 
 		for (i = 0; i < propkeylen ; i ++) {
-			ret = __get_guid_str(&propkeys[i].fmtid, &fmtid, &ccmax);
+			ret = get_guid_str(&propkeys[i].fmtid, &fmtid, &ccmax);
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
@@ -264,7 +221,7 @@ try_2:
 		matchid = -1;
 		for (i = 0; i < propkeylen; i++) {
 			if (propkeys[i].pid == HWID_PROPERTY_PID || propkeys[i].pid == INSTID_PROPERTY_PID) {
-				ret = __get_guid_str(&(propkeys[i].fmtid), &fmtid, &ccmax);
+				ret = get_guid_str(&(propkeys[i].fmtid), &fmtid, &ccmax);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
@@ -437,7 +394,7 @@ try_again:
 	propbufsize = 0;
 	propbuflen = 0;
 
-	__get_guid_str(NULL, &fmtid, &ccmax);
+	get_guid_str(NULL, &fmtid, &ccmax);
 
 	if (propkeys) {
 		free(propkeys);
@@ -486,7 +443,7 @@ fail:
 	}
 	ptmp = NULL;
 
-	__get_guid_str(NULL, &fmtid, &ccmax);
+	get_guid_str(NULL, &fmtid, &ccmax);
 
 	if (propkeys) {
 		free(propkeys);
@@ -535,7 +492,7 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 		return 0;
 	}
 
-	ret = __get_guid_str((LPGUID)&GUID_DEVINTERFACE_USB_DEVICE, &guidstr, &ccmax);
+	ret = get_guid_str((LPGUID)&GUID_DEVINTERFACE_USB_DEVICE, &guidstr, &ccmax);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -552,7 +509,7 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 	retlen = ret;
 	*/
 
-	ret = __get_guid_str((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER,&guidstr,&ccmax);
+	ret = get_guid_str((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER,&guidstr,&ccmax);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -589,7 +546,7 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 	return retlen;
 fail:
 	__get_guid_dev(NULL,NULL,&ccdev,&ccdevsize,NULL);
-	__get_guid_str(NULL, &guidstr, &ccmax);
+	get_guid_str(NULL, &guidstr, &ccmax);
 	SETERRNO(ret);
 	return ret;
 }

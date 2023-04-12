@@ -17,11 +17,56 @@
 #pragma comment(lib,"SetupAPI.lib")
 
 
+int get_guid_str(LPGUID pguid, char** ppstr, int *psize)
+{
+	wchar_t* puni = NULL;
+	int ccmax = 256;
+	int ret;
+	int retlen = 0;
+
+	if (pguid == NULL) {
+		return UnicodeToAnsi(NULL, ppstr, psize);
+	}
+
+	puni = (wchar_t*) malloc(ccmax * sizeof(wchar_t));
+	if (puni == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = StringFromGUID2((*pguid), puni, ccmax);
+	if (ret == 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = UnicodeToAnsi(puni, ppstr, psize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	retlen = ret;
+	if (puni) {
+		free(puni);
+	}
+	puni = NULL;
+
+	return retlen;
+fail:
+	if (puni) {
+		free(puni);
+	}
+	puni = NULL;
+	SETERRNO(ret);
+	return ret;	
+}
+
 void __free_hw_prop(phw_prop_t* ppprop)
 {
 	if (ppprop && *ppprop) {
 		phw_prop_t pprop = *ppprop;
-		UnicodeToUtf8(NULL,&(pprop->m_propguid),&(pprop->m_propguidsize));
+		UnicodeToUtf8(NULL, &(pprop->m_propguid), &(pprop->m_propguidsize));
 		if (pprop->m_propbuf) {
 			free(pprop->m_propbuf);
 			pprop->m_propbuf = NULL;
@@ -39,7 +84,7 @@ void __free_hw_info(phw_info_t* ppinfo)
 		phw_info_t pinfo = *ppinfo;
 		if (pinfo->m_proparr != NULL) {
 			int i;
-			for(i=0;i<pinfo->m_propsize;i++) {
+			for (i = 0; i < pinfo->m_propsize; i++) {
 				__free_hw_prop(&(pinfo->m_proparr[i]));
 			}
 			free(pinfo->m_proparr);
@@ -62,7 +107,7 @@ phw_info_t __alloc_hw_info()
 		GETERRNO(ret);
 		goto fail;
 	}
-	memset(pinfo, 0 ,sizeof(*pinfo));
+	memset(pinfo, 0 , sizeof(*pinfo));
 	return pinfo;
 fail:
 	__free_hw_info(&pinfo);
@@ -70,41 +115,61 @@ fail:
 	return NULL;
 }
 
-int get_hw_infos(LPGUID pguid, DWORD flags,phw_info_t** pppinfos, int *psize)
+void __free_hw_infos(phw_info_t** pppinfos, int *psize)
 {
-	int retlen=0;
-	int retsize = 0;
+	phw_info_t* ppinfos = NULL;
 	int i;
+	int retsize;
+	if (pppinfos && *pppinfos) {
+		ppinfos = *pppinfos;
+		if (psize) {
+			retsize = *psize;
+			for (i = 0; i < retsize; i++) {
+				__free_hw_info(&(ppinfos[i]));
+			}
+		}
+		if (ppinfos) {
+			free(ppinfos);
+		}
+		*pppinfos = NULL;
+	}
+	if (psize) {
+		*psize = 0;
+	}
+	return;
+}
+
+int get_hw_infos(LPGUID pguid, DWORD flags, phw_info_t** pppinfos, int *psize)
+{
+	int retlen = 0;
+	int retsize = 0;
 	int ret;
-	phw_info_t* ppinfos= NULL;
+	phw_info_t* ppinfos = NULL;
 	HDEVINFO hinfo = INVALID_HANDLE_VALUE;
 
 	if (pguid == NULL) {
-		if (pppinfos && *pppinfos) {
-			ppinfos = *pppinfos;
-			if (psize) {
-				retsize = *psize;
-				for (i=0;i<retsize;i++) {
-					__free_hw_info(&(ppinfos[i]));
-				}
-			}
-			if (ppinfos) {
-				free(ppinfos);
-			}
-			*pppinfos = NULL;
-		}
-		if (psize) {
-			*psize = 0;
-		}
+		__free_hw_infos(pppinfos, psize);
 		return 0;
 	}
+
+	if (pppinfos == NULL || psize == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	/*we free*/
+	__free_hw_infos(pppinfos,psize);
+
 
 	hinfo = SetupDiGetClassDevsW(pguid, NULL, NULL, flags);
 	if (hinfo == INVALID_HANDLE_VALUE) {
 		GETERRNO(ret);
-		ERROR_INFO("can not get flags [0x%x]",flags);
+		ERROR_INFO("can not get flags [0x%x]", flags);
 		goto fail;
 	}
+
+
 
 
 	if (hinfo != INVALID_HANDLE_VALUE) {
@@ -114,6 +179,7 @@ int get_hw_infos(LPGUID pguid, DWORD flags,phw_info_t** pppinfos, int *psize)
 
 	return retlen;
 fail:
+	__free_hw_infos(&ppinfos,&retsize);
 	if (hinfo != INVALID_HANDLE_VALUE) {
 		SetupDiDestroyDeviceInfoList(hinfo);
 	}

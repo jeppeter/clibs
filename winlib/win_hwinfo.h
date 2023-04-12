@@ -31,7 +31,7 @@ extern "C" {
 #endif /* __cplusplus*/
 
 WINLIB_API int get_hw_infos(LPGUID pguid, DWORD flags,phw_info_t** pppinfos, int *psize);
-
+WINLIB_API int get_guid_str(LPGUID pguid, char** ppstr, int *psize);
 
 #ifdef __cplusplus
 };
