@@ -124,6 +124,12 @@ def init_propmaps():
     newmaps['system.pci.upperdriverinfo'] = ('83da6326-97a6-4088-9453-a1923f573b29',4)
     newmaps['system.driver.upperfile'] = ('a8b865dd-2e3d-4094-ad97-e593a70c75d6',16)
     newmaps['system.driver.upperconfig'] = ('f0e20f09-d97a-49a9-8046-bb6e22e6bb2e',2)
+    newmaps['system.devices.modelcfg'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',28672)
+    newmaps['system.devices.modelver'] = ('80d81ea6-7473-4b0c-8216-efc11a2c4c8b',3)
+    newmaps['system.driver.unknown1'] = ('a8b865dd-2e3d-4094-ad97-e593a70c75d6',17)
+    newmaps['system.usb.unknown1'] = ('c4f6821f-52d5-44c5-a674-4a07f1b60d4c',3)
+    newmaps['system.usb.unknown2'] = ('e5c2ac63-e4d6-4d35-9c5e-53e9dc6003af',1)
+    newmaps['system.usb.unknown3'] = ('80497100-8c73-48b9-aad9-ce387e19c56e',3)
 
     revmap = dict()
     for k in newmaps.keys():
@@ -512,14 +518,58 @@ def lsusbprops_handler(args,parser):
     sys.exit(0)
     return
 
+def dumpprops_handler(args,parser):
+    fileop.set_logging(args)
+    capnindexexpr = re.compile('nindex\\[([0-9]+)\\]',re.I)
+    guidgetexpr = re.compile('property\\[\\{([^\\}]+)\\}\\]\\.\\[0x([a-f0-9A-F]+)\\]',re.I)
+    propexpr = re.compile('PROP\\s+\\[([^\\]]+)\\]')
+    sb = fileop.read_file_bytes(args.input)
+    s = sb.decode('utf-8')
+    sarr = re.split('\n',s)
+    searchstart = False
+    curidx = -1
+    valsdict = dict()
+    props = []
+    lidx = 0
+    for l in sarr:
+        l = l.rstrip('\r')
+        if not searchstart:
+            searchstart, curpropguid,curpropidx,curidx,props = start_search(l,[],guidgetexpr,capnindexexpr,props)
+        else:
+            # for searchstart
+            m = propexpr.findall(l)
+            if m is not None and len(m) > 0:
+                logging.info('append [%s]'%(m[0]))
+                props.append(m[0])
+            else:
+                m = capnindexexpr.findall(l)
+                if m is not None and len(m) > 0:
+                    # now to finish
+                    mapk = '%d'%(curidx)
+                    if mapk not in valsdict.keys():
+                        valsdict[mapk] = dict()
+                    name = get_name(curpropguid,curpropidx)
+                    logging.info('[%d] set [%s].[%s] = %s'%(lidx,mapk,name,props))
+                    valsdict[mapk][name] = props
+                    props = []
+                    searchstart, curpropguid,curpropidx,curidx,props = start_search(l,[],guidgetexpr,capnindexexpr,props)
+    outs = json.dumps(valsdict,indent=4)
+    fileop.write_file(outs,args.output)
+    sys.exit(0)
+    return
+
 
 def main():
     commandline='''
     {
         "input|i" : null,
         "output|o" : null,
+        "props|P" : [],
         "usblist<usblist_handler>##propguid idx ... to filter usb property##" : {
             "$" : "+"
+        },
+        "dumpprops<dumpprops_handler>##to dump props in output##" : {
+            "$" : 0
         },
         "usbprop<usbprop_handler>##usbindex [propguid] [idx] ... to list usb values##" : {
             "$" : "+"
@@ -529,7 +579,7 @@ def main():
         },
         "fromtxtprop<fromtxtprop_handler>##to format newtypes from txt##" : {
             "$" : 0
-        },
+        },        
         "lsusbprops<lsusbprops_handler>##names ... to filter all names##" : {
             "$" : "+"
         }
