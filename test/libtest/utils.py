@@ -130,6 +130,79 @@ def init_propmaps():
     newmaps['system.usb.unknown1'] = ('c4f6821f-52d5-44c5-a674-4a07f1b60d4c',3)
     newmaps['system.usb.unknown2'] = ('e5c2ac63-e4d6-4d35-9c5e-53e9dc6003af',1)
     newmaps['system.usb.unknown3'] = ('80497100-8c73-48b9-aad9-ce387e19c56e',3)
+    newmaps['system.unknown.unknown1'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',10)
+    newmaps['system.unknown.unknown2'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',11)
+    newmaps['system.unknown.unknown3'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',12)
+    newmaps['system.unknown.unknown4'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',13)
+    newmaps['system.unknown.unknown5'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',15)
+    newmaps['system.unknown.unknown6'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',17)
+    newmaps['system.unknown.unknown7'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',6)
+    newmaps['system.unknown.unknown8'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',7)
+    newmaps['system.unknown.unknown9'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',8)
+    newmaps['system.unknown.unknown10'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',9)
+    newmaps['system.unknown.unknown11'] = ('5724c81d-d5af-4c1f-a103-a06e28f204c6',1)
+    newmaps['system.unknown.unknown12'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',12288)
+    newmaps['system.unknown.unknown13'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',12289)
+    newmaps['system.unknown.unknown14'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',12290)
+    newmaps['system.unknown.unknown15'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',12292)
+    newmaps['system.unknown.unknown16'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',12294)
+    newmaps['system.unknown.unknown17'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',12295)
+    newmaps['system.unknown.unknown18'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',12296)
+    newmaps['system.unknown.unknown19'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',12297)
+    newmaps['system.unknown.unknown20'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',16384)
+    newmaps['system.unknown.unknown21'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',16385)
+    newmaps['system.unknown.unknown22'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',16386)
+    newmaps['system.unknown.unknown23'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',24577)
+    newmaps['system.unknown.unknown24'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',24578)
+    newmaps['system.unknown.unknown25'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',28673)
+    newmaps['system.unknown.unknown26'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',28674)
+    newmaps['system.unknown.unknown27'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',28688)
+    newmaps['system.unknown.unknown28'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',4096)
+    newmaps['system.unknown.unknown29'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',4097)
+    newmaps['system.unknown.unknown30'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',4099)
+    newmaps['system.unknown.unknown31'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',4100)
+    newmaps['system.unknown.unknown32'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',4101)
+    newmaps['system.unknown.unknown33'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',4103)
+    newmaps['system.unknown.unknown34'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',8192)
+    newmaps['system.unknown.unknown35'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',8193)
+    newmaps['system.unknown.unknown36'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',8196)
+    newmaps['system.unknown.unknown37'] = ('656a3bb3-ecc0-43fd-8477-4ae0404a96cd',8198)
+    newmaps['system.unknown.unknown38'] = ('78c34fc8-104a-4aca-9ea4-524d52996e57',52)
+    newmaps['system.unknown.unknown39'] = ('78c34fc8-104a-4aca-9ea4-524d52996e57',56)
+    newmaps['system.unknown.unknown40'] = ('78c34fc8-104a-4aca-9ea4-524d52996e57',85)
+    newmaps['system.unknown.unknown41'] = ('78c34fc8-104a-4aca-9ea4-524d52996e57',88)
+    newmaps['system.unknown.unknown42'] = ('78c34fc8-104a-4aca-9ea4-524d52996e57',90)
+    newmaps['system.unknown.unknown43'] = ('78c34fc8-104a-4aca-9ea4-524d52996e57',98)
+    newmaps['system.unknown.unknown44'] = ('80497100-8c73-48b9-aad9-ce387e19c56e',2)
+    newmaps['system.unknown.unknown45'] = ('80d81ea6-7473-4b0c-8216-efc11a2c4c8b',4)
+    newmaps['system.unknown.unknown46'] = ('83da6326-97a6-4088-9453-a1923f573b29',7)
+    newmaps['system.unknown.unknown47'] = ('83da6326-97a6-4088-9453-a1923f573b29',8)
+    newmaps['system.unknown.unknown48'] = ('a8b865dd-2e3d-4094-ad97-e593a70c75d6',18)
+    newmaps['system.unknown.unknown49'] = ('a8b865dd-2e3d-4094-ad97-e593a70c75d6',19)
+    newmaps['system.unknown.unknown50'] = ('b3f8fa53-0004-438e-9003-51a46e139bfc',7)
+    newmaps['system.unknown.unknown51'] = ('cf73bb51-3abf-44a2-85e0-9a3dc7a12132',3)
+    newmaps['system.unknown.unknown52'] = ('cf73bb51-3abf-44a2-85e0-9a3dc7a12132',7)
+    newmaps['system.unknown.unknown53'] = ('d1885396-39d8-4777-bcff-5e3241483416',0)
+    newmaps['system.unknown.unknown54'] = ('d817fc28-793e-4b9e-9970-469d8be63073',1)
+    newmaps['system.unknown.unknown55'] = ('d817fc28-793e-4b9e-9970-469d8be63073',10)
+    newmaps['system.unknown.unknown56'] = ('d817fc28-793e-4b9e-9970-469d8be63073',11)
+    newmaps['system.unknown.unknown57'] = ('d817fc28-793e-4b9e-9970-469d8be63073',12)
+    newmaps['system.unknown.unknown58'] = ('d817fc28-793e-4b9e-9970-469d8be63073',13)
+    newmaps['system.unknown.unknown59'] = ('d817fc28-793e-4b9e-9970-469d8be63073',14)
+    newmaps['system.unknown.unknown60'] = ('d817fc28-793e-4b9e-9970-469d8be63073',15)
+    newmaps['system.unknown.unknown61'] = ('d817fc28-793e-4b9e-9970-469d8be63073',16)
+    newmaps['system.unknown.unknown62'] = ('d817fc28-793e-4b9e-9970-469d8be63073',17)
+    newmaps['system.unknown.unknown63'] = ('d817fc28-793e-4b9e-9970-469d8be63073',18)
+    newmaps['system.unknown.unknown64'] = ('d817fc28-793e-4b9e-9970-469d8be63073',6)
+    newmaps['system.unknown.unknown65'] = ('d817fc28-793e-4b9e-9970-469d8be63073',7)
+    newmaps['system.unknown.unknown66'] = ('d817fc28-793e-4b9e-9970-469d8be63073',8)
+    newmaps['system.unknown.unknown67'] = ('d817fc28-793e-4b9e-9970-469d8be63073',9)
+    newmaps['system.unknown.unknown68'] = ('f01fac5d-e5f6-485f-a8c6-27446425998c',2)
+    newmaps['system.unknown.unknown69'] = ('f01fac5d-e5f6-485f-a8c6-27446425998c',3)
+    newmaps['system.unknown.unknown70'] = ('f01fac5d-e5f6-485f-a8c6-27446425998c',5)
+    newmaps['system.unknown.unknown71'] = ('f3e80bef-1723-4ff2-bcc4-7f83dc5e46d4',1)
+    newmaps['system.unknown.unknown72'] = ('f3e80bef-1723-4ff2-bcc4-7f83dc5e46d4',2)
+
 
     revmap = dict()
     for k in newmaps.keys():
@@ -535,6 +608,17 @@ def dumpprops_handler(args,parser):
         l = l.rstrip('\r')
         if not searchstart:
             searchstart, curpropguid,curpropidx,curidx,props = start_search(l,[],guidgetexpr,capnindexexpr,props)
+            if searchstart:
+                try:
+                    name = get_name(curpropguid,curpropidx)
+                except:
+                    #logging.error('%s %d'%(curpropguid.lower(),curpropidx))
+                    sys.stderr.write('%s %d\n'%(curpropguid.lower(),curpropidx))
+                    searchstart = False
+                    curpropguid = None
+                    curpropidx = -1
+                    curidx = -1
+                    props = []
         else:
             # for searchstart
             m = propexpr.findall(l)
@@ -548,13 +632,35 @@ def dumpprops_handler(args,parser):
                     mapk = '%d'%(curidx)
                     if mapk not in valsdict.keys():
                         valsdict[mapk] = dict()
-                    name = get_name(curpropguid,curpropidx)
-                    logging.info('[%d] set [%s].[%s] = %s'%(lidx,mapk,name,props))
-                    valsdict[mapk][name] = props
+                    try:
+                        name = get_name(curpropguid,curpropidx)
+                        logging.info('[%d] set [%s].[%s] = %s'%(lidx,mapk,name,props))
+                        valsdict[mapk][name] = props
+                    except:
+                        #logging.error('%s %d'%(curpropguid.lower(),curpropidx))
+                        sys.stderr.write('%s %d\n'%(curpropguid.lower(),curpropidx))
                     props = []
                     searchstart, curpropguid,curpropidx,curidx,props = start_search(l,[],guidgetexpr,capnindexexpr,props)
     outs = json.dumps(valsdict,indent=4)
     fileop.write_file(outs,args.output)
+    sys.exit(0)
+    return
+
+def appendunknown_handler(args,parser):
+    fileop.set_logging(args)
+    sb = fileop.read_file_bytes(args.input)
+    s = sb.decode('utf-8')
+    sarr = re.split('\n',s)
+    lidx = 0
+    outs = ''
+    for l in sarr:
+        l = l.rstrip('\r')
+        if len(l) > 0:
+            lidx += 1
+            l += ' system.unknown.unknown%d'%(lidx)
+            outs += '%s\n'%(l)
+    fileop.write_file(outs,args.output)
+
     sys.exit(0)
     return
 
@@ -582,6 +688,9 @@ def main():
         },        
         "lsusbprops<lsusbprops_handler>##names ... to filter all names##" : {
             "$" : "+"
+        },
+        "appendunknown<appendunknown_handler>##to append unknown##" : {
+            "$" : 0
         }
     }
     '''
