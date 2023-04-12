@@ -523,71 +523,55 @@ def start_search(l,guidexprs,guidgetexpr,capnindexexpr,props):
 
 def lsusbprops_handler(args,parser):
     fileop.set_logging(args)
-    guidexprs = []
-    matchguids = []
-    matchpropidx = []
-    cidx = 0
-    while cidx < len(args.subnargs):
-        nameset = False
-        try:
-            guidstr, propidx = get_guid_idx(args.subnargs[cidx].lower())
-            nameset = True
-            cidx += 1
-        except:
-            pass
-        if not nameset:
-            guidstr = args.subnargs[cidx].lower()
-            propidx = fileop.parse_int(args.subnargs[cidx + 1])
-            cidx += 2
-
-        exprstr = '.*property\\[\\{%s\\}\\]\\.\\[0x%x\\].*'%(guidstr,propidx)
-        logging.info('guidstr [%s] exprstr[%s]'%(guidstr,exprstr))
-        curexpr = re.compile(exprstr,re.I)
-        guidexprs.append(curexpr)
-        matchguids.append(guidstr)
-        matchpropidx.append(propidx)
-    capnindexexpr = re.compile('nindex\\[([0-9]+)\\]',re.I)
-    guidgetexpr = re.compile('property\\[\\{([^\\}]+)\\}\\]\\.\\[0x([a-f0-9A-F]+)\\]',re.I)
-    propexpr = re.compile('PROP\\s+\\[([^\\]]+)\\]')
-
+    kindexs = []
+    for k in args.subnargs:
+        kindexs.append(fileop.parse_int(k))
     sb = fileop.read_file_bytes(args.input)
     s = sb.decode('utf-8')
-    sarr = re.split('\n',s)
-    searchstart = False
-    curidx = -1
-    valsdict = dict()
-    props = []
-    lidx = 0
-    for l in sarr:
-        lidx += 1
-        l = l.rstrip('\r')
-        if not searchstart :
-            searchstart,curpropguid,curpropidx,curidx,props = start_search(l,guidexprs,guidgetexpr,capnindexexpr,props)
-        else:
-            # for searchstart
-            m = propexpr.findall(l)
-            if m is not None and len(m) > 0:
-                logging.info('append [%s]'%(m[0]))
-                props.append(m[0])
+    valsdict = json.loads(s)
+    guids = []
+    for k in args.props:
+        guids.append(k)
+
+
+    outs = ''
+    if len(kindexs) > 0:
+        for k in kindexs:
+            ks = '%d'%(k)
+            if ks in valsdict.keys():
+                vmap = valsdict[ks]
+                outval = False
+                if len(guids) > 0:
+                    for kv in guids:
+                        if kv  in vmap.keys():
+                            if not outval:
+                                outs += format_line(0,'%s variables'%(ks))
+                                outval = True
+                            outs += format_line(1,'%s=%s'%(kv,vmap[kv]))
+                else:
+                    for kv in vmap.keys():
+                        if not outval:
+                            outs += format_line(0,'%s variables'%(ks))
+                            outval = True
+                        outs += format_line(1,'%s=%s'%(kv,vmap[kv]))
+    else:
+        for ks in valsdict.keys():
+            vmap = valsdict[ks]
+            outval = False
+            if len(guids) > 0:
+                for kv in guids:
+                    if kv  in vmap.keys():
+                        if not outval:
+                            outs += format_line(0,'%s variables'%(ks))
+                            outval = True
+                        outs += format_line(1,'%s=%s'%(kv,vmap[kv]))
             else:
-                m = capnindexexpr.findall(l)
-                if m is not None and len(m) > 0:
-                    # now to finish
-                    mapk = '%d'%(curidx)
-                    if mapk not in valsdict.keys():
-                        valsdict[mapk] = dict()
-                    name = get_name(curpropguid,curpropidx)
-                    logging.info('[%d] set [%s].[%s] = %s'%(lidx,mapk,name,props))
-                    valsdict[mapk][name] = props
-                    props = []                
-                    searchstart, curpropguid,curpropidx,curidx,props = start_search(l,guidexprs,guidgetexpr,capnindexexpr,props)
-        outs = ''
-        for k in valsdict.keys():
-            cv  = valsdict[k]
-            outs += format_line(0,'%s device'%(k))
-            for k2 in cv.keys():
-                outs += format_line(1,'%s=%s'%(k2,cv[k2]))
-        fileop.write_file(outs,args.output)
+                for kv in vmap.keys():
+                    if not outval:
+                        outs += format_line(0,'%s variables'%(ks))
+                        outval = True
+                    outs += format_line(1,'%s=%s'%(kv,vmap[kv]))
+    fileop.write_file(outs,args.output)
     sys.exit(0)
     return
 
@@ -687,7 +671,7 @@ def main():
             "$" : 0
         },        
         "lsusbprops<lsusbprops_handler>##names ... to filter all names##" : {
-            "$" : "+"
+            "$" : "*"
         },
         "appendunknown<appendunknown_handler>##to append unknown##" : {
             "$" : 0
