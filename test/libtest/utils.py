@@ -14,101 +14,117 @@ import fileop
 
 def init_propmaps():
     newmaps = dict()
-    newmaps['System.Devices.ModelId'] = ( '80D81EA6-7473-4B0C-8216-EFC11A2C4C8B',2 )
-    newmaps['System.Devices.ModelName'] = ( '656A3BB3-ECC0-43FD-8477-4AE0404A96CD',8194 )
-    newmaps['System.Devices.ModelNumber'] = ( '656A3BB3-ECC0-43FD-8477-4AE0404A96CD',8195 )
-    newmaps['System.Devices.FriendlyName'] = ( '656A3BB3-ECC0-43FD-8477-4AE0404A96CD',12288 )
-    newmaps['System.ItemNameDisplay'] = ( 'B725F130-47EF-101A-A5F1-02608C9EEBAC',10 )
-    newmaps['System.Devices.DevNodeStatus'] = ( '4340A6C5-93FA-4706-972C-7B648008A5A7',2 )
-    newmaps['System.Devices.ProblemCode'] = ( '4340A6C5-93FA-4706-972C-7B648008A5A7',3 )
-    newmaps['System.Devices.EjectionRelations'] = ( '4340A6C5-93FA-4706-972C-7B648008A5A7',4 )
-    newmaps['System.Devices.RemovalRelations'] = ( '4340A6C5-93FA-4706-972C-7B648008A5A7',5 )
-    newmaps['System.Devices.PowerRelations'] = ( '4340A6C5-93FA-4706-972C-7B648008A5A7',6 )
-    newmaps['System.Devices.BusRelations'] = ( '4340A6C5-93FA-4706-972C-7B648008A5A7',7 )
-    newmaps['System.Devices.Parent'] = ( '4340A6C5-93FA-4706-972C-7B648008A5A7',8 )
-    newmaps['System.Devices.Children'] = ( '4340A6C5-93FA-4706-972C-7B648008A5A7',9 )
-    newmaps['System.Devices.Siblings'] = ( '4340A6C5-93FA-4706-972C-7B648008A5A7',10 )
-    newmaps['System.Devices.TransportRelations'] = ( '4340A6C5-93FA-4706-972C-7B648008A5A7',11 )
-    newmaps['System.Devices.NetworkName'] = ( '49CD1F76-5626-4B17-A4E8-18B4AA1A2213',7 )
-    newmaps['System.Devices.NetworkType'] = ( '49CD1F76-5626-4B17-A4E8-18B4AA1A2213',8 )
-    newmaps['System.Devices.Model'] = ( '78C34FC8-104A-4ACA-9EA4-524D52996E57',39 )
-    newmaps['System.Devices.InstanceId'] = ( '78C34FC8-104A-4ACA-9EA4-524D52996E57',256 )
-    newmaps['System.Devices.Description'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',2 )
-    newmaps['System.Devices.HardwareIds'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',3 )
-    newmaps['System.Devices.CompatibleIds'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',4 )
-    newmaps['System.Devices.Service'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',6 )
-    newmaps['System.Devices.Class'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',9 )
-    newmaps['System.Devices.ClassGuid'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',10 )
-    newmaps['System.Devices.Driver'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',11 )
-    newmaps['System.Devices.ConfigFlags'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',12 )
-    newmaps['System.Devices.Manufacturer'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',13 )
-    newmaps['System.Devices.FriendlyName'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',14 )
-    newmaps['System.Devices.LocationInfo'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',15 )
-    newmaps['System.Devices.PDOName'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',16 )
-    newmaps['System.Devices.Capabilities'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',17 )
-    newmaps['System.Devices.UINumber'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',18 )
-    newmaps['System.Devices.UpperFilters'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',19 )
-    newmaps['System.Devices.LowerFilters'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',20 )
-    newmaps['System.Devices.BusTypeGuid'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',21 )
-    newmaps['System.Devices.LegacyBusType'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',22 )
-    newmaps['System.Devices.BusNumber'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',23 )
-    newmaps['System.Devices.EnumeratorName'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',24 )
-    newmaps['System.Devices.Security'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',25 )
-    newmaps['System.Devices.SecuritySDS'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',26 )
-    newmaps['System.Devices.DevType'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',27 )
-    newmaps['System.Devices.Exclusive'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',28 )
-    newmaps['System.Devices.Characteristics'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',29 )
-    newmaps['System.Devices.Address'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',30 )
-    newmaps['System.Devices.UINumberDescFormat'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',31 )
-    newmaps['System.Devices.PowerData'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',32 )
-    newmaps['System.Devices.RemovalPolicy'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',33 )
-    newmaps['System.Devices.RemovalPolicyDefault'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',34 )
-    newmaps['System.Devices.RemovalPolicyOverride'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',35 )
-    newmaps['System.Devices.InstallState'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',36 )
-    newmaps['System.Devices.LocationPaths'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',37 )
-    newmaps['System.Devices.BaseContainerId'] = ( 'A45C254E-DF1C-4EFD-8020-67D146A850E0',38 )
-    newmaps['System.Drivers.AssemblyDate'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',2 )
-    newmaps['System.Drivers.Version'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',3 )
-    newmaps['System.Drivers.Description'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',4 )
-    newmaps['System.Drivers.InfPath'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',5 )
-    newmaps['System.Drivers.InfSection'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',6 )
-    newmaps['System.Drivers.InfSectionExt'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',7 )
-    newmaps['System.Drivers.MatchingDeviceId'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',8 )
-    newmaps['System.Drivers.Provider'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',9 )
-    newmaps['System.Drivers.PropPageProvider'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',10 )
-    newmaps['System.Drivers.CoInstallers'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',11 )
-    newmaps['System.Drivers.ResourcePickerTags'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',12 )
-    newmaps['System.Drivers.ResourcePickerExceptions'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',13 )
-    newmaps['System.Drivers.Rank'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',14 )
-    newmaps['System.Drivers.LogoLevel'] = ( 'A8B865DD-2E3D-4094-AD97-E593A70C75D6',15 )
-    newmaps['System.Devices.NumaProximityDomain'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',2 )
-    newmaps['System.Devices.DHPRebalancePolicy'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',3 )
-    newmaps['System.Devices.NumaNode'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',4 )
-    newmaps['System.Devices.BusReportedDeviceDesc'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',5 )
-    newmaps['System.Devices.IsPresent'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',5 )
-    newmaps['System.Devices.HasProblem'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',6 )
-    newmaps['System.Devices.ConfigurationId'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',7 )
-    newmaps['System.Devices.ReportedDeviceIdsHash'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',8 )
-    newmaps['System.Devices.PhysicalDeviceLocation'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',9 )
-    newmaps['System.Devices.BiosDeviceName'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',10 )
-    newmaps['System.Devices.DriverProblemDesc'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',11 )
-    newmaps['System.Devices.DebuggerSafe'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',12 )
-    newmaps['System.Devices.PostInstallInProgress'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',13 )
-    newmaps['System.Devices.Stack'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',14 )
-    newmaps['System.Devices.ExtendedConfigurationIds'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',15 )
-    newmaps['System.Devices.IsRebootRequired'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',16 )
-    newmaps['System.Devices.FirmwareDate'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',17 )
-    newmaps['System.Devices.FirmwareVersion'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',18 )
-    newmaps['System.Devices.FirmwareRevision'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',19 )
-    newmaps['System.Devices.DependencyProviders'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',20 )
-    newmaps['System.Devices.DependencyDependents'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',21 )
-    newmaps['System.Devices.SoftRestartSupported'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',22 )
-    newmaps['System.Devices.ExtendedAddress'] = ( '540B947E-8B40-45BC-A8A2-6A0B894CBDA2',23 )
-    newmaps['System.Devices.SessionId'] = ( '83DA6326-97A6-4088-9453-A1923F573B29',6 )
-    newmaps['System.Devices.InstallDate'] = ( '83DA6326-97A6-4088-9453-A1923F573B29',100 )
-    newmaps['System.Devices.FirstInstallDate'] = ( '83DA6326-97A6-4088-9453-A1923F573B29',101 )
-    newmaps['System.Devices.LastArrivalDate'] = ( '83DA6326-97A6-4088-9453-A1923F573B29',102 )
-    newmaps['System.Devices.LastRemovalDate'] = ( '83DA6326-97A6-4088-9453-A1923F573B29',103 )
+    newmaps['system.devices.modelid'] = ( '80d81ea6-7473-4b0c-8216-efc11a2c4c8b',2 )
+    newmaps['system.devices.modelname'] = ( '656a3bb3-ecc0-43fd-8477-4ae0404a96cd',8194 )
+    newmaps['system.devices.modelnumber'] = ( '656a3bb3-ecc0-43fd-8477-4ae0404a96cd',8195 )
+    newmaps['system.devices.friendlyname'] = ( '656a3bb3-ecc0-43fd-8477-4ae0404a96cd',12288 )
+    newmaps['system.itemnamedisplay'] = ( 'b725f130-47ef-101a-a5f1-02608c9eebac',10 )
+    newmaps['system.devices.devnodestatus'] = ( '4340a6c5-93fa-4706-972c-7b648008a5a7',2 )
+    newmaps['system.devices.problemcode'] = ( '4340a6c5-93fa-4706-972c-7b648008a5a7',3 )
+    newmaps['system.devices.ejectionrelations'] = ( '4340a6c5-93fa-4706-972c-7b648008a5a7',4 )
+    newmaps['system.devices.removalrelations'] = ( '4340a6c5-93fa-4706-972c-7b648008a5a7',5 )
+    newmaps['system.devices.powerrelations'] = ( '4340a6c5-93fa-4706-972c-7b648008a5a7',6 )
+    newmaps['system.devices.busrelations'] = ( '4340a6c5-93fa-4706-972c-7b648008a5a7',7 )
+    newmaps['system.devices.parent'] = ( '4340a6c5-93fa-4706-972c-7b648008a5a7',8 )
+    newmaps['system.devices.children'] = ( '4340a6c5-93fa-4706-972c-7b648008a5a7',9 )
+    newmaps['system.devices.siblings'] = ( '4340a6c5-93fa-4706-972c-7b648008a5a7',10 )
+    newmaps['system.devices.transportrelations'] = ( '4340a6c5-93fa-4706-972c-7b648008a5a7',11 )
+    newmaps['system.devices.networkname'] = ( '49cd1f76-5626-4b17-a4e8-18b4aa1a2213',7 )
+    newmaps['system.devices.networktype'] = ( '49cd1f76-5626-4b17-a4e8-18b4aa1a2213',8 )
+    newmaps['system.devices.model'] = ( '78c34fc8-104a-4aca-9ea4-524d52996e57',39 )
+    newmaps['system.devices.instanceid'] = ( '78c34fc8-104a-4aca-9ea4-524d52996e57',256 )
+    newmaps['system.devices.description'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',2 )
+    newmaps['system.devices.hardwareids'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',3 )
+    newmaps['system.devices.compatibleids'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',4 )
+    newmaps['system.devices.service'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',6 )
+    newmaps['system.devices.class'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',9 )
+    newmaps['system.devices.classguid'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',10 )
+    newmaps['system.devices.driver'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',11 )
+    newmaps['system.devices.configflags'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',12 )
+    newmaps['system.devices.manufacturer'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',13 )
+    newmaps['system.devices.friendlyname'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',14 )
+    newmaps['system.devices.locationinfo'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',15 )
+    newmaps['system.devices.pdoname'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',16 )
+    newmaps['system.devices.capabilities'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',17 )
+    newmaps['system.devices.uinumber'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',18 )
+    newmaps['system.devices.upperfilters'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',19 )
+    newmaps['system.devices.lowerfilters'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',20 )
+    newmaps['system.devices.bustypeguid'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',21 )
+    newmaps['system.devices.legacybustype'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',22 )
+    newmaps['system.devices.busnumber'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',23 )
+    newmaps['system.devices.enumeratorname'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',24 )
+    newmaps['system.devices.security'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',25 )
+    newmaps['system.devices.securitysds'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',26 )
+    newmaps['system.devices.devtype'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',27 )
+    newmaps['system.devices.exclusive'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',28 )
+    newmaps['system.devices.characteristics'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',29 )
+    newmaps['system.devices.address'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',30 )
+    newmaps['system.devices.uinumberdescformat'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',31 )
+    newmaps['system.devices.powerdata'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',32 )
+    newmaps['system.devices.removalpolicy'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',33 )
+    newmaps['system.devices.removalpolicydefault'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',34 )
+    newmaps['system.devices.removalpolicyoverride'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',35 )
+    newmaps['system.devices.installstate'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',36 )
+    newmaps['system.devices.locationpaths'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',37 )
+    newmaps['system.devices.basecontainerid'] = ( 'a45c254e-df1c-4efd-8020-67d146a850e0',38 )
+    newmaps['system.drivers.assemblydate'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',2 )
+    newmaps['system.drivers.version'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',3 )
+    newmaps['system.drivers.description'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',4 )
+    newmaps['system.drivers.infpath'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',5 )
+    newmaps['system.drivers.infsection'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',6 )
+    newmaps['system.drivers.infsectionext'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',7 )
+    newmaps['system.drivers.matchingdeviceid'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',8 )
+    newmaps['system.drivers.provider'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',9 )
+    newmaps['system.drivers.proppageprovider'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',10 )
+    newmaps['system.drivers.coinstallers'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',11 )
+    newmaps['system.drivers.resourcepickertags'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',12 )
+    newmaps['system.drivers.resourcepickerexceptions'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',13 )
+    newmaps['system.drivers.rank'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',14 )
+    newmaps['system.drivers.logolevel'] = ( 'a8b865dd-2e3d-4094-ad97-e593a70c75d6',15 )
+    newmaps['system.devices.numaproximitydomain'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',2 )
+    newmaps['system.devices.dhprebalancepolicy'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',3 )
+    newmaps['system.devices.numanode'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',4 )
+    newmaps['system.devices.busreporteddevicedesc'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',5 )
+    newmaps['system.devices.ispresent'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',5 )
+    newmaps['system.devices.hasproblem'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',6 )
+    newmaps['system.devices.configurationid'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',7 )
+    newmaps['system.devices.reporteddeviceidshash'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',8 )
+    newmaps['system.devices.physicaldevicelocation'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',9 )
+    newmaps['system.devices.biosdevicename'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',10 )
+    newmaps['system.devices.driverproblemdesc'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',11 )
+    newmaps['system.devices.debuggersafe'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',12 )
+    newmaps['system.devices.postinstallinprogress'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',13 )
+    newmaps['system.devices.stack'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',14 )
+    newmaps['system.devices.extendedconfigurationids'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',15 )
+    newmaps['system.devices.isrebootrequired'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',16 )
+    newmaps['system.devices.firmwaredate'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',17 )
+    newmaps['system.devices.firmwareversion'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',18 )
+    newmaps['system.devices.firmwarerevision'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',19 )
+    newmaps['system.devices.dependencyproviders'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',20 )
+    newmaps['system.devices.dependencydependents'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',21 )
+    newmaps['system.devices.softrestartsupported'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',22 )
+    newmaps['system.devices.extendedaddress'] = ( '540b947e-8b40-45bc-a8a2-6a0b894cbda2',23 )
+    newmaps['system.devices.sessionid'] = ( '83da6326-97a6-4088-9453-a1923f573b29',6 )
+    newmaps['system.devices.installdate'] = ( '83da6326-97a6-4088-9453-a1923f573b29',100 )
+    newmaps['system.devices.firstinstalldate'] = ( '83da6326-97a6-4088-9453-a1923f573b29',101 )
+    newmaps['system.devices.lastarrivaldate'] = ( '83da6326-97a6-4088-9453-a1923f573b29',102 )
+    newmaps['system.devices.lastremovaldate'] = ( '83da6326-97a6-4088-9453-a1923f573b29',103 )
+    newmaps['system.devices.containerid'] = ('8c7ed206-3f8a-4827-b3ab-ae9e1faefc6c',2)
+    newmaps['system.devices.saferemovalrequired'] = ('afd97640-86a3-4210-b67c-289c41aabe55',2)
+
+    newmaps['system.pci.devicetype'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',1)
+    newmaps['system.pci.currentspeedandmode'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',2)
+    newmaps['system.pci.baseclass'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',3)
+    newmaps['system.pci.subclass'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',4)
+    newmaps['system.pci.progif'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',5)
+    newmaps['system.pci.interruptsupport'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',14)
+    newmaps['system.pci.bartypes'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',16)
+    newmaps['system.pci.s0wakeupsupported'] = ('3ab22e31-8264-4b4e-9af5-a8d2d8e33e62',25)
+    newmaps['system.pci.driverinfo'] = ('83da6326-97a6-4088-9453-a1923f573b29',3)
+    newmaps['system.pci.upperdriverinfo'] = ('83da6326-97a6-4088-9453-a1923f573b29',4)
+    newmaps['system.driver.upperfile'] = ('a8b865dd-2e3d-4094-ad97-e593a70c75d6',16)
+    newmaps['system.driver.upperconfig'] = ('f0e20f09-d97a-49a9-8046-bb6e22e6bb2e',2)
+
     revmap = dict()
     for k in newmaps.keys():
         nk = '%s %d'%(newmaps[k][0],newmaps[k][1])
@@ -120,13 +136,14 @@ PROP_MAPS,REV_PROP_MAPS = init_propmaps()
 
 def get_guid_idx(name):
     global PROP_MAPS
-
+    name = name.lower()
     if name in PROP_MAPS.keys():
         return PROP_MAPS[name][0],PROP_MAPS[name][1]
     raise Exception('not accept [%s]'%(name))
 
 def get_name(guid,idx):
     global REV_PROP_MAPS
+    guid = guid.lower()    
     nk = '%s %d'%(guid,idx)
     if nk in REV_PROP_MAPS.keys():
         return REV_PROP_MAPS[nk]
@@ -278,6 +295,7 @@ def usbprop_handler(args,parser):
         nameset = False
         try:
             guidstr, indx = get_guid_idx(args.subnargs[cidx])
+            nameset = True
             cidx += 1
         except:
             pass
@@ -290,7 +308,7 @@ def usbprop_handler(args,parser):
         guidexpr = re.compile(exprstr,re.I)
         guidpropexprs.append(guidexpr)
     guidgetexpr = re.compile('property\\[\\{([^\\}]+)\\}\\]\\.\\[0x([a-f0-9A-F]+)\\]',re.I)
-    propexpr = re.compile('PROP\\s+\\[([^\\]]+)\\]',re.I)
+    propexpr = re.compile('PROP\\s+\\[([^\\]]+)\\]')
     sb = fileop.read_file_bytes(args.input)
     s = sb.decode('utf-8')
     sarr = re.split('\n',s)
@@ -333,8 +351,10 @@ def usbprop_handler(args,parser):
                         searchstart = True
                         curvals = []
                         curpropguid, curpropidx = get_guid_prop_value(l,guidgetexpr)
+    outs = ''
     for k in dictmap.keys():
-        sys.stdout.write('%s=%s\n'%(k,dictmap[k]))
+        outs += '%s=%s\n'%(k,dictmap[k])
+    fileop.write_file(outs,args.output)
     sys.exit(0)
 
 def format_line(tab , l):
@@ -344,7 +364,7 @@ def format_line(tab , l):
     rets += '%s\n'%(l)
     return rets
 
-def formatprop_handler(args,parser):
+def fromgoprop_handler(args,parser):
     fileop.set_logging(args)
     sb = fileop.read_file_bytes(args.input)
     s = sb.decode('utf-8')
@@ -359,7 +379,7 @@ def formatprop_handler(args,parser):
             propguid = m[0][0]
             propidx = fileop.parse_int(m[0][1])
             propname = m[0][2]
-            outs += format_line(1,'newmaps[\'%s\'] = ( \'%s\',%d )'%(propname.lowercase(),propguid.lowercase(),propidx))
+            outs += format_line(1,'newmaps[\'%s\'] = ( \'%s\',%d )'%(propname.lower(),propguid.lower(),propidx))
 
     outs += format_line(1,'revmap = dict()')
     outs += format_line(1,'for k in newmaps.keys():')
@@ -370,6 +390,128 @@ def formatprop_handler(args,parser):
             
     sys.exit(0)
     return
+
+def fromtxtprop_handler(args,parser):
+    fileop.set_logging(args)
+    sb = fileop.read_file_bytes(args.input)
+    s = sb.decode('utf-8')
+    sarr = re.split('\n',s)
+    outs = ''
+    for l in sarr:
+        l = l.rstrip('\r')
+        carr = re.split('\\s+',l)
+        if len(carr) >= 3:
+            guidstr = carr[0].lower()
+            propidx = fileop.parse_int(carr[1])
+            propname = carr[2].lower()
+            outs += format_line(1,'newmaps[\'%s\'] = (\'%s\',%d)'%(propname,guidstr,propidx))
+    fileop.write_file(outs,args.output)
+    sys.exit(0)
+    return
+
+def start_search(l,guidexprs,guidgetexpr,capnindexexpr,props):
+    searchstart = False
+    curidx = -1
+    curpropguid = None
+    curpropidx = -1
+    if len(guidexprs) > 0:
+        sidx = 0
+        while sidx < len(guidexprs):
+            curexpr = guidexprs[sidx]
+            if curexpr.match(l):
+                m = capnindexexpr.findall(l)
+                if m is not None and len(m) > 0:
+                    curidx = int(m[0])
+                    searchstart = True
+                    m2 = guidgetexpr.findall(l)
+                    assert(m2 is not None)
+                    curpropguid = m2[0][0].lower()
+                    curpropidx = int(m2[0][1],16)
+                    props = []
+                    break
+            sidx += 1
+    else:
+        m = guidgetexpr.findall(l)
+        if m is not None and len(m) > 0:
+            searchstart = True
+            curpropguid = m[0][0].lower()
+            curpropidx = int(m[0][1],16)
+            m2 = capnindexexpr.findall(l)
+            assert(m2 is not None)
+            curidx = fileop.parse_int(m2[0])
+            props = []
+    return searchstart,curpropguid,curpropidx,curidx,props
+
+def lsusbprops_handler(args,parser):
+    fileop.set_logging(args)
+    guidexprs = []
+    matchguids = []
+    matchpropidx = []
+    cidx = 0
+    while cidx < len(args.subnargs):
+        nameset = False
+        try:
+            guidstr, propidx = get_guid_idx(args.subnargs[cidx].lower())
+            nameset = True
+            cidx += 1
+        except:
+            pass
+        if not nameset:
+            guidstr = args.subnargs[cidx].lower()
+            propidx = fileop.parse_int(args.subnargs[cidx + 1])
+            cidx += 2
+
+        exprstr = '.*property\\[\\{%s\\}\\]\\.\\[0x%x\\].*'%(guidstr,propidx)
+        logging.info('guidstr [%s] exprstr[%s]'%(guidstr,exprstr))
+        curexpr = re.compile(exprstr,re.I)
+        guidexprs.append(curexpr)
+        matchguids.append(guidstr)
+        matchpropidx.append(propidx)
+    capnindexexpr = re.compile('nindex\\[([0-9]+)\\]',re.I)
+    guidgetexpr = re.compile('property\\[\\{([^\\}]+)\\}\\]\\.\\[0x([a-f0-9A-F]+)\\]',re.I)
+    propexpr = re.compile('PROP\\s+\\[([^\\]]+)\\]')
+
+    sb = fileop.read_file_bytes(args.input)
+    s = sb.decode('utf-8')
+    sarr = re.split('\n',s)
+    searchstart = False
+    curidx = -1
+    valsdict = dict()
+    props = []
+    lidx = 0
+    for l in sarr:
+        lidx += 1
+        l = l.rstrip('\r')
+        if not searchstart :
+            searchstart,curpropguid,curpropidx,curidx,props = start_search(l,guidexprs,guidgetexpr,capnindexexpr,props)
+        else:
+            # for searchstart
+            m = propexpr.findall(l)
+            if m is not None and len(m) > 0:
+                logging.info('append [%s]'%(m[0]))
+                props.append(m[0])
+            else:
+                m = capnindexexpr.findall(l)
+                if m is not None and len(m) > 0:
+                    # now to finish
+                    mapk = '%d'%(curidx)
+                    if mapk not in valsdict.keys():
+                        valsdict[mapk] = dict()
+                    name = get_name(curpropguid,curpropidx)
+                    logging.info('[%d] set [%s].[%s] = %s'%(lidx,mapk,name,props))
+                    valsdict[mapk][name] = props
+                    props = []                
+                    searchstart, curpropguid,curpropidx,curidx,props = start_search(l,guidexprs,guidgetexpr,capnindexexpr,props)
+        outs = ''
+        for k in valsdict.keys():
+            cv  = valsdict[k]
+            outs += format_line(0,'%s device'%(k))
+            for k2 in cv.keys():
+                outs += format_line(1,'%s=%s'%(k2,cv[k2]))
+        fileop.write_file(outs,args.output)
+    sys.exit(0)
+    return
+
 
 def main():
     commandline='''
@@ -382,8 +524,14 @@ def main():
         "usbprop<usbprop_handler>##usbindex [propguid] [idx] ... to list usb values##" : {
             "$" : "+"
         },
-        "formatprop<formatprop_handler>##to format code ##" : {
+        "fromgoprop<fromgoprop_handler>##to format code ##" : {
             "$" : 0
+        },
+        "fromtxtprop<fromtxtprop_handler>##to format newtypes from txt##" : {
+            "$" : 0
+        },
+        "lsusbprops<lsusbprops_handler>##names ... to filter all names##" : {
+            "$" : "+"
         }
     }
     '''
