@@ -85,7 +85,7 @@ fail:
 }
 
 
-int __get_guid_dev(LPGUID pguid, const char* guidstr, pusb_dev_t* ppdata, int *psize)
+int __get_guid_dev(LPGUID pguid, const char* guidstr, pusb_dev_t* ppdata, int *psize,DWORD *pindex)
 {
 	int retlen = 0;
 	int ret;
@@ -94,6 +94,7 @@ int __get_guid_dev(LPGUID pguid, const char* guidstr, pusb_dev_t* ppdata, int *p
 	int retsize = 0;
 	SP_DEVINFO_DATA* pndata = NULL;
 	DWORD nindex;
+	DWORD offindex;
 	BOOL bret;
 	DEVPROPKEY* propkeys = NULL;
 	DWORD propkeysize = 0;
@@ -128,7 +129,7 @@ int __get_guid_dev(LPGUID pguid, const char* guidstr, pusb_dev_t* ppdata, int *p
 		return 0;
 	}
 
-	if (guidstr == NULL || ppdata == NULL || psize == NULL) {
+	if (guidstr == NULL || ppdata == NULL || psize == NULL || pindex == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
 		return ret;
@@ -136,8 +137,10 @@ int __get_guid_dev(LPGUID pguid, const char* guidstr, pusb_dev_t* ppdata, int *p
 
 	pretdata = *ppdata;
 	retsize = *psize;
+	offindex = *pindex;
 
-	hinfo = SetupDiGetClassDevsW(pguid, NULL, NULL, DIGCF_ALLCLASSES);
+	//hinfo = SetupDiGetClassDevsW(pguid, NULL, NULL, DIGCF_ALLCLASSES);
+	hinfo = SetupDiGetClassDevsW(pguid, NULL, NULL, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
 	if (hinfo == INVALID_HANDLE_VALUE) {
 		GETERRNO(ret);
 		ERROR_INFO("can not get class dev [%s] error[%d]", guidstr, ret);
@@ -160,7 +163,7 @@ int __get_guid_dev(LPGUID pguid, const char* guidstr, pusb_dev_t* ppdata, int *p
 		if (!bret) {
 			GETERRNO(ret);
 			if (ret != -ERROR_NO_MORE_ITEMS) {
-				ERROR_INFO("can not get [%s] on [%ld] device error[%d]", guidstr, nindex, ret);
+				ERROR_INFO("can not get [%s] on [%ld] device error[%d]", guidstr, nindex + offindex, ret);
 				goto fail;
 			}
 			/*all is gotten*/
@@ -172,7 +175,7 @@ int __get_guid_dev(LPGUID pguid, const char* guidstr, pusb_dev_t* ppdata, int *p
 		if (!bret) {
 			GETERRNO(ret);
 			if (ret != -ERROR_INSUFFICIENT_BUFFER) {
-				ERROR_INFO("[%s].[%ld] get property keys error[%d]", guidstr, nindex, ret);
+				ERROR_INFO("[%s].[%ld] get property keys error[%d]", guidstr, nindex + offindex, ret);
 				goto fail;
 			}
 		}
@@ -216,7 +219,7 @@ try_2:
 			if (cfgret == CR_SUCCESS) {
 				pwptr = (wchar_t*) propbuf;
 				wi = 0;
-				DEBUG_BUFFER_FMT(propbuf,propbuflen,"nindex[%ld].[%ld] property[%s].[0x%lx]", nindex,i,fmtid,propkeys[i].pid);
+				DEBUG_BUFFER_FMT(propbuf,propbuflen,"nindex[%ld].[%ld] property[%s].[0x%lx]", nindex + offindex,i,fmtid,propkeys[i].pid);
 				while (wi < propbuflen) {
 					while (wi < propbuflen && *pwptr == 0) {
 						pwptr += 1;
@@ -252,7 +255,7 @@ try_2:
 					goto try_2;
 				}
 				GETERRNO(ret);
-				ERROR_INFO("[%s].[%ld].[%ld] prop [%s].[0x%lx] error[%d]", guidstr, nindex, i, fmtid,propkeys[i].pid, cfgret);
+				ERROR_INFO("[%s].[%ld].[%ld] prop [%s].[0x%lx] error[%d]", guidstr, nindex + offindex, i, fmtid,propkeys[i].pid, cfgret);
 			}
 
 		}
@@ -456,6 +459,9 @@ try_again:
 
 
 
+	if (pindex) {
+		*pindex = nindex + offindex;
+	}
 
 	if (*ppdata && *ppdata != pretdata) {
 		free(*ppdata);
@@ -517,6 +523,7 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 	int ret;
 	pusb_dev_t ccdev=NULL;
 	int ccdevsize=0;
+	DWORD offidx = 0;
 	if (freed) {
 		if (ppur && *ppur) {
 			free(*ppur);
@@ -551,14 +558,28 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 		goto fail;
 	}
 
-	ret = __get_guid_dev((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER,guidstr,&ccdev,&ccdevsize);
+	//ret = __get_guid_dev((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER,guidstr,&ccdev,&ccdevsize);
+	ret = __get_guid_dev((LPGUID)&GUID_DEVINTERFACE_USB_DEVICE,guidstr,&ccdev,&ccdevsize,&offidx);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = __get_guid_dev((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER,guidstr,&ccdev,&ccdevsize,&offidx);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = __get_guid_dev((LPGUID)&GUID_DEVINTERFACE_USB_HUB,guidstr,&ccdev,&ccdevsize,&offidx);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
 
-	__get_guid_dev(NULL,NULL,&ccdev,&ccdevsize);
+
+	__get_guid_dev(NULL,NULL,&ccdev,&ccdevsize,NULL);
 
 	if (guidstr) {
 		free(guidstr);
@@ -567,7 +588,7 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 
 	return retlen;
 fail:
-	__get_guid_dev(NULL,NULL,&ccdev,&ccdevsize);
+	__get_guid_dev(NULL,NULL,&ccdev,&ccdevsize,NULL);
 	__get_guid_str(NULL, &guidstr, &ccmax);
 	SETERRNO(ret);
 	return ret;
