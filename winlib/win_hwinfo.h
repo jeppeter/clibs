@@ -30,7 +30,7 @@ typedef struct __hw_info {
 extern "C" {
 #endif /* __cplusplus*/
 
-WINLIB_API int get_hw_infos(LPGUID pguid, DWORD flags,phw_info_t* ppinfos, int *psize);
+WINLIB_API int get_hw_infos(LPGUID pguid, DWORD flags,phw_info_t** pppinfos, int *psize);
 
 
 #ifdef __cplusplus

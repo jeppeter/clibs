@@ -3,6 +3,19 @@
 #include <win_err.h>
 #include <win_uniansi.h>
 
+#pragma warning(push)
+#pragma warning(disable:4820)
+#pragma warning(disable:4514)
+#include <cfgmgr32.h>
+#pragma warning(disable:4668)
+#include <setupapi.h>
+#pragma warning(pop)
+
+#include <initguid.h>
+
+#pragma comment(lib,"Cfgmgr32.lib")
+#pragma comment(lib,"SetupAPI.lib")
+
 
 void __free_hw_prop(phw_prop_t* ppprop)
 {
@@ -57,9 +70,55 @@ fail:
 	return NULL;
 }
 
-int get_hw_infos(LPGUID pguid, DWORD flags,phw_info_t* ppinfos, int *psize)
+int get_hw_infos(LPGUID pguid, DWORD flags,phw_info_t** pppinfos, int *psize)
 {
 	int retlen=0;
+	int retsize = 0;
+	int i;
+	int ret;
+	phw_info_t* ppinfos= NULL;
+	HDEVINFO hinfo = INVALID_HANDLE_VALUE;
+
+	if (pguid == NULL) {
+		if (pppinfos && *pppinfos) {
+			ppinfos = *pppinfos;
+			if (psize) {
+				retsize = *psize;
+				for (i=0;i<retsize;i++) {
+					__free_hw_info(&(ppinfos[i]));
+				}
+			}
+			if (ppinfos) {
+				free(ppinfos);
+			}
+			*pppinfos = NULL;
+		}
+		if (psize) {
+			*psize = 0;
+		}
+		return 0;
+	}
+
+	hinfo = SetupDiGetClassDevsW(pguid, NULL, NULL, flags);
+	if (hinfo == INVALID_HANDLE_VALUE) {
+		GETERRNO(ret);
+		ERROR_INFO("can not get flags [0x%x]",flags);
+		goto fail;
+	}
+
+
+	if (hinfo != INVALID_HANDLE_VALUE) {
+		SetupDiDestroyDeviceInfoList(hinfo);
+	}
+	hinfo = INVALID_HANDLE_VALUE;
+
 	return retlen;
+fail:
+	if (hinfo != INVALID_HANDLE_VALUE) {
+		SetupDiDestroyDeviceInfoList(hinfo);
+	}
+	hinfo = INVALID_HANDLE_VALUE;
+	SETERRNO(ret);
+	return ret;
 }
 
