@@ -14,7 +14,6 @@ typedef struct __usb_dev {
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
-WINLIB_API int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize);
 
 
 #ifdef __cplusplus
@@ -22,6 +21,7 @@ extern "C" {
 #endif /* __cplusplus*/
 
 
+WINLIB_API int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize);
 
 
 #ifdef __cplusplus
