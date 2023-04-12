@@ -59,7 +59,7 @@ fail:
 	}
 	puni = NULL;
 	SETERRNO(ret);
-	return ret;	
+	return ret;
 }
 
 void __free_hw_prop(phw_prop_t* ppprop)
@@ -139,12 +139,72 @@ void __free_hw_infos(phw_info_t** pppinfos, int *psize)
 	return;
 }
 
+int __append_hw_infos(phw_info_t** pppinfos, int *psize, phw_info_t* ppinfo)
+{
+	int findidx = -1;
+	int i;
+	int retsize = 0;
+	int retlen = 0;
+	int ret;
+	phw_info_t* ppinfos;
+	phw_info_t* pptmp = NULL;
+	ASSERT_IF(pppinfos != NULL);
+	ASSERT_IF(psize != NULL);
+	retsize = *psize;
+	ppinfos = *pppinfos;
+	for (i = 0; i < retsize; i++) {
+		if (ppinfos[i] == NULL) {
+			findidx = i;
+			break;
+		}
+	}
+
+	if (findidx < 0) {
+		retlen = retsize;
+		if (retsize == 0) {
+			retsize = 4;
+		}  else {
+			retsize <<= 1;
+		}
+		pptmp = (phw_info_t*) malloc(sizeof(*pptmp) * retsize);
+		if (pptmp == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		memset(pptmp, 0, sizeof(*pptmp) * retsize);
+		if (retlen > 0) {
+			memcpy(pptmp, ppinfos, sizeof(*pptmp) * retlen);
+		}
+		if (ppinfos != NULL) {
+			free(ppinfos);
+		}
+		ppinfos = pptmp;
+		pptmp = NULL;
+		*pppinfos = ppinfos;
+		*psize = retsize;
+	} else {
+		retlen = findidx;
+	}
+	ppinfos[retlen] = *ppinfo;
+	*ppinfo = NULL;
+	retlen ++;
+	return retlen;
+fail:
+	if (pptmp) {
+		free(pptmp);
+	}
+	pptmp = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
 int get_hw_infos(LPGUID pguid, DWORD flags, phw_info_t** pppinfos, int *psize)
 {
 	int retlen = 0;
 	int retsize = 0;
 	int ret;
 	phw_info_t* ppinfos = NULL;
+	phw_info_t pcurinfo = NULL;
 	HDEVINFO hinfo = INVALID_HANDLE_VALUE;
 
 	if (pguid == NULL) {
@@ -158,8 +218,8 @@ int get_hw_infos(LPGUID pguid, DWORD flags, phw_info_t** pppinfos, int *psize)
 		return ret;
 	}
 
-	/*we free*/
-	__free_hw_infos(pppinfos,psize);
+	/*we free used to reset*/
+	__free_hw_infos(pppinfos, psize);
 
 
 	hinfo = SetupDiGetClassDevsW(pguid, NULL, NULL, flags);
@@ -172,6 +232,13 @@ int get_hw_infos(LPGUID pguid, DWORD flags, phw_info_t** pppinfos, int *psize)
 
 
 
+
+	ASSERT_IF(pcurinfo == NULL);
+	*pppinfos = ppinfos;
+	*psize = retsize;
+	ppinfos = NULL;
+	retsize = 0;
+
 	if (hinfo != INVALID_HANDLE_VALUE) {
 		SetupDiDestroyDeviceInfoList(hinfo);
 	}
@@ -179,7 +246,8 @@ int get_hw_infos(LPGUID pguid, DWORD flags, phw_info_t** pppinfos, int *psize)
 
 	return retlen;
 fail:
-	__free_hw_infos(&ppinfos,&retsize);
+	__free_hw_info(&pcurinfo);
+	__free_hw_infos(&ppinfos, &retsize);
 	if (hinfo != INVALID_HANDLE_VALUE) {
 		SetupDiDestroyDeviceInfoList(hinfo);
 	}
