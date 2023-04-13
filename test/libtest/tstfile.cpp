@@ -928,3 +928,143 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+
+
+#if 1
+
+void display_hw_infos(FILE* fout, phw_info_t* ppinfos, int infolen)
+{
+	phw_info_t pcurinfo ;
+	int i,j;
+	phw_prop_t pcurprop;
+	ULONG wi;
+	wchar_t* pwptr =NULL;
+	char* propansi=NULL;
+	int ansisize=0;
+	int ret;
+	for(i=0;i<infolen;i++) {
+		pcurinfo = ppinfos[i];
+		if (pcurinfo != NULL) {
+			for(j=0;j<pcurinfo->m_proplen;j++) {
+				pcurprop = pcurinfo->m_proparr[j];
+				if (pcurprop != NULL) {
+					debug_buffer(fout,(char*)pcurprop->m_propbuf,(int)pcurprop->m_propbuflen,"nindex[%d].[%d] property[%s].[0x%x]", i,j,pcurprop->m_propguid,pcurprop->m_propguididx);
+					pwptr = (wchar_t*)pcurprop->m_propbuf;
+					wi = 0;
+					while(wi < pcurprop->m_propbuflen) {
+						while(wi < pcurprop->m_propbuflen && *pwptr == 0) {
+							pwptr += 1;
+							wi += 2;
+						}
+						if (wi < pcurprop->m_propbuflen) {
+							ret = UnicodeToUtf8(pwptr,&propansi,&ansisize);
+							if (ret >= 0) {
+								fprintf(fout,"PROP    [%s]\n", propansi);
+							}
+						}
+
+						while( wi < pcurprop->m_propbuflen && *pwptr != 0) {
+							pwptr ++;
+							wi += 2;
+						}
+					}
+				}
+			}
+		}
+	}
+	UnicodeToUtf8(NULL,&propansi,&ansisize);
+	return ;
+}
+
+
+int lshwinfo_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int ret;
+	pargs_options_t pargs=(pargs_options_t)popt;
+	int i;
+	phw_info_t* ppinfos=NULL;
+	int infosize=0;
+	int infolen = 0;
+	char* guidstr = NULL;
+	LPGUID pnguid = GUID_NULL_PTR;
+	DWORD flags = DIGCF_ALLCLASSES;
+	FILE* fout = stdout;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	init_log_level(pargs);
+
+	if (pargs->m_output != NULL) {
+		fout = NULL;
+		fopen_s(&fout,pargs->m_output,"w+");
+		if (fout == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not open [%s] error[%d]\n", pargs->m_output,ret);
+			goto out;
+		}
+	}
+
+	if (parsestate->leftargs) {
+		pnguid =(LPGUID) malloc(sizeof(*pnguid));
+		if (pnguid == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not alloc guid error[%d]\n", ret);
+			goto out;
+		}
+		for(i=0;parsestate->leftargs[i];i++) {
+			flags = DIGCF_DEVICEINTERFACE | DIGCF_PRESENT;
+
+			guidstr =  parsestate->leftargs[i];
+			ret = guid_from_str2(pnguid,guidstr);
+			if (ret < 0) {
+				GETERRNO(ret);
+				fprintf(stderr, "trans [%s] to guid error[%d]\n", guidstr,ret);
+				goto out;
+			}
+			ret = get_hw_infos(pnguid,flags,&ppinfos,&infosize);
+			if(ret < 0) {
+				GETERRNO(ret);
+				goto out;
+			}
+			infolen = ret;
+			display_hw_infos(fout,ppinfos,infolen);
+		}
+	} else {
+		ret = get_hw_infos(pnguid,flags,&ppinfos,&infosize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not list all device error[%d]\n", ret);
+			goto out;
+		}
+		infolen = ret;
+		display_hw_infos(fout,ppinfos,infolen);
+	}
+
+	ret = 0;
+out:
+	if (fout != NULL && fout != stdout) {
+		fclose(fout);
+	}
+	fout = NULL;
+
+	if (pnguid != NULL && pnguid != GUID_NULL_PTR) {
+		free(pnguid);
+	}
+	pnguid = GUID_NULL_PTR;
+	pnguid = NULL;
+	get_hw_infos(NULL,0,&ppinfos,&infosize);
+	infolen = 0;
+	SETERRNO(ret);
+	return ret;	
+}
+#else
+int lshwinfo_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	REFERENCE_ARG(parsestate);
+	REFERENCE_ARG(popt);
+	return 0;
+}
+#endif

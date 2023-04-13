@@ -27,7 +27,7 @@ typedef struct __hw_info {
 } hw_info_t,*phw_info_t;
 
 
-#define  GUID_NULL ((LPGUID)1)
+#define  GUID_NULL_PTR ((LPGUID)0x1)
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,7 +35,7 @@ extern "C" {
 
 WINLIB_API int get_hw_infos(LPGUID pguid, DWORD flags,phw_info_t** pppinfos, int *psize);
 WINLIB_API int get_guid_str(LPGUID pguid, char** ppstr, int *psize);
-WINLIB_API int guid_from_str(LPGUID pguid, char* pstr);
+WINLIB_API int guid_from_str2(LPGUID pguid, char* pstr);
 
 #ifdef __cplusplus
 };

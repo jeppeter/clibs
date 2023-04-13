@@ -447,5 +447,8 @@
     },
     "lsusb<lsusb_handler>##to list usb devices##" : {
         "$" : 0
+    },
+    "lshwinfo<lshwinfo_handler>##[guids]... to list hardware info properties##" : {
+        "$" : "*"
     }
 }

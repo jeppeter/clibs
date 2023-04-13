@@ -47,6 +47,7 @@
 #include <win_sock.h>
 #include <win_hdl.h>
 #include <win_serial.h>
+#include <win_hwinfo.h>
 #include <win_usb.h>
 
 
@@ -66,6 +67,14 @@
 #pragma warning(disable:4530)
 #include <vector>
 #pragma warning(pop)
+
+#pragma warning(push)
+#pragma warning(disable:4820)
+#pragma warning(disable:4514)
+#pragma warning(disable:4668)
+#include <setupapi.h>
+#pragma warning(pop)
+
 
 #include <sddl.h>
 #include <aclapi.h>
@@ -266,6 +275,7 @@ int serread_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int serwrite_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bootuptime_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int lsusb_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int lshwinfo_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1

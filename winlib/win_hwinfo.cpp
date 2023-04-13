@@ -62,7 +62,7 @@ fail:
 	return ret;
 }
 
-int guid_from_str(LPGUID pguid, char* pstr)
+int guid_from_str2(LPGUID pguid, char* pstr)
 {
 	wchar_t* pwstr = NULL;
 	int wlen = 0;
@@ -439,7 +439,7 @@ int get_hw_infos(LPGUID pguid, DWORD flags, phw_info_t** pppinfos, int *psize)
 	/*we free used to reset*/
 	__free_hw_infos(pppinfos, psize);
 
-	if (psetguid == GUID_NULL) {
+	if (psetguid == GUID_NULL_PTR) {
 		psetguid = NULL;
 	}
 
