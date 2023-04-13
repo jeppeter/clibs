@@ -14,10 +14,10 @@
 typedef struct __hw_prop {
 	char* m_propguid;
 	uint8_t* m_propbuf;
-	int m_propbuflen;
-	int m_propbufsize;
+	ULONG m_propbuflen;
+	ULONG m_propbufsize;
 	int m_propguidsize;
-	int m_reserv1;
+	int m_propguididx;
 } hw_prop_t,*phw_prop_t;
 
 typedef struct __hw_info {
@@ -26,12 +26,16 @@ typedef struct __hw_info {
 	int m_proplen;
 } hw_info_t,*phw_info_t;
 
+
+#define  GUID_NULL ((LPGUID)1)
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus*/
 
 WINLIB_API int get_hw_infos(LPGUID pguid, DWORD flags,phw_info_t** pppinfos, int *psize);
 WINLIB_API int get_guid_str(LPGUID pguid, char** ppstr, int *psize);
+WINLIB_API int guid_from_str(LPGUID pguid, char* pstr);
 
 #ifdef __cplusplus
 };

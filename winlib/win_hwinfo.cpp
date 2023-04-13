@@ -62,6 +62,41 @@ fail:
 	return ret;
 }
 
+int guid_from_str(LPGUID pguid, char* pstr)
+{
+	wchar_t* pwstr = NULL;
+	int wlen = 0;
+	int ret;
+	BOOL bret;
+
+	if (pguid == NULL || pstr == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	ret = AnsiToUnicode(pstr,&pwstr,&wlen);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	bret = CLSIDFromString((LPCOLESTR)pwstr,(LPCLSID)pguid);
+	if (!bret) {
+		GETERRNO(ret);
+		ERROR_INFO("convert [%s] error[%d]", pstr,ret);
+		goto fail;
+	}
+
+	AnsiToUnicode(NULL,&pwstr,&wlen);
+	return 0;
+fail:
+	AnsiToUnicode(NULL,&pwstr,&wlen);
+	SETERRNO(ret);
+	return ret;
+}
+
+
 void __free_hw_prop(phw_prop_t* ppprop)
 {
 	if (ppprop && *ppprop) {
@@ -73,9 +108,35 @@ void __free_hw_prop(phw_prop_t* ppprop)
 		}
 		pprop->m_propbuflen = 0;
 		pprop->m_propbufsize = 0;
+		pprop->m_propguididx = -1;
 		free(pprop);
 		*ppprop = NULL;
 	}
+}
+
+phw_prop_t __alloc_hw_prop()
+{
+	phw_prop_t pprop = NULL;
+	int ret;
+
+	pprop = (phw_prop_t) malloc(sizeof(*pprop));
+	if (pprop == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(pprop,0,sizeof(*pprop));
+	pprop->m_propguid = NULL;
+	pprop->m_propbuf = NULL;
+	pprop->m_propbuflen = 0;
+	pprop->m_propbufsize = 0;
+	pprop->m_propguidsize = 0;
+	pprop->m_propguididx = -1;
+
+	return pprop;
+fail:
+	__free_hw_prop(&pprop);
+	SETERRNO(ret);
+	return NULL;
 }
 
 void __free_hw_info(phw_info_t* ppinfo)
@@ -198,6 +259,159 @@ fail:
 	return ret;
 }
 
+int __append_hw_info_prop(phw_info_t pinfo,phw_prop_t *ppprop)
+{
+	phw_prop_t* pptmp = NULL;
+	int ret;
+	if (pinfo->m_proplen >= pinfo->m_propsize) {
+		if (pinfo->m_propsize == 0) {
+			pinfo->m_propsize = 4;
+		} else {
+			pinfo->m_propsize <<= 1;
+		}
+
+		pptmp = (phw_prop_t*) malloc(sizeof(*pptmp) * pinfo->m_propsize);
+		if (pptmp == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		memset(pptmp, 0, sizeof(*pptmp) * pinfo->m_propsize);
+		if (pinfo->m_proplen > 0) {
+			memcpy(pptmp, pinfo->m_proparr, sizeof(*pptmp) * pinfo->m_proplen);
+		}
+		if (pinfo->m_proparr) {
+			free(pinfo->m_proparr);
+		}
+		pinfo->m_proparr = pptmp;
+		pptmp = NULL;
+	}
+
+	pinfo->m_proparr[pinfo->m_proplen] = *ppprop;
+	pinfo->m_proplen ++;
+	*ppprop = NULL;
+
+	return pinfo->m_proplen;
+fail:
+	if (pptmp) {
+		free(pptmp);
+	}
+	pptmp = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int __get_hw_info_props(phw_info_t pinfo, HDEVINFO hinfo, SP_DEVINFO_DATA* pndata)
+{
+	DEVPROPKEY* propkeys = NULL;
+	DWORD propkeysize = 0;
+	DWORD requiresize = 0;
+	DWORD propkeylen = 0;
+	BOOL bret;
+	int ret;
+	DWORD i;
+	CONFIGRET cfgret;
+	DEVPROPTYPE  proptype;
+	phw_prop_t pcurprop = NULL;
+
+
+	requiresize = 0;
+	bret = SetupDiGetDevicePropertyKeys(hinfo, pndata, NULL, 0, &requiresize, 0);
+	if (!bret) {
+		GETERRNO(ret);
+		if (ret != -ERROR_INSUFFICIENT_BUFFER) {
+			ERROR_INFO("get property keys error[%d]", ret);
+			goto fail;
+		}
+	}
+
+	if (requiresize > propkeysize) {
+		propkeysize = requiresize;
+		if (propkeys) {
+			free(propkeys);
+		}
+		propkeys = NULL;
+		propkeys = (DEVPROPKEY*) malloc(sizeof(*propkeys) * propkeysize);
+		if (propkeys == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	memset(propkeys, 0 , sizeof(*propkeys) * propkeysize);
+	propkeylen = 0;
+	bret = SetupDiGetDevicePropertyKeys(hinfo, pndata, propkeys, propkeysize, &propkeylen, 0);
+	if (!bret) {
+		GETERRNO(ret);
+		ERROR_INFO("get prop keys error[%d]", ret);
+		goto fail;
+	}
+
+	for (i = 0; i < propkeylen; i++) {
+		ASSERT_IF(pcurprop == NULL);
+		pcurprop = __alloc_hw_prop();
+		if (pcurprop == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = get_guid_str(&propkeys[i].fmtid, &(pcurprop->m_propguid),&(pcurprop->m_propguidsize));
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		pcurprop->m_propguididx = (int)propkeys[i].pid;
+try_2:
+		if (pcurprop->m_propbuf) {
+			memset(pcurprop->m_propbuf, 0, (size_t)pcurprop->m_propbufsize);
+		}
+		pcurprop->m_propbuflen = pcurprop->m_propbufsize;
+		proptype = 0;
+		cfgret = CM_Get_DevNode_PropertyW(pndata->DevInst, &(propkeys[i]), &proptype, pcurprop->m_propbuf, &(pcurprop->m_propbuflen), 0);
+		if (cfgret == CR_SUCCESS) {
+			ret = __append_hw_info_prop(pinfo,&pcurprop);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		} else {
+			if (cfgret == CR_BUFFER_SMALL) {
+				pcurprop->m_propbufsize = pcurprop->m_propbuflen;
+				if (pcurprop->m_propbuf) {
+					free(pcurprop->m_propbuf);
+				}
+				pcurprop->m_propbuf = NULL;
+				pcurprop->m_propbuf = (uint8_t*) malloc(pcurprop->m_propbufsize);
+				if (pcurprop->m_propbuf == NULL) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				goto try_2;
+			}
+			GETERRNO(ret);
+			ERROR_INFO("[%ld] prop [%s].[0x%x] error[%d]", i, pcurprop->m_propguid, pcurprop->m_propguididx, cfgret);
+			/*to free property*/
+			__free_hw_prop(&pcurprop);
+		}
+	}
+
+
+	ASSERT_IF(pcurprop == NULL);
+	if (propkeys) {
+		free(propkeys);
+	}
+	propkeys = NULL;
+
+	return (int)propkeylen;
+fail:
+	__free_hw_prop(&pcurprop);
+	if (propkeys) {
+		free(propkeys);
+	}
+	propkeys = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
 int get_hw_infos(LPGUID pguid, DWORD flags, phw_info_t** pppinfos, int *psize)
 {
 	int retlen = 0;
@@ -206,6 +420,10 @@ int get_hw_infos(LPGUID pguid, DWORD flags, phw_info_t** pppinfos, int *psize)
 	phw_info_t* ppinfos = NULL;
 	phw_info_t pcurinfo = NULL;
 	HDEVINFO hinfo = INVALID_HANDLE_VALUE;
+	SP_DEVINFO_DATA* pndata = NULL;
+	DWORD nindex = 0;
+	BOOL bret;
+	LPGUID psetguid = pguid;
 
 	if (pguid == NULL) {
 		__free_hw_infos(pppinfos, psize);
@@ -221,16 +439,69 @@ int get_hw_infos(LPGUID pguid, DWORD flags, phw_info_t** pppinfos, int *psize)
 	/*we free used to reset*/
 	__free_hw_infos(pppinfos, psize);
 
+	if (psetguid == GUID_NULL) {
+		psetguid = NULL;
+	}
 
-	hinfo = SetupDiGetClassDevsW(pguid, NULL, NULL, flags);
+
+	hinfo = SetupDiGetClassDevsW(psetguid, NULL, NULL, flags);
 	if (hinfo == INVALID_HANDLE_VALUE) {
 		GETERRNO(ret);
 		ERROR_INFO("can not get flags [0x%x]", flags);
 		goto fail;
 	}
 
+	pndata = (SP_DEVINFO_DATA*)malloc(sizeof(*pndata));
+	if (pndata == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	while (1) {
+		memset(pndata, 0, sizeof(*pndata));
+		pndata->cbSize = sizeof(*pndata);
+
+		bret = SetupDiEnumDeviceInfo(hinfo, nindex, pndata);
+		if (!bret) {
+			GETERRNO(ret);
+			if (ret != -ERROR_NO_MORE_ITEMS) {
+				ERROR_INFO("can not get on [%ld] device error[%d]", nindex , ret);
+				goto fail;
+			}
+			/*all is gotten*/
+			break;
+		}
+
+		ASSERT_IF(pcurinfo == NULL);
+		pcurinfo = __alloc_hw_info();
+		if (pcurinfo == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = __get_hw_info_props(pcurinfo, hinfo, pndata);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = __append_hw_infos(&ppinfos, &retsize, &pcurinfo);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		retlen = ret;
+		nindex += 1;
+	}
 
 
+
+
+	if (pndata) {
+		free(pndata);
+	}
+	pndata = NULL;
 
 
 	ASSERT_IF(pcurinfo == NULL);
@@ -246,6 +517,12 @@ int get_hw_infos(LPGUID pguid, DWORD flags, phw_info_t** pppinfos, int *psize)
 
 	return retlen;
 fail:
+	if (pndata) {
+		free(pndata);
+	}
+	pndata = NULL;
+
+
 	__free_hw_info(&pcurinfo);
 	__free_hw_infos(&ppinfos, &retsize);
 	if (hinfo != INVALID_HANDLE_VALUE) {
