@@ -67,7 +67,7 @@ int guid_from_str2(LPGUID pguid, char* pstr)
 	wchar_t* pwstr = NULL;
 	int wlen = 0;
 	int ret;
-	BOOL bret;
+	HRESULT hr;
 
 	if (pguid == NULL || pstr == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
@@ -81,8 +81,8 @@ int guid_from_str2(LPGUID pguid, char* pstr)
 		goto fail;
 	}
 
-	bret = CLSIDFromString((LPCOLESTR)pwstr,(LPCLSID)pguid);
-	if (!bret) {
+	hr = CLSIDFromString((LPCOLESTR)pwstr,(LPCLSID)pguid);
+	if (hr != S_OK) {
 		GETERRNO(ret);
 		ERROR_INFO("convert [%s] error[%d]", pstr,ret);
 		goto fail;
@@ -441,9 +441,12 @@ int get_hw_infos(LPGUID pguid, DWORD flags, phw_info_t** pppinfos, int *psize)
 
 	if (psetguid == GUID_NULL_PTR) {
 		psetguid = NULL;
+	} else {
+		DEBUG_BUFFER_FMT(psetguid,sizeof(*psetguid),"set guid");
 	}
 
 
+	DEBUG_INFO("psetguid [%p] flags 0x%lx", psetguid, flags);
 	hinfo = SetupDiGetClassDevsW(psetguid, NULL, NULL, flags);
 	if (hinfo == INVALID_HANDLE_VALUE) {
 		GETERRNO(ret);
