@@ -901,6 +901,10 @@ int lsusb_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	pusb_dev_t pusbdev=NULL;
 	int usbsize=0;
 	int usblen=0;
+	int i;
+	pusb_root_t proot;
+	pusb_hub_t phub;
+	pusb_device_t pdev;
 
 
 
@@ -909,9 +913,37 @@ int lsusb_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	REFERENCE_ARG(argv);
 	init_log_level(pargs);
 
+	ret = list_usb_devices(0,&pusbdev,&usbsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not list usb error[%d]\n", ret);
+		goto out;
+	}
+
+	usblen = ret;
+	for(i=0;i<usblen;i++) {
+		if (pusbdev[i].m_type == USB_ROOT_DEV) {
+			proot = &(pusbdev[i].u.m_root);
+			fprintf(stdout,"[%d] root vendorid [0x%04x] deviceid [0x%04x] path [%s] description [%s]\n",
+				i,proot->m_vendorid,proot->m_prodid, proot->m_path,proot->m_description);
+		} else if (pusbdev[i].m_type == USB_HUB_DEV) {
+			phub = &(pusbdev[i].u.m_hub);
+			fprintf(stdout,"[%d] hub vid [0x%04x] pid [0x%04x] path [%s] description [%s]\n",
+				i,phub->m_vid,phub->m_pid, phub->m_path,phub->m_description);
+		} else if (pusbdev[i].m_type == USB_BASE_DEV) {
+			pdev = &(pusbdev[i].u.m_basedev);
+			fprintf(stdout,"[%d] dev vid [0x%04x] pid [0x%04x] path [%s] description [%s]\n",
+				i,pdev->m_vid,pdev->m_pid, pdev->m_path,pdev->m_description);
+		} else {
+			fprintf(stderr,"[%d]type [%d] not valid\n",i, pusbdev[i].m_type);
+			ret=  -ERROR_INVALID_PARAMETER;
+			goto out;
+		}
+	}
+
 
 	ret = 0;
-//out:
+out:
 	list_usb_devices(1,&pusbdev,&usbsize);
 	usblen = 0;
 	SETERRNO(ret);

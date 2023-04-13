@@ -30,10 +30,10 @@ DEFINE_GUID(GUID_DEVINTERFACE_USB_HOST_CONTROLLER,
 // ({3ABF6F2D-71C4-462A-8A92-1E6861E6AF27})
 
 
-#define  DESCRIPTION_PROP_GUID  "a45c254e-df1c-4efd-8020-67d146a850e0"
+#define  DESCRIPTION_PROP_GUID  "{a45c254e-df1c-4efd-8020-67d146a850e0}"
 #define  DESCRIPTION_PROP_IDX   2
 
-#define  HARDWAREID_PROP_GUID   "a45c254e-df1c-4efd-8020-67d146a850e0"
+#define  HARDWAREID_PROP_GUID   "{a45c254e-df1c-4efd-8020-67d146a850e0}"
 #define  HARDWAREID_PROP_IDX    3
 
 
@@ -59,23 +59,23 @@ do{                                                                             
 	}                                                                                             \
 }while(0)
 
-int _fill_usb_root(pusb_dev_t pcurdev,phw_info_t pinfo)
+int _fill_usb_root(pusb_dev_t pcurdev, phw_info_t pinfo)
 {
-	uint8_t* propbuf= NULL;
-	int propsize=0;
-	int proplen=0;
-	wchar_t* pwptr=NULL;
+	uint8_t* propbuf = NULL;
+	int propsize = 0;
+	int proplen = 0;
+	wchar_t* pwptr = NULL;
 	int ret;
-	char* propansi=NULL;
-	int ansisize=0;
-	int ansilen=0;
+	char* propansi = NULL;
+	int ansisize = 0;
+	int ansilen = 0;
 	char* cpptr = NULL;
 	int setvid = -1;
 	int setpid = -1;
 	pusb_root_t proot = &(pcurdev->u.m_root);
 	pcurdev->m_type = USB_ROOT_DEV;
 
-	ret = get_hw_prop(pinfo,DESCRIPTION_PROP_GUID,DESCRIPTION_PROP_IDX,&propbuf,&propsize);
+	ret = get_hw_prop(pinfo, DESCRIPTION_PROP_GUID, DESCRIPTION_PROP_IDX, &propbuf, &propsize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -83,7 +83,7 @@ int _fill_usb_root(pusb_dev_t pcurdev,phw_info_t pinfo)
 	proplen = ret;
 
 	pwptr = (wchar_t*) propbuf;
-	ret = UnicodeToUtf8(pwptr,&propansi,&ansisize);
+	ret = UnicodeToAnsi(pwptr, &propansi, &ansisize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -92,17 +92,17 @@ int _fill_usb_root(pusb_dev_t pcurdev,phw_info_t pinfo)
 	if (ansilen >= sizeof(proot->m_description)) {
 		ansilen = sizeof(proot->m_description) - 1;
 	}
-	memcpy(proot->m_description, propansi,(size_t)ansilen);
+	memcpy(proot->m_description, propansi, (size_t)ansilen);
 	proot->m_description[ansilen] = 0x0;
 
-	ret = get_hw_prop(pinfo,HARDWAREID_PROP_GUID,HARDWAREID_PROP_IDX,&propbuf,&propsize);
+	ret = get_hw_prop(pinfo, HARDWAREID_PROP_GUID, HARDWAREID_PROP_IDX, &propbuf, &propsize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 	proplen = ret;
 	pwptr = (wchar_t*) propbuf;
-	ret = UnicodeToUtf8(pwptr,&propansi,&ansisize);
+	ret = UnicodeToAnsi(pwptr, &propansi, &ansisize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -112,20 +112,20 @@ int _fill_usb_root(pusb_dev_t pcurdev,phw_info_t pinfo)
 	cpptr = propansi;
 	setvid = -1;
 	setpid = -1;
-	while(*cpptr != 0x0) {
+	while (*cpptr != 0x0) {
 		if (setvid < 0) {
-			if (_strnicmp(cpptr,"ven_",4) == 0) {
+			if (_strnicmp(cpptr, "ven_", 4) == 0) {
 				cpptr += 4;
 				setvid = 0;
-				PARSE_VALUES(setvid,"setvid");
+				PARSE_VALUES(setvid, "setvid");
 			}
 		}
 
 		if (setpid < 0) {
-			if (_strnicmp(cpptr,"dev_",4) == 0) {
+			if (_strnicmp(cpptr, "dev_", 4) == 0) {
 				cpptr += 4;
 				setpid = 0;
-				PARSE_VALUES(setpid,"setpid");
+				PARSE_VALUES(setpid, "setpid");
 			}
 		}
 
@@ -137,7 +137,7 @@ int _fill_usb_root(pusb_dev_t pcurdev,phw_info_t pinfo)
 
 	if (setvid < 0 || setpid < 0) {
 		ret = -ERROR_INVALID_PARAMETER;
-		ERROR_INFO("[%s] not valid for HARDWAREID_PROP_GUID",propansi);
+		ERROR_INFO("[%s] not valid for HARDWAREID_PROP_GUID", propansi);
 		goto fail;
 	}
 
@@ -150,26 +150,250 @@ int _fill_usb_root(pusb_dev_t pcurdev,phw_info_t pinfo)
 	memcpy(proot->m_path, propansi, (size_t)ansilen);
 	proot->m_path[ansilen] = 0x0;
 
-	UnicodeToUtf8(NULL,&propansi,&ansisize);
-	get_hw_prop(NULL,NULL,0,&propbuf,&propsize);
+	UnicodeToAnsi(NULL, &propansi, &ansisize);
+	get_hw_prop(NULL, NULL, 0, &propbuf, &propsize);
 
 
 	return 0;
 fail:
-	UnicodeToUtf8(NULL,&propansi,&ansisize);
-	get_hw_prop(NULL,NULL,0,&propbuf,&propsize);
+	UnicodeToAnsi(NULL, &propansi, &ansisize);
+	get_hw_prop(NULL, NULL, 0, &propbuf, &propsize);
 	SETERRNO(ret);
 	return ret;
 }
 
-int _fill_usb_hub(pusb_dev_t pcurdev,phw_info_t pinfo)
+int _fill_usb_hub(pusb_dev_t pcurdev, phw_info_t pinfo)
 {
+	uint8_t* propbuf = NULL;
+	int propsize = 0;
+	int proplen = 0;
+	wchar_t* pwptr = NULL;
+	int ret;
+	char* propansi = NULL;
+	int ansisize = 0;
+	int ansilen = 0;
+	char* cpptr = NULL;
+	int setvid = -1;
+	int setpid = -1;
+	pusb_hub_t phub = &(pcurdev->u.m_hub);
+	pcurdev->m_type = USB_HUB_DEV;
+
+	ret = get_hw_prop(pinfo, DESCRIPTION_PROP_GUID, DESCRIPTION_PROP_IDX, &propbuf, &propsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	proplen = ret;
+
+	pwptr = (wchar_t*) propbuf;
+	ret = UnicodeToAnsi(pwptr, &propansi, &ansisize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ansilen = ret;
+	if (ansilen >= sizeof(phub->m_description)) {
+		ansilen = sizeof(phub->m_description) - 1;
+	}
+	memcpy(phub->m_description, propansi, (size_t)ansilen);
+	phub->m_description[ansilen] = 0x0;
+
+	ret = get_hw_prop(pinfo, HARDWAREID_PROP_GUID, HARDWAREID_PROP_IDX, &propbuf, &propsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	proplen = ret;
+	pwptr = (wchar_t*) propbuf;
+	ret = UnicodeToAnsi(pwptr, &propansi, &ansisize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ansilen = ret;
+
+	cpptr = propansi;
+	setvid = -1;
+	setpid = -1;
+	while (*cpptr != 0x0) {
+		if (setvid < 0) {
+			if (_strnicmp(cpptr, "vid_", 4) == 0) {
+				cpptr += 4;
+				setvid = 0;
+				PARSE_VALUES(setvid, "setvid");
+			}
+		}
+
+		if (setpid < 0) {
+			if (_strnicmp(cpptr, "pid_", 4) == 0) {
+				cpptr += 4;
+				setpid = 0;
+				PARSE_VALUES(setpid, "setpid");
+			}
+		}
+
+		if (setvid >= 0 && setpid >= 0) {
+			break;
+		}
+		cpptr ++;
+	}
+
+	if (setvid < 0 || setpid < 0) {
+		cpptr = propansi;
+		setvid = -1;
+		setpid = -1;
+		while (*cpptr != 0x0) {
+			if (setvid < 0) {
+				if (_strnicmp(cpptr, "vid", 3) == 0) {
+					cpptr += 3;
+					setvid = 0;
+					PARSE_VALUES(setvid, "setvid");
+				}
+			}
+
+			if (setpid < 0) {
+				if (_strnicmp(cpptr, "pid", 3) == 0) {
+					cpptr += 3;
+					setpid = 0;
+					PARSE_VALUES(setpid, "setpid");
+				}
+			}
+
+			if (setvid >= 0 && setpid >= 0) {
+				break;
+			}
+			cpptr ++;
+		}
+	}
+
+	if (setvid < 0 || setpid < 0) {
+		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO("[%s] not valid for HARDWAREID_PROP_GUID", propansi);
+		goto fail;
+	}
+
+	phub->m_vid = (uint32_t)setvid;
+	phub->m_pid = (uint32_t)setpid;
+
+	if (ansilen >= sizeof(phub->m_path)) {
+		ansilen = sizeof(phub->m_path) - 1;
+	}
+	memcpy(phub->m_path, propansi, (size_t)ansilen);
+	phub->m_path[ansilen] = 0x0;
+
+	UnicodeToAnsi(NULL, &propansi, &ansisize);
+	get_hw_prop(NULL, NULL, 0, &propbuf, &propsize);
+
+
 	return 0;
+fail:
+	UnicodeToAnsi(NULL, &propansi, &ansisize);
+	get_hw_prop(NULL, NULL, 0, &propbuf, &propsize);
+	SETERRNO(ret);
+	return ret;
 }
 
-int _fill_usb_device(pusb_dev_t pcurdev,phw_info_t pinfo)
+int _fill_usb_device(pusb_dev_t pcurdev, phw_info_t pinfo)
 {
+	uint8_t* propbuf = NULL;
+	int propsize = 0;
+	int proplen = 0;
+	wchar_t* pwptr = NULL;
+	int ret;
+	char* propansi = NULL;
+	int ansisize = 0;
+	int ansilen = 0;
+	char* cpptr = NULL;
+	int setvid = -1;
+	int setpid = -1;
+	pusb_device_t pdev = &(pcurdev->u.m_basedev);
+	pcurdev->m_type = USB_BASE_DEV;
+
+	ret = get_hw_prop(pinfo, DESCRIPTION_PROP_GUID, DESCRIPTION_PROP_IDX, &propbuf, &propsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	proplen = ret;
+
+	pwptr = (wchar_t*) propbuf;
+	ret = UnicodeToAnsi(pwptr, &propansi, &ansisize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ansilen = ret;
+	if (ansilen >= sizeof(pdev->m_description)) {
+		ansilen = sizeof(pdev->m_description) - 1;
+	}
+	memcpy(pdev->m_description, propansi, (size_t)ansilen);
+	pdev->m_description[ansilen] = 0x0;
+
+	ret = get_hw_prop(pinfo, HARDWAREID_PROP_GUID, HARDWAREID_PROP_IDX, &propbuf, &propsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	proplen = ret;
+	pwptr = (wchar_t*) propbuf;
+	ret = UnicodeToAnsi(pwptr, &propansi, &ansisize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ansilen = ret;
+
+	cpptr = propansi;
+	setvid = -1;
+	setpid = -1;
+	while (*cpptr != 0x0) {
+		if (setvid < 0) {
+			if (_strnicmp(cpptr, "vid_", 4) == 0) {
+				cpptr += 4;
+				setvid = 0;
+				PARSE_VALUES(setvid, "setvid");
+			}
+		}
+
+		if (setpid < 0) {
+			if (_strnicmp(cpptr, "pid_", 4) == 0) {
+				cpptr += 4;
+				setpid = 0;
+				PARSE_VALUES(setpid, "setpid");
+			}
+		}
+
+		if (setvid >= 0 && setpid >= 0) {
+			break;
+		}
+		cpptr ++;
+	}
+
+	if (setvid < 0 || setpid < 0) {
+		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO("[%s] not valid for HARDWAREID_PROP_GUID", propansi);
+		goto fail;
+	}
+
+	pdev->m_vid = (uint32_t)setvid;
+	pdev->m_pid = (uint32_t)setpid;
+
+	if (ansilen >= sizeof(pdev->m_path)) {
+		ansilen = sizeof(pdev->m_path) - 1;
+	}
+	memcpy(pdev->m_path, propansi, (size_t)ansilen);
+	pdev->m_path[ansilen] = 0x0;
+
+	UnicodeToAnsi(NULL, &propansi, &ansisize);
+	get_hw_prop(NULL, NULL, 0, &propbuf, &propsize);
+
+
 	return 0;
+fail:
+	UnicodeToAnsi(NULL, &propansi, &ansisize);
+	get_hw_prop(NULL, NULL, 0, &propbuf, &propsize);
+	SETERRNO(ret);
+	return ret;
 }
 
 
@@ -204,12 +428,12 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 {
 	int retlen = 0;
 	int ret;
-	phw_info_t* ppinfos=NULL;
-	phw_info_t pcurinfo=NULL;
-	int infosize=0;
+	phw_info_t* ppinfos = NULL;
+	phw_info_t pcurinfo = NULL;
+	int infosize = 0;
 	int infolen = 0;
 	int i;
-	pusb_dev_t  pretdev=NULL;
+	pusb_dev_t  pretdev = NULL;
 	int retsize = 0;
 	pusb_dev_t pcurdev;
 	pusb_dev_t ptmp = NULL;
@@ -234,17 +458,17 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 	retsize = *psize;
 	retlen = 0;
 
-	ret = get_hw_infos((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER,DIGCF_DEVICEINTERFACE | DIGCF_PRESENT,&ppinfos,&infosize);
+	ret = get_hw_infos((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT, &ppinfos, &infosize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 	infolen = ret;
-	for(i=0;i<infolen;i++) {
+	for (i = 0; i < infolen; i++) {
 		pcurinfo = ppinfos[i];
 		EXPAND_USB_DEV();
 		pcurdev = &(pretdev[retlen]);
-		ret = _fill_usb_root(pcurdev,pcurinfo);
+		ret = _fill_usb_root(pcurdev, pcurinfo);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -253,17 +477,17 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 	}
 
 
-	ret = get_hw_infos((LPGUID)&GUID_DEVINTERFACE_USB_HUB,DIGCF_DEVICEINTERFACE | DIGCF_PRESENT,&ppinfos,&infosize);
+	ret = get_hw_infos((LPGUID)&GUID_DEVINTERFACE_USB_HUB, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT, &ppinfos, &infosize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 	infolen = ret;
-	for(i=0;i<infolen;i++) {
+	for (i = 0; i < infolen; i++) {
 		pcurinfo = ppinfos[i];
 		EXPAND_USB_DEV();
 		pcurdev = &(pretdev[retlen]);
-		ret = _fill_usb_hub(pcurdev,pcurinfo);
+		ret = _fill_usb_hub(pcurdev, pcurinfo);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -271,17 +495,17 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 		retlen ++;
 	}
 
-	ret = get_hw_infos((LPGUID)&GUID_DEVINTERFACE_USB_DEVICE,DIGCF_DEVICEINTERFACE | DIGCF_PRESENT,&ppinfos,&infosize);
+	ret = get_hw_infos((LPGUID)&GUID_DEVINTERFACE_USB_DEVICE, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT, &ppinfos, &infosize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 	infolen = ret;
-	for(i=0;i<infolen;i++) {
+	for (i = 0; i < infolen; i++) {
 		pcurinfo = ppinfos[i];
 		EXPAND_USB_DEV();
 		pcurdev = &(pretdev[retlen]);
-		ret = _fill_usb_device(pcurdev,pcurinfo);
+		ret = _fill_usb_device(pcurdev, pcurinfo);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -291,7 +515,7 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 
 
 
-	get_hw_infos(NULL,0,&ppinfos,&infosize);
+	get_hw_infos(NULL, 0, &ppinfos, &infosize);
 	infolen = 0;
 
 	if (*ppur && *ppur != pretdev) {
@@ -306,7 +530,7 @@ fail:
 		free(pretdev);
 	}
 	pretdev = NULL;
-	get_hw_infos(NULL,0,&ppinfos,&infosize);
+	get_hw_infos(NULL, 0, &ppinfos, &infosize);
 	infolen = 0;
 	SETERRNO(ret);
 	return ret;
