@@ -536,3 +536,78 @@ fail:
 	return ret;
 }
 
+int get_hw_prop(phw_info_t pinfo, char* propguid, int propidx, uint8_t** ppbuf, int *psize)
+{
+	int ret;
+	int retlen = 0;
+	uint8_t* pretbuf = NULL;
+	int retsize = 0;
+	int i;
+	int fidx = -1;
+	phw_prop_t pcurprop=NULL;
+
+	if (pinfo == NULL) {
+		if (ppbuf && *ppbuf) {
+			free(*ppbuf);
+			*ppbuf = NULL;
+		}
+		if (psize) {
+			*psize = 0;
+		}
+		return 0;
+	}
+	if (propguid == NULL || ppbuf == NULL || psize == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	pretbuf = *ppbuf;
+	retsize = *psize;
+
+	for(i=0;i < pinfo->m_propsize;i++) {
+		pcurprop = pinfo->m_proparr[i];
+		if (pcurprop != NULL) {
+			if (pcurprop->m_propguid && _stricmp(pcurprop->m_propguid, propguid) == 0 && pcurprop->m_propguididx == propidx) {
+				fidx = i;
+				break;
+			}
+		}
+	}
+
+	if (fidx < 0) {
+		ret = -ERROR_NOT_FOUND;
+		ERROR_INFO("not found [%s].[%d]",propguid, propidx);
+		goto fail;
+	}
+
+	if ((int)pcurprop->m_propbuflen > retsize || pretbuf == NULL) {
+		retsize = (int)pcurprop->m_propbuflen;
+		pretbuf = (uint8_t*) malloc(pcurprop->m_propbuflen);
+		if (pretbuf == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+	memset(pretbuf, 0, (size_t)retsize);
+	retlen = (int)pcurprop->m_propbuflen;
+	if (retlen > 0) {
+		memcpy(pretbuf, pcurprop->m_propbuf, pcurprop->m_propbuflen);	
+	}
+
+	if (*ppbuf && *ppbuf != pretbuf) {
+		free(*ppbuf);
+	}
+	*ppbuf = pretbuf;
+	*psize = retsize;
+
+	return retlen;
+fail:
+	if (pretbuf && pretbuf != *ppbuf) {
+		free(pretbuf);
+	}
+	pretbuf = NULL;
+	retsize = 0;
+	SETERRNO(ret);
+	return ret;
+}

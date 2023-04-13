@@ -30,457 +30,189 @@ DEFINE_GUID(GUID_DEVINTERFACE_USB_HOST_CONTROLLER,
 // ({3ABF6F2D-71C4-462A-8A92-1E6861E6AF27})
 
 
+#define  DESCRIPTION_PROP_GUID  "a45c254e-df1c-4efd-8020-67d146a850e0"
+#define  DESCRIPTION_PROP_IDX   2
 
-#define  HWID_PROPERTY_GUID     "{A45C254E-DF1C-4EFD-8020-67D146A850E0}"
-#define  HWID_PROPERTY_PID      0x3
+#define  HARDWAREID_PROP_GUID   "a45c254e-df1c-4efd-8020-67d146a850e0"
+#define  HARDWAREID_PROP_IDX    3
 
-#define  INSTID_PROPERTY_GUID   "{78C34FC8-104A-4ACA-9EA4-524D52996E57}"
-#define  INSTID_PROPERTY_PID    0x100
 
 #pragma comment(lib,"Cfgmgr32.lib")
 #pragma comment(lib,"SetupAPI.lib")
 
+#define PARSE_VALUES(valnum,descr)                                                                \
+do{                                                                                               \
+	while(*cpptr != 0 && *cpptr != '&') {                                                         \
+		valnum <<= 4;                                                                             \
+		if (*cpptr >= '0' && *cpptr <= '9') {                                                     \
+			valnum += *cpptr - '0';                                                               \
+		} else if (*cpptr >= 'a' && *cpptr <= 'f') {                                              \
+			valnum += *cpptr - 'a' + 10;                                                          \
+		} else if (*cpptr >= 'A' && *cpptr <= 'F') {                                              \
+			valnum += *cpptr - 'A' + 10;                                                          \
+		} else {                                                                                  \
+			ret = -ERROR_INVALID_PARAMETER;                                                       \
+			ERROR_INFO("[%s] not valid for %s", propansi,descr);                                  \
+			goto fail;                                                                            \
+		}                                                                                         \
+		cpptr ++;                                                                                 \
+	}                                                                                             \
+}while(0)
 
-
-int __get_guid_dev(LPGUID pguid, const char* guidstr, pusb_dev_t* ppdata, int *psize,DWORD *pindex)
+int _fill_usb_root(pusb_dev_t pcurdev,phw_info_t pinfo)
 {
-	int retlen = 0;
+	uint8_t* propbuf= NULL;
+	int propsize=0;
+	int proplen=0;
+	wchar_t* pwptr=NULL;
 	int ret;
-	HDEVINFO hinfo = INVALID_HANDLE_VALUE;
-	pusb_dev_t pretdata = NULL;
-	int retsize = 0;
-	SP_DEVINFO_DATA* pndata = NULL;
-	DWORD nindex;
-	DWORD offindex;
-	BOOL bret;
-	DEVPROPKEY* propkeys = NULL;
-	DWORD propkeysize = 0;
-	DWORD requiresize = 0;
-	DWORD propkeylen = 0;
-	DWORD i;
-	char* fmtid = NULL;
-	int ccmax = 0;
-	int matchid ;
-	uint8_t* propbuf = NULL;
-	ULONG propbufsize = 0;
-	ULONG propbuflen = 0;
-	ULONG wi = 0;
-	wchar_t* pwptr = NULL;
-	char* propansi = NULL;
-	int ansisize = 0;
-	char* ppcptr = NULL;
-	DEVPROPTYPE  proptype;
-	pusb_dev_t ptmp = NULL;
-	CONFIGRET cfgret;
+	char* propansi=NULL;
+	int ansisize=0;
+	int ansilen=0;
+	char* cpptr = NULL;
 	int setvid = -1;
 	int setpid = -1;
+	pusb_root_t proot = &(pcurdev->u.m_root);
+	pcurdev->m_type = USB_ROOT_DEV;
 
-	if (pguid == NULL) {
-		if (ppdata && *ppdata) {
-			free(*ppdata);
-			*ppdata = NULL;
-		}
-		if (psize) {
-			*psize = 0;
-		}
-		return 0;
-	}
-
-	if (guidstr == NULL || ppdata == NULL || psize == NULL || pindex == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
-		SETERRNO(ret);
-		return ret;
-	}
-
-	pretdata = *ppdata;
-	retsize = *psize;
-	offindex = *pindex;
-
-	//hinfo = SetupDiGetClassDevsW(pguid, NULL, NULL, DIGCF_ALLCLASSES);
-	hinfo = SetupDiGetClassDevsW(pguid, NULL, NULL, DIGCF_DEVICEINTERFACE | DIGCF_PRESENT);
-	if (hinfo == INVALID_HANDLE_VALUE) {
-		GETERRNO(ret);
-		ERROR_INFO("can not get class dev [%s] error[%d]", guidstr, ret);
-		goto fail;
-	}
-
-	pndata = (SP_DEVINFO_DATA*)malloc(sizeof(*pndata));
-	if (pndata == NULL) {
+	ret = get_hw_prop(pinfo,DESCRIPTION_PROP_GUID,DESCRIPTION_PROP_IDX,&propbuf,&propsize);
+	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
+	proplen = ret;
 
+	pwptr = (wchar_t*) propbuf;
+	ret = UnicodeToUtf8(pwptr,&propansi,&ansisize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ansilen = ret;
+	if (ansilen >= sizeof(proot->m_description)) {
+		ansilen = sizeof(proot->m_description) - 1;
+	}
+	memcpy(proot->m_description, propansi,(size_t)ansilen);
+	proot->m_description[ansilen] = 0x0;
 
-	nindex = 0;
-	while (1) {
-		memset(pndata, 0, sizeof(*pndata));
-		pndata->cbSize = sizeof(*pndata);
+	ret = get_hw_prop(pinfo,HARDWAREID_PROP_GUID,HARDWAREID_PROP_IDX,&propbuf,&propsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	proplen = ret;
+	pwptr = (wchar_t*) propbuf;
+	ret = UnicodeToUtf8(pwptr,&propansi,&ansisize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ansilen = ret;
 
-		bret = SetupDiEnumDeviceInfo(hinfo, nindex, pndata);
-		if (!bret) {
-			GETERRNO(ret);
-			if (ret != -ERROR_NO_MORE_ITEMS) {
-				ERROR_INFO("can not get [%s] on [%ld] device error[%d]", guidstr, nindex + offindex, ret);
-				goto fail;
+	cpptr = propansi;
+	setvid = -1;
+	setpid = -1;
+	while(*cpptr != 0x0) {
+		if (setvid < 0) {
+			if (_strnicmp(cpptr,"ven_",4) == 0) {
+				cpptr += 4;
+				setvid = 0;
+				PARSE_VALUES(setvid,"setvid");
 			}
-			/*all is gotten*/
+		}
+
+		if (setpid < 0) {
+			if (_strnicmp(cpptr,"dev_",4) == 0) {
+				cpptr += 4;
+				setpid = 0;
+				PARSE_VALUES(setpid,"setpid");
+			}
+		}
+
+		if (setvid >= 0 && setpid >= 0) {
 			break;
 		}
-
-		requiresize = 0;
-		bret = SetupDiGetDevicePropertyKeys(hinfo, pndata, NULL, 0, &requiresize, 0);
-		if (!bret) {
-			GETERRNO(ret);
-			if (ret != -ERROR_INSUFFICIENT_BUFFER) {
-				ERROR_INFO("[%s].[%ld] get property keys error[%d]", guidstr, nindex + offindex, ret);
-				goto fail;
-			}
-		}
-
-		if (requiresize > propkeysize) {
-			propkeysize = requiresize;
-			if (propkeys) {
-				free(propkeys);
-			}
-			propkeys = NULL;
-			propkeys = (DEVPROPKEY*) malloc(sizeof(*propkeys) * propkeysize);
-			if (propkeys == NULL) {
-				GETERRNO(ret);
-				goto fail;
-			}
-		}
-
-		memset(propkeys, 0 , sizeof(*propkeys) * propkeysize);
-		propkeylen = 0;
-		bret = SetupDiGetDevicePropertyKeys(hinfo, pndata, propkeys, propkeysize, &propkeylen, 0);
-		if (!bret) {
-			GETERRNO(ret);
-			ERROR_INFO("[%s].[%ld] get prop keys error[%d]", guidstr, nindex, ret);
-			goto fail;
-		}
-		//DEBUG_INFO("[%s].[%ld] get prop keys [%ld]", guidstr, nindex, propkeylen);
-
-		for (i = 0; i < propkeylen ; i ++) {
-			ret = get_guid_str(&propkeys[i].fmtid, &fmtid, &ccmax);
-			if (ret < 0) {
-				GETERRNO(ret);
-				goto fail;
-			}
-try_2:
-			//proptype = 0;
-			if (propbuf) {
-				memset(propbuf, 0, propbufsize);
-			}
-			propbuflen = propbufsize;
-			cfgret = CM_Get_DevNode_PropertyW(pndata->DevInst, &(propkeys[i]), &proptype, propbuf, &propbuflen, 0);
-			if (cfgret == CR_SUCCESS) {
-				pwptr = (wchar_t*) propbuf;
-				wi = 0;
-				DEBUG_BUFFER_FMT(propbuf,propbuflen,"nindex[%ld].[%ld] property[%s].[0x%lx]", nindex + offindex,i,fmtid,propkeys[i].pid);
-				while (wi < propbuflen) {
-					while (wi < propbuflen && *pwptr == 0) {
-						pwptr += 1;
-						wi += 2;
-					}
-
-					if (wi < propbuflen) {
-						ret = UnicodeToUtf8(pwptr, &propansi,&ansisize)	;
-						if (ret < 0) {
-							GETERRNO(ret);
-							goto fail;
-						}
-						DEBUG_INFO("PROP    [%s]", propansi);
-					}
-
-					while(wi < propbuflen && *pwptr != 0) {
-						pwptr += 1;
-						wi += 2;
-					}
-				}
-			} else {
-				if (cfgret == CR_BUFFER_SMALL) {
-					propbufsize = propbuflen;
-					if (propbuf) {
-						free(propbuf);
-					}
-					propbuf = NULL;
-					propbuf = (uint8_t*) malloc(propbufsize);
-					if (propbuf == NULL) {
-						GETERRNO(ret);
-						goto fail;
-					}
-					goto try_2;
-				}
-				GETERRNO(ret);
-				ERROR_INFO("[%s].[%ld].[%ld] prop [%s].[0x%lx] error[%d]", guidstr, nindex + offindex, i, fmtid,propkeys[i].pid, cfgret);
-			}
-
-		}
-
-
-		matchid = -1;
-		for (i = 0; i < propkeylen; i++) {
-			if (propkeys[i].pid == HWID_PROPERTY_PID || propkeys[i].pid == INSTID_PROPERTY_PID) {
-				ret = get_guid_str(&(propkeys[i].fmtid), &fmtid, &ccmax);
-				if (ret < 0) {
-					GETERRNO(ret);
-					goto fail;
-				}
-
-				if (_stricmp(fmtid, HWID_PROPERTY_GUID) == 0 && propkeys[i].pid == HWID_PROPERTY_PID) {
-					matchid = (int) i;
-				} else if (_stricmp(fmtid, INSTID_PROPERTY_GUID) == 0 && propkeys[i].pid == INSTID_PROPERTY_PID) {
-					matchid = (int) i;
-				}
-			}
-
-			if (matchid >= 0) {
-				if (retlen >= retsize) {
-					if (retsize == 0) {
-						retsize = 4;
-					} else {
-						retsize <<= 1;
-					}
-					ASSERT_IF(ptmp == NULL);
-					ptmp = (pusb_dev_t) malloc(sizeof(*ptmp) * retsize);
-					if (ptmp == NULL) {
-						GETERRNO(ret);
-						goto fail;
-					}
-
-					memset(ptmp, 0, sizeof(*ptmp) * retsize);
-					if (retlen > 0) {
-						memcpy(ptmp, pretdata, sizeof(*ptmp) * retlen);
-					}
-
-					if (pretdata && pretdata != *ppdata) {
-						free(pretdata);
-					}
-					pretdata = NULL;
-					pretdata = ptmp;
-					ptmp = NULL;
-				}
-
-try_again:
-
-				proptype = 0;
-				if (propbuf != NULL) {
-					memset(propbuf, 0, propbufsize);
-				}
-				setvid = -1;
-				setpid = -1;
-				propbuflen = propbufsize;
-				cfgret = CM_Get_DevNode_PropertyW(pndata->DevInst, &(propkeys[i]), &proptype, propbuf, &propbuflen, 0);
-				if (cfgret == CR_SUCCESS) {
-					memset(&pretdata[retlen], 0 , sizeof(pretdata[retlen]));
-					if (propkeys[i].pid == HWID_PROPERTY_PID || propkeys[i].pid == INSTID_PROPERTY_PID) {
-						pwptr = (wchar_t*) propbuf;
-						ret = UnicodeToUtf8(pwptr, &propansi, &ansisize);
-						if (ret < 0) {
-							GETERRNO(ret);
-							goto fail;
-						}
-						//DEBUG_INFO("[%s].[%ld].[%ld] [%s].[0x%lx] prop [%s] setvid [%d] setpid [%d]", guidstr, nindex, i, fmtid, propkeys[i].pid, propansi,setvid,setpid);
-						ppcptr = propansi;
-						while (*ppcptr != '\0') {
-							if (setvid < 0) {
-								if (_strnicmp(ppcptr, "vid_", 4) == 0) {
-									setvid = 0;
-									ppcptr += 4;
-									while (*ppcptr != '\0' && *ppcptr != '&' && *ppcptr != '\\') {
-										if (*ppcptr >= '0' && *ppcptr <= '9') {
-											setvid <<= 4;
-											setvid += *ppcptr - '0';
-										} else if (*ppcptr >= 'a' && *ppcptr <= 'f') {
-											setvid <<= 4;
-											setvid += (*ppcptr - 'a' + 10);
-										} else if (*ppcptr >= 'A' && *ppcptr <= 'F') {
-											setvid <<= 4;
-											setvid += (*ppcptr - 'A' + 10);
-										} else {
-											setvid = -1;
-											ERROR_INFO("[%ld].[%ld] prop [%s] not valid vid", nindex, i, propansi);
-											break;
-										}
-										ppcptr ++;
-									}
-									pretdata[retlen].m_vendorid = (uint32_t)setvid;
-									DEBUG_INFO("set vid [0x%x]", setvid);
-								}
-							}
-
-							if (setpid < 0) {
-								if (_strnicmp(ppcptr, "pid_", 4) == 0) {
-									setpid = 0;
-									ppcptr += 4;
-									while (*ppcptr != '\0' && *ppcptr != '&' && *ppcptr != '\\') {
-										if (*ppcptr >= '0' && *ppcptr <= '9') {
-											setpid <<= 4;
-											setpid += *ppcptr - '0';
-										} else if (*ppcptr >= 'a' && *ppcptr <= 'f') {
-											setpid <<= 4;
-											setpid += (*ppcptr - 'a' + 10);
-										} else if (*ppcptr >= 'A' && *ppcptr <= 'F') {
-											setpid <<= 4;
-											setpid += (*ppcptr - 'A' + 10);
-										} else {
-											setpid = -1;
-											ERROR_INFO("[%ld].[%ld] prop [%s] not valid pid", nindex, i, propansi);
-											break;
-										}
-										ppcptr ++;
-									}
-									pretdata[retlen].m_prodid = (uint32_t)setpid;
-									DEBUG_INFO("set pid [0x%x]", setpid);
-								}
-							}
-
-							if (setpid >= 0 && setvid >= 0) {
-								break;
-							}
-							ppcptr ++;
-						}
-
-						if (setvid < 0 || setpid < 0) {
-							ERROR_INFO("[%s].[%ld].[%ld] prop [%s] not valid", guidstr, nindex, i, propansi);
-							matchid = -1;
-						}
-
-						if (matchid >= 0) {
-							int clen = (int) strlen(propansi);
-							if (clen >= sizeof(pretdata[retlen].m_path)) {
-								clen = sizeof(pretdata[retlen].m_path) - 1;
-							}
-							memcpy(pretdata[retlen].m_path, propansi, (size_t)clen);
-							retlen ++ ;
-						}
-					}
-				} else {
-					if (cfgret == CR_BUFFER_SMALL) {
-						propbufsize = propbuflen;
-						if (propbuf) {
-							free(propbuf);
-						}
-						propbuf = NULL;
-						propbuf = (uint8_t*) malloc(propbufsize);
-						if (propbuf == NULL) {
-							GETERRNO(ret);
-							goto fail;
-						}
-						goto try_again;
-					}
-					GETERRNO(ret);
-					ERROR_INFO("[%s].[%ld].[%ld] prop [%s] error[%d]", guidstr, nindex, i, fmtid, cfgret);
-					goto fail;
-				}
-			}
-
-			if (matchid >= 0) {
-				break;
-			}
-		}
-
-		nindex ++;
+		cpptr ++;
 	}
 
-	DEBUG_INFO("nindex [%ld]", nindex);
-
-	UnicodeToUtf8(NULL, &propansi, &ansisize);
-
-	if (propbuf) {
-		free(propbuf);
-	}
-	propbuf = NULL;
-	propbufsize = 0;
-	propbuflen = 0;
-
-	get_guid_str(NULL, &fmtid, &ccmax);
-
-	if (propkeys) {
-		free(propkeys);
-	}
-	propkeys = NULL;
-	propkeysize = 0;
-
-
-	if (pndata) {
-		free(pndata);
-	}
-	pndata = NULL;
-
-
-	if (hinfo != INVALID_HANDLE_VALUE) {
-		SetupDiDestroyDeviceInfoList(hinfo);
-	}
-	hinfo = INVALID_HANDLE_VALUE;
-
-
-
-	if (pindex) {
-		*pindex = nindex + offindex;
+	if (setvid < 0 || setpid < 0) {
+		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO("[%s] not valid for HARDWAREID_PROP_GUID",propansi);
+		goto fail;
 	}
 
-	if (*ppdata && *ppdata != pretdata) {
-		free(*ppdata);
+	proot->m_vendorid = (uint32_t)setvid;
+	proot->m_prodid = (uint32_t)setpid;
+
+	if (ansilen >= sizeof(proot->m_path)) {
+		ansilen = sizeof(proot->m_path) - 1;
 	}
-	*ppdata = pretdata;
-	*psize = retsize;
+	memcpy(proot->m_path, propansi, (size_t)ansilen);
+	proot->m_path[ansilen] = 0x0;
+
+	UnicodeToUtf8(NULL,&propansi,&ansisize);
+	get_hw_prop(NULL,NULL,0,&propbuf,&propsize);
 
 
-	return retlen;
+	return 0;
 fail:
-	UnicodeToUtf8(NULL, &propansi, &ansisize);
-	if (propbuf) {
-		free(propbuf);
-	}
-	propbuf = NULL;
-	propbufsize = 0;
-	propbuflen = 0;
-
-
-	if (ptmp) {
-		free(ptmp);
-	}
-	ptmp = NULL;
-
-	get_guid_str(NULL, &fmtid, &ccmax);
-
-	if (propkeys) {
-		free(propkeys);
-	}
-	propkeys = NULL;
-	propkeysize = 0;
-
-
-	if (pndata) {
-		free(pndata);
-	}
-	pndata = NULL;
-
-	if (hinfo != INVALID_HANDLE_VALUE) {
-		SetupDiDestroyDeviceInfoList(hinfo);
-	}
-	hinfo = INVALID_HANDLE_VALUE;
-
-	if (pretdata && pretdata != *ppdata) {
-		free(pretdata);
-	}
-	pretdata = NULL;
-	retsize = 0;
-
+	UnicodeToUtf8(NULL,&propansi,&ansisize);
+	get_hw_prop(NULL,NULL,0,&propbuf,&propsize);
 	SETERRNO(ret);
 	return ret;
 }
 
+int _fill_usb_hub(pusb_dev_t pcurdev,phw_info_t pinfo)
+{
+	return 0;
+}
+
+int _fill_usb_device(pusb_dev_t pcurdev,phw_info_t pinfo)
+{
+	return 0;
+}
+
+
+#define  EXPAND_USB_DEV()                                                                         \
+do{                                                                                               \
+	if (retlen >= retsize) {                                                                      \
+		if (retsize == 0) {                                                                       \
+			retsize = 4;                                                                          \
+		} else {                                                                                  \
+			retsize <<= 1;                                                                        \
+		}                                                                                         \
+		ASSERT_IF(ptmp == NULL);                                                                  \
+		ptmp = (pusb_dev_t) malloc(sizeof(*ptmp) * retsize);                                      \
+		if (ptmp == NULL) {                                                                       \
+			GETERRNO(ret);                                                                        \
+			goto fail;                                                                            \
+		}                                                                                         \
+		memset(ptmp, 0 ,sizeof(*ptmp) * retsize);                                                 \
+		if (retlen > 0) {                                                                         \
+			memcpy(ptmp, pretdev, sizeof(*ptmp) * retlen);                                        \
+		}                                                                                         \
+		if (pretdev && pretdev != *ppur) {                                                        \
+			free(pretdev);                                                                        \
+		}                                                                                         \
+		pretdev = ptmp;                                                                           \
+		ptmp = NULL;                                                                              \
+	}                                                                                             \
+}while(0)
+
+
 int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 {
 	int retlen = 0;
-	char* guidstr = NULL;
-	int ccmax = 0;
 	int ret;
-	pusb_dev_t ccdev=NULL;
-	int ccdevsize=0;
-	DWORD offidx = 0;
+	phw_info_t* ppinfos=NULL;
+	phw_info_t pcurinfo=NULL;
+	int infosize=0;
+	int infolen = 0;
+	int i;
+	pusb_dev_t  pretdev=NULL;
+	int retsize = 0;
+	pusb_dev_t pcurdev;
+	pusb_dev_t ptmp = NULL;
 	if (freed) {
 		if (ppur && *ppur) {
 			free(*ppur);
@@ -492,61 +224,90 @@ int list_usb_devices(int freed, pusb_dev_t* ppur, int *psize)
 		return 0;
 	}
 
-	ret = get_guid_str((LPGUID)&GUID_DEVINTERFACE_USB_DEVICE, &guidstr, &ccmax);
+	if (ppur == NULL || psize == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	pretdev = *ppur;
+	retsize = *psize;
+	retlen = 0;
+
+	ret = get_hw_infos((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER,DIGCF_DEVICEINTERFACE | DIGCF_PRESENT,&ppinfos,&infosize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
+	infolen = ret;
+	for(i=0;i<infolen;i++) {
+		pcurinfo = ppinfos[i];
+		EXPAND_USB_DEV();
+		pcurdev = &(pretdev[retlen]);
+		ret = _fill_usb_root(pcurdev,pcurinfo);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		retlen ++;
+	}
 
 
-	/*
-	ret = __get_guid_dev((LPGUID)&GUID_DEVINTERFACE_USB_DEVICE, guidstr, ppur, psize);
+	ret = get_hw_infos((LPGUID)&GUID_DEVINTERFACE_USB_HUB,DIGCF_DEVICEINTERFACE | DIGCF_PRESENT,&ppinfos,&infosize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
+	infolen = ret;
+	for(i=0;i<infolen;i++) {
+		pcurinfo = ppinfos[i];
+		EXPAND_USB_DEV();
+		pcurdev = &(pretdev[retlen]);
+		ret = _fill_usb_hub(pcurdev,pcurinfo);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		retlen ++;
+	}
 
-	retlen = ret;
-	*/
-
-	ret = get_guid_str((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER,&guidstr,&ccmax);
+	ret = get_hw_infos((LPGUID)&GUID_DEVINTERFACE_USB_DEVICE,DIGCF_DEVICEINTERFACE | DIGCF_PRESENT,&ppinfos,&infosize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
-
-	//ret = __get_guid_dev((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER,guidstr,&ccdev,&ccdevsize);
-	ret = __get_guid_dev((LPGUID)&GUID_DEVINTERFACE_USB_DEVICE,guidstr,&ccdev,&ccdevsize,&offidx);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	ret = __get_guid_dev((LPGUID)&GUID_DEVINTERFACE_USB_HOST_CONTROLLER,guidstr,&ccdev,&ccdevsize,&offidx);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	ret = __get_guid_dev((LPGUID)&GUID_DEVINTERFACE_USB_HUB,guidstr,&ccdev,&ccdevsize,&offidx);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
+	infolen = ret;
+	for(i=0;i<infolen;i++) {
+		pcurinfo = ppinfos[i];
+		EXPAND_USB_DEV();
+		pcurdev = &(pretdev[retlen]);
+		ret = _fill_usb_device(pcurdev,pcurinfo);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		retlen ++;
 	}
 
 
 
-	__get_guid_dev(NULL,NULL,&ccdev,&ccdevsize,NULL);
+	get_hw_infos(NULL,0,&ppinfos,&infosize);
+	infolen = 0;
 
-	if (guidstr) {
-		free(guidstr);
+	if (*ppur && *ppur != pretdev) {
+		free(*ppur);
 	}
-	guidstr = NULL;
+	*ppur = pretdev;
+	*psize = retsize;
 
 	return retlen;
 fail:
-	__get_guid_dev(NULL,NULL,&ccdev,&ccdevsize,NULL);
-	get_guid_str(NULL, &guidstr, &ccmax);
+	if (pretdev && pretdev != *ppur) {
+		free(pretdev);
+	}
+	pretdev = NULL;
+	get_hw_infos(NULL,0,&ppinfos,&infosize);
+	infolen = 0;
 	SETERRNO(ret);
 	return ret;
 }
