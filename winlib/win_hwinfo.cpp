@@ -2,6 +2,8 @@
 #include <win_output_debug.h>
 #include <win_err.h>
 #include <win_uniansi.h>
+#include <win_strop.h>
+#include <win_proc.h>
 
 #pragma warning(push)
 #pragma warning(disable:4820)
@@ -608,6 +610,199 @@ fail:
 	}
 	pretbuf = NULL;
 	retsize = 0;
+	SETERRNO(ret);
+	return ret;
+}
+
+#define  CAP_LEN           ((int)strlen("capacity"))
+#define  MAN_LEN           ((int)strlen("manufacturer"))
+#define  PART_LEN          ((int)strlen("partnumber"))
+#define  SER_LEN           ((int)strlen("serialnumber"))
+#define  SPD_LEN           ((int)strlen("speed"))
+
+#define  NULL_IDX          0
+#define  CAP_IDX           1
+#define  MAN_IDX           2
+#define  PART_IDX          3
+#define  SER_IDX           4
+#define  SPD_IDX           5
+
+#define  SET_HEAD_LEN()                                                                            \
+do{                                                                                                \
+	if (curidx == CAP_IDX) {                                                                       \
+		caplen = (curoff - capoff);                                                                \
+	} else if (curidx == MAN_IDX) {                                                                \
+		manlen = (curoff - manoff);                                                                \
+	} else if (curidx == PART_IDX) {                                                               \
+		partlen = (curoff - partoff);                                                              \
+	} else if (curidx == SER_IDX) {                                                                \
+		serlen = (curoff - seroff);                                                                \
+	} else if (curidx == SPD_IDX) {                                                                \
+		spdlen = (curoff - spdoff);                                                                \
+	} else {                                                                                       \
+		ASSERT_IF(curidx == NULL_IDX);                                                             \
+	}                                                                                              \
+} while(0)
+
+int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
+{
+	pmem_info_t pretmem = NULL;
+	int retsize=0;
+	int retlen = 0;
+	int ret;
+	char** pplines= NULL;
+	int linesize=0;
+	int linelen = 0;
+	char* pout=NULL;
+	int outsize=0;
+	int exitcode=0;
+	char* cmdline=NULL;
+	int cmdsize=0;
+	int capoff = -1,manoff = -1,partoff = -1,seroff = -1,spdoff = -1;
+	int caplen = -1,manlen = -1,partlen = -1,serlen = -1,spdlen = -1;
+	char* pc;
+	int curoff;
+	int curidx = NULL_IDX;
+	int i;
+	if (freed) {
+		if (ppmems && *ppmems) {
+			free(*ppmems);
+			*ppmems = NULL;
+		}
+		if (psize) {
+			*psize = 0;
+		}
+		return 0;
+	}
+	if (ppmems == NULL || psize == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	pretmem = *ppmems;
+	retsize = *psize;
+
+	ret = snprintf_safe(&cmdline,&cmdsize,"wmic.exe memorychip get capacity,speed,SerialNumber,PartNumber,Manufacturer");
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,cmdline);
+	if (ret  < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (exitcode != 0) {
+		ret = exitcode;
+		if (ret > 0) {
+			ret = -ret;
+		}
+		ERROR_INFO("run [%s] exitcode[%d]", cmdline,exitcode);
+		goto fail;
+	}
+
+	ret = split_lines(pout,&pplines,&linesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	linelen = ret;
+	if (linelen < 2) {
+		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO("lines [%d] not valid",linelen);
+		goto fail;
+	}
+
+	retlen = linelen - 1;
+
+	if (retlen > retsize) {
+		retsize = retlen;
+		pretmem = (pmem_info_t)malloc(sizeof(*pretmem) * retsize);
+		if (pretmem == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+	memset(pretmem, 0 ,sizeof(*pretmem) * retsize);
+
+	for (i=0;i<linelen;i++) {
+		if (i == 0) {
+			curidx = NULL_IDX;
+			pc = pplines[i];
+			curoff = 0;
+			while(*pc != '\0') {
+				if (_strnicmp(pc,"capacity",(size_t)CAP_LEN) == 0) {
+					capoff = curoff;
+					SET_HEAD_LEN();
+					curidx = CAP_IDX;
+					pc += CAP_LEN;
+					curoff += CAP_LEN;
+					continue;
+				} else if (_strnicmp(pc,"manufacturer",(size_t)MAN_LEN) == 0) {
+					manoff = curoff;
+					SET_HEAD_LEN();
+					curidx = MAN_IDX;
+					pc += MAN_LEN;
+					curoff += MAN_LEN;
+					continue;
+				} else if (_strnicmp(pc,"partnumber",(size_t)PART_LEN) == 0) {
+					partoff = curoff;
+					SET_HEAD_LEN();
+					curidx = PART_IDX;
+					pc += PART_LEN;
+					curoff += PART_LEN;
+					continue;
+				} else if (_strnicmp(pc,"serialnumber",(size_t)SER_LEN) == 0) {
+					seroff = curoff;
+					SET_HEAD_LEN();
+					curidx = SER_IDX;
+					pc += SER_LEN;
+					curoff += SER_LEN;
+					continue;
+				} else if (_strnicmp(pc,"speed",(size_t)SPD_LEN) == 0) {
+					spdoff = curoff;
+					SET_HEAD_LEN();
+					curidx = SPD_IDX;
+					pc += SPD_LEN;
+					curoff += SPD_LEN;
+					continue;
+				} 
+				pc += 1;
+				curoff += 1;
+			}
+
+			/*we make last one*/
+			SET_HEAD_LEN();
+
+			if (capoff < 0 || manoff < 0 || partoff < 0 || seroff < 0 || spdoff < 0) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] not valid headline",pplines[i]);
+				goto fail;
+			}
+		} 
+	}
+
+
+	run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,NULL);
+	snprintf_safe(&cmdline,&cmdsize,NULL);
+	if (*ppmems && *ppmems != pretmem) {
+		free(*ppmems);
+	}
+	*ppmems = pretmem;
+	*psize = retsize;
+
+	return retlen;
+fail:
+	run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,NULL);
+	snprintf_safe(&cmdline,&cmdsize,NULL);
+
+	if (pretmem && pretmem != *ppmems) {
+		free(pretmem);
+	}
+	pretmem = NULL;
 	SETERRNO(ret);
 	return ret;
 }
