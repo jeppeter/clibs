@@ -450,5 +450,8 @@
     },
     "lshwinfo<lshwinfo_handler>##[guids]... to list hardware info properties##" : {
         "$" : "*"
+    },
+    "lsmem<lsmem_handler>##to list memory information##" : {
+        "$" : 0
     }
 }

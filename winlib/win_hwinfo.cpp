@@ -4,6 +4,7 @@
 #include <win_uniansi.h>
 #include <win_strop.h>
 #include <win_proc.h>
+#include <win_args.h>
 
 #pragma warning(push)
 #pragma warning(disable:4820)
@@ -644,6 +645,32 @@ do{                                                                             
 	}                                                                                              \
 } while(0)
 
+#define  COPY_STR_SIZE(cpoff,cplen)                                                                \
+do{                                                                                                \
+	char* _plastptr;                                                                               \
+	if (strsize <= cplen) {                                                                        \
+		if (pstr != NULL) {                                                                        \
+			free(pstr);                                                                            \
+		}                                                                                          \
+		pstr = NULL;                                                                               \
+		strsize = cplen + 1;                                                                       \
+		pstr = (char*) malloc((size_t)strsize);                                                    \
+		if (pstr == NULL) {                                                                        \
+			GETERRNO(ret);                                                                         \
+			goto fail;                                                                             \
+		}		                                                                                   \
+	}                                                                                              \
+	memset(pstr, 0, (size_t)strsize);                                                              \
+	memcpy(pstr , &pc[cpoff], (size_t)cplen);                                                      \
+	_plastptr = &pstr[(cplen)-1];                                                                  \
+	/*to remove trailer spaces*/                                                                   \
+	while(_plastptr != pstr &&                                                                     \
+		(*_plastptr == ' ' || *_plastptr == '\0' || *_plastptr == '\t' )) {                        \
+		*_plastptr = '\0';                                                                         \
+		_plastptr -= 1;                                                                            \
+	}                                                                                              \
+} while(0)
+
 int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 {
 	pmem_info_t pretmem = NULL;
@@ -663,7 +690,13 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 	char* pc;
 	int curoff;
 	int curidx = NULL_IDX;
+	int curlen ;
+	char* pstr = NULL;
+	int strsize = 0;
 	int i;
+	pmem_info_t pcurmem;
+	uint64_t num64;
+	char* pendptr;
 	if (freed) {
 		if (ppmems && *ppmems) {
 			free(*ppmems);
@@ -688,12 +721,15 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 		GETERRNO(ret);
 		goto fail;
 	}
+	DEBUG_INFO(" ");
 
 	ret = run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,cmdline);
 	if (ret  < 0) {
 		GETERRNO(ret);
+		ERROR_INFO("run [%s] return [%d]", cmdline,ret);
 		goto fail;
 	}
+	DEBUG_INFO(" ");
 
 	if (exitcode != 0) {
 		ret = exitcode;
@@ -704,6 +740,7 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 		goto fail;
 	}
 
+	DEBUG_INFO(" ");
 	ret = split_lines(pout,&pplines,&linesize);
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -782,9 +819,55 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 				ERROR_INFO("[%s] not valid headline",pplines[i]);
 				goto fail;
 			}
-		} 
+		}  else {
+			pc = pplines[i];
+			pcurmem = &pretmem[(i-1)];
+			COPY_STR_SIZE(capoff,caplen);
+			ret = parse_number(pstr,&num64,&pendptr);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			pcurmem->m_size = num64;
+			COPY_STR_SIZE(manoff,manlen);
+			curlen = manlen;
+			if (curlen >= sizeof(pcurmem->m_manufacturer)) {
+				curlen = sizeof(pcurmem->m_manufacturer) - 1;
+			}
+			memcpy(pcurmem->m_manufacturer, pstr,(size_t)curlen);
+
+			COPY_STR_SIZE(seroff,serlen);
+			curlen = serlen;
+			if (curlen >= sizeof(pcurmem->m_sn)) {
+				curlen = sizeof(pcurmem->m_sn) -1;
+			}
+			memcpy(pcurmem->m_sn , pstr,(size_t)curlen);
+
+			COPY_STR_SIZE(partoff,partlen);
+			curlen = partlen;
+			if (curlen >= sizeof(pcurmem->m_partnumber)) {
+				curlen = sizeof(pcurmem->m_partnumber) - 1;
+			}
+			memcpy(pcurmem->m_partnumber,pstr,(size_t)curlen);
+
+			COPY_STR_SIZE(spdoff,spdlen);
+			ret = parse_number(pstr,&num64,&pendptr);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			pcurmem->m_speed = (uint32_t)num64;
+		}
 	}
 
+	if (pstr) {
+		free(pstr);
+	}
+	pstr = NULL;
+	strsize = 0;
+
+	split_lines(NULL,&pplines,&linesize);
+	linelen = 0;
 
 	run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,NULL);
 	snprintf_safe(&cmdline,&cmdsize,NULL);
@@ -796,9 +879,17 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 
 	return retlen;
 fail:
+
+	if (pstr) {
+		free(pstr);
+	}
+	pstr = NULL;
+	strsize = 0;
+
+	split_lines(NULL,&pplines,&linesize);
+	linelen = 0;
 	run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,NULL);
 	snprintf_safe(&cmdline,&cmdsize,NULL);
-
 	if (pretmem && pretmem != *ppmems) {
 		free(pretmem);
 	}

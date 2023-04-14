@@ -952,8 +952,6 @@ out:
 
 
 
-#if 1
-
 void display_hw_infos(FILE* fout, phw_info_t* ppinfos, int infolen)
 {
 	phw_info_t pcurinfo ;
@@ -1079,13 +1077,38 @@ out:
 	SETERRNO(ret);
 	return ret;	
 }
-#else
-int lshwinfo_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+
+int lsmem_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
+	int ret;
+	pargs_options_t pargs=(pargs_options_t)popt;
+	pmem_info_t pmeminfo=NULL;
+	int infosize=0;
+	int infolen=0;
+	int i;
+
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
 	REFERENCE_ARG(parsestate);
-	REFERENCE_ARG(popt);
-	return 0;
+	init_log_level(pargs);
+
+	ret = get_ram_info(0,&pmeminfo,&infosize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not get memory info[%d]\n", ret);
+		goto out;
+	}
+	infolen = ret;
+	for(i=0;i<infolen;i++) {
+		fprintf(stdout,"[%d] size 0x%llx sn [%s] partnumber [%s] manu [%s] speed [%d]\n",
+			i, pmeminfo[i].m_size,pmeminfo[i].m_sn, pmeminfo[i].m_partnumber, pmeminfo[i].m_manufacturer,
+			pmeminfo[i].m_speed);
+	}
+
+	ret=  0;
+out:
+	get_ram_info(1,&pmeminfo,&infosize);
+	infolen = 0;
+	SETERRNO(ret);
+	return ret;
 }
-#endif
