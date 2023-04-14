@@ -1082,7 +1082,7 @@ int lsmem_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 {
 	int ret;
 	pargs_options_t pargs=(pargs_options_t)popt;
-	pmem_info_t pmeminfo=NULL;
+	phw_meminfo_t pmeminfo=NULL;
 	int infosize=0;
 	int infolen=0;
 	int i;
@@ -1092,7 +1092,7 @@ int lsmem_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	REFERENCE_ARG(parsestate);
 	init_log_level(pargs);
 
-	ret = get_ram_info(0,&pmeminfo,&infosize);
+	ret = get_hw_mem_info(0,&pmeminfo,&infosize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		fprintf(stderr, "can not get memory info[%d]\n", ret);
@@ -1107,7 +1107,57 @@ int lsmem_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 
 	ret=  0;
 out:
-	get_ram_info(1,&pmeminfo,&infosize);
+	get_hw_mem_info(1,&pmeminfo,&infosize);
+	infolen = 0;
+	SETERRNO(ret);
+	return ret;
+}
+
+int lscpu_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int ret;
+	pargs_options_t pargs=(pargs_options_t)popt;
+	phw_cpuinfo_t pcpuinfo=NULL;
+	int infosize=0;
+	int infolen=0;
+	int i;
+	char* pstr = NULL;
+	int ssize=0;
+	int j;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	REFERENCE_ARG(parsestate);
+	init_log_level(pargs);
+
+	ret = get_hw_cpu_info(0,&pcpuinfo,&infosize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not get cpu info[%d]\n", ret);
+		goto out;
+	}
+	infolen = ret;
+	for(i=0;i<infolen;i++) {
+		append_snprintf_safe(&pstr,&ssize,NULL);
+		for(j=0;j<(int) pcpuinfo[i].m_idlen;j++) {
+			if (j > 0) {
+				ret = append_snprintf_safe(&pstr,&ssize," %02X", pcpuinfo[i].m_processorid[j]);	
+			} else {
+				ret = append_snprintf_safe(&pstr,&ssize,"%02X", pcpuinfo[i].m_processorid[j]);	
+			}
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto out;
+			}
+		}
+		fprintf(stdout,"[%d] name [%s] cores [%d] threads [%d] processid [%s]\n",
+			i, pcpuinfo[i].m_name,pcpuinfo[i].m_numcores, pcpuinfo[i].m_numthreads, pstr);
+	}
+
+	ret=  0;
+out:
+	append_snprintf_safe(&pstr,&ssize,NULL);
+	get_hw_cpu_info(1,&pcpuinfo,&infosize);
 	infolen = 0;
 	SETERRNO(ret);
 	return ret;

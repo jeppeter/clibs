@@ -672,10 +672,10 @@ do{                                                                             
 } while(0)
 
 
-int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
+int get_hw_mem_info(int freed,phw_meminfo_t* ppmems, int *psize)
 {
-	pmem_info_t pretmem = NULL;
-	pmem_info_t ptmp = NULL;
+	phw_meminfo_t pretmem = NULL;
+	phw_meminfo_t ptmp = NULL;
 	int retsize=0;
 	int retlen = 0;
 	int ret;
@@ -696,7 +696,7 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 	char* pstr = NULL;
 	int strsize = 0;
 	int i;
-	pmem_info_t pcurmem;
+	phw_meminfo_t pcurmem;
 	uint64_t num64;
 	char* pendptr;
 	if (freed) {
@@ -819,7 +819,7 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 					retsize <<= 1;
 				}
 				ASSERT_IF(ptmp == NULL);
-				ptmp = (pmem_info_t) malloc(sizeof(*ptmp) * retsize);
+				ptmp = (phw_meminfo_t) malloc(sizeof(*ptmp) * retsize);
 				if (ptmp == NULL) {
 					GETERRNO(ret);
 					goto fail;
@@ -918,6 +918,297 @@ fail:
 		free(pretmem);
 	}
 	pretmem = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+
+#define  CORE_LEN          ((int)strlen("NumberOfCores"))
+#define  NAME_LEN          ((int)strlen("Name"))
+#define  THR_LEN           ((int)strlen("NumberOfLogicalProcessors"))
+#define  ID_LEN            ((int)strlen("ProcessorId"))
+
+#define  CORE_IDX          1
+#define  NAME_IDX          2
+#define  THR_IDX           3
+#define  ID_IDX            4
+
+#define  CPU_SET_HEAD_LEN()                                                                        \
+do{                                                                                                \
+	if (curidx == CORE_IDX) {                                                                      \
+		corelen = (curoff - coreoff);                                                              \
+	} else if (curidx == NAME_IDX) {                                                               \
+		namelen = (curoff - nameoff);                                                              \
+	} else if (curidx == THR_IDX) {                                                                \
+		thrlen = (curoff - throff);                                                                \
+	} else if (curidx == ID_IDX) {                                                                 \
+		idlen = (curoff - idoff);                                                                  \
+	} else {                                                                                       \
+		ASSERT_IF(curidx == NULL_IDX);                                                             \
+	}                                                                                              \
+} while(0)
+
+#define  GET_HEX_VAL(valn, cp)                                                                     \
+do {                                                                                               \
+	valn <<= 4;                                                                                    \
+	if (cp >= '0' && cp <= '9') {                                                                  \
+		valn += cp - '0';                                                                          \
+	} else if (cp >= 'a' && cp <= 'f') {                                                           \
+		valn += cp - 'a' + 10;                                                                     \
+	} else if (cp >= 'A' && cp <= 'F') {                                                           \
+		valn += cp - 'A' + 10;                                                                     \
+	} else {                                                                                       \
+		ret = -ERROR_INVALID_PARAMETER;                                                            \
+		ERROR_INFO("0x%02x not valid char",cp);                                                    \
+		goto fail;                                                                                 \
+	}                                                                                              \
+}while(0)
+
+int get_hw_cpu_info(int freed,phw_cpuinfo_t* ppcpus, int *psize)
+{
+	phw_cpuinfo_t pretcpu = NULL;
+	phw_cpuinfo_t ptmp = NULL;
+	int retsize=0;
+	int retlen = 0;
+	int ret;
+	char** pplines= NULL;
+	int linesize=0;
+	int linelen = 0;
+	char* pout=NULL;
+	int outsize=0;
+	int exitcode=0;
+	char* cmdline=NULL;
+	int cmdsize=0;
+	int nameoff = -1,coreoff = -1,throff = -1,idoff = -1;
+	int namelen = -1,corelen = -1,thrlen = -1,idlen = -1;
+	char* pc;
+	int curoff;
+	int curidx = NULL_IDX;
+	int curlen ;
+	char* pstr = NULL;
+	int strsize = 0;
+	int i;
+	phw_cpuinfo_t pcurcpu;
+	uint64_t num64;
+	char* pendptr;	
+	if (freed) {
+		if (ppcpus && *ppcpus) {
+			free(*ppcpus);
+			*ppcpus = NULL;
+		}
+		if (psize) {
+			*psize = 0;
+		}
+		return 0;
+	}
+	if (ppcpus == NULL || psize == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	pretcpu = *ppcpus;
+	retsize = *psize;
+
+	ret = snprintf_safe(&cmdline,&cmdsize,"wmic.exe cpu get NumberOfCores,Name,NumberOfLogicalProcessors,ProcessorId");
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,cmdline);
+	if (ret  < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("run [%s] return [%d]", cmdline,ret);
+		goto fail;
+	}
+
+	if (exitcode != 0) {
+		ret = exitcode;
+		if (ret > 0) {
+			ret = -ret;
+		}
+		ERROR_INFO("run [%s] exitcode[%d]", cmdline,exitcode);
+		goto fail;
+	}
+
+	ret = split_lines(pout,&pplines,&linesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	linelen = ret;
+
+	if (linelen < 2) {
+		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO("lines [%d] not valid",linelen);
+		goto fail;
+	}
+
+	for (i=0;i<linelen;i++) {
+		if (i == 0) {
+			curidx = NULL_IDX;
+			pc = pplines[i];
+			curoff = 0;
+			while(*pc != '\0') {
+				if (_strnicmp(pc,"NumberOfCores",(size_t)CORE_LEN) == 0) {
+					coreoff = curoff;
+					CPU_SET_HEAD_LEN();
+					curidx = CORE_IDX;
+					pc += CORE_LEN;
+					curoff += CORE_LEN;
+					continue;
+				} else if (_strnicmp(pc,"Name",(size_t)NAME_LEN) == 0) {
+					nameoff = curoff;
+					CPU_SET_HEAD_LEN();
+					curidx = NAME_IDX;
+					pc += NAME_LEN;
+					curoff += NAME_LEN;
+					continue;
+				} else if (_strnicmp(pc,"NumberOfLogicalProcessors",(size_t)THR_LEN) == 0) {
+					throff = curoff;
+					CPU_SET_HEAD_LEN();
+					curidx = THR_IDX;
+					pc += THR_LEN;
+					curoff += THR_LEN;
+					continue;
+				} else if (_strnicmp(pc,"ProcessorId",(size_t)ID_LEN) == 0) {
+					idoff = curoff;
+					CPU_SET_HEAD_LEN();
+					curidx = ID_IDX;
+					pc += ID_LEN;
+					curoff += ID_LEN;
+					continue;
+				} 
+				pc += 1;
+				curoff += 1;
+			}
+
+			/*we make last one*/
+			CPU_SET_HEAD_LEN();
+
+			if (nameoff < 0 || coreoff < 0 || throff < 0 || idoff < 0) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] not valid headline",pplines[i]);
+				goto fail;
+			}
+		}  else {
+			if (strlen(pplines[i]) == 0) {
+				continue;
+			}
+
+			if (retlen >= retsize) {
+				if (retsize == 0) {
+					retsize = 4;
+				} else {
+					retsize <<= 1;
+				}
+				ASSERT_IF(ptmp == NULL);
+				ptmp = (phw_cpuinfo_t) malloc(sizeof(*ptmp) * retsize);
+				if (ptmp == NULL) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				memset(ptmp, 0, sizeof(*ptmp) * retsize);
+				if (retlen > 0) {
+					memcpy(ptmp, pretcpu,sizeof(*ptmp) * retlen);
+				}
+				if (pretcpu && pretcpu != *ppcpus) {
+					free(pretcpu);
+				}
+				pretcpu = ptmp;
+				ptmp = NULL;
+			}
+
+			pc = pplines[i];
+			pcurcpu = &pretcpu[retlen];
+			COPY_STR_SIZE(coreoff,corelen);
+			ret = parse_number(pstr,&num64,&pendptr);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			pcurcpu->m_numcores =(uint32_t) num64;
+
+			COPY_STR_SIZE(nameoff,namelen);
+			curlen = namelen;
+			if (curlen >= sizeof(pcurcpu->m_name)) {
+				curlen = sizeof(pcurcpu->m_name) - 1;
+			}
+			memcpy(pcurcpu->m_name, pstr,(size_t)curlen);
+
+			COPY_STR_SIZE(idoff,idlen);
+			/*now to give */
+			memset(pcurcpu->m_processorid,0,sizeof(pcurcpu->m_processorid));
+			if (((strlen(pstr) * 3) / 2) >= sizeof(pcurcpu->m_processorid)) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("not valid ProcessorId [%s]", pstr);
+				goto fail;
+			}
+			if ((strlen(pstr) % 2) !=0 ) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] not valid ProcessorId",pstr);
+				goto fail;
+			}
+			pcurcpu->m_idlen = (uint32_t)(strlen(pstr) / 2);
+			for(i=0;i<(int)strlen(pstr);i+=2) {
+				uint8_t curid=0;
+				GET_HEX_VAL(curid,pstr[i]);
+				GET_HEX_VAL(curid,pstr[i+1]);
+				pcurcpu->m_processorid[i/2] = curid;
+			}
+
+			COPY_STR_SIZE(throff,thrlen);
+			ret = parse_number(pstr,&num64,&pendptr);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			pcurcpu->m_numthreads = (uint32_t)num64;
+			retlen ++;
+		}
+	}
+
+
+	ASSERT_IF(ptmp == NULL);
+	if (pstr) {
+		free(pstr);
+	}
+	pstr = NULL;
+	strsize = 0;
+
+	split_lines(NULL,&pplines,&linesize);
+	linelen = 0;
+
+	run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,NULL);
+	snprintf_safe(&cmdline,&cmdsize,NULL);
+	if (*ppcpus && *ppcpus != pretcpu) {
+		free(*ppcpus);
+	}
+	*ppcpus = pretcpu;
+	*psize = retsize;
+
+	return retlen;
+fail:
+	if (pstr) {
+		free(pstr);
+	}
+	pstr = NULL;
+	strsize = 0;
+
+	if (ptmp) {
+		free(ptmp);
+	}
+	ptmp = NULL;
+
+	split_lines(NULL,&pplines,&linesize);
+	linelen = 0;
+	run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,NULL);
+	snprintf_safe(&cmdline,&cmdsize,NULL);
+	if (pretcpu && pretcpu != *ppcpus) {
+		free(pretcpu);
+	}
+	pretcpu = NULL;
 	SETERRNO(ret);
 	return ret;
 }

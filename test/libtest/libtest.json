@@ -453,5 +453,8 @@
     },
     "lsmem<lsmem_handler>##to list memory information##" : {
         "$" : 0
+    },
+    "lscpu<lscpu_handler>##to list cpu information##" : {
+        "$" : 0
     }
 }

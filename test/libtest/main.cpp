@@ -277,6 +277,7 @@ int bootuptime_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int lsusb_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int lshwinfo_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int lsmem_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int lscpu_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
