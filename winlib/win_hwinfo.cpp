@@ -671,9 +671,11 @@ do{                                                                             
 	}                                                                                              \
 } while(0)
 
+
 int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 {
 	pmem_info_t pretmem = NULL;
+	pmem_info_t ptmp = NULL;
 	int retsize=0;
 	int retlen = 0;
 	int ret;
@@ -721,7 +723,6 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 		GETERRNO(ret);
 		goto fail;
 	}
-	DEBUG_INFO(" ");
 
 	ret = run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,cmdline);
 	if (ret  < 0) {
@@ -729,7 +730,6 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 		ERROR_INFO("run [%s] return [%d]", cmdline,ret);
 		goto fail;
 	}
-	DEBUG_INFO(" ");
 
 	if (exitcode != 0) {
 		ret = exitcode;
@@ -740,30 +740,18 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 		goto fail;
 	}
 
-	DEBUG_INFO(" ");
 	ret = split_lines(pout,&pplines,&linesize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 	linelen = ret;
+
 	if (linelen < 2) {
 		ret = -ERROR_INVALID_PARAMETER;
 		ERROR_INFO("lines [%d] not valid",linelen);
 		goto fail;
 	}
-
-	retlen = linelen - 1;
-
-	if (retlen > retsize) {
-		retsize = retlen;
-		pretmem = (pmem_info_t)malloc(sizeof(*pretmem) * retsize);
-		if (pretmem == NULL) {
-			GETERRNO(ret);
-			goto fail;
-		}
-	}
-	memset(pretmem, 0 ,sizeof(*pretmem) * retsize);
 
 	for (i=0;i<linelen;i++) {
 		if (i == 0) {
@@ -820,8 +808,35 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 				goto fail;
 			}
 		}  else {
+			if (strlen(pplines[i]) == 0) {
+				continue;
+			}
+
+			if (retlen >= retsize) {
+				if (retsize == 0) {
+					retsize = 4;
+				} else {
+					retsize <<= 1;
+				}
+				ASSERT_IF(ptmp == NULL);
+				ptmp = (pmem_info_t) malloc(sizeof(*ptmp) * retsize);
+				if (ptmp == NULL) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				memset(ptmp, 0, sizeof(*ptmp) * retsize);
+				if (retlen > 0) {
+					memcpy(ptmp, pretmem,sizeof(*ptmp) * retlen);
+				}
+				if (pretmem && pretmem != *ppmems) {
+					free(pretmem);
+				}
+				pretmem = ptmp;
+				ptmp = NULL;
+			}
+
 			pc = pplines[i];
-			pcurmem = &pretmem[(i-1)];
+			pcurmem = &pretmem[retlen];
 			COPY_STR_SIZE(capoff,caplen);
 			ret = parse_number(pstr,&num64,&pendptr);
 			if (ret < 0) {
@@ -829,6 +844,7 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 				goto fail;
 			}
 			pcurmem->m_size = num64;
+
 			COPY_STR_SIZE(manoff,manlen);
 			curlen = manlen;
 			if (curlen >= sizeof(pcurmem->m_manufacturer)) {
@@ -857,9 +873,12 @@ int get_ram_info(int freed,pmem_info_t* ppmems, int *psize)
 				goto fail;
 			}
 			pcurmem->m_speed = (uint32_t)num64;
+			retlen ++;
 		}
 	}
 
+
+	ASSERT_IF(ptmp == NULL);
 	if (pstr) {
 		free(pstr);
 	}
@@ -885,6 +904,11 @@ fail:
 	}
 	pstr = NULL;
 	strsize = 0;
+
+	if (ptmp) {
+		free(ptmp);
+	}
+	ptmp = NULL;
 
 	split_lines(NULL,&pplines,&linesize);
 	linelen = 0;
