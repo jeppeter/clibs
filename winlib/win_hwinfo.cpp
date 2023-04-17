@@ -1212,3 +1212,253 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+#define  SOUND_CAP_LEN          ((int)strlen("Caption"))
+#define  SOUND_DID_LEN          ((int)strlen("DeviceID"))
+
+#define  SOUND_CAP_IDX          1
+#define  SOUND_DID_IDX          2
+
+#define  SOUND_SET_HEAD_LEN()                                                                      \
+do{                                                                                                \
+	if (curidx == SOUND_CAP_IDX) {                                                                 \
+		caplen = (curoff - capoff);                                                                \
+	} else if (curidx == SOUND_DID_IDX) {                                                          \
+		didlen = (curoff - didoff);                                                                \
+	} else {                                                                                       \
+		ASSERT_IF(curidx == NULL_IDX);                                                             \
+	}                                                                                              \
+} while(0)
+
+
+int get_hw_audio_info(int freed,phw_audioinfo_t* ppaudios, int *psize)
+{
+	phw_audioinfo_t pretaudio = NULL;
+	phw_audioinfo_t ptmp = NULL;
+	int retsize=0;
+	int retlen = 0;
+	int ret;
+	char** pplines= NULL;
+	int linesize=0;
+	int linelen = 0;
+	char* pout=NULL;
+	int outsize=0;
+	int exitcode=0;
+	char* cmdline=NULL;
+	int cmdsize=0;
+	int capoff = -1,didoff = -1;
+	int caplen = -1,didlen = -1;
+	char* pc;
+	int curoff;
+	int curidx = NULL_IDX;
+	int curlen ;
+	char* pstr = NULL;
+	int strsize = 0;
+	int i;
+	phw_audioinfo_t pcuraudio;
+	uint32_t curid;
+	if (freed) {
+		if (ppaudios && *ppaudios) {
+			free(*ppaudios);
+			*ppaudios = NULL;
+		}
+		if (psize) {
+			*psize = 0;
+		}
+		return 0;
+	}
+	if (ppaudios == NULL || psize == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	pretaudio = *ppaudios;
+	retsize = *psize;
+
+	ret = snprintf_safe(&cmdline,&cmdsize,"wmic.exe path win32_sounddevice get Caption,DeviceID");
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,cmdline);
+	if (ret  < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("run [%s] return [%d]", cmdline,ret);
+		goto fail;
+	}
+
+	if (exitcode != 0) {
+		ret = exitcode;
+		if (ret > 0) {
+			ret = -ret;
+		}
+		ERROR_INFO("run [%s] exitcode[%d]", cmdline,exitcode);
+		goto fail;
+	}
+
+	ret = split_lines(pout,&pplines,&linesize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	linelen = ret;
+
+	if (linelen < 2) {
+		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO("lines [%d] not valid",linelen);
+		goto fail;
+	}
+
+	for (i=0;i<linelen;i++) {
+		if (i == 0) {
+			curidx = NULL_IDX;
+			pc = pplines[i];
+			curoff = 0;
+			while(*pc != '\0') {
+				if (_strnicmp(pc,"Caption",(size_t)SOUND_CAP_LEN) == 0) {
+					capoff = curoff;
+					SOUND_SET_HEAD_LEN();
+					curidx = SOUND_CAP_IDX;
+					pc += SOUND_CAP_LEN;
+					curoff += SOUND_CAP_LEN;
+					continue;
+				} else if (_strnicmp(pc,"DeviceID",(size_t)SOUND_DID_LEN) == 0) {
+					didoff = curoff;
+					SOUND_SET_HEAD_LEN();
+					curidx = SOUND_DID_IDX;
+					pc += SOUND_DID_LEN;
+					curoff += SOUND_DID_LEN;
+					continue;
+				} 
+				pc += 1;
+				curoff += 1;
+			}
+
+			/*we make last one*/
+			SOUND_SET_HEAD_LEN();
+
+			if (capoff < 0 || didoff < 0) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%s] not valid headline",pplines[i]);
+				goto fail;
+			}
+		}  else {
+			if (strlen(pplines[i]) == 0) {
+				continue;
+			}
+
+			if (retlen >= retsize) {
+				if (retsize == 0) {
+					retsize = 4;
+				} else {
+					retsize <<= 1;
+				}
+				ASSERT_IF(ptmp == NULL);
+				ptmp = (phw_audioinfo_t) malloc(sizeof(*ptmp) * retsize);
+				if (ptmp == NULL) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				memset(ptmp, 0, sizeof(*ptmp) * retsize);
+				if (retlen > 0) {
+					memcpy(ptmp, pretaudio,sizeof(*ptmp) * retlen);
+				}
+				if (pretaudio && pretaudio != *ppaudios) {
+					free(pretaudio);
+				}
+				pretaudio = ptmp;
+				ptmp = NULL;
+			}
+
+			pc = pplines[i];
+			pcuraudio = &pretaudio[retlen];
+			COPY_STR_SIZE(capoff,caplen);
+			curlen = caplen;
+			if (curlen >= sizeof(pcuraudio->m_name)) {
+				curlen = sizeof(pcuraudio->m_name) - 1;
+			}
+			memcpy(pcuraudio->m_name, pstr, (size_t)curlen);
+
+			COPY_STR_SIZE(didoff,didlen);
+			curlen = didlen;
+			if (curlen >= sizeof(pcuraudio->m_path)) {
+				curlen = sizeof(pcuraudio->m_path) - 1;
+			}
+			memcpy(pcuraudio->m_path, pstr, (size_t) curlen);
+
+			curid = 0;
+			pc = pstr;
+			while(*pc != '\0') {
+				if (_strnicmp(pc,"ven_",4) == 0) {
+					pc += 4;
+					curid = 0;
+					while (*pc != '\0' && *pc != '&') {
+						GET_HEX_VAL(curid,*pc);
+						pc ++;
+					}
+					pcuraudio->m_vendorid = curid;
+					continue;
+				}
+
+				if (_strnicmp(pc,"dev_", 4) == 0)  {
+					pc += 4;
+					curid = 0;
+					while (*pc != '\0' && *pc != '&') {
+						GET_HEX_VAL(curid,*pc);
+						pc ++;
+					}
+					pcuraudio->m_prodid = curid;
+					continue;
+				}
+				pc ++;
+			}
+
+			retlen ++;
+		}
+	}
+
+
+	ASSERT_IF(ptmp == NULL);
+	if (pstr) {
+		free(pstr);
+	}
+	pstr = NULL;
+	strsize = 0;
+
+	split_lines(NULL,&pplines,&linesize);
+	linelen = 0;
+
+	run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,NULL);
+	snprintf_safe(&cmdline,&cmdsize,NULL);
+	if (*ppaudios && *ppaudios != pretaudio) {
+		free(*ppaudios);
+	}
+	*ppaudios = pretaudio;
+	*psize = retsize;
+
+	return retlen;
+fail:
+	if (pstr) {
+		free(pstr);
+	}
+	pstr = NULL;
+	strsize = 0;
+
+	if (ptmp) {
+		free(ptmp);
+	}
+	ptmp = NULL;
+
+	split_lines(NULL,&pplines,&linesize);
+	linelen = 0;
+	run_cmd_output_single(NULL,0,&pout,&outsize,NULL,NULL,&exitcode,0,NULL);
+	snprintf_safe(&cmdline,&cmdsize,NULL);
+	if (pretaudio && pretaudio != *ppaudios) {
+		free(pretaudio);
+	}
+	pretaudio = NULL;
+	SETERRNO(ret);
+	return ret;
+}

@@ -1162,3 +1162,37 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int lsaudio_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int ret;
+	pargs_options_t pargs=(pargs_options_t)popt;
+	phw_audioinfo_t paudioinfo=NULL;
+	int infosize=0;
+	int infolen=0;
+	int i;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	REFERENCE_ARG(parsestate);
+	init_log_level(pargs);
+
+	ret = get_hw_audio_info(0,&paudioinfo,&infosize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not get audio info[%d]\n", ret);
+		goto out;
+	}
+	infolen = ret;
+	for(i=0;i<infolen;i++) {
+		fprintf(stdout,"[%d] name [%s] path [%s] vendorid [0x%04x] productid [0x%04x]\n",
+			i, paudioinfo[i].m_name,paudioinfo[i].m_path, paudioinfo[i].m_vendorid, paudioinfo[i].m_prodid);
+	}
+
+	ret=  0;
+out:
+	get_hw_audio_info(1,&paudioinfo,&infosize);
+	infolen = 0;
+	SETERRNO(ret);
+	return ret;
+}

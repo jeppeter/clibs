@@ -456,5 +456,8 @@
     },
     "lscpu<lscpu_handler>##to list cpu information##" : {
         "$" : 0
+    },
+    "lsaudio<lsaudio_handler>##to list audio device##" : {
+        "$" : 0
     }
 }

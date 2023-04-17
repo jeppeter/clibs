@@ -44,6 +44,13 @@ typedef struct __hw_cpuinfo {
 	uint32_t m_reserv1;
 } hw_cpuinfo_t, *phw_cpuinfo_t;
 
+typedef struct __hw_audioinfo {
+	char m_name[256];
+	char m_path[256];
+	uint32_t m_vendorid;
+	uint32_t m_prodid;
+} hw_audioinfo_t,*phw_audioinfo_t;
+
 
 #define  GUID_NULL_PTR ((LPGUID)0x1)
 
@@ -57,6 +64,7 @@ WINLIB_API int get_guid_str(LPGUID pguid, char** ppstr, int *psize);
 WINLIB_API int guid_from_str2(LPGUID pguid, char* pstr);
 WINLIB_API int get_hw_mem_info(int freed,phw_meminfo_t* ppmems, int *psize);
 WINLIB_API int get_hw_cpu_info(int freed,phw_cpuinfo_t* ppcpus, int *psize);
+WINLIB_API int get_hw_audio_info(int freed,phw_audioinfo_t* ppaudios, int *psize);
 
 #ifdef __cplusplus
 };
