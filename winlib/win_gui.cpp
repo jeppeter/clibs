@@ -287,3 +287,178 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
+{
+	pdisplay_info_t pretinfo=NULL;
+	int retsize=0;
+	int retlen=0;
+	int ret;
+	UINT32 flags = QDC_ALL_PATHS;
+	UINT32 numpath=0,numinfo=0;
+	LONG lret;
+	DISPLAYCONFIG_PATH_INFO * ppathinfo=NULL;
+	DISPLAYCONFIG_MODE_INFO * pmodeinfo=NULL;
+	DISPLAYCONFIG_TARGET_DEVICE_NAME * ptargetname=NULL;
+	DISPLAYCONFIG_ADAPTER_NAME *padaptername=NULL;
+	DISPLAYCONFIG_TARGET_BASE_TYPE* pbasetype = NULL;
+	DISPLAYCONFIG_SOURCE_DEVICE_NAME* psourcename =  NULL;
+	DISPLAYCONFIG_SET_TARGET_PERSISTENCE* ppersistence=NULL;
+	UINT32 i;
+	if (freed) {
+		if (ppinfo && *ppinfo) {
+			free(*ppinfo);
+			*ppinfo = NULL;
+		}
+		if (psize) {
+			*psize = 0;
+		}
+		return 0;
+	}
+
+	if (ppinfo == NULL || psize == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	pretinfo = *ppinfo;
+	retsize = *psize;
+
+
+	lret = GetDisplayConfigBufferSizes(flags,&numpath,&numinfo);
+	if (lret != ERROR_SUCCESS) {
+		GETERRNO(ret);
+		ERROR_INFO("GetDisplayConfigBufferSizes error [%ld] [%d]", lret,ret);
+		goto fail;
+	}
+
+	if (numpath > 0) {
+		ppathinfo = (DISPLAYCONFIG_PATH_INFO*)malloc(numpath * sizeof(*ppathinfo));
+		if (ppathinfo == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		memset(ppathinfo, 0, numpath * sizeof(*ppathinfo));
+	}
+
+	if (numinfo > 0) {
+		pmodeinfo = (DISPLAYCONFIG_MODE_INFO*)malloc(numinfo * sizeof(*pmodeinfo));
+		if (pmodeinfo == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		memset(pmodeinfo,0, numinfo * sizeof(*pmodeinfo));
+	}
+
+	lret = QueryDisplayConfig(flags,&numpath,ppathinfo,&numinfo,pmodeinfo,NULL);
+	if (lret != ERROR_SUCCESS) {
+		GETERRNO(ret);
+		ERROR_INFO("QueryDisplayConfig error [%ld] [%d]", lret,ret);
+		goto fail;
+	}
+
+	if (retsize < (int)numinfo) {
+		retsize = (int)numinfo;
+		pretinfo = (pdisplay_info_t)malloc(sizeof(*pretinfo) * retsize);
+		if (pretinfo ==NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+	if (retsize > 0) {
+		memset(pretinfo, 0, sizeof(*pretinfo) * retsize);	
+	}
+	
+	for(i=0;i<numinfo;i++) {
+		pretinfo[i].m_adapterid = pmodeinfo[i].id;
+
+	}
+
+
+	if(ptargetname) {
+		free(ptargetname);
+	}
+	ptargetname = NULL;
+
+	if (padaptername) {
+		free(padaptername);
+	}
+	padaptername = NULL;
+
+	if (pbasetype) {
+		free(pbasetype);
+	}
+	pbasetype = NULL;
+
+	if (psourcename) {
+		free(psourcename);
+	}
+	psourcename = NULL;
+
+	if (ppersistence) {
+		free(ppersistence);
+	}
+	ppersistence =NULL;
+
+	if (ppathinfo) {
+		free(ppathinfo);
+	}
+	ppathinfo = NULL;
+	if (pmodeinfo) {
+		free(pmodeinfo);
+	}
+	pmodeinfo = NULL;
+
+
+	if (*ppinfo && *ppinfo != pretinfo) {
+		free(*ppinfo);
+	}
+	*ppinfo = pretinfo;
+	*psize = retsize;
+	return retlen;
+
+fail:
+	if(ptargetname) {
+		free(ptargetname);
+	}
+	ptargetname = NULL;
+
+	if (padaptername) {
+		free(padaptername);
+	}
+	padaptername = NULL;
+
+	if (pbasetype) {
+		free(pbasetype);
+	}
+	pbasetype = NULL;
+
+	if (psourcename) {
+		free(psourcename);
+	}
+	psourcename = NULL;
+
+	if (ppersistence) {
+		free(ppersistence);
+	}
+	ppersistence =NULL;
+
+
+	if (ppathinfo) {
+		free(ppathinfo);
+	}
+	ppathinfo = NULL;
+	if (pmodeinfo) {
+		free(pmodeinfo);
+	}
+	pmodeinfo = NULL;
+ 
+	if (pretinfo && pretinfo != *ppinfo) {
+		free(pretinfo);
+	}
+	pretinfo = NULL;
+	retsize = 0;
+	SETERRNO(ret);
+	return ret;
+}
