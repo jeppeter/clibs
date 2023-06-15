@@ -1,6 +1,7 @@
 
 #include <win_gui.h>
 #include <win_err.h>
+#include <win_uniansi.h>
 
 
 int enum_display_devices(int freed,pdisplay_name_t* ppdevices, int *psize)
@@ -304,6 +305,8 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 	DISPLAYCONFIG_TARGET_BASE_TYPE* pbasetype = NULL;
 	DISPLAYCONFIG_SOURCE_DEVICE_NAME* psourcename =  NULL;
 	DISPLAYCONFIG_SET_TARGET_PERSISTENCE* ppersistence=NULL;
+	char* pansiname=NULL;
+	int ansisize=0,ansilen;
 	UINT32 i;
 	if (freed) {
 		if (ppinfo && *ppinfo) {
@@ -405,9 +408,59 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 	for(i=0;i<numpath;i++) {
 		pretinfo[i].m_targetid = ppathinfo[i].targetInfo.id;
 		pretinfo[i].m_sourceid = ppathinfo[i].sourceInfo.id;
+		memset(ptargetname, 0 ,sizeof(*ptargetname));
+		ptargetname->header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+		ptargetname->header.size = sizeof(*ptargetname);
+		ptargetname->header.id = ppathinfo[i].targetInfo.id;
+		ptargetname->header.adapterId = ppathinfo[i].targetInfo.adapterId;
+		lret = DisplayConfigGetDeviceInfo(&(ptargetname->header));
+		if (lret != ERROR_SUCCESS) {
+			GETERRNO(ret);
+			ERROR_INFO("[%d]DisplayConfigGetDeviceInfo DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME error [%ld] [%d]", i, lret,ret);
+			goto fail;
+		}
+
+		ret = UnicodeToAnsi(ptargetname->monitorFriendlyDeviceName,&pansiname,&ansisize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		ansilen = ret;
+		if (ansilen >= sizeof(pretinfo[i].m_targetname)) {
+			memcpy(pretinfo[i].m_targetname, pansiname,sizeof(pretinfo[i].m_targetname) - 1);
+		} else {
+			memcpy(pretinfo[i].m_targetname, pansiname,(size_t) ansilen);
+		}
+
+		memset(psourcename, 0 , sizeof(*psourcename));
+		psourcename->header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+		psourcename->header.size = sizeof(*psourcename);
+		psourcename->header.id = ppathinfo[i].targetInfo.id;
+		psourcename->header.adapterId = ppathinfo[i].targetInfo.adapterId;
+		lret = DisplayConfigGetDeviceInfo(&(psourcename->header));
+		if (lret != ERROR_SUCCESS) {
+			GETERRNO(ret);
+			ERROR_INFO("[%d]DisplayConfigGetDeviceInfo DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME error [%ld] [%d]", i, lret,ret);
+			goto fail;
+		}
+
+		ret=  UnicodeToAnsi(psourcename->viewGdiDeviceName, &pansiname,&ansisize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		ansilen = ret;
+		if (ansilen >= sizeof(pretinfo[i].m_sourcename)) {
+			memcpy(pretinfo[i].m_sourcename, pansiname,sizeof(pretinfo[i].m_sourcename) - 1);
+		} else {
+			memcpy(pretinfo[i].m_sourcename, pansiname,(size_t) ansilen);
+		}
+
+
 
 	}
 
+	UnicodeToAnsi(NULL,&pansiname,&ansisize);
 
 	if(ptargetname) {
 		free(ptargetname);
@@ -452,6 +505,8 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 	return retlen;
 
 fail:
+	UnicodeToAnsi(NULL,&pansiname,&ansisize);
+
 	if(ptargetname) {
 		free(ptargetname);
 	}
