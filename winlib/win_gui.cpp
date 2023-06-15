@@ -358,14 +358,15 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 		goto fail;
 	}
 
-	if (retsize < (int)numinfo) {
-		retsize = (int)numinfo;
+	if (retsize < (int)numpath) {
+		retsize = (int)numpath;
 		pretinfo = (pdisplay_info_t)malloc(sizeof(*pretinfo) * retsize);
 		if (pretinfo ==NULL) {
 			GETERRNO(ret);
 			goto fail;
 		}
 	}
+	retlen = (int)numpath;
 	if (retsize > 0) {
 		memset(pretinfo, 0, sizeof(*pretinfo) * retsize);	
 	}
@@ -401,8 +402,9 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 	}
 
 	
-	for(i=0;i<numinfo;i++) {
-		pretinfo[i].m_adapterid = pmodeinfo[i].id;
+	for(i=0;i<numpath;i++) {
+		pretinfo[i].m_targetid = ppathinfo[i].targetInfo.id;
+		pretinfo[i].m_sourceid = ppathinfo[i].sourceInfo.id;
 
 	}
 
