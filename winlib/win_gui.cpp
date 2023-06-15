@@ -369,6 +369,37 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 	if (retsize > 0) {
 		memset(pretinfo, 0, sizeof(*pretinfo) * retsize);	
 	}
+
+	ptargetname = (DISPLAYCONFIG_TARGET_DEVICE_NAME*)malloc(sizeof(*ptargetname));
+	if (ptargetname == NULL)  {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	padaptername = (DISPLAYCONFIG_ADAPTER_NAME*)malloc(sizeof(*padaptername));
+	if (padaptername == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	pbasetype = (DISPLAYCONFIG_TARGET_BASE_TYPE*)malloc(sizeof(*pbasetype));
+	if (pbasetype == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	psourcename = (DISPLAYCONFIG_SOURCE_DEVICE_NAME*)malloc(sizeof(*psourcename));
+	if (psourcename == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ppersistence = (DISPLAYCONFIG_SET_TARGET_PERSISTENCE*)malloc(sizeof(*ppersistence));
+	if (ppersistence == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
 	
 	for(i=0;i<numinfo;i++) {
 		pretinfo[i].m_adapterid = pmodeinfo[i].id;
