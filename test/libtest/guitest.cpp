@@ -100,3 +100,38 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int displayinfo_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int ret;
+	int dispsize=0,displen = 0;
+	int i;
+	pdisplay_info_t pinfo = NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	REFERENCE_ARG(parsestate);
+
+	init_log_level(pargs);
+
+	ret = get_display_info(0,&pinfo,&dispsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not list display error [%d]\n", ret);
+		goto out;
+	}
+
+	displen = ret;
+	for (i=0;i<displen;i++) {
+		fprintf(stdout,"[%d] source [%s] target [%s] adapter [%s] targetid [0x%x] sourceid [0x%x] basetype [0x%x]\n",
+			i, pinfo[i].m_sourcename,pinfo[i].m_targetname,pinfo[i].m_adaptername,pinfo[i].m_targetid,
+			pinfo[i].m_sourceid,pinfo[i].m_basetype);
+	}
+
+	ret = 0;
+out:
+	get_display_info(1,&pinfo,&dispsize);
+	SETERRNO(ret);
+	return ret;
+}

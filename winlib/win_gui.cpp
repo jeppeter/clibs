@@ -4,15 +4,15 @@
 #include <win_uniansi.h>
 
 
-int enum_display_devices(int freed,pdisplay_name_t* ppdevices, int *psize)
+int enum_display_devices(int freed, pdisplay_name_t* ppdevices, int *psize)
 {
-	pdisplay_name_t pdevs=NULL;
-	pdisplay_name_t ptmps=NULL;
-	int retsize=0;
-	int retlen=0;
+	pdisplay_name_t pdevs = NULL;
+	pdisplay_name_t ptmps = NULL;
+	int retsize = 0;
+	int retlen = 0;
 	int ret;
 	BOOL bret;
-	PDISPLAY_DEVICEA pdisp=NULL;
+	PDISPLAY_DEVICEA pdisp = NULL;
 	if (freed) {
 		if (ppdevices && *ppdevices) {
 			free(*ppdevices);
@@ -39,16 +39,16 @@ int enum_display_devices(int freed,pdisplay_name_t* ppdevices, int *psize)
 	}
 
 	for (;;) {
-		memset(pdisp,0,sizeof(*pdisp));
+		memset(pdisp, 0, sizeof(*pdisp));
 		pdisp->cb = sizeof(*pdisp);
 		SETERRNO(0);
-		bret = EnumDisplayDevicesA(NULL,(DWORD)retlen,pdisp,EDD_GET_DEVICE_INTERFACE_NAME);
+		bret = EnumDisplayDevicesA(NULL, (DWORD)retlen, pdisp, EDD_GET_DEVICE_INTERFACE_NAME);
 		if (!bret) {
 			GETERRNO_DIRECT(ret);
 			if (ret == 0) {
 				break;
 			}
-			ERROR_INFO("can not get [%d] error[%d]",retlen, ret);
+			ERROR_INFO("can not get [%d] error[%d]", retlen, ret);
 			goto fail;
 		}
 
@@ -83,9 +83,9 @@ int enum_display_devices(int freed,pdisplay_name_t* ppdevices, int *psize)
 		DEBUG_INFO("[%d].DeviceKey =[%s]", retlen, pdisp->DeviceKey);
 		DEBUG_INFO("[%d].StateFlags =[0x%x]", retlen, pdisp->StateFlags);
 		strncpy_s(pdevs[retlen].m_name, sizeof(pdisp->DeviceName), pdisp->DeviceName, sizeof(pdisp->DeviceName));
-		strncpy_s(pdevs[retlen].m_id, sizeof(pdisp->DeviceID),pdisp->DeviceID, sizeof(pdisp->DeviceID));
-		strncpy_s(pdevs[retlen].m_key, sizeof(pdisp->DeviceKey), pdisp->DeviceKey,sizeof(pdisp->DeviceKey));
-		strncpy_s(pdevs[retlen].m_devstr,sizeof(pdisp->DeviceString),pdisp->DeviceString,sizeof(pdisp->DeviceString));
+		strncpy_s(pdevs[retlen].m_id, sizeof(pdisp->DeviceID), pdisp->DeviceID, sizeof(pdisp->DeviceID));
+		strncpy_s(pdevs[retlen].m_key, sizeof(pdisp->DeviceKey), pdisp->DeviceKey, sizeof(pdisp->DeviceKey));
+		strncpy_s(pdevs[retlen].m_devstr, sizeof(pdisp->DeviceString), pdisp->DeviceString, sizeof(pdisp->DeviceString));
 		pdevs[retlen].m_state = (int)pdisp->StateFlags;
 		retlen ++;
 	}
@@ -120,11 +120,11 @@ fail:
 int enum_display_mode(char* devname, pdisplay_mode_t* ppmode, int *psize)
 {
 	int ret;
-	PDEVMODEA pmode=NULL;
-	pdisplay_mode_t pretmode=NULL;
-	pdisplay_mode_t ptmps=NULL;
-	int retsize=0;
-	int retlen=0;
+	PDEVMODEA pmode = NULL;
+	pdisplay_mode_t pretmode = NULL;
+	pdisplay_mode_t ptmps = NULL;
+	int retsize = 0;
+	int retlen = 0;
 	BOOL bret;
 	if (devname == NULL) {
 		if (ppmode && *ppmode) {
@@ -153,17 +153,17 @@ int enum_display_mode(char* devname, pdisplay_mode_t* ppmode, int *psize)
 	}
 
 
-	for(;;) {
-		memset(pmode,0,sizeof(*pmode));
+	for (;;) {
+		memset(pmode, 0, sizeof(*pmode));
 		pmode->dmSize = sizeof(*pmode);
 		SETERRNO(0);
-		bret = EnumDisplaySettingsExA(devname,(DWORD)retlen,pmode,0);
+		bret = EnumDisplaySettingsExA(devname, (DWORD)retlen, pmode, 0);
 		if (!bret) {
 			GETERRNO_DIRECT(ret);
 			if (ret == 0) {
 				break;
 			}
-			ERROR_INFO("[%s].[%d] error[%d]", devname,retlen, ret);
+			ERROR_INFO("[%s].[%d] error[%d]", devname, retlen, ret);
 			goto fail;
 		}
 
@@ -180,7 +180,7 @@ int enum_display_mode(char* devname, pdisplay_mode_t* ppmode, int *psize)
 				goto fail;
 			}
 
-			memset(ptmps,0,retsize * sizeof(*ptmps));
+			memset(ptmps, 0, retsize * sizeof(*ptmps));
 			if (retlen > 0) {
 				memcpy(ptmps, pretmode, retlen * sizeof(*ptmps));
 			}
@@ -208,7 +208,7 @@ int enum_display_mode(char* devname, pdisplay_mode_t* ppmode, int *psize)
 		pretmode[retlen].m_height = (int)pmode->dmPelsHeight;
 		pretmode[retlen].m_refresh = (int)pmode->dmDisplayFrequency;
 		// DEBUG_BUFFER_FMT(pmode->dmDeviceName,sizeof(pmode->dmDeviceName),"[%s].[%d].dmDeviceName", devname,retlen);
-		DEBUG_BUFFER_FMT(pmode,sizeof(*pmode),"[%d] mode",retlen);
+		DEBUG_BUFFER_FMT(pmode, sizeof(*pmode), "[%d] mode", retlen);
 		strncpy_s(pretmode[retlen].m_name, sizeof(pretmode[retlen].m_name) - 1, devname, sizeof(pretmode[retlen].m_name));
 		strncpy_s(pretmode[retlen].m_devname, sizeof(pretmode[retlen].m_devname), (char*)pmode->dmDeviceName, sizeof(pretmode[retlen].m_devname));
 		retlen ++;
@@ -239,9 +239,9 @@ fail:
 	return ret;
 }
 
-int set_display_mode(pdisplay_mode_t pmode,DWORD flags)
+int set_display_mode(pdisplay_mode_t pmode, DWORD flags)
 {
-	PDEVMODEA pdevmode=NULL;
+	PDEVMODEA pdevmode = NULL;
 	LONG lret;
 	int ret;
 
@@ -251,7 +251,7 @@ int set_display_mode(pdisplay_mode_t pmode,DWORD flags)
 		goto fail;
 	}
 
-	memset(pdevmode,0,sizeof(*pdevmode));
+	memset(pdevmode, 0, sizeof(*pdevmode));
 	pdevmode->dmSize = sizeof(*pdevmode);
 	strncpy_s((char*)pdevmode->dmDeviceName, sizeof(pdevmode->dmDeviceName), pmode->m_devname, sizeof(pdevmode->dmDeviceName));
 	pdevmode->dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_DISPLAYFREQUENCY;
@@ -259,18 +259,18 @@ int set_display_mode(pdisplay_mode_t pmode,DWORD flags)
 	pdevmode->dmPelsHeight = (DWORD) pmode->m_height;
 	pdevmode->dmDisplayFrequency = (DWORD) pmode->m_refresh;
 
-	lret = ChangeDisplaySettingsA(pdevmode,flags);
+	lret = ChangeDisplaySettingsA(pdevmode, flags);
 	if (lret != DISP_CHANGE_SUCCESSFUL) {
 		GETERRNO(ret);
 		ERROR_INFO("DISP_CHANGE_BADDUALVIEW [%d]", DISP_CHANGE_BADDUALVIEW);
-		ERROR_INFO("DISP_CHANGE_SUCCESSFUL [%d]",DISP_CHANGE_SUCCESSFUL);
+		ERROR_INFO("DISP_CHANGE_SUCCESSFUL [%d]", DISP_CHANGE_SUCCESSFUL);
 		ERROR_INFO("DISP_CHANGE_BADFLAGS [%d]", DISP_CHANGE_BADFLAGS);
 		ERROR_INFO("DISP_CHANGE_BADMODE [%d]", DISP_CHANGE_BADMODE);
 		ERROR_INFO("DISP_CHANGE_BADPARAM [%d]", DISP_CHANGE_BADPARAM);
 		ERROR_INFO("DISP_CHANGE_FAILED [%d]", DISP_CHANGE_FAILED);
 		ERROR_INFO("DISP_CHANGE_NOTUPDATED [%d]", DISP_CHANGE_NOTUPDATED);
 		ERROR_INFO("DISP_CHANGE_RESTART [%d]", DISP_CHANGE_RESTART);
-		ERROR_INFO("can not set [%s] flags[0x%x] error[%d] lret[%d]", pmode->m_name, flags,ret,lret);
+		ERROR_INFO("can not set [%s] flags[0x%x] error[%d] lret[%d]", pmode->m_name, flags, ret, lret);
 		goto fail;
 	}
 
@@ -289,24 +289,23 @@ fail:
 	return ret;
 }
 
-int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
+int get_display_info(int freed, pdisplay_info_t *ppinfo, int *psize)
 {
-	pdisplay_info_t pretinfo=NULL;
-	int retsize=0;
-	int retlen=0;
+	pdisplay_info_t pretinfo = NULL;
+	int retsize = 0;
+	int retlen = 0;
 	int ret;
 	UINT32 flags = QDC_ALL_PATHS;
-	UINT32 numpath=0,numinfo=0;
+	UINT32 numpath = 0, numinfo = 0;
 	LONG lret;
-	DISPLAYCONFIG_PATH_INFO * ppathinfo=NULL;
-	DISPLAYCONFIG_MODE_INFO * pmodeinfo=NULL;
-	DISPLAYCONFIG_TARGET_DEVICE_NAME * ptargetname=NULL;
-	DISPLAYCONFIG_ADAPTER_NAME *padaptername=NULL;
+	DISPLAYCONFIG_PATH_INFO * ppathinfo = NULL;
+	DISPLAYCONFIG_MODE_INFO * pmodeinfo = NULL;
+	DISPLAYCONFIG_TARGET_DEVICE_NAME * ptargetname = NULL;
+	DISPLAYCONFIG_ADAPTER_NAME *padaptername = NULL;
 	DISPLAYCONFIG_TARGET_BASE_TYPE* pbasetype = NULL;
 	DISPLAYCONFIG_SOURCE_DEVICE_NAME* psourcename =  NULL;
-	DISPLAYCONFIG_SET_TARGET_PERSISTENCE* ppersistence=NULL;
-	char* pansiname=NULL;
-	int ansisize=0,ansilen;
+	char* pansiname = NULL;
+	int ansisize = 0, ansilen;
 	UINT32 i;
 	if (freed) {
 		if (ppinfo && *ppinfo) {
@@ -329,10 +328,10 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 	retsize = *psize;
 
 
-	lret = GetDisplayConfigBufferSizes(flags,&numpath,&numinfo);
+	lret = GetDisplayConfigBufferSizes(flags, &numpath, &numinfo);
 	if (lret != ERROR_SUCCESS) {
 		GETERRNO(ret);
-		ERROR_INFO("GetDisplayConfigBufferSizes error [%ld] [%d]", lret,ret);
+		ERROR_INFO("GetDisplayConfigBufferSizes error [%ld] [%d]", lret, ret);
 		goto fail;
 	}
 
@@ -351,27 +350,27 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 			GETERRNO(ret);
 			goto fail;
 		}
-		memset(pmodeinfo,0, numinfo * sizeof(*pmodeinfo));
+		memset(pmodeinfo, 0, numinfo * sizeof(*pmodeinfo));
 	}
 
-	lret = QueryDisplayConfig(flags,&numpath,ppathinfo,&numinfo,pmodeinfo,NULL);
+	lret = QueryDisplayConfig(flags, &numpath, ppathinfo, &numinfo, pmodeinfo, NULL);
 	if (lret != ERROR_SUCCESS) {
 		GETERRNO(ret);
-		ERROR_INFO("QueryDisplayConfig error [%ld] [%d]", lret,ret);
+		ERROR_INFO("QueryDisplayConfig error [%ld] [%d]", lret, ret);
 		goto fail;
 	}
 
 	if (retsize < (int)numpath) {
 		retsize = (int)numpath;
 		pretinfo = (pdisplay_info_t)malloc(sizeof(*pretinfo) * retsize);
-		if (pretinfo ==NULL) {
+		if (pretinfo == NULL) {
 			GETERRNO(ret);
 			goto fail;
 		}
 	}
 	retlen = (int)numpath;
 	if (retsize > 0) {
-		memset(pretinfo, 0, sizeof(*pretinfo) * retsize);	
+		memset(pretinfo, 0, sizeof(*pretinfo) * retsize);
 	}
 
 	ptargetname = (DISPLAYCONFIG_TARGET_DEVICE_NAME*)malloc(sizeof(*ptargetname));
@@ -398,17 +397,11 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 		goto fail;
 	}
 
-	ppersistence = (DISPLAYCONFIG_SET_TARGET_PERSISTENCE*)malloc(sizeof(*ppersistence));
-	if (ppersistence == NULL) {
-		GETERRNO(ret);
-		goto fail;
-	}
 
-	
-	for(i=0;i<numpath;i++) {
+	for (i = 0; i < numpath; i++) {
 		pretinfo[i].m_targetid = ppathinfo[i].targetInfo.id;
 		pretinfo[i].m_sourceid = ppathinfo[i].sourceInfo.id;
-		memset(ptargetname, 0 ,sizeof(*ptargetname));
+		memset(ptargetname, 0 , sizeof(*ptargetname));
 		ptargetname->header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
 		ptargetname->header.size = sizeof(*ptargetname);
 		ptargetname->header.id = ppathinfo[i].targetInfo.id;
@@ -416,21 +409,22 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 		lret = DisplayConfigGetDeviceInfo(&(ptargetname->header));
 		if (lret != ERROR_SUCCESS) {
 			GETERRNO(ret);
-			ERROR_INFO("[%d]DisplayConfigGetDeviceInfo DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME error [%ld] [%d]", i, lret,ret);
-			goto fail;
+			ERROR_INFO("[%d]DisplayConfigGetDeviceInfo DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME error [%ld] [%d]", i, lret, ret);
+		} else {
+			ret = UnicodeToAnsi(ptargetname->monitorFriendlyDeviceName, &pansiname, &ansisize);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			ansilen = ret;
+			if (ansilen >= sizeof(pretinfo[i].m_targetname)) {
+				memcpy(pretinfo[i].m_targetname, pansiname, sizeof(pretinfo[i].m_targetname) - 1);
+			} else {
+				memcpy(pretinfo[i].m_targetname, pansiname, (size_t) ansilen);
+			}
+			DEBUG_INFO("[%d].m_targetname [%s]", i, pretinfo[i].m_targetname);
 		}
 
-		ret = UnicodeToAnsi(ptargetname->monitorFriendlyDeviceName,&pansiname,&ansisize);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-		ansilen = ret;
-		if (ansilen >= sizeof(pretinfo[i].m_targetname)) {
-			memcpy(pretinfo[i].m_targetname, pansiname,sizeof(pretinfo[i].m_targetname) - 1);
-		} else {
-			memcpy(pretinfo[i].m_targetname, pansiname,(size_t) ansilen);
-		}
 
 		memset(psourcename, 0 , sizeof(*psourcename));
 		psourcename->header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
@@ -438,31 +432,69 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 		psourcename->header.id = ppathinfo[i].targetInfo.id;
 		psourcename->header.adapterId = ppathinfo[i].targetInfo.adapterId;
 		lret = DisplayConfigGetDeviceInfo(&(psourcename->header));
+		if (lret == ERROR_SUCCESS) {
+			ret =  UnicodeToAnsi(psourcename->viewGdiDeviceName, &pansiname, &ansisize);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			ansilen = ret;
+			if (ansilen >= sizeof(pretinfo[i].m_sourcename)) {
+				memcpy(pretinfo[i].m_sourcename, pansiname, sizeof(pretinfo[i].m_sourcename) - 1);
+			} else {
+				memcpy(pretinfo[i].m_sourcename, pansiname, (size_t) ansilen);
+			}
+			DEBUG_INFO("[%d].m_sourcename [%s]", i, pretinfo[i].m_sourcename);
+		} else {
+			GETERRNO(ret);
+			ERROR_INFO("[%d]DisplayConfigGetDeviceInfo DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME error [%ld] [%d]", i, lret, ret);
+		}
+
+
+		memset(padaptername, 0, sizeof(*padaptername));
+		padaptername->header.type = DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME;
+		padaptername->header.size = sizeof(*padaptername);
+		padaptername->header.id = ppathinfo[i].targetInfo.id;
+		padaptername->header.adapterId = ppathinfo[i].targetInfo.adapterId;
+		lret = DisplayConfigGetDeviceInfo(&(padaptername->header));
 		if (lret != ERROR_SUCCESS) {
 			GETERRNO(ret);
-			ERROR_INFO("[%d]DisplayConfigGetDeviceInfo DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME error [%ld] [%d]", i, lret,ret);
-			goto fail;
-		}
-
-		ret=  UnicodeToAnsi(psourcename->viewGdiDeviceName, &pansiname,&ansisize);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-		ansilen = ret;
-		if (ansilen >= sizeof(pretinfo[i].m_sourcename)) {
-			memcpy(pretinfo[i].m_sourcename, pansiname,sizeof(pretinfo[i].m_sourcename) - 1);
+			ERROR_INFO("[%d]DisplayConfigGetDeviceInfo DISPLAYCONFIG_DEVICE_INFO_GET_ADAPTER_NAME error [%ld] [%d]", i, lret, ret);
 		} else {
-			memcpy(pretinfo[i].m_sourcename, pansiname,(size_t) ansilen);
+			ret =  UnicodeToAnsi(padaptername->adapterDevicePath, &pansiname, &ansisize);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			ansilen = ret;
+			if (ansilen >= sizeof(pretinfo[i].m_adaptername)) {
+				memcpy(pretinfo[i].m_adaptername, pansiname, sizeof(pretinfo[i].m_adaptername) - 1);
+			} else {
+				memcpy(pretinfo[i].m_adaptername, pansiname, (size_t) ansilen);
+			}
+			DEBUG_INFO("[%d].m_adaptername [%s]", i,pretinfo[i].m_adaptername);
 		}
 
 
+		memset(pbasetype, 0, sizeof(*pbasetype));
+		pbasetype->header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_BASE_TYPE;
+		pbasetype->header.size = sizeof(*pbasetype);
+		pbasetype->header.id = ppathinfo[i].targetInfo.id;
+		pbasetype->header.adapterId = ppathinfo[i].targetInfo.adapterId;
+		lret = DisplayConfigGetDeviceInfo(&(pbasetype->header));
+		if (lret != ERROR_SUCCESS) {
+			GETERRNO(ret);
+			ERROR_INFO("[%d]DisplayConfigGetDeviceInfo DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_BASE_TYPE error [%ld] [%d]", i, lret, ret);
+		} else {
+			pretinfo[i].m_basetype = pbasetype->baseOutputTechnology;
+			DEBUG_INFO("")
+		}	
 
 	}
 
-	UnicodeToAnsi(NULL,&pansiname,&ansisize);
+	UnicodeToAnsi(NULL, &pansiname, &ansisize);
 
-	if(ptargetname) {
+	if (ptargetname) {
 		free(ptargetname);
 	}
 	ptargetname = NULL;
@@ -482,10 +514,6 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 	}
 	psourcename = NULL;
 
-	if (ppersistence) {
-		free(ppersistence);
-	}
-	ppersistence =NULL;
 
 	if (ppathinfo) {
 		free(ppathinfo);
@@ -505,9 +533,9 @@ int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize)
 	return retlen;
 
 fail:
-	UnicodeToAnsi(NULL,&pansiname,&ansisize);
+	UnicodeToAnsi(NULL, &pansiname, &ansisize);
 
-	if(ptargetname) {
+	if (ptargetname) {
 		free(ptargetname);
 	}
 	ptargetname = NULL;
@@ -527,11 +555,6 @@ fail:
 	}
 	psourcename = NULL;
 
-	if (ppersistence) {
-		free(ppersistence);
-	}
-	ppersistence =NULL;
-
 
 	if (ppathinfo) {
 		free(ppathinfo);
@@ -541,7 +564,7 @@ fail:
 		free(pmodeinfo);
 	}
 	pmodeinfo = NULL;
- 
+
 	if (pretinfo && pretinfo != *ppinfo) {
 		free(pretinfo);
 	}

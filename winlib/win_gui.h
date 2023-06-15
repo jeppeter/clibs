@@ -31,7 +31,6 @@ typedef struct __display_info {
 	char m_adaptername[256];
 	uint32_t m_targetid;
 	uint32_t m_sourceid;
-	uint32_t m_persistence;
 	uint32_t m_basetype;
 } display_info_t, *pdisplay_info_t;
 

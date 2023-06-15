@@ -459,5 +459,8 @@
     },
     "lsaudio<lsaudio_handler>##to list audio device##" : {
         "$" : 0
+    },
+    "displayinfo<displayinfo_handler>##to list display info##" : {
+        "$" : 0
     }
 }
