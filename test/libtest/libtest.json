@@ -466,7 +466,10 @@
     "getdpi<getdpi_handler>##[dispnum] to get dispnum scale##" : {
         "$" : "?"
     },
-    "setregdword<sethkudword_handler>##keyname subkey path value to set dword value##" : {
+    "setregdword<setregdword_handler>##keyname subkey path value to set dword value##" : {
         "$" : 4
+    },
+    "queryregdword<queryregdword_handler>##keyname subkey path to get value##" : {
+        "$" : 3
     }
 }
