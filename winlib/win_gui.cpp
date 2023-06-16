@@ -102,7 +102,7 @@ int enum_display_devices(int freed, pdisplay_name_t* ppdevices, int *psize)
 	*psize = retsize;
 
 	return retlen;
-fail:
+	fail:
 	if (pdisp) {
 		free(pdisp);
 	}
@@ -226,7 +226,7 @@ int enum_display_mode(char* devname, pdisplay_mode_t* ppmode, int *psize)
 	*psize = retsize;
 
 	return retlen;
-fail:
+	fail:
 	if (pmode) {
 		free(pmode);
 	}
@@ -280,7 +280,7 @@ int set_display_mode(pdisplay_mode_t pmode, DWORD flags)
 	}
 	pdevmode = NULL;
 	return 0;
-fail:
+	fail:
 	if (pdevmode) {
 		free(pdevmode);
 	}
@@ -295,7 +295,8 @@ int get_display_info(int freed, pdisplay_info_t *ppinfo, int *psize)
 	int retsize = 0;
 	int retlen = 0;
 	int ret;
-	UINT32 flags = QDC_ALL_PATHS;
+	//UINT32 flags = QDC_ALL_PATHS;
+	UINT32 flags = QDC_ONLY_ACTIVE_PATHS;
 	UINT32 numpath = 0, numinfo = 0;
 	LONG lret;
 	DISPLAYCONFIG_PATH_INFO * ppathinfo = NULL;
@@ -487,9 +488,10 @@ int get_display_info(int freed, pdisplay_info_t *ppinfo, int *psize)
 			ERROR_INFO("[%d]DisplayConfigGetDeviceInfo DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_BASE_TYPE error [%ld] [%d]", i, lret, ret);
 		} else {
 			pretinfo[i].m_basetype = pbasetype->baseOutputTechnology;
-			DEBUG_INFO("")
+			DEBUG_INFO("[%d]basetype [0x%x]",i, pretinfo[i].m_basetype);
 		}	
-
+		ASSERT_IF(sizeof(pretinfo[i].m_adapterid) <= sizeof(ppathinfo[i].targetInfo.adapterId));
+		memcpy(&(pretinfo[i].m_adapterid), &(ppathinfo[i].targetInfo.adapterId), sizeof(ppathinfo[i].targetInfo.adapterId));
 	}
 
 	UnicodeToAnsi(NULL, &pansiname, &ansisize);
@@ -532,7 +534,7 @@ int get_display_info(int freed, pdisplay_info_t *ppinfo, int *psize)
 	*psize = retsize;
 	return retlen;
 
-fail:
+	fail:
 	UnicodeToAnsi(NULL, &pansiname, &ansisize);
 
 	if (ptargetname) {
@@ -570,6 +572,97 @@ fail:
 	}
 	pretinfo = NULL;
 	retsize = 0;
+	SETERRNO(ret);
+	return ret;
+}
+
+
+typedef struct _DISPLAYCONFIG_SOURCE_DPI_SCALE_GET
+{
+	DISPLAYCONFIG_DEVICE_INFO_HEADER            header;
+    /*
+        * @brief min value of DPI scaling is always 100, minScaleRel gives no. of steps down from recommended scaling
+        * eg. if minScaleRel is -3 => 100 is 3 steps down from recommended scaling => recommended scaling is 175%
+        */
+	int32_t minScaleRel;
+
+        /*
+        * @brief currently applied DPI scaling value wrt the recommended value. eg. if recommended value is 175%,
+        * => if curScaleRel == 0 the current scaling is 175%, if curScaleRel == -1, then current scale is 150%
+        */
+	int32_t curScaleRel;
+
+        /*
+        * @brief maximum supported DPI scaling wrt recommended value
+        */
+	int32_t maxScaleRel;
+}DISPLAYCONFIG_SOURCE_DPI_SCALE_GET,*PDISPLAYCONFIG_SOURCE_DPI_SCALE_GET;
+
+#define  DISPLAYCONFIG_DEVICE_INFO_GET_DPI_SCALE   -3
+#define  DISPLAYCONFIG_DEVICE_INFO_SET_DPI_SCALE   -4
+
+static const UINT32 DpiVals[] = { 100,125,150,175,200,225,250,300,350, 400, 450, 500 };
+
+#define ARRAY_COUNT(cv) (sizeof(cv) / sizeof(cv[0]))
+
+int get_display_rescale(pdisplay_info_t pinfo, uint32_t* pscale)
+{
+	PDISPLAYCONFIG_SOURCE_DPI_SCALE_GET pdpiscale=NULL;
+	int ret;
+	LONG lret;
+	int curidx;
+
+	if (pinfo == NULL || pscale == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	pdpiscale = (PDISPLAYCONFIG_SOURCE_DPI_SCALE_GET)malloc(sizeof(*pdpiscale));
+	if (pdpiscale == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	memset(pdpiscale,0,sizeof(*pdpiscale));
+	pdpiscale->header.type = (DISPLAYCONFIG_DEVICE_INFO_TYPE)((UINT32) DISPLAYCONFIG_DEVICE_INFO_GET_DPI_SCALE);
+	pdpiscale->header.size = sizeof(*pdpiscale);
+	pdpiscale->header.id = pinfo->m_targetid;
+	memcpy(&(pdpiscale->header.adapterId),pinfo->m_adapterid,sizeof(pdpiscale->header.adapterId));
+	lret = DisplayConfigGetDeviceInfo(&(pdpiscale->header));
+	if (lret != ERROR_SUCCESS) {
+		GETERRNO(ret);
+		ERROR_INFO("DisplayConfigGetDeviceInfo DISPLAYCONFIG_DEVICE_INFO_GET_DPI_SCALE error [%ld] %d",lret,ret);
+		goto fail;
+	}
+
+	if (pdpiscale->curScaleRel < pdpiscale->minScaleRel) {
+		pdpiscale->curScaleRel = pdpiscale->minScaleRel;
+	}
+	if (pdpiscale->curScaleRel > pdpiscale->maxScaleRel) {
+		pdpiscale->curScaleRel = pdpiscale->maxScaleRel;
+	}
+
+	curidx = pdpiscale->minScaleRel + pdpiscale->curScaleRel + 1;
+	if (curidx < ARRAY_COUNT(DpiVals)) {
+		*pscale = DpiVals[curidx];
+	} else {
+		ERROR_INFO("curidx [%d]", curidx);
+		*pscale = 100;
+	}
+
+	if (pdpiscale) {
+		free(pdpiscale);
+	}
+	pdpiscale = NULL;
+
+	return 0;
+fail:
+	if (pdpiscale) {
+		free(pdpiscale);
+	}
+	pdpiscale = NULL;
+
 	SETERRNO(ret);
 	return ret;
 }

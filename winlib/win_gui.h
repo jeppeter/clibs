@@ -31,6 +31,7 @@ typedef struct __display_info {
 	char m_adaptername[256];
 	uint32_t m_targetid;
 	uint32_t m_sourceid;
+	uint8_t  m_adapterid[64];
 	uint32_t m_basetype;
 } display_info_t, *pdisplay_info_t;
 
@@ -42,6 +43,7 @@ WINLIB_API int enum_display_devices(int freed,pdisplay_name_t* ppdevices, int *p
 WINLIB_API int enum_display_mode(char* devname, pdisplay_mode_t* ppmode, int *psize);
 WINLIB_API int set_display_mode(pdisplay_mode_t pmode,DWORD flags);
 WINLIB_API int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize);
+WINLIB_API int get_display_rescale(pdisplay_info_t pinfo, uint32_t* pscale);
 
 #ifdef __cplusplus
 };
