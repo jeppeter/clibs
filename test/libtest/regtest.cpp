@@ -48,7 +48,7 @@ int regbinget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     debug_buffer(stdout, (char*)pdata, nret,NULL);
     ret = 0;
 
-out:
+    out:
     query_hklm_binary(NULL, NULL, &pdata, &datasize);
     close_hklm(&pregop);
     SETERRNO(ret);
@@ -145,7 +145,7 @@ int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
     fprintf(stdout, "set success\n");
     ret = 0;
-out:
+    out:
     if (ptmpdata) {
         free(ptmpdata);
     }
@@ -200,7 +200,7 @@ int setregstr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
     fprintf(stdout, "write [%s].[%s] value [%s] succ\n", path, key, val);
     ret = 0;
-out:
+    out:
     close_hklm(&pregop);
     SETERRNO(ret);
     return ret;
@@ -247,7 +247,7 @@ int regenumkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     }
 
     ret = 0;
-out:
+    out:
     enum_hklm_keys(NULL, &items, &itemsize);
     close_hklm(&pregop);
     SETERRNO(ret);
@@ -295,7 +295,7 @@ int regenumvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
     }
 
     ret = 0;
-out:
+    out:
     enum_hklm_values(NULL, &items, &itemsize);
     close_hklm(&pregop);
     SETERRNO(ret);
@@ -317,13 +317,13 @@ int regdelvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
     init_log_level(pargs);
     for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
         switch (i) {
-        case 0:
+            case 0:
             subkey = parsestate->leftargs[i];
             break;
-        case 1:
+            case 1:
             path = parsestate->leftargs[i];
             break;
-        default:
+            default:
             break;
         }
     }
@@ -350,7 +350,7 @@ int regdelvalue_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 
     fprintf(stdout, "delete [%s].[%s] succ\n", subkey, path);
     ret = 0;
-out:
+    out:
     close_hklm(&preg);
     SETERRNO(ret);
     return ret;
@@ -372,16 +372,16 @@ int regdelkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     init_log_level(pargs);
     for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
         switch (i) {
-        case 0:
+            case 0:
             keyname = parsestate->leftargs[i];
             break;
-        case 1:
+            case 1:
             subkey = parsestate->leftargs[i];
             break;
-        case 2:
+            case 2:
             path = parsestate->leftargs[i];
             break;
-        default:
+            default:
             break;
         }
     }
@@ -409,8 +409,69 @@ int regdelkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         fprintf(stderr, "delete [%s].[%s].[%s] error[%d]\n",keyname, subkey, path,  ret);
         goto out;
     }
-succ:
+    succ:
     fprintf(stdout, "delete [%s].[%s].[%s] succ\n", keyname, subkey, path);
+    ret = 0;
+    out:
+    close_hklm(&preg);
+    SETERRNO(ret);
+    return ret;
+}
+
+int sethkudword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* keyname = NULL;
+    char* subkey = NULL;
+    char* path = NULL;
+    void* preg = NULL;
+    int ret;
+    int i;
+    DWORD value = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+        switch (i) {
+            case 0:
+            keyname = parsestate->leftargs[i];
+            break;
+            case 1:
+            subkey = parsestate->leftargs[i];
+            break;
+            case 2:
+            path = parsestate->leftargs[i];
+            break;
+            case 3:
+            value = atoi(parsestate->leftargs[i]);
+            break;
+            default:
+            break;
+        }
+    }
+
+    if ( keyname == NULL || subkey == NULL || path == NULL) {
+        fprintf(stderr, "need  keyname subkey and path\n");
+        ret = -ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+
+    preg = open_reg_key( keyname ,subkey, ACCESS_KEY_ALL);
+    if (preg == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "can not open [%s] error[%d]\n", subkey, ret);
+        goto out;            
+    }
+
+    ret = set_hklm_dword(preg, path,value);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not set [%s] value [%d] error[%d]\n", path,value,ret);
+        goto out;
+    }
+    fprintf(stdout,"set [%s].[%s].[%s] value [%d] succ\n",keyname,subkey,path,value);
     ret = 0;
 out:
     close_hklm(&preg);

@@ -135,3 +135,51 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int getdpi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int dispnum = 0;
+	int ret;
+	int dispsize=0,displen = 0;
+	uint32_t scale;
+	pdisplay_info_t pinfo = NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+
+	init_log_level(pargs);
+
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		dispnum = atoi(parsestate->leftargs[0]);
+	}
+
+	ret = get_display_info(0,&pinfo,&dispsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not list display error [%d]\n", ret);
+		goto out;
+	}
+
+	displen = ret;
+	if (dispnum >= displen) {
+		ret = -ERROR_INVALID_PARAMETER;
+		goto out;
+	}
+
+	ret = get_display_rescale(&(pinfo[dispnum]), &scale);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not get [%d] scale error[%d]\n", dispnum, ret);
+		goto out;
+	}
+
+	fprintf(stdout, "[%d] scale [%d]\n", dispnum,scale);
+	ret=  0;
+out:
+
+	get_display_info(1,&pinfo,&dispsize);
+	SETERRNO(ret);
+	return ret;
+
+}

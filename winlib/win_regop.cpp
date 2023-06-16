@@ -1020,3 +1020,16 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int set_hklm_dword(void* pregop1, const char* path, uint32_t value)
+{
+    pregop_t pregop = (pregop_t) pregop1;
+    int ret;
+    if (pregop == NULL  || pregop->m_magic != REG_OP_MAGIC || path == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    return __set_key_value(pregop, path, REG_DWORD, &value, sizeof(value));
+}

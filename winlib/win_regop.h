@@ -10,6 +10,7 @@ extern "C" {
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
+#include <win_types.h>
 
 #define ACCESS_KEY_READ       0x1
 #define ACCESS_KEY_WRITE      0x2
@@ -22,6 +23,7 @@ WINLIB_API int query_hklm_binary(void* pregop,const char* path,void** ppdata,int
 WINLIB_API int set_hklm_binary(void* pregop, const char* path, void* pdata, int size);
 WINLIB_API int set_hklm_string(void* pregop, const char* path, char* valstr);
 WINLIB_API int set_hklm_sz(void* pregop1, const char* path, char* valstr);
+WINLIB_API int set_hklm_dword(void* pregop1, const char* path, uint32_t value);
 WINLIB_API int enum_hklm_keys(void* pregop1, char*** pppitems, int* psize);
 WINLIB_API int enum_hklm_values(void* pregop1, char*** pppitems, int* psize);
 WINLIB_API int delete_hklm_value(void* pregop1, const char* path);
