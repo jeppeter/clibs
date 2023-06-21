@@ -77,6 +77,7 @@ endif
 
 
 main.o:main.cpp
+	$(call call_exec,${CXX} -Wno-deprecated-declarations -Wall ${INCLUDE_CFLAGS} -c $< -o $@,"CXX     $<")
 
 main.cpp:args_options.cpp peauth.cpp pkcs7.cpp aes.cpp ossldump.cpp asn1comp.cpp ecdump.cpp
 	$(call call_exec,touch main.cpp,"TOUCH   main.cpp")

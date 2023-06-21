@@ -174,7 +174,7 @@ int encode_X9_62_PENTANOMIAL(jvalue* pj, X9_62_PENTANOMIAL* pobj)
 	int ret;
 	int setted = 0;
 
-	ret = set_asn1_int32(&(pobj->k1),"k1",pj);
+	ret = set_asn1_int32(&(pobj->k1), "k1", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("set k1 error[%d]", ret);
@@ -183,7 +183,7 @@ int encode_X9_62_PENTANOMIAL(jvalue* pj, X9_62_PENTANOMIAL* pobj)
 		setted = 1;
 	}
 
-	ret = set_asn1_int32(&(pobj->k2),"k2",pj);
+	ret = set_asn1_int32(&(pobj->k2), "k2", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("set k2 error[%d]", ret);
@@ -193,7 +193,7 @@ int encode_X9_62_PENTANOMIAL(jvalue* pj, X9_62_PENTANOMIAL* pobj)
 	}
 
 
-	ret = set_asn1_int32(&(pobj->k3),"k3",pj);
+	ret = set_asn1_int32(&(pobj->k3), "k3", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("set k3 error[%d]", ret);
@@ -213,7 +213,7 @@ int decode_X9_62_PENTANOMIAL(X9_62_PENTANOMIAL* pobj, jvalue* pj)
 	int ret;
 	int setted = 0;
 
-	ret = get_asn1_int32(&(pobj->k1),"k1",pj);
+	ret = get_asn1_int32(&(pobj->k1), "k1", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("get k1 error[%d]", ret);
@@ -222,7 +222,7 @@ int decode_X9_62_PENTANOMIAL(X9_62_PENTANOMIAL* pobj, jvalue* pj)
 		setted = 1;
 	}
 
-	ret = get_asn1_int32(&(pobj->k2),"k2",pj);
+	ret = get_asn1_int32(&(pobj->k2), "k2", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("get k2 error[%d]", ret);
@@ -232,7 +232,7 @@ int decode_X9_62_PENTANOMIAL(X9_62_PENTANOMIAL* pobj, jvalue* pj)
 	}
 
 
-	ret = get_asn1_int32(&(pobj->k3),"k3",pj);
+	ret = get_asn1_int32(&(pobj->k3), "k3", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("get k3 error[%d]", ret);
@@ -259,32 +259,32 @@ fail:
 int encode_X9_62_CHARACTERISTIC_TWO(jvalue* pj, X9_62_CHARACTERISTIC_TWO* pobj)
 {
 	int ret;
-	const char* otype=NULL;
+	const char* otype = NULL;
 	int error;
 	jvalue* chldpj = NULL;
 
-	ret = set_asn1_int32(&(pobj->m),"m",pj);
+	ret = set_asn1_int32(&(pobj->m), "m", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("set m error[%d]", ret);
 		goto fail;
 	}
 
-	ret = set_asn1_object(&(pobj->type),"type",pj);
+	ret = set_asn1_object(&(pobj->type), "type", pj);
 	if (ret <= 0) {
 		GETERRNO(ret);
 		ERROR_INFO("set type error[%d]", ret);
 		goto fail;
 	}
 
-	otype = jobject_get_string(pj,"type",&error);
+	otype = jobject_get_string(pj, "type", &error);
 	if (otype == NULL) {
 		ret = -EINVAL;
 		ERROR_INFO("no type");
 		goto fail;
 	}
 
-	if (strcmp(otype,X962_ONBASIS_OBJ) == 0) {
+	if (strcmp(otype, X962_ONBASIS_OBJ) == 0) {
 		if (pobj->p.onBasis != NULL) {
 			ret = -EINVAL;
 			ERROR_INFO("onBasis already");
@@ -296,20 +296,20 @@ int encode_X9_62_CHARACTERISTIC_TWO(jvalue* pj, X9_62_CHARACTERISTIC_TWO* pobj)
 			ERROR_INFO("ASN1_NULL_new error[%d]", ret);
 			goto fail;
 		}
-	} else if (strcmp(otype,X962_TPBASIS_OBJ) == 0) {
+	} else if (strcmp(otype, X962_TPBASIS_OBJ) == 0) {
 		if (pobj->p.tpBasis != NULL) {
 			ret = -EINVAL;
 			ERROR_INFO("tpBasis already");
 			goto fail;
 		}
-		ret = set_asn1_integer(&(pobj->p.tpBasis),"tpbasis",pj);
+		ret = set_asn1_integer(&(pobj->p.tpBasis), "tpbasis", pj);
 		if (ret <= 0) {
 			GETERRNO(ret);
 			ERROR_INFO("set tpbasis error[%d]", ret);
 			goto fail;
 		}
-	} else if (strcmp(otype,X962_PPBASIS_OBJ) == 0) {
-		chldpj = jobject_get(pj,"ppbasis");
+	} else if (strcmp(otype, X962_PPBASIS_OBJ) == 0) {
+		chldpj = jobject_get(pj, "ppbasis");
 		if (chldpj == NULL) {
 			GETERRNO(ret);
 			ERROR_INFO("no ppbasis");
@@ -326,18 +326,18 @@ int encode_X9_62_CHARACTERISTIC_TWO(jvalue* pj, X9_62_CHARACTERISTIC_TWO* pobj)
 			ERROR_INFO("X9_62_PENTANOMIAL_new error[%d]", ret);
 			goto fail;
 		}
-		ret = encode_X9_62_PENTANOMIAL(chldpj,pobj->p.ppBasis);
+		ret = encode_X9_62_PENTANOMIAL(chldpj, pobj->p.ppBasis);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 	} else {
-		if(pobj->p.other != NULL) {
+		if (pobj->p.other != NULL) {
 			ret = -EINVAL;
 			ERROR_INFO("other already");
 			goto fail;
 		}
-		ret = set_asn1_any(&(pobj->p.other),"other",pj);
+		ret = set_asn1_any(&(pobj->p.other), "other", pj);
 		if (ret <= 0) {
 			GETERRNO(ret);
 			ERROR_INFO("other error[%d]", ret);
@@ -357,24 +357,24 @@ int decode_X9_62_CHARACTERISTIC_TWO(X9_62_CHARACTERISTIC_TWO* pobj, jvalue* pj)
 {
 	int ret;
 	int error;
-	jvalue* chldpj = NULL, *replpj= NULL;
+	jvalue* chldpj = NULL, *replpj = NULL;
 	const char* otype = NULL;
 
-	ret = get_asn1_int32(&(pobj->m),"m",pj);
+	ret = get_asn1_int32(&(pobj->m), "m", pj);
 	if (ret <= 0) {
 		GETERRNO(ret);
 		ERROR_INFO("get m error[%d]", ret);
 		goto fail;
 	}
 
-	ret = get_asn1_object(&(pobj->type),"type",pj);
+	ret = get_asn1_object(&(pobj->type), "type", pj);
 	if (ret <= 0) {
 		GETERRNO(ret);
 		ERROR_INFO("get type error[%d]", ret);
 		goto fail;
 	}
 
-	otype = jobject_get_string(pj,"type",&error);
+	otype = jobject_get_string(pj, "type", &error);
 	if (otype == NULL) {
 		ret = -EINVAL;
 		ERROR_INFO("no type get");
@@ -382,24 +382,24 @@ int decode_X9_62_CHARACTERISTIC_TWO(X9_62_CHARACTERISTIC_TWO* pobj, jvalue* pj)
 	}
 
 	DEBUG_INFO("otype [%s]", otype);
-	if (strcmp(otype,X962_ONBASIS_OBJ) == 0 || 
-		strcmp(otype,X962_ONBASIS_STR) == 0) {
-		ret = jobject_put_null(pj,"onbasis");
+	if (strcmp(otype, X962_ONBASIS_OBJ) == 0 ||
+	        strcmp(otype, X962_ONBASIS_STR) == 0) {
+		ret = jobject_put_null(pj, "onbasis");
 		if (ret != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("put onbasis error[%d]", ret);
 			goto fail;
 		}
 	} else if (strcmp(otype, X962_TPBASIS_OBJ) == 0 ||
-		strcmp(otype, X962_TPBASIS_STR) == 0) {
-		ret = get_asn1_integer(&(pobj->p.tpBasis),"tpbasis",pj);
+	           strcmp(otype, X962_TPBASIS_STR) == 0) {
+		ret = get_asn1_integer(&(pobj->p.tpBasis), "tpbasis", pj);
 		if (ret <= 0) {
 			GETERRNO(ret);
 			ERROR_INFO("put tpbasis error[%d]", ret);
 			goto fail;
 		}
-	} else if (strcmp(otype, X962_PPBASIS_OBJ) == 0 || 
-		strcmp(otype, X962_PPBASIS_STR) == 0) {
+	} else if (strcmp(otype, X962_PPBASIS_OBJ) == 0 ||
+	           strcmp(otype, X962_PPBASIS_STR) == 0) {
 		ASSERT_IF(chldpj == NULL);
 		ASSERT_IF(replpj == NULL);
 		chldpj = jobject_create();
@@ -413,14 +413,14 @@ int decode_X9_62_CHARACTERISTIC_TWO(X9_62_CHARACTERISTIC_TWO* pobj, jvalue* pj)
 			ERROR_INFO("no ppBasis");
 			goto fail;
 		}
-		ret = decode_X9_62_PENTANOMIAL(pobj->p.ppBasis,chldpj);
+		ret = decode_X9_62_PENTANOMIAL(pobj->p.ppBasis, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
 		error = 0;
-		replpj = jobject_put(pj,"ppbasis",chldpj,&error);
+		replpj = jobject_put(pj, "ppbasis", chldpj, &error);
 		if (error != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("put ppbasis error[%d]", ret);
@@ -432,7 +432,7 @@ int decode_X9_62_CHARACTERISTIC_TWO(X9_62_CHARACTERISTIC_TWO* pobj, jvalue* pj)
 		}
 		replpj = NULL;
 	} else {
-		ret = get_asn1_any(&(pobj->p.other),"other",pj);
+		ret = get_asn1_any(&(pobj->p.other), "other", pj);
 		if (ret <= 0) {
 			GETERRNO(ret);
 			ERROR_INFO("put other error[%d]", ret);
@@ -463,33 +463,33 @@ fail:
 int encode_X9_62_FIELDID(jvalue* pj, X9_62_FIELDID* pobj)
 {
 	int ret;
-	const char* otype=NULL;
+	const char* otype = NULL;
 	jvalue* chldpj = NULL;
 	int error;
 
-	ret = set_asn1_object(&(pobj->fieldType),"fieldtype",pj);
+	ret = set_asn1_object(&(pobj->fieldType), "fieldtype", pj);
 	if (ret <= 0) {
 		GETERRNO(ret);
 		ERROR_INFO("set fieldtype error[%d]", ret);
 		goto fail;
 	}
 
-	otype = jobject_get_string(pj,"fieldtype",&error);
+	otype = jobject_get_string(pj, "fieldtype", &error);
 	if (otype == NULL) {
 		ret = -EINVAL;
 		ERROR_INFO("fieldtype error[%d]", ret);
 		goto fail;
 	}
 
-	if (strcmp(otype,X962_PRIME_FIELD_OBJ) == 0) {
-		ret = set_asn1_integer(&(pobj->p.prime),"prime",pj);
+	if (strcmp(otype, X962_PRIME_FIELD_OBJ) == 0) {
+		ret = set_asn1_integer(&(pobj->p.prime), "prime", pj);
 		if (ret <= 0 ) {
 			GETERRNO(ret);
 			ERROR_INFO("set prime error[%d]", ret);
 			goto fail;
 		}
-	} else if (strcmp(otype,X962_CHAR_TWO_FIELD_OBJ) == 0) {
-		chldpj= jobject_get(pj,"two_field");
+	} else if (strcmp(otype, X962_CHAR_TWO_FIELD_OBJ) == 0) {
+		chldpj = jobject_get(pj, "two_field");
 		if (chldpj != NULL) {
 			if (pobj->p.char_two != NULL) {
 				ret = -EINVAL;
@@ -499,11 +499,11 @@ int encode_X9_62_FIELDID(jvalue* pj, X9_62_FIELDID* pobj)
 			pobj->p.char_two = X9_62_CHARACTERISTIC_TWO_new();
 			if (pobj->p.char_two == NULL) {
 				GETERRNO(ret);
-				ERROR_INFO("X9_62_CHARACTERISTIC_TWO_new error[%d]" ,ret);
+				ERROR_INFO("X9_62_CHARACTERISTIC_TWO_new error[%d]" , ret);
 				goto fail;
 			}
 
-			ret = encode_X9_62_CHARACTERISTIC_TWO(chldpj,pobj->p.char_two);
+			ret = encode_X9_62_CHARACTERISTIC_TWO(chldpj, pobj->p.char_two);
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
@@ -514,7 +514,7 @@ int encode_X9_62_FIELDID(jvalue* pj, X9_62_FIELDID* pobj)
 			goto fail;
 		}
 	} else {
-		ret = set_asn1_any(&(pobj->p.other),"other",pj);
+		ret = set_asn1_any(&(pobj->p.other), "other", pj);
 		if (ret <= 0) {
 			GETERRNO(ret);
 			ERROR_INFO("set other error[%d]", ret);
@@ -540,15 +540,15 @@ int decode_X9_62_FIELDID(X9_62_FIELDID* pobj, jvalue* pj)
 
 	DEBUG_INFO(" ");
 
-	ret = get_asn1_object(&(pobj->fieldType),"fieldtype",pj);
-	if (ret <=0 ) {
+	ret = get_asn1_object(&(pobj->fieldType), "fieldtype", pj);
+	if (ret <= 0 ) {
 		GETERRNO(ret);
 		ERROR_INFO("get fieldtype error[%d]", ret);
 		goto fail;
 	}
 
 	error = 0;
-	otype = jobject_get_string(pj,"fieldtype",&error);
+	otype = jobject_get_string(pj, "fieldtype", &error);
 	if (otype == NULL) {
 		ret = -EINVAL;
 		ERROR_INFO("get fieldtype error[%d]", ret);
@@ -556,21 +556,21 @@ int decode_X9_62_FIELDID(X9_62_FIELDID* pobj, jvalue* pj)
 	}
 
 	DEBUG_INFO("otype [%s]", otype);
-	if (strcmp(otype,X962_PRIME_FIELD_OBJ) == 0 || 
-		strcmp(otype,X962_PRIME_FIELD_STR) == 0) {
+	if (strcmp(otype, X962_PRIME_FIELD_OBJ) == 0 ||
+	        strcmp(otype, X962_PRIME_FIELD_STR) == 0) {
 		if (pobj->p.prime == NULL) {
 			ret = -EINVAL;
 			ERROR_INFO("[%s] for prime null", otype);
 			goto fail;
 		}
-		ret = get_asn1_integer(&(pobj->p.prime),"prime",pj);
+		ret = get_asn1_integer(&(pobj->p.prime), "prime", pj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("get prime error[%d]", ret);
 			goto fail;
 		}
-	} else if (strcmp(otype,X962_CHAR_TWO_FIELD_OBJ) == 0 || 
-		strcmp(otype,X962_CHAR_TWO_FIELD_STR) == 0) {
+	} else if (strcmp(otype, X962_CHAR_TWO_FIELD_OBJ) == 0 ||
+	           strcmp(otype, X962_CHAR_TWO_FIELD_STR) == 0) {
 		chldpj = jobject_create();
 		if (chldpj == NULL) {
 			GETERRNO(ret);
@@ -582,13 +582,13 @@ int decode_X9_62_FIELDID(X9_62_FIELDID* pobj, jvalue* pj)
 			ERROR_INFO("no char_two");
 			goto fail;
 		}
-		ret = decode_X9_62_CHARACTERISTIC_TWO(pobj->p.char_two,chldpj);
+		ret = decode_X9_62_CHARACTERISTIC_TWO(pobj->p.char_two, chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 		error = 0;
-		replpj = jobject_put(pj,"char_two",chldpj,&error);
+		replpj = jobject_put(pj, "char_two", chldpj, &error);
 		if (error != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("put char_two error[%d]", ret);
@@ -605,7 +605,7 @@ int decode_X9_62_FIELDID(X9_62_FIELDID* pobj, jvalue* pj)
 			ERROR_INFO("[%s] for other null", otype);
 			goto fail;
 		}
-		ret = get_asn1_any(&(pobj->p.other),"other",pj);
+		ret = get_asn1_any(&(pobj->p.other), "other", pj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("get other error[%d]", ret);
@@ -632,7 +632,7 @@ int encode_X9_62_CURVE(jvalue* pj, X9_62_CURVE* pobj)
 	int ret;
 	int setted = 0;
 
-	ret = set_asn1_octdata(&(pobj->a),"a",pj);
+	ret = set_asn1_octdata(&(pobj->a), "a", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("set a error[%d]", ret);
@@ -641,7 +641,7 @@ int encode_X9_62_CURVE(jvalue* pj, X9_62_CURVE* pobj)
 		setted = 1;
 	}
 
-	ret = set_asn1_octdata(&(pobj->b),"b",pj);
+	ret = set_asn1_octdata(&(pobj->b), "b", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("set b error[%d]", ret);
@@ -650,7 +650,7 @@ int encode_X9_62_CURVE(jvalue* pj, X9_62_CURVE* pobj)
 		setted = 1;
 	}
 
-	ret = set_asn1_bitdata(&(pobj->seed),"seed",pj);
+	ret = set_asn1_bitdata(&(pobj->seed), "seed", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("set seed error[%d]", ret);
@@ -670,7 +670,7 @@ int decode_X9_62_CURVE(X9_62_CURVE* pobj, jvalue* pj)
 	int ret;
 	int setted = 0;
 
-	ret = get_asn1_octdata(&(pobj->a),"a",pj);
+	ret = get_asn1_octdata(&(pobj->a), "a", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("get a error[%d]", ret);
@@ -679,7 +679,7 @@ int decode_X9_62_CURVE(X9_62_CURVE* pobj, jvalue* pj)
 		setted = 1;
 	}
 
-	ret = get_asn1_octdata(&(pobj->b),"b",pj);
+	ret = get_asn1_octdata(&(pobj->b), "b", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("get b error[%d]", ret);
@@ -688,7 +688,7 @@ int decode_X9_62_CURVE(X9_62_CURVE* pobj, jvalue* pj)
 		setted = 1;
 	}
 
-	ret = get_asn1_bitdata(&(pobj->seed),"seed",pj);
+	ret = get_asn1_bitdata(&(pobj->seed), "seed", pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("get seed error[%d]", ret);
@@ -1216,7 +1216,7 @@ int ecx9pentenc_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 }
 int ecx9pentdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_DECODE_HANDLER(X9_62_PENTANOMIAL);	
+	EXPAND_DECODE_HANDLER(X9_62_PENTANOMIAL);
 }
 
 int ecchartwoenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
@@ -1234,12 +1234,12 @@ int ecfieldidenc_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 }
 int ecfieldiddec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_DECODE_HANDLER(X9_62_FIELDID);	
+	EXPAND_DECODE_HANDLER(X9_62_FIELDID);
 }
 
 int eccurveenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_ENCODE_HANDLER(X9_62_CURVE);	
+	EXPAND_ENCODE_HANDLER(X9_62_CURVE);
 }
 
 int eccurvedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
@@ -1249,9 +1249,350 @@ int eccurvedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 
 int ecparamsenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EXPAND_ENCODE_HANDLER(ECPARAMETERS);	
+	EXPAND_ENCODE_HANDLER(ECPARAMETERS);
 }
 int ecparamsdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(ECPARAMETERS);
+}
+
+EC_KEY* get_ec_key(int nid, const BIGNUM* bn)
+{
+	EC_KEY* eckey = NULL;
+	const EC_GROUP* ecgroup = NULL;
+	EC_POINT* ecpnt = NULL;
+	BN_CTX* bnctx = NULL;
+	BIGNUM* bx = NULL, *by = NULL;
+	int ret;
+	eckey = EC_KEY_new_by_curve_name_ex(NULL, NULL, nid);
+	if (eckey == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("can not get [%d] for ec curve", nid);
+		goto fail;
+	}
+	if (bn == NULL) {
+		ret = EC_KEY_generate_key(eckey);
+		if (ret == 0) {
+			GETERRNO(ret);
+			ERROR_INFO("generate [%d] ec curve error [%d]", nid, ret);
+			goto fail;
+		}
+	} else {
+		ecgroup = EC_KEY_get0_group(eckey);
+		if (ecgroup == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("get group for [%d] error[%d]", nid, ret);
+			goto fail;
+		}
+		ecpnt = EC_POINT_new(ecgroup);
+		if (ecpnt == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("EC_POINT_new error [%d]" , ret);
+			goto fail;
+		}
+		bnctx = BN_CTX_new();
+		if (bnctx == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("BN_CTX_new error[%d]", ret);
+			goto fail;
+		}
+		BN_CTX_start(bnctx);
+
+		ret = EC_POINT_mul(ecgroup, ecpnt, bn, NULL, NULL, bnctx);
+		if (ret == 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		bx = BN_CTX_get(bnctx);
+		by = BN_CTX_get(bnctx);
+		if (bx == NULL || by == NULL) {
+			GETERRNO(ret);
+			ERROR_INFO("can not get bx or by [%d]", ret);
+			goto fail;
+		}
+
+		ret = EC_POINT_get_affine_coordinates(ecgroup, ecpnt, bx, by, bnctx);
+		if (ret == 0) {
+			GETERRNO(ret);
+			ERROR_INFO("EC_POINT_get_affine_coordinates error[%d]", ret);
+			goto fail;
+		}
+
+		ret = EC_KEY_set_public_key(eckey, ecpnt);
+		if (ret == 0) {
+			GETERRNO(ret);
+			ERROR_INFO("EC_KEY_set_public_key error[%d]", ret);
+			goto fail;
+		}
+
+		ret = EC_KEY_set_private_key(eckey, bn);
+		if (ret == 0) {
+			GETERRNO(ret);
+			ERROR_INFO("EC_KEY_set_private_key error[%d]", ret);
+			goto fail;
+		}
+
+
+	}
+
+	if (bnctx) {
+		BN_CTX_free(bnctx);
+	}
+	bnctx = NULL;
+
+	if (ecpnt) {
+		EC_POINT_free(ecpnt);
+	}
+	ecpnt = NULL;
+	return eckey;
+fail:
+	if (bnctx) {
+		BN_CTX_free(bnctx);
+	}
+	bnctx = NULL;
+
+	if (ecpnt) {
+		EC_POINT_free(ecpnt);
+	}
+	ecpnt = NULL;
+	if (eckey) {
+		EC_KEY_free(eckey);
+	}
+	eckey = NULL;
+	SETERRNO(ret);
+	return NULL;
+}
+
+unsigned char* get_bin(const char* str, int *psize)
+{
+	unsigned char* pbn = NULL;
+	int slen = 0;
+	char* ptr = NULL;
+	int base = 10;
+	BIGNUM* bn = NULL;
+	int retsize = 0;
+	int ret;
+	if (psize == NULL) {
+		ret = -EINVAL;
+		goto fail;
+	}
+	slen = strlen(str);
+	ptr = (char*)str;
+	if (strncasecmp(str, "0x", 2) == 0) {
+		slen -= 2;
+		ptr += 2;
+		base = 16;
+	} else if (strncasecmp(str, "x", 1) == 0) {
+		slen -= 1;
+		ptr += 1;
+		base = 16;
+	}
+
+	bn = BN_new();
+	if (bn == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("BN_value_one error[%d]", ret);
+		goto fail;
+	}
+
+	retsize = slen * 2;
+	pbn = (unsigned char*)malloc(retsize);
+	if (pbn == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(pbn, 0 ,retsize);
+
+	if (base == 16) {
+		while(slen > 0) {
+			int word = 0;
+			if (*ptr >= '0' && *ptr <= '9') {
+				word = *ptr - '0';
+			} else if (*ptr >= 'a' && *ptr <= 'f') {
+				word = *ptr - 'a'  + 10;
+			} else if (*ptr >= 'A' && *ptr <= 'F') {
+				word = *ptr - 'A' + 10;
+			} else {
+				ret = -EINVAL;
+				ERROR_INFO("ptr [0x%x] not valid", *ptr);
+				goto fail;
+			}
+			BN_mul_word(bn, base);
+			BN_add_word(bn, word);
+			slen --;
+			ptr ++;			
+		}
+
+		ret = BN_bn2binpad(bn, pbn, retsize);
+		if (ret == 0) {
+			GETERRNO(ret);
+			ERROR_INFO("BN_bn2binpad error [%d]", ret);
+			goto fail;
+		}
+
+	} else {
+
+		while (slen > 0) {
+			int word = 0;
+			if (*ptr >= '0' && *ptr <= '9') {
+				word = *ptr - '0';
+			} else {
+				ret = -EINVAL;
+				ERROR_INFO("[0x%x] not valid ", *ptr);
+				goto fail;
+			}
+			BN_mul_word(bn, base);
+			BN_add_word(bn, word);
+			slen --;
+			ptr ++;
+		}
+
+		ret = BN_bn2binpad(bn, pbn, retsize);
+		if (ret == 0) {
+			GETERRNO(ret);
+			ERROR_INFO("BN_bn2binpad error [%d]", ret);
+			goto fail;
+		}
+	}
+
+
+	if (bn) {
+		BN_free(bn);
+	}
+	bn = NULL;
+
+	if (psize) {
+		*psize = retsize;
+	}
+	return pbn;
+fail:
+	if (bn) {
+		BN_free(bn);
+	}
+	bn = NULL;
+	if (pbn) {
+		free(pbn);
+	}
+	pbn = NULL;
+	SETERRNO(ret);
+	return NULL;
+}
+
+
+#define FORMAT_PEM_TYPE (0x8005)
+
+int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int ret;
+	int nid = NID_undef;
+	pargs_options_t pargs = (pargs_options_t)popt;
+	EC_KEY* eckey = NULL;
+	BIGNUM* bn = NULL;
+	EVP_PKEY* pkey = NULL;
+	BIO* bio = NULL;
+	unsigned char* binbn = NULL;
+	int binsz = 0;
+
+	init_log_verbose(pargs);
+
+	if (parsestate->leftargs == NULL || parsestate->leftargs[0] == NULL) {
+		ret = -EINVAL;
+		fprintf(stderr, "no objid to specified\n");
+		goto out;
+	}
+
+	nid = OBJ_sn2nid(parsestate->leftargs[0]);
+	if (nid == NID_undef) {
+		ret = -EINVAL;
+		fprintf(stderr, "[%s] not valid nid\n", parsestate->leftargs[0]);
+		goto out;
+	}
+
+	if (parsestate->leftargs[1] != NULL) {
+		binbn = get_bin(parsestate->leftargs[1],&binsz);
+		if (binbn == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+
+
+		bn = BN_bin2bn(binbn, binsz, NULL);
+		if (bn == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "can not parse [%s] \n", parsestate->leftargs[1]);
+			goto out;
+		}
+	}
+
+	eckey = get_ec_key(nid, bn);
+	if (eckey == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "get ec key error[%d]\n", ret);
+		goto out;
+	}
+
+	pkey = EVP_PKEY_new();
+	if (pkey == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "EVP_PKEY_new error [%d]\n", ret);
+		goto out;
+	}
+
+	ret =  EVP_PKEY_assign(pkey, EVP_PKEY_EC, eckey);
+	if (ret == 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "EVP_PKEY_assign error[%d]\n", ret);
+		goto out;
+	}
+	eckey = NULL;
+
+	if (pargs->m_output) {
+		bio = BIO_new_file(pargs->m_output,"w");
+		if (bio == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "open [%s] error[%d]\n", pargs->m_output, ret);
+			goto out;
+		}
+		OSSL_ENCODER_CTX* ectx = NULL;
+		ectx = OSSL_ENCODER_CTX_new_for_pkey(pkey, OSSL_KEYMGMT_SELECT_ALL, "PEM", "type-specific", NULL);
+		if (ectx == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "OSSL_ENCODER_CTX_new_for_pkey error[%d]\n", ret);
+			goto out;
+		}
+		ret = OSSL_ENCODER_to_bio(ectx, bio);
+		if (ret == 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "OSSL_ENCODER_to_bio error[%d]\n", ret);
+			goto out;
+		}
+	}
+
+	ret = 0;
+out:
+	if (binbn) {
+		free(binbn);
+	}
+	binbn = NULL;
+
+	if (bio != NULL) {
+		BIO_free(bio);
+	}
+	bio = NULL;
+
+	if (pkey != NULL) {
+		EVP_PKEY_free(pkey);
+	}
+	pkey = NULL;
+
+	if (eckey != NULL) {
+		EC_KEY_free(eckey);
+	}
+	eckey = NULL;
+	if (bn != NULL) {
+		BN_free(bn);
+	}
+	bn = NULL;
+	SETERRNO(ret);
+	return ret;
 }

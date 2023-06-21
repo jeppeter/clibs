@@ -241,5 +241,8 @@
     },
     "ecparamsdec<ecparamsdec_handler>##binfile ... to decode ECPARAMETERS##" : {
         "$" : "+"
+    },
+    "ecgen<ecgen_handler>##ecnid to dump ec##" : {
+        "$" : 1
     }
 }

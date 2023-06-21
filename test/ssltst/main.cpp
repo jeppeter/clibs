@@ -11,6 +11,7 @@
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 #include <openssl/x509v3.h>
+#include <openssl/encoder.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -108,6 +109,7 @@ int eccurveenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int eccurvedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecparamsenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecparamsdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus
