@@ -12,6 +12,7 @@
 #include <openssl/asn1t.h>
 #include <openssl/x509v3.h>
 #include <openssl/encoder.h>
+#include <openssl/core_names.h>
 
 #include <stdlib.h>
 #include <stdio.h>

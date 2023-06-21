@@ -1431,6 +1431,11 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	BIGNUM* bn = NULL;
 	EVP_PKEY* pkey = NULL;
 	BIO* bio = NULL;
+	OSSL_PARAM params[4];
+	OSSL_PARAM *p=NULL;
+	char* curvename = NULL;
+	EVP_PKEY_CTX* pkeyctx=NULL;
+	EVP_PKEY* basepkey = NULL;
 
 	init_log_verbose(pargs);
 
@@ -1440,10 +1445,11 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 		goto out;
 	}
 
-	nid = OBJ_sn2nid(parsestate->leftargs[0]);
+	curvename = parsestate->leftargs[0];
+	nid = OBJ_sn2nid(curvename);
 	if (nid == NID_undef) {
 		ret = -EINVAL;
-		fprintf(stderr, "[%s] not valid nid\n", parsestate->leftargs[0]);
+		fprintf(stderr, "[%s] not valid nid\n", curvename);
 		goto out;
 	}
 
@@ -1462,12 +1468,34 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 		goto out;
 	}
 
+
 	pkey = EVP_PKEY_new();
 	if (pkey == NULL) {
 		GETERRNO(ret);
 		fprintf(stderr, "EVP_PKEY_new error [%d]\n", ret);
 		goto out;
 	}
+	p = params;
+	*p = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,curvename,0);
+	p ++;
+	*p = OSSL_PARAM_construct_end();
+
+	pkeyctx = EVP_PKEY_CTX_new_from_name(NULL,"ec",NULL);
+	if (pkeyctx == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "EVP_PKEY_CTX_new_from_name error[%d]\n", ret);
+		goto out;
+	}
+	if (EVP_PKEY_keygen_init(pkeyctx) <= 0 || 
+		EVP_PKEY_CTX_set_params(pkeyctx,params) <= 0 ||
+		EVP_PKEY_keygen(pkeyctx,&basepkey) <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "basepkey error[%d]\n", ret);
+		goto out;
+	}
+
+
+
 
 	ret =  EVP_PKEY_assign(pkey, EVP_PKEY_EC, eckey);
 	if (ret == 0) {
@@ -1476,6 +1504,14 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 		goto out;
 	}
 	eckey = NULL;
+
+	ret = EVP_PKEY_copy_parameters(pkey,basepkey);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "copy params error [%d]\n", ret);
+		goto out;
+	}
+
 
 	if (pargs->m_output) {
 		bio = BIO_new_file(pargs->m_output,"w");
@@ -1520,6 +1556,17 @@ out:
 		BN_free(bn);
 	}
 	bn = NULL;
+
+	if (basepkey != NULL) {
+		EVP_PKEY_free(basepkey);
+	}
+	basepkey = NULL;
+
+	if (pkeyctx != NULL) {
+		EVP_PKEY_CTX_free(pkeyctx);
+	}
+	pkeyctx = NULL;
+
 	SETERRNO(ret);
 	return ret;
 }
