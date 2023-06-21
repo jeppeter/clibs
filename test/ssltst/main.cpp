@@ -11,8 +11,6 @@
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 #include <openssl/x509v3.h>
-#include <openssl/encoder.h>
-#include <openssl/core_names.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -23,6 +21,8 @@
 typedef struct __args_options {
     char* m_input;
     char* m_output;
+    char* m_ecpriv;
+    char* m_ecparam;
     int m_verbose;
 } args_options_t, *pargs_options_t;
 
@@ -111,6 +111,8 @@ int eccurvedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int ecparamsenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecparamsdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ecsignbase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus

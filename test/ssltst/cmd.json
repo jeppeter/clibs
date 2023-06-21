@@ -2,6 +2,8 @@
     "verbose|v<m_verbose>" : "+",
     "input|i<m_input>" : null,
     "output|o<m_output>" : null,
+    "ecpriv<m_ecpriv>" : null,
+    "ecparam<m_ecparam>" : null,
     "peauth<peauth_handler>##pefile ... to parse pe authenticode ##" : {
     	"$" : "+"
     },
@@ -243,6 +245,12 @@
         "$" : "+"
     },
     "ecgen<ecgen_handler>##ecnid to dump ec##" : {
+        "$" : "+"
+    },
+    "ecsignbase<ecsignbase_handler>##ecpriv hashnum [kinv] ##" : {
+        "$" : "+"
+    },
+    "ecvfybase<ecvfybase_handler>##ecpriv hashnum signfile##" : {
         "$" : "+"
     }
 }

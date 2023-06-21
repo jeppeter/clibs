@@ -1390,7 +1390,7 @@ BIGNUM* get_bn(const char* str)
 		goto fail;
 	}
 
-	while(slen > 0) {
+	while (slen > 0) {
 		int word = 0;
 		if (*ptr >= '0' && *ptr <= '9') {
 			word = *ptr - '0';
@@ -1406,7 +1406,7 @@ BIGNUM* get_bn(const char* str)
 		BN_mul_word(bn, base);
 		BN_add_word(bn, word);
 		slen --;
-		ptr ++;			
+		ptr ++;
 	}
 
 	return bn;
@@ -1429,13 +1429,11 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	pargs_options_t pargs = (pargs_options_t)popt;
 	EC_KEY* eckey = NULL;
 	BIGNUM* bn = NULL;
-	EVP_PKEY* pkey = NULL;
-	BIO* bio = NULL;
-	OSSL_PARAM params[4];
-	OSSL_PARAM *p=NULL;
 	char* curvename = NULL;
-	EVP_PKEY_CTX* pkeyctx=NULL;
-	EVP_PKEY* basepkey = NULL;
+	unsigned char* pout = NULL, *p = NULL;
+	int outlen = 0;
+	int outsize = 0;
+
 
 	init_log_verbose(pargs);
 
@@ -1468,85 +1466,83 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 		goto out;
 	}
 
-
-	pkey = EVP_PKEY_new();
-	if (pkey == NULL) {
-		GETERRNO(ret);
-		fprintf(stderr, "EVP_PKEY_new error [%d]\n", ret);
-		goto out;
-	}
-	p = params;
-	*p = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_GROUP_NAME,curvename,0);
-	p ++;
-	*p = OSSL_PARAM_construct_end();
-
-	pkeyctx = EVP_PKEY_CTX_new_from_name(NULL,"ec",NULL);
-	if (pkeyctx == NULL) {
-		GETERRNO(ret);
-		fprintf(stderr, "EVP_PKEY_CTX_new_from_name error[%d]\n", ret);
-		goto out;
-	}
-	if (EVP_PKEY_keygen_init(pkeyctx) <= 0 || 
-		EVP_PKEY_CTX_set_params(pkeyctx,params) <= 0 ||
-		EVP_PKEY_keygen(pkeyctx,&basepkey) <= 0) {
-		GETERRNO(ret);
-		fprintf(stderr, "basepkey error[%d]\n", ret);
-		goto out;
-	}
-
-
-
-
-	ret =  EVP_PKEY_assign(pkey, EVP_PKEY_EC, eckey);
-	if (ret == 0) {
-		GETERRNO(ret);
-		fprintf(stderr, "EVP_PKEY_assign error[%d]\n", ret);
-		goto out;
-	}
-	eckey = NULL;
-
-	ret = EVP_PKEY_copy_parameters(pkey,basepkey);
-	if (ret <= 0) {
-		GETERRNO(ret);
-		fprintf(stderr, "copy params error [%d]\n", ret);
-		goto out;
-	}
-
-
-	if (pargs->m_output) {
-		bio = BIO_new_file(pargs->m_output,"w");
-		if (bio == NULL) {
+	if (pargs->m_ecpriv) {
+		ret = i2d_ECPrivateKey(eckey, NULL);
+		if (ret <= 0) {
 			GETERRNO(ret);
-			fprintf(stderr, "open [%s] error[%d]\n", pargs->m_output, ret);
+			fprintf(stderr, "i2d_ECPrivateKey error[%d]\n", ret);
 			goto out;
 		}
-		OSSL_ENCODER_CTX* ectx = NULL;
-		//ectx = OSSL_ENCODER_CTX_new_for_pkey(pkey, OSSL_KEYMGMT_SELECT_ALL, "PEM", NULL, NULL);
-		ectx = OSSL_ENCODER_CTX_new_for_pkey(pkey, OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS, "PEM", NULL, NULL);
-		if (ectx == NULL) {
-			GETERRNO(ret);
-			fprintf(stderr, "OSSL_ENCODER_CTX_new_for_pkey error[%d]\n", ret);
+		outlen = ret;
+		if (pout == NULL || outsize < outlen) {
+			if (pout) {
+				free(pout);
+			}
+			pout = NULL;
+			outsize = outlen;
+			pout = (unsigned char*) malloc(outsize);
+			if (pout == NULL) {
+				GETERRNO(ret);
+				goto out;
+			}
+		}
+		p = pout;
+		ret = i2d_ECPrivateKey(eckey, &p);
+		if (ret != outlen) {
+			ret = -EINVAL;
+			fprintf(stderr, "i2d_ECPrivateKey nerr [%d]\n", ret);
 			goto out;
 		}
-		ret = OSSL_ENCODER_to_bio(ectx, bio);
-		if (ret == 0) {
+
+		ret = write_file_whole(pargs->m_ecpriv, (char*)pout, outlen);
+		if (ret != outlen) {
 			GETERRNO(ret);
-			fprintf(stderr, "OSSL_ENCODER_to_bio error[%d]\n", ret);
+			fprintf(stderr, "write_file_whole %s [%d]\n", pargs->m_ecpriv, ret);
+			goto out;
+		}
+	}
+
+	if (pargs->m_ecparam) {
+		ret = i2d_ECParameters(eckey,NULL);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+		outlen = ret;
+		if (pout == NULL || outsize < outlen) {
+			if (pout) {
+				free(pout);
+			}
+			pout = NULL;
+			outsize = outlen;
+			pout = (unsigned char*) malloc(outsize);
+			if (pout == NULL) {
+				GETERRNO(ret);
+				goto out;
+			}
+		}
+		p = pout;
+		ret = i2d_ECParameters(eckey, &p);
+		if (ret != outlen) {
+			ret = -EINVAL;
+			fprintf(stderr, "i2d_ECParameters nerr [%d]\n", ret);
+			goto out;
+		}
+
+		ret = write_file_whole(pargs->m_ecparam, (char*)pout, outlen);
+		if (ret != outlen) {
+			GETERRNO(ret);
+			fprintf(stderr, "write_file_whole %s [%d]\n", pargs->m_ecparam, ret);
 			goto out;
 		}
 	}
 
 	ret = 0;
 out:
-	if (bio != NULL) {
-		BIO_free(bio);
+	if (pout != NULL) {
+		free(pout);
 	}
-	bio = NULL;
-
-	if (pkey != NULL) {
-		EVP_PKEY_free(pkey);
-	}
-	pkey = NULL;
+	ret = 0;
 
 	if (eckey != NULL) {
 		EC_KEY_free(eckey);
@@ -1557,16 +1553,16 @@ out:
 	}
 	bn = NULL;
 
-	if (basepkey != NULL) {
-		EVP_PKEY_free(basepkey);
-	}
-	basepkey = NULL;
-
-	if (pkeyctx != NULL) {
-		EVP_PKEY_CTX_free(pkeyctx);
-	}
-	pkeyctx = NULL;
-
 	SETERRNO(ret);
 	return ret;
+}
+
+int ecsignbase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	return 0;
+}
+
+int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	return 0;
 }
