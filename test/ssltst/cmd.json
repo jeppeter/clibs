@@ -243,6 +243,6 @@
         "$" : "+"
     },
     "ecgen<ecgen_handler>##ecnid to dump ec##" : {
-        "$" : 1
+        "$" : "+"
     }
 }

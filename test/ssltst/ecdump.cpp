@@ -1363,19 +1363,14 @@ fail:
 	return NULL;
 }
 
-unsigned char* get_bin(const char* str, int *psize)
+BIGNUM* get_bn(const char* str)
 {
-	unsigned char* pbn = NULL;
 	int slen = 0;
 	char* ptr = NULL;
 	int base = 10;
 	BIGNUM* bn = NULL;
-	int retsize = 0;
 	int ret;
-	if (psize == NULL) {
-		ret = -EINVAL;
-		goto fail;
-	}
+
 	slen = strlen(str);
 	ptr = (char*)str;
 	if (strncasecmp(str, "0x", 2) == 0) {
@@ -1395,85 +1390,31 @@ unsigned char* get_bin(const char* str, int *psize)
 		goto fail;
 	}
 
-	retsize = slen * 2;
-	pbn = (unsigned char*)malloc(retsize);
-	if (pbn == NULL) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	memset(pbn, 0 ,retsize);
-
-	if (base == 16) {
-		while(slen > 0) {
-			int word = 0;
-			if (*ptr >= '0' && *ptr <= '9') {
-				word = *ptr - '0';
-			} else if (*ptr >= 'a' && *ptr <= 'f') {
-				word = *ptr - 'a'  + 10;
-			} else if (*ptr >= 'A' && *ptr <= 'F') {
-				word = *ptr - 'A' + 10;
-			} else {
-				ret = -EINVAL;
-				ERROR_INFO("ptr [0x%x] not valid", *ptr);
-				goto fail;
-			}
-			BN_mul_word(bn, base);
-			BN_add_word(bn, word);
-			slen --;
-			ptr ++;			
-		}
-
-		ret = BN_bn2binpad(bn, pbn, retsize);
-		if (ret == 0) {
-			GETERRNO(ret);
-			ERROR_INFO("BN_bn2binpad error [%d]", ret);
+	while(slen > 0) {
+		int word = 0;
+		if (*ptr >= '0' && *ptr <= '9') {
+			word = *ptr - '0';
+		} else if (base == 16 && *ptr >= 'a' && *ptr <= 'f') {
+			word = *ptr - 'a'  + 10;
+		} else if (base == 16 && *ptr >= 'A' && *ptr <= 'F') {
+			word = *ptr - 'A' + 10;
+		} else {
+			ret = -EINVAL;
+			ERROR_INFO("ptr [0x%x] not valid", *ptr);
 			goto fail;
 		}
-
-	} else {
-
-		while (slen > 0) {
-			int word = 0;
-			if (*ptr >= '0' && *ptr <= '9') {
-				word = *ptr - '0';
-			} else {
-				ret = -EINVAL;
-				ERROR_INFO("[0x%x] not valid ", *ptr);
-				goto fail;
-			}
-			BN_mul_word(bn, base);
-			BN_add_word(bn, word);
-			slen --;
-			ptr ++;
-		}
-
-		ret = BN_bn2binpad(bn, pbn, retsize);
-		if (ret == 0) {
-			GETERRNO(ret);
-			ERROR_INFO("BN_bn2binpad error [%d]", ret);
-			goto fail;
-		}
+		BN_mul_word(bn, base);
+		BN_add_word(bn, word);
+		slen --;
+		ptr ++;			
 	}
 
-
-	if (bn) {
-		BN_free(bn);
-	}
-	bn = NULL;
-
-	if (psize) {
-		*psize = retsize;
-	}
-	return pbn;
+	return bn;
 fail:
 	if (bn) {
 		BN_free(bn);
 	}
 	bn = NULL;
-	if (pbn) {
-		free(pbn);
-	}
-	pbn = NULL;
 	SETERRNO(ret);
 	return NULL;
 }
@@ -1490,8 +1431,6 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	BIGNUM* bn = NULL;
 	EVP_PKEY* pkey = NULL;
 	BIO* bio = NULL;
-	unsigned char* binbn = NULL;
-	int binsz = 0;
 
 	init_log_verbose(pargs);
 
@@ -1509,17 +1448,9 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	}
 
 	if (parsestate->leftargs[1] != NULL) {
-		binbn = get_bin(parsestate->leftargs[1],&binsz);
-		if (binbn == NULL) {
-			GETERRNO(ret);
-			goto out;
-		}
-
-
-		bn = BN_bin2bn(binbn, binsz, NULL);
+		bn = get_bn(parsestate->leftargs[1]);
 		if (bn == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "can not parse [%s] \n", parsestate->leftargs[1]);
 			goto out;
 		}
 	}
@@ -1554,7 +1485,8 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 			goto out;
 		}
 		OSSL_ENCODER_CTX* ectx = NULL;
-		ectx = OSSL_ENCODER_CTX_new_for_pkey(pkey, OSSL_KEYMGMT_SELECT_ALL, "PEM", "type-specific", NULL);
+		//ectx = OSSL_ENCODER_CTX_new_for_pkey(pkey, OSSL_KEYMGMT_SELECT_ALL, "PEM", NULL, NULL);
+		ectx = OSSL_ENCODER_CTX_new_for_pkey(pkey, OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS, "PEM", NULL, NULL);
 		if (ectx == NULL) {
 			GETERRNO(ret);
 			fprintf(stderr, "OSSL_ENCODER_CTX_new_for_pkey error[%d]\n", ret);
@@ -1570,11 +1502,6 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 
 	ret = 0;
 out:
-	if (binbn) {
-		free(binbn);
-	}
-	binbn = NULL;
-
 	if (bio != NULL) {
 		BIO_free(bio);
 	}
