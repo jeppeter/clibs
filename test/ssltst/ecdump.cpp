@@ -1635,6 +1635,7 @@ int ecsignbase_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 		goto out;
 	}
 	hashlen = ret;
+	DEBUG_BUFFER_FMT(hashbuf,hashlen, "hashbuf");
 
 	sigsize = 1000;
 	sigbuf = (unsigned char*)malloc(sigsize);
@@ -1759,7 +1760,7 @@ int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	}
 	siglen = ret;
 
-	hashsize = 1000;
+	hashsize = 16;
 	hashbuf = (unsigned char*) malloc(hashsize);
 	if (hashbuf == NULL) {
 		GETERRNO(ret);
@@ -1774,6 +1775,7 @@ int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 	hashlen = ret;
+	DEBUG_BUFFER_FMT(hashbuf,hashlen, "hashbuf");
 
 	ret = ECDSA_verify(0,hashbuf,hashlen, (const unsigned char*)sigbuf,siglen, eckey);
 	if (ret <= 0) {
