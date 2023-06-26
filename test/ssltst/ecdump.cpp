@@ -1420,8 +1420,6 @@ fail:
 }
 
 
-#define FORMAT_PEM_TYPE (0x8005)
-
 int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	int ret;
@@ -1466,33 +1464,34 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 		goto out;
 	}
 
-	if (pargs->m_ecpriv) {
-		ret = i2d_ECPrivateKey(eckey, NULL);
-		if (ret <= 0) {
+	ret = i2d_ECPrivateKey(eckey, NULL);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "i2d_ECPrivateKey error[%d]\n", ret);
+		goto out;
+	}
+	outlen = ret;
+	if (pout == NULL || outsize < outlen) {
+		if (pout) {
+			free(pout);
+		}
+		pout = NULL;
+		outsize = outlen;
+		pout = (unsigned char*) malloc(outsize);
+		if (pout == NULL) {
 			GETERRNO(ret);
-			fprintf(stderr, "i2d_ECPrivateKey error[%d]\n", ret);
 			goto out;
 		}
-		outlen = ret;
-		if (pout == NULL || outsize < outlen) {
-			if (pout) {
-				free(pout);
-			}
-			pout = NULL;
-			outsize = outlen;
-			pout = (unsigned char*) malloc(outsize);
-			if (pout == NULL) {
-				GETERRNO(ret);
-				goto out;
-			}
-		}
-		p = pout;
-		ret = i2d_ECPrivateKey(eckey, &p);
-		if (ret != outlen) {
-			ret = -EINVAL;
-			fprintf(stderr, "i2d_ECPrivateKey nerr [%d]\n", ret);
-			goto out;
-		}
+	}
+	p = pout;
+	ret = i2d_ECPrivateKey(eckey, &p);
+	if (ret != outlen) {
+		ret = -EINVAL;
+		fprintf(stderr, "i2d_ECPrivateKey nerr [%d]\n", ret);
+		goto out;
+	}
+
+	if (pargs->m_ecpriv) {
 
 		ret = write_file_whole(pargs->m_ecpriv, (char*)pout, outlen);
 		if (ret != outlen) {
@@ -1500,41 +1499,46 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 			fprintf(stderr, "write_file_whole %s [%d]\n", pargs->m_ecpriv, ret);
 			goto out;
 		}
+	} else {
+		dump_buffer_out(stdout,pout,outlen,"ecpriv");
 	}
 
-	if (pargs->m_ecparam) {
-		ret = i2d_ECParameters(eckey,NULL);
-		if (ret <= 0) {
+
+	ret = i2d_ECParameters(eckey, NULL);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+	outlen = ret;
+	if (pout == NULL || outsize < outlen) {
+		if (pout) {
+			free(pout);
+		}
+		pout = NULL;
+		outsize = outlen;
+		pout = (unsigned char*) malloc(outsize);
+		if (pout == NULL) {
 			GETERRNO(ret);
 			goto out;
 		}
-		outlen = ret;
-		if (pout == NULL || outsize < outlen) {
-			if (pout) {
-				free(pout);
-			}
-			pout = NULL;
-			outsize = outlen;
-			pout = (unsigned char*) malloc(outsize);
-			if (pout == NULL) {
-				GETERRNO(ret);
-				goto out;
-			}
-		}
-		p = pout;
-		ret = i2d_ECParameters(eckey, &p);
-		if (ret != outlen) {
-			ret = -EINVAL;
-			fprintf(stderr, "i2d_ECParameters nerr [%d]\n", ret);
-			goto out;
-		}
+	}
+	p = pout;
+	ret = i2d_ECParameters(eckey, &p);
+	if (ret != outlen) {
+		ret = -EINVAL;
+		fprintf(stderr, "i2d_ECParameters nerr [%d]\n", ret);
+		goto out;
+	}
 
+	if (pargs->m_ecparam) {
 		ret = write_file_whole(pargs->m_ecparam, (char*)pout, outlen);
 		if (ret != outlen) {
 			GETERRNO(ret);
 			fprintf(stderr, "write_file_whole %s [%d]\n", pargs->m_ecparam, ret);
 			goto out;
 		}
+	} else {
+		dump_buffer_out(stdout,pout,outlen,"ecparam out");
 	}
 
 	ret = 0;
@@ -1559,10 +1563,246 @@ out:
 
 int ecsignbase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	return 0;
+	BIGNUM *hashnum = NULL, *kinv = NULL;
+	int ret;
+	const unsigned char* p=NULL;
+	char* ecpriv=NULL;
+	int ecsize=0,eclen=0;
+	char* ecfile=NULL;
+	unsigned char* hashbuf= NULL;
+	int hashsize=0;
+	int hashlen = 0;
+	unsigned char* sigbuf= NULL;
+	unsigned int sigsize=0;
+	unsigned int siglen=0;
+	pargs_options_t pargs = (pargs_options_t)popt;
+	EC_KEY* eckey= NULL;
+
+	init_log_verbose(pargs);
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		ecfile = parsestate->leftargs[0];
+		if (parsestate->leftargs[1]) {
+			hashnum = get_bn(parsestate->leftargs[1]);
+			if (hashnum == NULL) {
+				ret = -EINVAL;
+				fprintf(stderr, "[%s] not valid number\n", parsestate->leftargs[1]);
+				goto out;
+			}
+			if (parsestate->leftargs[2]) {
+				kinv = get_bn(parsestate->leftargs[2]);
+				if (kinv == NULL) {
+					ret = -EINVAL;
+					fprintf(stderr, "[%s] not valid number\n", parsestate->leftargs[2]);
+					goto out;
+				}
+			}
+		}
+	}
+	if (ecfile == NULL || hashnum == NULL) {
+		ret = -EINVAL;
+		fprintf(stderr, "no ecfile or hashnum specified\n");
+		goto out;
+	}
+
+	ret = read_file_whole(ecfile,&ecpriv,&ecsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not read [%s] error[%d]\n", ecfile,ret);
+		goto out;
+	}
+
+	eclen = ret;
+	p = (const unsigned char*)ecpriv;
+
+	eckey = d2i_ECPrivateKey(NULL,&p,eclen);
+	if (eckey == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "parse [%s] eckey error[%d]\n", ecfile,ret);
+		goto out;
+	}
+
+	hashsize = 16;
+	hashbuf = (unsigned char*)malloc(hashsize);
+	if (hashbuf == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+	memset(hashbuf , 0 ,hashsize);
+	ret = BN_bn2binpad(hashnum,hashbuf,hashsize);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "buffer to hash error[%d]\n", ret);
+		goto out;
+	}
+	hashlen = ret;
+
+	sigsize = 1000;
+	sigbuf = (unsigned char*)malloc(sigsize);
+	if (sigbuf == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+	memset(sigbuf,0, sigsize);
+	siglen = sigsize;
+
+	ret = ECDSA_sign_ex(0,hashbuf,hashlen,sigbuf,&siglen,kinv,NULL,eckey);
+	if (ret <=0 ){
+		GETERRNO(ret);
+		fprintf(stderr, "sign [%s] hashnumber [%s] with kinv [%s] error[%d]\n", ecfile,parsestate->leftargs[1],kinv == NULL ? "NULL" : parsestate->leftargs[2],ret);
+		goto out;
+	}
+	
+	if (pargs->m_output) {
+		ret = write_file_whole(pargs->m_output,(char*)sigbuf,siglen);
+		if (ret < 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "write [%s] sig buffer error [%d]\n", pargs->m_output, ret);
+			goto out;
+		}
+	} else {
+		dump_buffer_out(stdout,sigbuf,siglen,"signature");
+	}
+
+	ret = 0;
+out:
+	if (sigbuf) {
+		free(sigbuf);
+	}
+	sigbuf = NULL;
+	if (hashbuf) {
+		free(hashbuf);
+	}
+	hashbuf = NULL;
+	hashsize = 0;
+	hashlen = 0;
+
+	if (eckey) {
+		EC_KEY_free(eckey);
+	}
+	eckey = NULL;
+
+	read_file_whole(NULL,&ecpriv,&ecsize);
+	eclen = 0;
+
+	if (hashnum) {
+		BN_free(hashnum);
+	}
+	hashnum = NULL;
+	if (kinv) {
+		BN_free(kinv);
+	}
+	kinv = NULL;
+	SETERRNO(ret);
+	return ret;
 }
 
 int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	return 0;
+	EC_KEY* eckey =NULL;
+	char* ecfile = NULL;
+	char* sigfile = NULL;
+	char* ecpriv = NULL;
+	int ecsize=0,eclen=0;
+	char* sigbuf = NULL;
+	int sigsize=0,siglen =0;
+	const unsigned char* p=NULL;
+	BIGNUM *hashnum=NULL;
+	unsigned char* hashbuf=NULL;
+	int hashsize = 0;
+	int hashlen = 0;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	int ret;
+
+	init_log_verbose(pargs);
+
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		ecfile = parsestate->leftargs[0];
+		if (parsestate->leftargs[1]) {
+			hashnum = get_bn(parsestate->leftargs[1]);
+			if (hashnum == NULL) {
+				GETERRNO(ret);
+				goto out;
+			}
+			if (parsestate->leftargs[2]) {
+				sigfile = parsestate->leftargs[2];
+			}
+		}
+	}
+
+	if (ecfile == NULL || hashnum == NULL || sigfile == NULL) {
+		ret = -EINVAL;
+		fprintf(stderr, "need ecfile and hashnumber and sigfile\n");
+		goto out;
+	}
+
+	ret = read_file_whole(ecfile,&ecpriv,&ecsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "read [%s] error[%d]\n", ecfile,ret);
+		goto out;
+	}
+
+	eclen = ret;
+	p = (const unsigned char*) ecpriv;
+	eckey = d2i_ECPrivateKey(NULL,&p,eclen);
+	if (eckey == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "parse [%s] EC_KEY error[%d]\n", ecfile, ret);
+		goto out;
+	}
+
+	ret = read_file_whole(sigfile,&sigbuf,&sigsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "read [%s] error[%d]\n", ecfile,ret);
+		goto out;
+	}
+	siglen = ret;
+
+	hashsize = 1000;
+	hashbuf = (unsigned char*) malloc(hashsize);
+	if (hashbuf == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+	memset(hashbuf,0,hashsize);
+
+	ret = BN_bn2binpad(hashnum,hashbuf,hashsize);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "[%s] not BN_bn2binpad error[%d]\n", parsestate->leftargs[1], ret);
+		goto out;
+	}
+	hashlen = ret;
+
+	ret = ECDSA_verify(0,hashbuf,hashlen, (const unsigned char*)sigbuf,siglen, eckey);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "verify [%s] number [%s] with %s error [%d]\n",ecfile,parsestate->leftargs[1],sigfile,ret);
+		goto out;
+	}
+
+	fprintf(stdout,"verify [%s] number [%s] with %s succ\n",ecfile,parsestate->leftargs[1],sigfile);
+
+	ret = 0;
+out:
+	if (hashbuf) {
+		free(hashbuf);
+	}
+	hashbuf = NULL;
+	read_file_whole(NULL,&sigbuf,&sigsize);
+	siglen = 0;
+	if (eckey) {
+		EC_KEY_free(eckey);
+	}
+	eckey = NULL;
+	read_file_whole(NULL,&ecpriv,&ecsize);
+	eclen = 0;
+
+	if (hashnum) {
+		BN_free(hashnum);
+	}
+	hashnum = NULL;
+	SETERRNO(ret);
+	return ret;
 }
