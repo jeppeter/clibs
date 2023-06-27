@@ -252,5 +252,8 @@
     },
     "ecvfybase<ecvfybase_handler>##ecpriv hashnum signfile##" : {
         "$" : "+"
+    },
+    "bnbinmul<bnbinmul_handler>##a x b = c with binary handle##" : {
+        "$" : 2
     }
 }

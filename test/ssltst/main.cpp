@@ -113,6 +113,7 @@ int ecparamsdec_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecsignbase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int bnbinmul_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus
@@ -329,6 +330,7 @@ fail:
 #include "aes.cpp"
 #include "ossldump.cpp"
 #include "ecdump.cpp"
+#include "bntest.cpp"
 
 int main(int argc, char* argv[])
 {
