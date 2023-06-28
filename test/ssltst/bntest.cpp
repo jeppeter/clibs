@@ -1,4 +1,61 @@
 
+BIGNUM* get_bn(const char* str)
+{
+	int slen = 0;
+	char* ptr = NULL;
+	int base = 10;
+	BIGNUM* bn = NULL;
+	int ret;
+
+	slen = strlen(str);
+	ptr = (char*)str;
+	if (strncasecmp(str, "0x", 2) == 0) {
+		slen -= 2;
+		ptr += 2;
+		base = 16;
+	} else if (strncasecmp(str, "x", 1) == 0) {
+		slen -= 1;
+		ptr += 1;
+		base = 16;
+	}
+
+	bn = BN_new();
+	if (bn == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("BN_value_one error[%d]", ret);
+		goto fail;
+	}
+
+	while (slen > 0) {
+		int word = 0;
+		if (*ptr >= '0' && *ptr <= '9') {
+			word = *ptr - '0';
+		} else if (base == 16 && *ptr >= 'a' && *ptr <= 'f') {
+			word = *ptr - 'a'  + 10;
+		} else if (base == 16 && *ptr >= 'A' && *ptr <= 'F') {
+			word = *ptr - 'A' + 10;
+		} else {
+			ret = -EINVAL;
+			ERROR_INFO("ptr [0x%x] not valid", *ptr);
+			goto fail;
+		}
+		BN_mul_word(bn, base);
+		BN_add_word(bn, word);
+		slen --;
+		ptr ++;
+	}
+
+	return bn;
+fail:
+	if (bn) {
+		BN_free(bn);
+	}
+	bn = NULL;
+	SETERRNO(ret);
+	return NULL;
+}
+
+
 static void bn_GF2m_mul_1x1(uint64_t *r1, uint64_t *r0, const uint64_t a,
                             const uint64_t b)
 {
@@ -117,4 +174,78 @@ out:
 	ret = 0;
 	SETERRNO(ret);
 	return ret;
+}
+
+int binadd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	BIGNUM *aval=NULL,*bval=NULL,*cval = NULL;
+	int ret;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	init_log_verbose(pargs);
+	char* xptr=NULL;
+
+	if (parsestate->leftargs) {
+		if (parsestate->leftargs[0]) {
+			aval = get_bn(parsestate->leftargs[0]);
+			if (aval == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "can not parse [%s] error[%d]\n", parsestate->leftargs[0],ret);
+				goto out;
+			}
+
+			if (parsestate->leftargs[1]) {
+				bval = get_bn(parsestate->leftargs[1]);
+				if (bval == NULL) {
+					GETERRNO(ret);
+					fprintf(stderr, "can not parse [%s] error[%d]\n",parsestate->leftargs[1],ret );
+					goto out;
+				}
+			}
+		}
+	}
+
+	if (aval == NULL || bval == NULL) {
+		ret = -EINVAL;
+		fprintf(stderr, "need anum bnum\n");
+		goto out;
+	}
+
+	cval = BN_new();
+	if (cval == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = BN_GF2m_add(cval,aval,bval);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "add value error [%d]\n", ret);
+		goto out;
+	}
+
+	xptr = BN_bn2hex(cval);
+	if (xptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	fprintf(stdout,"%s + %s = 0x%s\n",parsestate->leftargs[0],parsestate->leftargs[1], xptr);
+	ret = 0;
+out:
+	if (xptr) {
+		free(xptr);
+	}
+	xptr = NULL;
+
+	if (aval) {
+		BN_free(aval);
+	}
+	aval = NULL;
+	if (bval) {
+		BN_free(bval);
+	}
+	bval = NULL;
+	SETERRNO(ret);
+	return ret;
+
 }

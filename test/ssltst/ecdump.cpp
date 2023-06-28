@@ -1363,61 +1363,6 @@ fail:
 	return NULL;
 }
 
-BIGNUM* get_bn(const char* str)
-{
-	int slen = 0;
-	char* ptr = NULL;
-	int base = 10;
-	BIGNUM* bn = NULL;
-	int ret;
-
-	slen = strlen(str);
-	ptr = (char*)str;
-	if (strncasecmp(str, "0x", 2) == 0) {
-		slen -= 2;
-		ptr += 2;
-		base = 16;
-	} else if (strncasecmp(str, "x", 1) == 0) {
-		slen -= 1;
-		ptr += 1;
-		base = 16;
-	}
-
-	bn = BN_new();
-	if (bn == NULL) {
-		GETERRNO(ret);
-		ERROR_INFO("BN_value_one error[%d]", ret);
-		goto fail;
-	}
-
-	while (slen > 0) {
-		int word = 0;
-		if (*ptr >= '0' && *ptr <= '9') {
-			word = *ptr - '0';
-		} else if (base == 16 && *ptr >= 'a' && *ptr <= 'f') {
-			word = *ptr - 'a'  + 10;
-		} else if (base == 16 && *ptr >= 'A' && *ptr <= 'F') {
-			word = *ptr - 'A' + 10;
-		} else {
-			ret = -EINVAL;
-			ERROR_INFO("ptr [0x%x] not valid", *ptr);
-			goto fail;
-		}
-		BN_mul_word(bn, base);
-		BN_add_word(bn, word);
-		slen --;
-		ptr ++;
-	}
-
-	return bn;
-fail:
-	if (bn) {
-		BN_free(bn);
-	}
-	bn = NULL;
-	SETERRNO(ret);
-	return NULL;
-}
 
 
 int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)

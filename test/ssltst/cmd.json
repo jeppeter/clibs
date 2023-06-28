@@ -255,5 +255,8 @@
     },
     "bnbinmul<bnbinmul_handler>##a x b = c with binary handle##" : {
         "$" : 2
+    },
+    "binadd<binadd_handler>##a + b = c with GF2m add##" : {
+        "$" : 2
     }
 }
