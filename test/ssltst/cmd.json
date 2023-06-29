@@ -261,5 +261,8 @@
     },
     "binmulmod<binmulmod_handler>##anum bnum pnum with GF2m mul mod##" : {
         "$" : 3
+    },
+    "binmod<binmod_handler>##anum pnum with GF2m mod##" : {
+        "$" : 2
     }
 }

@@ -116,6 +116,7 @@ int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int bnbinmul_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int binadd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int binmulmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int binmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus
