@@ -258,5 +258,8 @@
     },
     "binadd<binadd_handler>##a + b = c with GF2m add##" : {
         "$" : 2
+    },
+    "binmulmod<binmulmod_handler>##anum bnum pnum with GF2m mul mod##" : {
+        "$" : 3
     }
 }

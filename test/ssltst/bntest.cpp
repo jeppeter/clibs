@@ -249,3 +249,114 @@ out:
 	return ret;
 
 }
+
+int binmulmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	BIGNUM *aval=NULL,*bval=NULL,*pval = NULL,*rval=NULL;
+	BN_CTX *ctx=NULL;
+	int ret;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	init_log_verbose(pargs);
+	char* rptr=NULL,*aptr=NULL,*bptr=NULL;
+
+	if (parsestate->leftargs) {
+		if (parsestate->leftargs[0]) {
+			aval = get_bn(parsestate->leftargs[0]);
+			if (aval == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "can not parse [%s] error[%d]\n", parsestate->leftargs[0],ret);
+				goto out;
+			}
+
+			if (parsestate->leftargs[1]) {
+				bval = get_bn(parsestate->leftargs[1]);
+				if (bval == NULL) {
+					GETERRNO(ret);
+					fprintf(stderr, "can not parse [%s] error[%d]\n",parsestate->leftargs[1],ret );
+					goto out;
+				}
+
+				if (parsestate->leftargs[2]) {
+					pval = get_bn(parsestate->leftargs[2]);
+					if (pval == NULL) {
+						GETERRNO(ret);
+						fprintf(stderr, "can not parse [%s] error[%d]\n",parsestate->leftargs[2],ret );
+						goto out;
+					}
+				}
+			}
+		}
+	}
+
+	if (aval == NULL || bval == NULL || pval == NULL) {
+		ret = -EINVAL;
+		fprintf(stderr, "need anum bnum pnum\n");
+		goto out;
+	}
+
+	rval = BN_new();
+	if (rval == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ctx = BN_CTX_new();
+	if (ctx == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = BN_GF2m_mod_mul(rval,aval,bval,pval,ctx);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "BN_GF2m_mod_mul error[%d]\n", ret);
+		goto out;
+	}
+
+	rptr = BN_bn2hex(rval);
+	if (rptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	fprintf(stdout,"%s * %s = 0x%s\n",parsestate->leftargs[0],parsestate->leftargs[1], rptr);
+	ret = 0;
+out:
+	if (aptr) {
+		free(aptr);
+	}
+	aptr =NULL;
+	if (bptr){
+		free(bptr);
+	}
+	bptr = NULL;
+	if (rptr) {
+		free(rptr);
+	}
+	rptr = NULL;
+
+	if (aval) {
+		BN_free(aval);
+	}
+	aval = NULL;
+	if (bval) {
+		BN_free(bval);
+	}
+	bval = NULL;
+	if (rval) {
+		BN_free(rval);
+	}
+	rval = NULL;
+	if (pval) {
+		BN_free(pval);
+	}
+	pval = NULL;
+	if (ctx) {
+		BN_CTX_free(ctx);
+	}
+	ctx = NULL;
+
+	SETERRNO(ret);
+	return ret;
+
+}
