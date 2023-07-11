@@ -264,5 +264,8 @@
     },
     "binmod<binmod_handler>##anum pnum with GF2m mod##" : {
         "$" : 2
+    },
+    "bininv<bininv_handler>##anum pnum with GF2m inv##" : {
+        "$" : 2
     }
 }
