@@ -319,7 +319,7 @@ int binmulmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
-	fprintf(stdout, "%s * %s = 0x%s\n", parsestate->leftargs[0], parsestate->leftargs[1], rptr);
+	fprintf(stdout, "%s * %s = 0x%s %% %s\n", parsestate->leftargs[0], parsestate->leftargs[1], rptr,parsestate->leftargs[2]);
 	ret = 0;
 out:
 	if (aptr) {
@@ -492,7 +492,7 @@ int bininv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 		goto out;
 	}
 
-	fprintf(stdout, "%s %% %s = 0x%s\n", parsestate->leftargs[0],parsestate->leftargs[1], rptr);
+	fprintf(stdout, "%s * 0x%s = 1 %% 0x%s\n", parsestate->leftargs[0],rptr,parsestate->leftargs[1]);
 
 	ret = 0;
 out:
