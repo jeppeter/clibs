@@ -517,3 +517,177 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int bnmontmulmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	BIGNUM *sval = NULL, *kval = NULL;
+	char *sptr= NULL;
+	char *kptr= NULL;
+	char *rptr=NULL,*iptr=NULL;
+	int ret;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	BN_CTX *ctx= NULL;
+	BN_MONT_CTX *montctx=NULL;
+	init_log_verbose(pargs);
+
+	if (parsestate->leftargs) {
+		if (parsestate->leftargs[0]) {
+			sval = get_bn(parsestate->leftargs[0]);
+			if (sval == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[0], ret);
+				goto out;
+			}
+			sptr= parsestate->leftargs[0];
+			if (parsestate->leftargs[1]) {
+				kval = get_bn(parsestate->leftargs[1]);
+				if (kval == NULL) {
+					GETERRNO(ret);
+					fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[1], ret);
+					goto out;
+				}
+				kptr = parsestate->leftargs[1];
+			}
+		}
+	}
+
+	if (sval == NULL || kval == NULL) {
+		ret = -EINVAL;
+		fprintf(stderr, "need sval and kval\n");
+		goto out;
+	}
+
+	ctx = BN_CTX_new();
+	if (ctx == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	montctx = BN_MONT_CTX_new();
+	if (montctx == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	if (rptr) {
+		free(rptr);
+	}
+	rptr = NULL;
+
+	rptr = BN_bn2hex(sval);
+	if (rptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	if (iptr) {
+		free(iptr);
+	}
+	iptr = NULL;
+
+	iptr = BN_bn2hex(kval);
+	if (iptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	fprintf(stdout,"first s 0x%s k 0x%s\n",rptr,iptr);
+
+
+	ret = bn_to_mont_fixed_top(sval,sval,montctx,ctx);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "bn_to_mont_fixed_top error[%d]\n", ret);
+		goto out;
+	}
+
+	if (rptr) {
+		free(rptr);
+	}
+	rptr = NULL;
+
+	rptr = BN_bn2hex(sval);
+	if (rptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	if (iptr) {
+		free(iptr);
+	}
+	iptr = NULL;
+
+	iptr = BN_bn2hex(kval);
+	if (iptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	fprintf(stdout,"fixup s 0x%s k 0x%s\n",rptr,iptr);
+
+
+	ret = BN_mod_mul_montgomery(sval,sval,kval,montctx,ctx);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "BN_mod_mul_montgomery error[%d]\n", ret);
+		goto out;
+	}
+
+	if (rptr) {
+		free(rptr);
+	}
+	rptr = NULL;
+
+	rptr = BN_bn2hex(sval);
+	if (rptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	if (iptr) {
+		free(iptr);
+	}
+	iptr = NULL;
+
+	iptr = BN_bn2hex(kval);
+	if (iptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	fprintf(stdout,"montgomery s 0x%s k 0x%s\n",rptr,iptr);
+
+
+
+	ret = 0;
+out:
+	if (montctx) {
+		BN_MONT_CTX_free(montctx);
+	}
+	montctx = NULL;
+
+	if (ctx) {
+		BN_CTX_free(ctx);
+	}
+	ctx = NULL;
+
+	if (rptr) {
+		free(rptr);
+	}
+	rptr = NULL;
+	if (iptr) {
+		free(iptr);
+	}
+	iptr= NULL;
+
+	if (sval) {
+		BN_free(sval);
+	}
+	sval = NULL;
+	if (kval) {
+		BN_free(kval);
+	}
+	kval = NULL;
+	SETERRNO(ret);
+	return ret;
+}

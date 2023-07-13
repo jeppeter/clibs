@@ -273,5 +273,8 @@
     },
     "randmod<randmod_handler>##modnum  privkey [bytes] [num] default bytes 10 num 1##" : {
         "$" : "+"
+    },
+    "bnmontmulmod<bnmontmulmod_handler>##snum ckinv to calculate##" : {
+        "$" : 2
     }
 }

@@ -120,6 +120,7 @@ int binmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int bininv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int randprivate_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int randmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int bnmontmulmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus
