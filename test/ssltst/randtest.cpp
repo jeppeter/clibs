@@ -107,17 +107,17 @@ int randmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 				goto out;
 			}
 			if (parsestate->leftargs[1]) {
-				privkey = get_bn(parsestate->leftargs[1]);
-				if (privkey == NULL) {
-					GETERRNO(ret);
-					goto out;
+			privkey = get_bn(parsestate->leftargs[1]);
+			if (privkey == NULL) {
+				GETERRNO(ret);
+				goto out;
+			}
+			if (parsestate->leftargs[2]) {
+				bytes = atoi(parsestate->leftargs[2]);
+				if (parsestate->leftargs[3]) {
+					num = atoi(parsestate->leftargs[3]);
 				}
-				if (parsestate->leftargs[2]) {
-					bytes = atoi(parsestate->leftargs[2]);
-					if (parsestate->leftargs[3]) {
-						num = atoi(parsestate->leftargs[3]);
-					}
-				}
+			}
 			}
 		}		
 	}
@@ -179,14 +179,14 @@ out:
 		BN_CTX_free(ctx);
 	}
 	ctx = NULL;
-	if (privkey) {
-		BN_free(privkey);
-	}
-	privkey = NULL;
 	if (order) {
 		BN_free(order);
 	}
 	order = NULL;
+	if (privkey) {
+		BN_free(privkey);
+	}
+	privkey = NULL;
 	if (rnd) {
 		BN_free(rnd);
 	}
