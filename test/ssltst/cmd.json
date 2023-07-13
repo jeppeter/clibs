@@ -267,5 +267,11 @@
     },
     "bininv<bininv_handler>##anum pnum with GF2m inv##" : {
         "$" : 2
+    },
+    "randprivate<randprivate_handler>##[bits] [top] [bottom] [strength] [num] bits default 163 top -1 bottom 0 strength 0 num 1##" : {
+        "$" : "*"
+    },
+    "randmod<randmod_handler>##modnum  privkey [bytes] [num] default bytes 10 num 1##" : {
+        "$" : "+"
     }
 }

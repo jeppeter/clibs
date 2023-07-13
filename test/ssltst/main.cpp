@@ -118,6 +118,8 @@ int binadd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int binmulmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int binmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bininv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int randprivate_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int randmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus
@@ -328,12 +330,13 @@ fail:
     return ret;
 }
 
+#include "bntest.cpp"
 #include "peauth.cpp"
 #include "asn1comp.cpp"
 #include "pkcs7.cpp"
 #include "aes.cpp"
+#include "randtest.cpp"
 #include "ossldump.cpp"
-#include "bntest.cpp"
 #include "ecdump.cpp"
 
 int main(int argc, char* argv[])
