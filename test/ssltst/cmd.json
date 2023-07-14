@@ -276,8 +276,5 @@
     },
     "bnmodfixup<bnmodfixup_handler>##anum bnum mnum to call bn_mod_add_fixed_top##" : {
         "$" : "+"
-    },
-    "bnmontfixed<bnmontfixed_handler>##anum to make add##" : {
-        "$" : "+"
     }
 }
