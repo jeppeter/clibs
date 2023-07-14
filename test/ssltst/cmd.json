@@ -274,7 +274,10 @@
     "randmod<randmod_handler>##modnum  privkey [bytes] [num] default bytes 10 num 1##" : {
         "$" : "+"
     },
-    "bnmontmulmod<bnmontmulmod_handler>##snum ckinv to calculate##" : {
-        "$" : 2
+    "bnmodfixup<bnmodfixup_handler>##anum bnum mnum to call bn_mod_add_fixed_top##" : {
+        "$" : "+"
+    },
+    "bnmontfixed<bnmontfixed_handler>##anum to make add##" : {
+        "$" : "+"
     }
 }

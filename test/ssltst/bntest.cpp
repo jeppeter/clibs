@@ -518,177 +518,107 @@ out:
 	return ret;
 }
 
-int bnmontmulmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+int bnmodfixup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-#if 0	
-	BIGNUM *sval = NULL, *kval = NULL;
-	char *sptr= NULL;
-	char *kptr= NULL;
-	char *rptr=NULL,*iptr=NULL;
+#if 1
+	BIGNUM *aval = NULL, *bval = NULL,*mval=NULL,*rval=NULL;
+	char *aptr= NULL;
+	char *bptr= NULL;
+	char *rptr=NULL,*mptr=NULL;
 	int ret;
 	pargs_options_t pargs = (pargs_options_t) popt;
-	BN_CTX *ctx= NULL;
-	BN_MONT_CTX *montctx=NULL;
 	init_log_verbose(pargs);
 
 	if (parsestate->leftargs) {
 		if (parsestate->leftargs[0]) {
-			sval = get_bn(parsestate->leftargs[0]);
-			if (sval == NULL) {
+			aval = get_bn(parsestate->leftargs[0]);
+			if (aval == NULL) {
 				GETERRNO(ret);
 				fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[0], ret);
 				goto out;
 			}
-			sptr= parsestate->leftargs[0];
+			aptr= parsestate->leftargs[0];
 			if (parsestate->leftargs[1]) {
-				kval = get_bn(parsestate->leftargs[1]);
-				if (kval == NULL) {
+				bval = get_bn(parsestate->leftargs[1]);
+				if (bval == NULL) {
 					GETERRNO(ret);
 					fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[1], ret);
 					goto out;
 				}
-				kptr = parsestate->leftargs[1];
+				bptr = parsestate->leftargs[1];
+				if (parsestate->leftargs[2]) {
+					mval = get_bn(parsestate->leftargs[2]);
+					if (mval == NULL) {
+						GETERRNO(ret);
+						fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[2], ret);
+						goto out;
+					}
+				}
+				mptr = parsestate->leftargs[2];
 			}
 		}
 	}
 
-	if (sval == NULL || kval == NULL) {
+	if (aval == NULL || bval == NULL || mval == NULL) {
 		ret = -EINVAL;
-		fprintf(stderr, "need sval and kval\n");
+		fprintf(stderr, "need aval bval and mval\n");
 		goto out;
 	}
 
-	ctx = BN_CTX_new();
-	if (ctx == NULL) {
+
+	rval = BN_new();
+	if (rval == NULL) {
 		GETERRNO(ret);
 		goto out;
 	}
 
-	montctx = BN_MONT_CTX_new();
-	if (montctx == NULL) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	if (rptr) {
-		free(rptr);
-	}
-	rptr = NULL;
-
-	rptr = BN_bn2hex(sval);
-	if (rptr == NULL) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	if (iptr) {
-		free(iptr);
-	}
-	iptr = NULL;
-
-	iptr = BN_bn2hex(kval);
-	if (iptr == NULL) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	fprintf(stdout,"first s 0x%s k 0x%s\n",rptr,iptr);
-
-
-	ret = bn_to_mont_fixed_top(sval,sval,montctx,ctx);
+	ret = BN_uadd(rval,aval,bval);
 	if (ret <= 0) {
 		GETERRNO(ret);
-		fprintf(stderr, "bn_to_mont_fixed_top error[%d]\n", ret);
 		goto out;
 	}
 
-	if (rptr) {
-		free(rptr);
+	if (BN_ucmp(rval,mval) >= 0) {
+		ret = BN_usub(rval,rval,mval);
+		if (ret <=0) {
+			GETERRNO(ret);
+			goto out;
+		}
 	}
-	rptr = NULL;
 
-	rptr = BN_bn2hex(sval);
+	rptr = BN_bn2hex(rval);
 	if (rptr == NULL) {
 		GETERRNO(ret);
 		goto out;
 	}
 
-	if (iptr) {
-		free(iptr);
-	}
-	iptr = NULL;
-
-	iptr = BN_bn2hex(kval);
-	if (iptr == NULL) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	fprintf(stdout,"fixup s 0x%s k 0x%s\n",rptr,iptr);
-
-
-	ret = BN_mod_mul_montgomery(sval,sval,kval,montctx,ctx);
-	if (ret <= 0) {
-		GETERRNO(ret);
-		fprintf(stderr, "BN_mod_mul_montgomery error[%d]\n", ret);
-		goto out;
-	}
-
-	if (rptr) {
-		free(rptr);
-	}
-	rptr = NULL;
-
-	rptr = BN_bn2hex(sval);
-	if (rptr == NULL) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	if (iptr) {
-		free(iptr);
-	}
-	iptr = NULL;
-
-	iptr = BN_bn2hex(kval);
-	if (iptr == NULL) {
-		GETERRNO(ret);
-		goto out;
-	}
-
-	fprintf(stdout,"montgomery s 0x%s k 0x%s\n",rptr,iptr);
-
-
+	fprintf(stdout,"bn_mod_add_fixed_top(0x%s,%s,%s,%s)\n",rptr,aptr,bptr,mptr);
 
 	ret = 0;
 out:
-	if (montctx) {
-		BN_MONT_CTX_free(montctx);
-	}
-	montctx = NULL;
-
-	if (ctx) {
-		BN_CTX_free(ctx);
-	}
-	ctx = NULL;
 
 	if (rptr) {
 		free(rptr);
 	}
 	rptr = NULL;
-	if (iptr) {
-		free(iptr);
-	}
-	iptr= NULL;
 
-	if (sval) {
-		BN_free(sval);
+	if (aval) {
+		BN_free(aval);
 	}
-	sval = NULL;
-	if (kval) {
-		BN_free(kval);
+	aval = NULL;
+	if (bval) {
+		BN_free(bval);
 	}
-	kval = NULL;
+	bval = NULL;
+	if (mval) {
+		BN_free(mval);
+	}
+	mval = NULL;
+	if (rval) {
+		BN_free(rval);
+	}
+	rval = NULL;
+
 	SETERRNO(ret);
 	return ret;
 #else
