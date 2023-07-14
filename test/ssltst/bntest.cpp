@@ -520,6 +520,7 @@ out:
 
 int bnmontmulmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
+#if 0	
 	BIGNUM *sval = NULL, *kval = NULL;
 	char *sptr= NULL;
 	char *kptr= NULL;
@@ -690,4 +691,7 @@ out:
 	kval = NULL;
 	SETERRNO(ret);
 	return ret;
+#else
+	return 0;
+#endif
 }
