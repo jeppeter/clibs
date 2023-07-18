@@ -1681,7 +1681,9 @@ out:
 
 int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	EC_KEY* eckey =NULL;
+	EC_KEY* eckey =NULL,*dummy=NULL,*pretkey=NULL;
+	int nid = NID_undef;
+	char* ecname=NULL;
 	char* ecfile = NULL;
 	char* sigfile = NULL;
 	char* ecpub = NULL;
@@ -1699,24 +1701,42 @@ int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	init_log_verbose(pargs);
 
 	if (parsestate->leftargs && parsestate->leftargs[0]) {
-		ecfile = parsestate->leftargs[0];
+		ecname = parsestate->leftargs[0];
 		if (parsestate->leftargs[1]) {
-			hashnum = get_bn(parsestate->leftargs[1]);
-			if (hashnum == NULL) {
-				GETERRNO(ret);
-				goto out;
-			}
+			ecfile = parsestate->leftargs[1];
 			if (parsestate->leftargs[2]) {
-				sigfile = parsestate->leftargs[2];
-			}
+				hashnum = get_bn(parsestate->leftargs[2]);
+				if (hashnum == NULL) {
+					GETERRNO(ret);
+					goto out;
+				}
+				if (parsestate->leftargs[3]) {
+					sigfile = parsestate->leftargs[3];
+				}
+			}			
 		}
 	}
 
-	if (ecfile == NULL || hashnum == NULL || sigfile == NULL) {
+	if (ecname == NULL ||ecfile == NULL || hashnum == NULL || sigfile == NULL) {
 		ret = -EINVAL;
-		fprintf(stderr, "need ecfile and hashnumber and sigfile\n");
+		fprintf(stderr, "need ecname pubbin and hashnumber and sigfile\n");
 		goto out;
 	}
+
+	nid = OBJ_sn2nid(ecname);
+	if (nid == NID_undef) {
+		ret = -EINVAL;
+		fprintf(stderr, "[%s] not valid nid\n", ecname);
+		goto out;
+	}
+
+	eckey = EC_KEY_new_by_curve_name_ex(NULL,NULL,nid);
+	if (eckey == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not get [%s] ec\n", ecname);
+		goto out;
+	}
+
 
 	ret = read_file_whole(ecfile,&ecpub,&ecsize);
 	if (ret < 0) {
@@ -1727,8 +1747,9 @@ int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
 	eclen = ret;
 	p = (const unsigned char*) ecpub;
-	eckey = o2i_ECPublicKey(NULL,&p,eclen);
-	if (eckey == NULL) {
+	dummy = eckey;
+	pretkey = o2i_ECPublicKey(&dummy,&p,eclen);
+	if (pretkey == NULL) {
 		GETERRNO(ret);
 		fprintf(stderr, "parse [%s] EC_KEY error[%d]\n", ecfile, ret);
 		goto out;
