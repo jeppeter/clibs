@@ -23,6 +23,7 @@ typedef struct __args_options {
     char* m_output;
     char* m_ecpriv;
     char* m_ecparam;
+    char* m_ecpub;
     int m_verbose;
 } args_options_t, *pargs_options_t;
 

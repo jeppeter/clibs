@@ -1486,6 +1486,43 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 		dump_buffer_out(stdout,pout,outlen,"ecparam out");
 	}
 
+
+	ret = i2o_ECPublicKey(eckey,NULL);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+	outlen = ret;
+	if (pout == NULL || outsize < outlen) {
+		if (pout) {
+			free(pout);
+		}
+		pout = NULL;
+		outsize = outlen;
+		pout = (unsigned char*) malloc(outsize);
+		if (pout == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+	}
+	p = pout;
+	ret = i2o_ECPublicKey(eckey,&p);
+	if (ret != outlen) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	if (pargs->m_ecpub) {
+		ret = write_file_whole(pargs->m_ecpub, (char*)pout, outlen);
+		if (ret != outlen) {
+			GETERRNO(ret);
+			fprintf(stderr, "write_file_whole %s [%d]\n", pargs->m_ecpub, ret);
+			goto out;
+		}
+	} else {
+		dump_buffer_out(stdout,pout,outlen,"ecpub out");
+	}
+
 	ret = 0;
 out:
 	if (pout != NULL) {
@@ -1647,7 +1684,7 @@ int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	EC_KEY* eckey =NULL;
 	char* ecfile = NULL;
 	char* sigfile = NULL;
-	char* ecpriv = NULL;
+	char* ecpub = NULL;
 	int ecsize=0,eclen=0;
 	char* sigbuf = NULL;
 	int sigsize=0,siglen =0;
@@ -1681,7 +1718,7 @@ int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
-	ret = read_file_whole(ecfile,&ecpriv,&ecsize);
+	ret = read_file_whole(ecfile,&ecpub,&ecsize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		fprintf(stderr, "read [%s] error[%d]\n", ecfile,ret);
@@ -1689,8 +1726,8 @@ int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	}
 
 	eclen = ret;
-	p = (const unsigned char*) ecpriv;
-	eckey = d2i_ECPrivateKey(NULL,&p,eclen);
+	p = (const unsigned char*) ecpub;
+	eckey = o2i_ECPublicKey(NULL,&p,eclen);
 	if (eckey == NULL) {
 		GETERRNO(ret);
 		fprintf(stderr, "parse [%s] EC_KEY error[%d]\n", ecfile, ret);
@@ -1743,7 +1780,7 @@ out:
 		EC_KEY_free(eckey);
 	}
 	eckey = NULL;
-	read_file_whole(NULL,&ecpriv,&ecsize);
+	read_file_whole(NULL,&ecpub,&ecsize);
 	eclen = 0;
 
 	if (hashnum) {
