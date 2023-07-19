@@ -287,5 +287,8 @@
     },
     "bnsqrtmod<bnsqrtmod_handler>##anum pnum to call BN_GF2m_mod_sqrt(r,anum,pnum)##" : {
         "$" : 2
+    },
+    "bnquadmod<bnmodsqrquad_handler>##anum pnum to call BN_GF2m_mod_solve_quad(r,anum,pnum)##" : {
+        "$" : 2
     }
 }

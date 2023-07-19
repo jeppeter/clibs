@@ -126,6 +126,7 @@ int bnmodfixup_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int ecpubload_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bndivmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bnsqrtmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int bnmodsqrquad_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus

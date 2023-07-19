@@ -824,3 +824,98 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int bnmodsqrquad_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	BIGNUM *aval = NULL, *pval=NULL,*rval=NULL;
+	char *aptr= NULL;
+	char *rptr=NULL,*pptr=NULL;
+	int ret;
+	BN_CTX* ctx=NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	init_log_verbose(pargs);
+
+	if (parsestate->leftargs) {
+		if (parsestate->leftargs[0]) {
+			aval = get_bn(parsestate->leftargs[0]);
+			if (aval == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[0], ret);
+				goto out;
+			}
+			aptr= parsestate->leftargs[0];
+			if (parsestate->leftargs[1]) {
+				pval = get_bn(parsestate->leftargs[1]);
+				if (pval == NULL) {
+					GETERRNO(ret);
+					fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[1], ret);
+					goto out;
+				}
+				pptr = parsestate->leftargs[1];				
+			}
+		}
+	}
+
+	if (aval == NULL  || pval == NULL) {
+		ret = -EINVAL;
+		fprintf(stderr, "need aval and pval\n");
+		goto out;
+	}
+
+
+	rval = BN_new();
+	if (rval == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ctx = BN_CTX_new();
+	if (ctx == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = BN_GF2m_mod_solve_quad(rval,aval,pval,ctx);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr,"BN_GF2m_mod_solve_quad error[%d]\n",ret);
+		goto out;
+	}
+
+
+	rptr = BN_bn2hex(rval);
+	if (rptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	fprintf(stdout,"BN_GF2m_mod_solve_quad(0x%s,%s,%s)\n",rptr,aptr,pptr);
+
+	ret = 0;
+out:
+	if (rptr) {
+		free(rptr);
+	}
+	rptr = NULL;
+
+	if (aval) {
+		BN_free(aval);
+	}
+	aval = NULL;
+	if (pval) {
+		BN_free(pval);
+	}
+	pval = NULL;
+	if (rval) {
+		BN_free(rval);
+	}
+	rval = NULL;
+
+	if (ctx) {
+		BN_CTX_free(ctx);
+	}
+	ctx = NULL;
+
+	SETERRNO(ret);
+	return ret;
+}
