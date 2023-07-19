@@ -281,5 +281,8 @@
     },
     "ecpubload<ecpubload_handler>##ecname ecpubbin to load ec public key##" : {
         "$" : 2
+    },
+    "bndivmod<bndivmod_handler>##anum bnum pnum call BN_GF2m_mod_div(r,anum,bnum,pnum)##" : {
+        "$" : 3
     }
 }

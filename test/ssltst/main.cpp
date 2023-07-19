@@ -124,6 +124,7 @@ int randprivate_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int randmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bnmodfixup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecpubload_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int bndivmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus

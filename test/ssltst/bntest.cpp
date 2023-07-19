@@ -492,7 +492,7 @@ int bininv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 		goto out;
 	}
 
-	fprintf(stdout, "%s * 0x%s = 1 %% 0x%s\n", parsestate->leftargs[0],rptr,parsestate->leftargs[1]);
+	fprintf(stdout, "%s * 0x%s = 1 %% %s\n", parsestate->leftargs[0],rptr,parsestate->leftargs[1]);
 
 	ret = 0;
 out:
@@ -520,7 +520,6 @@ out:
 
 int bnmodfixup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-#if 1
 	BIGNUM *aval = NULL, *bval = NULL,*mval=NULL,*rval=NULL;
 	char *aptr= NULL;
 	char *bptr= NULL;
@@ -621,7 +620,113 @@ out:
 
 	SETERRNO(ret);
 	return ret;
-#else
-	return 0;
-#endif
+}
+
+int bndivmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	BIGNUM *aval = NULL, *bval = NULL,*pval=NULL,*rval=NULL;
+	char *aptr= NULL;
+	char *bptr= NULL;
+	char *rptr=NULL,*pptr=NULL;
+	int ret;
+	BN_CTX* ctx=NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	init_log_verbose(pargs);
+
+	if (parsestate->leftargs) {
+		if (parsestate->leftargs[0]) {
+			aval = get_bn(parsestate->leftargs[0]);
+			if (aval == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[0], ret);
+				goto out;
+			}
+			aptr= parsestate->leftargs[0];
+			if (parsestate->leftargs[1]) {
+				bval = get_bn(parsestate->leftargs[1]);
+				if (bval == NULL) {
+					GETERRNO(ret);
+					fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[1], ret);
+					goto out;
+				}
+				bptr = parsestate->leftargs[1];
+				if (parsestate->leftargs[2]) {
+					pval = get_bn(parsestate->leftargs[2]);
+					if (pval == NULL) {
+						GETERRNO(ret);
+						fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[2], ret);
+						goto out;
+					}
+					pptr = parsestate->leftargs[2];
+				}
+				
+			}
+		}
+	}
+
+	if (aval == NULL || bval == NULL || pval == NULL) {
+		ret = -EINVAL;
+		fprintf(stderr, "need aval bval and pval\n");
+		goto out;
+	}
+
+
+	rval = BN_new();
+	if (rval == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ctx = BN_CTX_new();
+	if (ctx == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = BN_GF2m_mod_div(rval,aval,bval,pval,ctx);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+
+	rptr = BN_bn2hex(rval);
+	if (rptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	fprintf(stdout,"BN_GF2m_mod_div(0x%s,%s,%s,%s)\n",rptr,aptr,bptr,pptr);
+
+	ret = 0;
+out:
+	if (rptr) {
+		free(rptr);
+	}
+	rptr = NULL;
+
+	if (aval) {
+		BN_free(aval);
+	}
+	aval = NULL;
+	if (bval) {
+		BN_free(bval);
+	}
+	bval = NULL;
+	if (pval) {
+		BN_free(pval);
+	}
+	pval = NULL;
+	if (rval) {
+		BN_free(rval);
+	}
+	rval = NULL;
+
+	if (ctx) {
+		BN_CTX_free(ctx);
+	}
+	ctx = NULL;
+
+	SETERRNO(ret);
+	return ret;
 }
