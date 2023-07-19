@@ -24,6 +24,7 @@ typedef struct __args_options {
     char* m_ecpriv;
     char* m_ecparam;
     char* m_ecpub;
+    char* m_convform;
     int m_verbose;
 } args_options_t, *pargs_options_t;
 
@@ -122,6 +123,7 @@ int bininv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int randprivate_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int randmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bnmodfixup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ecpubload_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus

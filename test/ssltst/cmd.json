@@ -5,6 +5,7 @@
     "ecpriv<m_ecpriv>" : null,
     "ecparam<m_ecparam>" : null,
     "ecpub<m_ecpub>" : null,
+    "convform<m_convform>##for ec key export format default compressed :selected compressed uncompressed hybrid##" : null,
     "peauth<peauth_handler>##pefile ... to parse pe authenticode ##" : {
     	"$" : "+"
     },
@@ -277,5 +278,8 @@
     },
     "bnmodfixup<bnmodfixup_handler>##anum bnum mnum to call bn_mod_add_fixed_top##" : {
         "$" : "+"
+    },
+    "ecpubload<ecpubload_handler>##ecname ecpubbin to load ec public key##" : {
+        "$" : 2
     }
 }

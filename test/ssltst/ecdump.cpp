@@ -1376,6 +1376,7 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	unsigned char* pout = NULL, *p = NULL;
 	int outlen = 0;
 	int outsize = 0;
+	point_conversion_form_t convform = POINT_CONVERSION_COMPRESSED;
 
 
 	init_log_verbose(pargs);
@@ -1408,6 +1409,19 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 		fprintf(stderr, "get ec key error[%d]\n", ret);
 		goto out;
 	}
+
+
+	if (pargs->m_convform == NULL || strcmp(pargs->m_convform, "compressed") == 0) {
+		convform = POINT_CONVERSION_COMPRESSED;
+	} else if (strcmp(pargs->m_convform,"uncompressed") == 0) {
+		convform = POINT_CONVERSION_UNCOMPRESSED;
+	} else if (strcmp(pargs->m_convform,"hybrid") == 0) {
+		convform = POINT_CONVERSION_HYBRID;
+	}
+
+	DEBUG_INFO("convform 0x%x", convform);
+	EC_KEY_set_conv_form(eckey,convform);
+
 
 	ret = i2d_ECPrivateKey(eckey, NULL);
 	if (ret <= 0) {
@@ -1808,6 +1822,80 @@ out:
 		BN_free(hashnum);
 	}
 	hashnum = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int ecpubload_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EC_KEY* eckey =NULL,*dummy=NULL,*pretkey=NULL;
+	int nid = NID_undef;
+	char* ecname=NULL;
+	char* ecfile=NULL;
+	char* ecpub = NULL;
+	int ecsize=0,eclen=0;
+	const unsigned char* p=NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	int ret;
+
+	init_log_verbose(pargs);
+
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		ecname = parsestate->leftargs[0];
+		if (parsestate->leftargs[1]) {
+			ecfile = parsestate->leftargs[1];
+		}
+	}
+
+	if (ecname == NULL ||ecfile == NULL ) {
+		ret = -EINVAL;
+		fprintf(stderr, "need ecname pubbin\n");
+		goto out;
+	}
+
+	nid = OBJ_sn2nid(ecname);
+	if (nid == NID_undef) {
+		ret = -EINVAL;
+		fprintf(stderr, "[%s] not valid nid\n", ecname);
+		goto out;
+	}
+
+	eckey = EC_KEY_new_by_curve_name_ex(NULL,NULL,nid);
+	if (eckey == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not get [%s] ec\n", ecname);
+		goto out;
+	}
+
+
+	ret = read_file_whole(ecfile,&ecpub,&ecsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "read [%s] error[%d]\n", ecfile,ret);
+		goto out;
+	}
+
+	eclen = ret;
+	p = (const unsigned char*) ecpub;
+	dummy = eckey;
+	pretkey = o2i_ECPublicKey(&dummy,&p,eclen);
+	if (pretkey == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "parse [%s] EC_KEY error[%d]\n", ecfile, ret);
+		goto out;
+	}
+
+	fprintf(stdout,"load %s %s succ\n",ecname,ecfile);
+
+	ret = 0;
+out:
+	if (eckey) {
+		EC_KEY_free(eckey);
+	}
+	eckey = NULL;
+	read_file_whole(NULL,&ecpub,&ecsize);
+	ecfile = NULL;
+	eclen = 0;
 	SETERRNO(ret);
 	return ret;
 }
