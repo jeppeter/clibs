@@ -290,5 +290,10 @@
     },
     "bnquadmod<bnmodsqrquad_handler>##anum pnum to call BN_GF2m_mod_solve_quad(r,anum,pnum)##" : {
         "$" : 2
-    }
-}
+    },
+    "montto<montto_handler>##anum pnum to call BN_to_montgomery(r,anum,pnum)##" : {
+        "$" : 2
+    },
+    "montfrom<montfrom_handler>##anum pnum to call BN_from_montgomery(r,anum,pnum)##" : {
+        "$" : 2
+    }}
