@@ -296,4 +296,8 @@
     },
     "montfrom<montfrom_handler>##anum pnum to call BN_from_montgomery(r,anum,pnum)##" : {
         "$" : 2
-    }}
+    },
+    "montmul<montmul_handler>##anum bnum pnum for BN_mod_mul_montgomery##" : {
+        "$" : 3
+    }
+}

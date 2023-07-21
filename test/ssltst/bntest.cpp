@@ -1149,3 +1149,132 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int montmul_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	BIGNUM *aval = NULL,*bval=NULL, *pval=NULL,*rval=NULL;
+	char *aptr= NULL,*bptr=NULL;
+	char *rptr=NULL,*pptr=NULL;
+	int ret;
+	BN_CTX* ctx=NULL;
+	BN_MONT_CTX* mont=NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	init_log_verbose(pargs);
+
+	if (parsestate->leftargs) {
+		if (parsestate->leftargs[0]) {
+			aval = get_bn(parsestate->leftargs[0]);
+			if (aval == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[0], ret);
+				goto out;
+			}
+			aptr= parsestate->leftargs[0];
+			if (parsestate->leftargs[1]) {
+				bval = get_bn(parsestate->leftargs[1]);
+				if (bval == NULL) {
+					GETERRNO(ret);
+					fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[1], ret);
+					goto out;
+				}
+				bptr = parsestate->leftargs[1];
+				if (parsestate->leftargs[2]) {
+					pval = get_bn(parsestate->leftargs[2]);
+					if (pval == NULL) {
+						GETERRNO(ret);
+						fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[2], ret);
+						goto out;
+					}
+					pptr = parsestate->leftargs[2];
+				}
+			}
+		}
+	}
+
+	if (aval == NULL || bval == NULL  || pval == NULL) {
+		ret = -EINVAL;
+		fprintf(stderr, "need aval bval and pval\n");
+		goto out;
+	}
+
+
+	rval = BN_new();
+	if (rval == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ctx = BN_CTX_new();
+	if (ctx == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	mont = BN_MONT_CTX_new();
+	if (mont == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = BN_MONT_CTX_set(mont,pval,ctx);
+	if (ret <=0 ) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = BN_mod_mul_montgomery(rval,aval,bval,mont,ctx);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		fprintf(stderr,"BN_mod_mul_montgomery error[%d]\n",ret);
+		goto out;
+	}
+
+
+	rptr = BN_bn2hex(rval);
+	if (rptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	fprintf(stdout,"BN_mod_mul_montgomery(0x%s,%s,%s,%s)\n",rptr,aptr,bptr,pptr);
+
+	ret = 0;
+out:
+	if (rptr) {
+		free(rptr);
+	}
+	rptr = NULL;
+
+	if (aval) {
+		BN_free(aval);
+	}
+	aval = NULL;
+
+	if (bval) {
+		BN_free(bval);
+	}
+	bval = NULL;
+
+	if (pval) {
+		BN_free(pval);
+	}
+	pval = NULL;
+	if (rval) {
+		BN_free(rval);
+	}
+	rval = NULL;
+
+	if (mont) {
+		BN_MONT_CTX_free(mont);
+	}
+	mont = NULL;
+
+
+	if (ctx) {
+		BN_CTX_free(ctx);
+	}
+	ctx = NULL;
+
+	SETERRNO(ret);
+	return ret;
+}

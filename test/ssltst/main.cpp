@@ -129,6 +129,7 @@ int bnsqrtmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int bnmodsqrquad_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int montto_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int montfrom_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int montmul_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus
