@@ -302,5 +302,8 @@
     },
     "modlshift<modlshift_handler>##anum shiftnum pnum for BN_mod_lshift##" : {
         "$" : 3
+    },
+    "modexpmont<modexpmont_handler>##anum enum pnum for BN_mod_exp_mont##" : {
+        "$" : 3
     }
 }
