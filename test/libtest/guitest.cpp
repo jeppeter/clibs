@@ -136,50 +136,74 @@ out:
 	return ret;
 }
 
+static const UINT32 DpiVals[] = { 100,125,150,175,200,225,250,300,350, 400, 450, 500 };
+
+/*Get default DPI scaling percentage.
+The OS recommented value.
+*/
+int GetRecommendedDPIScaling()
+{
+    int dpi = 0;
+    BOOL retval = SystemParametersInfo(SPI_GETLOGICALDPIOVERRIDE, 0, (LPVOID)&dpi, 1);
+
+    if (retval != 0)
+    {
+    	fprintf(stdout,"dpi %d\n",dpi);
+        int currDPI = DpiVals[dpi * -1];
+        return currDPI;
+    }
+    fprintf(stdout,"retval %d\n",retval);
+
+    return -1;
+}
+
+
 int getdpi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	int dispnum = 0;
-	int ret;
-	int dispsize=0,displen = 0;
-	uint32_t scale;
-	pdisplay_info_t pinfo = NULL;
-	pargs_options_t pargs = (pargs_options_t) popt;
+	int dpival = 0;
+	dpival = GetRecommendedDPIScaling();
+	fprintf(stdout,"dpival [%d]\n",dpival);
+	return 0;
+}
 
-	REFERENCE_ARG(argc);
-	REFERENCE_ARG(argv);
+void SetDpiScaling(int percentScaleToSet)
+{
+    int recommendedDpiScale = GetRecommendedDPIScaling();
+
+    if (recommendedDpiScale > 0)
+    {
+        int index = 0, recIndex = 0, setIndex = 0 ;
+        for (const auto& scale : DpiVals)
+        {
+            if (recommendedDpiScale == scale)
+            {
+                recIndex = index;
+            }
+            if (percentScaleToSet == scale)
+            {
+                setIndex = index;
+            }
+            index++;
+        }
+        
+        int relativeIndex = setIndex - recIndex;
+        fprintf(stdout,"relativeIndex %d setIndex %d recIndex %d",relativeIndex,setIndex,recIndex);
+        SystemParametersInfo(SPI_SETLOGICALDPIOVERRIDE, relativeIndex, (LPVOID)0, 1);
+    }
+}
+
+
+int setdpi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int dpiv;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	int dpival = 100;
 
 	init_log_level(pargs);
-
 	if (parsestate->leftargs && parsestate->leftargs[0]) {
-		dispnum = atoi(parsestate->leftargs[0]);
+		dpival = atoi(parsestate->leftargs[0]);
 	}
 
-	ret = get_display_info(0,&pinfo,&dispsize);
-	if (ret < 0) {
-		GETERRNO(ret);
-		fprintf(stderr, "can not list display error [%d]\n", ret);
-		goto out;
-	}
-
-	displen = ret;
-	if (dispnum >= displen) {
-		ret = -ERROR_INVALID_PARAMETER;
-		goto out;
-	}
-
-	ret = get_display_rescale(&(pinfo[dispnum]), &scale);
-	if (ret < 0) {
-		GETERRNO(ret);
-		fprintf(stderr, "can not get [%d] scale error[%d]\n", dispnum, ret);
-		goto out;
-	}
-
-	fprintf(stdout, "[%d] scale [%d]\n", dispnum,scale);
-	ret=  0;
-out:
-
-	get_display_info(1,&pinfo,&dispsize);
-	SETERRNO(ret);
-	return ret;
-
+	SetDpiScaling(dpival);
+	return 0;
 }

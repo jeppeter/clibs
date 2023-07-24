@@ -281,6 +281,7 @@ int lscpu_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int lsaudio_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int displayinfo_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getdpi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int setdpi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setregdword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int queryregdword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 

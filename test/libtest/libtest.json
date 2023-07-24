@@ -463,8 +463,11 @@
     "displayinfo<displayinfo_handler>##to list display info##" : {
         "$" : 0
     },
-    "getdpi<getdpi_handler>##[dispnum] to get dispnum scale##" : {
-        "$" : "?"
+    "getdpi<getdpi_handler>##to get dispnum scale##" : {
+        "$" : 0
+    },
+    "setdpi<setdpi_handler>##scale to set##" : {
+        "$" : 1
     },
     "setregdword<setregdword_handler>##keyname subkey path value to set dword value##" : {
         "$" : 4
