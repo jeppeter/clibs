@@ -299,5 +299,8 @@
     },
     "montmul<montmul_handler>##anum bnum pnum for BN_mod_mul_montgomery##" : {
         "$" : 3
+    },
+    "modlshift<modlshift_handler>##anum shiftnum pnum for BN_mod_lshift##" : {
+        "$" : 3
     }
 }
