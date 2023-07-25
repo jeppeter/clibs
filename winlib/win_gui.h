@@ -41,7 +41,7 @@ WINLIB_API int enum_display_devices(int freed,pdisplay_name_t* ppdevices, int *p
 WINLIB_API int enum_display_mode(char* devname, pdisplay_mode_t* ppmode, int *psize);
 WINLIB_API int set_display_mode(pdisplay_mode_t pmode,DWORD flags);
 WINLIB_API int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize);
-WINLIB_API int get_display_rescale(pdisplay_info_t pinfo, uint32_t* pscale);
+WINLIB_API int get_display_rescale(pdisplay_info_t pinfo, uint32_t* pscale,uint32_t** ppavails,int* psize);
 WINLIB_API int set_display_rescale(pdisplay_info_t pinfo, uint32_t scale);
 
 #ifdef __cplusplus

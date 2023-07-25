@@ -128,7 +128,7 @@ int displayinfo_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 		fprintf(stdout,"[%d] [%s] path [%s] source [%d] target [%d] LUID [0x%lx.0x%lx]\n",
 			i,pinfo[i].m_devname,pinfo[i].m_devpath,pinfo[i].m_sourceid, pinfo[i].m_targetid,pinfo[i].m_targetluid.HighPart,pinfo[i].m_targetluid.LowPart);
 
-		ret = get_display_rescale(&(pinfo[i]),&scaleinfo);
+		ret = get_display_rescale(&(pinfo[i]),&scaleinfo,NULL,NULL);
 		if (ret >= 0) {
 			fprintf(stdout, "[%d] scale [%d]\n", i,scaleinfo);
 		} else {
@@ -169,9 +169,12 @@ int getdpi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 {
 	pargs_options_t pargs = (pargs_options_t) popt;
 	uint32_t dpival;
+	uint32_t *availscales=NULL;
+	int availlen=0,availsize=0;
 	pdisplay_info_t pinfos = NULL;
 	int infosize=0,infolen=0;
 	int ret;
+	int i;
 
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
@@ -193,45 +196,28 @@ int getdpi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 		goto out;
 	}
 
-	ret = get_display_rescale(&pinfos[0],&dpival);
+	ret = get_display_rescale(&pinfos[0],&dpival,&availscales,&availsize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		fprintf(stderr, "set %d error[%d]\n",dpival,ret );
 		goto out;
 	}
 
-	fprintf(stdout, "dpival %d\n", dpival);
+	fprintf(stdout, "dpival %d \n", dpival);
+	availlen = ret;
+	for(i=0;i<availlen ;i++) {
+		if ((i%5) == 0) {
+			fprintf(stdout,"   ");
+		}
+		fprintf(stdout," %05d", availscales[i]);
+	}
+	fprintf(stdout, "\n");
 	ret = 0;
 out:
+	get_display_rescale(NULL,NULL,&availscales,&availsize);
 	get_display_info(1,&pinfos,&infosize);
 	SETERRNO(ret);
 	return ret;
-}
-
-void SetDpiScaling(int percentScaleToSet)
-{
-    int recommendedDpiScale = GetRecommendedDPIScaling();
-
-    if (recommendedDpiScale > 0)
-    {
-        int index = 0, recIndex = 0, setIndex = 0 ;
-        for (const auto& scale : DpiVals)
-        {
-            if (recommendedDpiScale == scale)
-            {
-                recIndex = index;
-            }
-            if (percentScaleToSet == scale)
-            {
-                setIndex = index;
-            }
-            index++;
-        }
-        
-        int relativeIndex = setIndex - recIndex;
-        fprintf(stdout,"relativeIndex %d setIndex %d recIndex %d",relativeIndex,setIndex,recIndex);
-        SystemParametersInfo(SPI_SETLOGICALDPIOVERRIDE, (UINT)relativeIndex, (LPVOID)0, 1);
-    }
 }
 
 
