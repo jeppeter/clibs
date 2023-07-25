@@ -600,7 +600,7 @@ int get_display_rescale(pdisplay_info_t pinfo, uint32_t* pscale,uint32_t** ppava
 
 	if (needscales) {
 		retlen = 0;
-		for(i=scaleinfo->minScaleRel;i<ARRAY_COUNT(DpiVals) && i <= scaleinfo->maxScaleRel;i++ ) {
+		for(i=(UINT32)scaleinfo->minScaleRel;i<ARRAY_COUNT(DpiVals) && i <= (UINT32)scaleinfo->maxScaleRel;i++ ) {
 			retlen ++;
 		}
 
@@ -617,7 +617,7 @@ int get_display_rescale(pdisplay_info_t pinfo, uint32_t* pscale,uint32_t** ppava
 			memset(pretscales,0,retlen* sizeof(*pretscales));
 		}
 
-		for(i=scaleinfo->minScaleRel,curi = 0;i < ARRAY_COUNT(DpiVals) && i <= scaleinfo->maxScaleRel;i++,curi++) {
+		for(i=(UINT32)scaleinfo->minScaleRel,curi = 0;i < ARRAY_COUNT(DpiVals) && i <= (UINT32)scaleinfo->maxScaleRel;i++,curi++) {
 			pretscales[curi] = DpiVals[i];
 		}
 	}
@@ -662,20 +662,23 @@ int set_display_rescale(pdisplay_info_t pinfo, uint32_t scale)
 	int ret;
 	int relativeval = -1;
 	LONG lret;
+	uint32_t *availscales=NULL;
+	int availsize=0,availlen=0;
 	DISPLAYCONFIG_SOURCE_DPI_SCALE_SET* psetinfo=NULL;
-	ret = get_display_rescale(pinfo,&getscale,NULL,NULL);
+	ret = get_display_rescale(pinfo,&getscale,&availscales,&availsize);
 	if (ret < 0) {
 		GETERRNO(ret);
 		SETERRNO(ret);
 		return ret;
 	}
+	availlen = ret;
 
 	/*now check get value*/
-	for(i=0;i<ARRAY_COUNT(DpiVals);i++) {
-		if (getscale == DpiVals[i]) {
+	for(i=0;i<availlen;i++) {
+		if (getscale == availscales[i]) {
 			curidx = i;
 		}
-		if (scale == DpiVals[i]) {
+		if (scale == availscales[i]) {
 			setidx = i;
 		}
 	}
@@ -711,6 +714,7 @@ int set_display_rescale(pdisplay_info_t pinfo, uint32_t scale)
 	}
 
 succ:
+	get_display_rescale(NULL,NULL,&availscales,&availsize);
 	if (psetinfo) {
 		free(psetinfo);
 	}
@@ -719,6 +723,7 @@ succ:
 
 	return 0;
 fail:
+	get_display_rescale(NULL,NULL,&availscales,&availsize);
 	if (psetinfo) {
 		free(psetinfo);
 	}
