@@ -249,7 +249,7 @@
     "ecgen<ecgen_handler>##ecnid to dump ec##" : {
         "$" : "+"
     },
-    "ecsignbase<ecsignbase_handler>##ecpriv hashnum [kinv] ##" : {
+    "ecsignbase<ecsignbase_handler>##ecpriv hashnum [hashsize] default hashsize 16 ##" : {
         "$" : "+"
     },
     "ecvfybase<ecvfybase_handler>##ecname pubbin hashnum signfile##" : {
@@ -303,7 +303,7 @@
     "modlshift<modlshift_handler>##anum shiftnum pnum for BN_mod_lshift##" : {
         "$" : 3
     },
-    "modexpmont<modexpmont_handler>##anum enum pnum for BN_mod_exp_mont##" : {
+    "montpow<modexpmont_handler>##anum enum pnum for BN_mod_exp_mont##" : {
         "$" : 3
     }
 }

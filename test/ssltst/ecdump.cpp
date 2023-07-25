@@ -1566,7 +1566,7 @@ int ecsignbase_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	int ecsize=0,eclen=0;
 	char* ecfile=NULL;
 	unsigned char* hashbuf= NULL;
-	int hashsize=0;
+	int hashsize=16;
 	int hashlen = 0;
 	unsigned char* sigbuf= NULL;
 	unsigned int sigsize=0;
@@ -1585,12 +1585,7 @@ int ecsignbase_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 				goto out;
 			}
 			if (parsestate->leftargs[2]) {
-				kinv = get_bn(parsestate->leftargs[2]);
-				if (kinv == NULL) {
-					ret = -EINVAL;
-					fprintf(stderr, "[%s] not valid number\n", parsestate->leftargs[2]);
-					goto out;
-				}
+				hashsize = atoi(parsestate->leftargs[2]);
 			}
 		}
 	}
@@ -1617,7 +1612,6 @@ int ecsignbase_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 		goto out;
 	}
 
-	hashsize = 16;
 	hashbuf = (unsigned char*)malloc(hashsize);
 	if (hashbuf == NULL) {
 		GETERRNO(ret);
