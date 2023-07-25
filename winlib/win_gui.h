@@ -26,13 +26,11 @@ typedef struct __display_mode {
 } display_mode_t,*pdisplay_mode_t;
 
 typedef struct __display_info {
-	char m_sourcename[256];
-	char m_targetname[256];
-	char m_adaptername[256];
 	uint32_t m_targetid;
 	uint32_t m_sourceid;
-	uint8_t  m_adapterid[64];
-	uint32_t m_basetype;
+	LUID m_targetluid;
+	char m_devname[256];
+	char m_devpath[256];
 } display_info_t, *pdisplay_info_t;
 
 #ifdef __cplusplus
@@ -44,6 +42,7 @@ WINLIB_API int enum_display_mode(char* devname, pdisplay_mode_t* ppmode, int *ps
 WINLIB_API int set_display_mode(pdisplay_mode_t pmode,DWORD flags);
 WINLIB_API int get_display_info(int freed,pdisplay_info_t *ppinfo,int *psize);
 WINLIB_API int get_display_rescale(pdisplay_info_t pinfo, uint32_t* pscale);
+WINLIB_API int set_display_rescale(pdisplay_info_t pinfo, uint32_t scale);
 
 #ifdef __cplusplus
 };

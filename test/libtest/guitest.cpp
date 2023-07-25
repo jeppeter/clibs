@@ -108,6 +108,7 @@ int displayinfo_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 	int i;
 	pdisplay_info_t pinfo = NULL;
 	pargs_options_t pargs = (pargs_options_t) popt;
+	uint32_t scaleinfo = 0;
 
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
@@ -124,9 +125,15 @@ int displayinfo_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 
 	displen = ret;
 	for (i=0;i<displen;i++) {
-		fprintf(stdout,"[%d] source [%s] target [%s] adapter [%s] targetid [0x%x] sourceid [0x%x] basetype [0x%x]\n",
-			i, pinfo[i].m_sourcename,pinfo[i].m_targetname,pinfo[i].m_adaptername,pinfo[i].m_targetid,
-			pinfo[i].m_sourceid,pinfo[i].m_basetype);
+		fprintf(stdout,"[%d] [%s] path [%s] source [%d] target [%d] LUID [0x%lx.0x%lx]\n",
+			i,pinfo[i].m_devname,pinfo[i].m_devpath,pinfo[i].m_sourceid, pinfo[i].m_targetid,pinfo[i].m_targetluid.HighPart,pinfo[i].m_targetluid.LowPart);
+
+		ret = get_display_rescale(&(pinfo[i]),&scaleinfo);
+		if (ret >= 0) {
+			fprintf(stdout, "[%d] scale [%d]\n", i,scaleinfo);
+		} else {
+			fprintf(stdout, "[%d] can not get scale\n",i);
+		}
 	}
 
 	ret = 0;
@@ -136,7 +143,7 @@ out:
 	return ret;
 }
 
-static const UINT32 DpiVals[] = { 100,125,150,175,200,225,250,300,350, 400, 450, 500 };
+static const int DpiVals[] = { 100,125,150,175,200,225,250,300,350, 400, 450, 500 };
 
 /*Get default DPI scaling percentage.
 The OS recommented value.
@@ -160,10 +167,45 @@ int GetRecommendedDPIScaling()
 
 int getdpi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	int dpival = 0;
-	dpival = GetRecommendedDPIScaling();
-	fprintf(stdout,"dpival [%d]\n",dpival);
-	return 0;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	uint32_t dpival;
+	pdisplay_info_t pinfos = NULL;
+	int infosize=0,infolen=0;
+	int ret;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	REFERENCE_ARG(parsestate);
+
+	init_log_level(pargs);
+
+	ret = get_display_info(0,&pinfos,&infosize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not get display info\n");
+		goto out;
+	}
+
+	infolen = ret;
+	if (infolen < 1) {
+		ret = -ERROR_INVALID_PARAMETER;
+		fprintf(stderr, "infolen %d not valid\n", infolen);
+		goto out;
+	}
+
+	ret = get_display_rescale(&pinfos[0],&dpival);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "set %d error[%d]\n",dpival,ret );
+		goto out;
+	}
+
+	fprintf(stdout, "dpival %d\n", dpival);
+	ret = 0;
+out:
+	get_display_info(1,&pinfos,&infosize);
+	SETERRNO(ret);
+	return ret;
 }
 
 void SetDpiScaling(int percentScaleToSet)
@@ -188,22 +230,52 @@ void SetDpiScaling(int percentScaleToSet)
         
         int relativeIndex = setIndex - recIndex;
         fprintf(stdout,"relativeIndex %d setIndex %d recIndex %d",relativeIndex,setIndex,recIndex);
-        SystemParametersInfo(SPI_SETLOGICALDPIOVERRIDE, relativeIndex, (LPVOID)0, 1);
+        SystemParametersInfo(SPI_SETLOGICALDPIOVERRIDE, (UINT)relativeIndex, (LPVOID)0, 1);
     }
 }
 
 
 int setdpi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	int dpiv;
 	pargs_options_t pargs = (pargs_options_t) popt;
 	int dpival = 100;
+	pdisplay_info_t pinfos = NULL;
+	int infosize=0,infolen=0;
+	int ret;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
 
 	init_log_level(pargs);
 	if (parsestate->leftargs && parsestate->leftargs[0]) {
 		dpival = atoi(parsestate->leftargs[0]);
 	}
 
-	SetDpiScaling(dpival);
-	return 0;
+	ret = get_display_info(0,&pinfos,&infosize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not get display info\n");
+		goto out;
+	}
+
+	infolen = ret;
+	if (infolen < 1) {
+		ret = -ERROR_INVALID_PARAMETER;
+		fprintf(stderr, "infolen %d not valid\n", infolen);
+		goto out;
+	}
+
+	ret = set_display_rescale(&pinfos[0],(uint32_t)dpival);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "set %d error[%d]\n",dpival,ret );
+		goto out;
+	}
+
+	fprintf(stdout, "set %d succ\n", dpival);
+	ret = 0;
+out:
+	get_display_info(1,&pinfos,&infosize);
+	SETERRNO(ret);
+	return ret;
 }
