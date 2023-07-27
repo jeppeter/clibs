@@ -1701,7 +1701,7 @@ int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	const unsigned char* p=NULL;
 	BIGNUM *hashnum=NULL;
 	unsigned char* hashbuf=NULL;
-	int hashsize = 0;
+	int hashsize = 16;
 	int hashlen = 0;
 	pargs_options_t pargs = (pargs_options_t) popt;
 	int ret;
@@ -1720,6 +1720,9 @@ int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 				}
 				if (parsestate->leftargs[3]) {
 					sigfile = parsestate->leftargs[3];
+					if (parsestate->leftargs[4]) {
+						hashsize = atoi(parsestate->leftargs[4]);
+					}
 				}
 			}			
 		}
@@ -1771,7 +1774,6 @@ int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	}
 	siglen = ret;
 
-	hashsize = 16;
 	hashbuf = (unsigned char*) malloc(hashsize);
 	if (hashbuf == NULL) {
 		GETERRNO(ret);

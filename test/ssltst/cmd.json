@@ -252,7 +252,7 @@
     "ecsignbase<ecsignbase_handler>##ecpriv hashnum [hashsize] default hashsize 16 ##" : {
         "$" : "+"
     },
-    "ecvfybase<ecvfybase_handler>##ecname pubbin hashnum signfile##" : {
+    "ecvfybase<ecvfybase_handler>##ecname pubbin hashnum signfile hashlen##" : {
         "$" : "+"
     },
     "bnbinmul<bnbinmul_handler>##a x b = c with binary handle##" : {
