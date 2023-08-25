@@ -132,6 +132,7 @@ int montfrom_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int montmul_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int modlshift_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int modexpmont_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int bnlshift_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #ifdef __cplusplus

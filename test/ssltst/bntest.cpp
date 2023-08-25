@@ -1497,3 +1497,79 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int bnlshift_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{	
+	BIGNUM *aval = NULL,*rval=NULL;
+	char *aptr= NULL;
+	char *rptr=NULL;
+	int shiftnum=-1;
+	int ret;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	init_log_verbose(pargs);
+
+	if (parsestate->leftargs) {
+		if (parsestate->leftargs[0]) {
+			aval = get_bn(parsestate->leftargs[0]);
+			if (aval == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[0], ret);
+				goto out;
+			}
+			aptr= parsestate->leftargs[0];
+			if (parsestate->leftargs[1]) {
+				shiftnum = atoi(parsestate->leftargs[1]);
+			}
+		}
+	}
+
+	if (aval == NULL || shiftnum < 0) {
+		ret = -EINVAL;
+		fprintf(stderr, "need aval eval and pval\n");
+		goto out;
+	}
+
+
+	rval = BN_new();
+	if (rval == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = BN_lshift(rval,aval,shiftnum);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+
+
+	rptr = BN_bn2hex(rval);
+	if (rptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	fprintf(stdout,"BN_lshift(0x%s,%s,%d)\n",rptr,aptr,shiftnum);
+
+	ret = 0;
+out:
+	if (rptr) {
+		free(rptr);
+	}
+	rptr = NULL;
+
+	if (aval) {
+		BN_free(aval);
+	}
+	aval = NULL;
+
+	if (rval) {
+		BN_free(rval);
+	}
+	rval = NULL;
+
+	SETERRNO(ret);
+	return ret;
+
+}

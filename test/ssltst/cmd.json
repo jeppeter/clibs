@@ -7,13 +7,13 @@
     "ecpub<m_ecpub>" : null,
     "convform<m_convform>##for ec key export format default compressed :selected compressed uncompressed hybrid##" : null,
     "peauth<peauth_handler>##pefile ... to parse pe authenticode ##" : {
-    	"$" : "+"
+        "$" : "+"
     },
     "pkcs7octstrenc<pkcs7octstrenc_handler>##str ... to encoding for str in pkcs7 format ##" : {
-    	"$" : "?"
+        "$" : "?"
     },
     "pkcs7dump<pkcs7dump_handler>##to decode and encode pkcs7##" : {
-    	"$" : 0
+        "$" : 0
     },
     "asn1intenc<asn1intenc_handler>##val ... to encode asn1integer##" : {
         "$" : "+"
@@ -305,5 +305,8 @@
     },
     "montpow<modexpmont_handler>##anum enum pnum for BN_mod_exp_mont##" : {
         "$" : 3
+    },
+    "bnlshift<bnlshift_handler>##anum shiftnum for BN_lshift##" : {
+        "$" : 2
     }
 }
