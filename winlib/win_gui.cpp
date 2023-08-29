@@ -533,6 +533,7 @@ int get_display_rescale(pdisplay_info_t pinfo, uint32_t* pscale,uint32_t** ppava
 	int retsize=0;
 	int retlen=0;
 	UINT32 i,curi;
+	int32_t tmp32;
 	if (pinfo == NULL ) {
 		if (ppavails && *ppavails) {
 			free(*ppavails);
@@ -582,6 +583,21 @@ int get_display_rescale(pdisplay_info_t pinfo, uint32_t* pscale,uint32_t** ppava
 		ERROR_INFO("DisplayConfigGetDeviceInfo scale error[%ld]",lret);
 		goto fail;
 	}
+
+	if (scaleinfo->minScaleRel < 0) {
+		scaleinfo->minScaleRel = 0;
+	}
+
+	if (scaleinfo->maxScaleRel >= ARRAY_COUNT(DpiVals)) {
+		scaleinfo->maxScaleRel = ARRAY_COUNT(DpiVals) - 1;
+	}
+
+	if (scaleinfo->maxScaleRel < scaleinfo->minScaleRel) {
+		tmp32 = scaleinfo->maxScaleRel;
+		scaleinfo->maxScaleRel = scaleinfo->minScaleRel;
+		scaleinfo->minScaleRel = tmp32;
+	}
+
 
 	if (scaleinfo->curScaleRel < scaleinfo->minScaleRel) {
 		scaleinfo->curScaleRel = scaleinfo->minScaleRel;
