@@ -308,5 +308,8 @@
     },
     "bnlshift<bnlshift_handler>##anum shiftnum for BN_lshift##" : {
         "$" : 2
+    },
+    "bnusub<bnusub_handler>##anum bnum for BN_usub(rval,anum,bnum)##" : {
+        "$" : 2
     }
 }

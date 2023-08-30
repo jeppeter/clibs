@@ -1573,3 +1573,89 @@ out:
 	return ret;
 
 }
+
+
+int bnusub_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{	
+	BIGNUM *aval = NULL,*bval = NULL,*rval=NULL;
+	char *aptr= NULL,*bptr=NULL;
+	char *rptr=NULL;
+	int ret;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	init_log_verbose(pargs);
+
+	if (parsestate->leftargs) {
+		if (parsestate->leftargs[0]) {
+			aval = get_bn(parsestate->leftargs[0]);
+			if (aval == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[0], ret);
+				goto out;
+			}
+			aptr= parsestate->leftargs[0];
+			if (parsestate->leftargs[1]) {
+				bval = get_bn(parsestate->leftargs[1]);
+				if (bval == NULL) {
+					GETERRNO(ret);
+					fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[1],ret);
+					goto out;
+				}
+				bptr = parsestate->leftargs[1];
+			}
+		}
+	}
+
+	if (aval == NULL || bval == NULL) {
+		ret = -EINVAL;
+		fprintf(stderr, "need aval bval\n");
+		goto out;
+	}
+
+
+	rval = BN_new();
+	if (rval == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = BN_usub(rval,aval,bval);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+
+
+	rptr = BN_bn2hex(rval);
+	if (rptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	fprintf(stdout,"BN_usub(0x%s,%s,%s)\n",rptr,aptr,bptr);
+
+	ret = 0;
+out:
+	if (rptr) {
+		free(rptr);
+	}
+	rptr = NULL;
+
+	if (aval) {
+		BN_free(aval);
+	}
+	aval = NULL;
+	if (bval) {
+		BN_free(bval);
+	}
+	bval = NULL;
+
+	if (rval) {
+		BN_free(rval);
+	}
+	rval = NULL;
+
+	SETERRNO(ret);
+	return ret;
+
+}
