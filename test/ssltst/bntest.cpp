@@ -1657,5 +1657,101 @@ out:
 
 	SETERRNO(ret);
 	return ret;
+}
 
+int bnmodsqrt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	BIGNUM *aval = NULL,*pval = NULL,*rval=NULL,*retnum=NULL;
+	char *aptr= NULL,*pptr=NULL;
+	char *rptr=NULL;
+	int ret;
+	BN_CTX* ctx=NULL;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	init_log_verbose(pargs);
+
+	if (parsestate->leftargs) {
+		if (parsestate->leftargs[0]) {
+			aval = get_bn(parsestate->leftargs[0]);
+			if (aval == NULL) {
+				GETERRNO(ret);
+				fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[0], ret);
+				goto out;
+			}
+			aptr= parsestate->leftargs[0];
+			if (parsestate->leftargs[1]) {
+				pval = get_bn(parsestate->leftargs[1]);
+				if (pval == NULL) {
+					GETERRNO(ret);
+					fprintf(stderr, "parse [%s] error[%d]\n", parsestate->leftargs[1],ret);
+					goto out;
+				}
+				pptr = parsestate->leftargs[1];
+			}
+		}
+	}
+
+	if (aval == NULL || pval == NULL) {
+		ret = -EINVAL;
+		fprintf(stderr, "need aval pval\n");
+		goto out;
+	}
+
+	ctx = BN_CTX_new();
+	if (ctx == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+
+	rval = BN_new();
+	if (rval == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	retnum = BN_mod_sqrt(rval,aval,pval,ctx);
+	if (retnum == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr,"can not resolve BN_mod_sqrt(?,%s,%s)\n",aptr,pptr);
+		goto out;
+	}
+
+
+
+	rptr = BN_bn2hex(rval);
+	if (rptr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	fprintf(stdout,"BN_mod_sqrt(0x%s,%s,%s)\n",rptr,aptr,pptr);
+
+	ret = 0;
+out:
+	if (rptr) {
+		free(rptr);
+	}
+	rptr = NULL;
+
+	if (aval) {
+		BN_free(aval);
+	}
+	aval = NULL;
+	if (pval) {
+		BN_free(pval);
+	}
+	pval = NULL;
+
+	if (rval) {
+		BN_free(rval);
+	}
+	rval = NULL;
+
+	if (ctx) {
+		BN_CTX_free(ctx);
+	}
+	ctx = NULL;
+
+	SETERRNO(ret);
+	return ret;
 }

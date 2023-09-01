@@ -134,7 +134,7 @@ int modlshift_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int modexpmont_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bnlshift_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bnusub_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-
+int bnmodsqrt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

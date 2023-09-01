@@ -311,5 +311,8 @@
     },
     "bnusub<bnusub_handler>##anum bnum for BN_usub(rval,anum,bnum)##" : {
         "$" : 2
+    },
+    "bnmodsqrt<bnmodsqrt_handler>##anum pnum for BN_mod_sqrt(rval,anum,pnum)##" : {
+        "$" : 2
     }
 }
