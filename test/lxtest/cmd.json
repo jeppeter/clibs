@@ -107,5 +107,8 @@
     },
     "unlzma<unlzma_handler>##files ... to unlzma files##" : {
         "$" : "+"
+    },
+    "writev<writev_handler>##msgs ... to call writev in output##" : {
+        "$" : "+"
     }
 }

@@ -1864,3 +1864,75 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int writev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    struct iovec *piovec=NULL;
+    int ioveclen = 0;
+    int i;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int writefd = fileno(stdout);
+    init_log_verbose(pargs);
+    for (i=0;parsestate->leftargs && parsestate->leftargs[i] ; i++) {
+        ioveclen ++;
+    }
+
+    if (ioveclen <= 0) {
+        ret = -EINVAL;
+        fprintf(stderr, "need one messages\n");
+        goto out;
+    }
+
+    piovec = (struct iovec*) malloc(sizeof(*piovec) * ioveclen);
+    if (piovec == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memset(piovec,0,sizeof(*piovec) * ioveclen);
+    for(i=0;i<ioveclen;i++) {
+        piovec[i].iov_base = strdup(parsestate->leftargs[i]);
+        piovec[i].iov_len = strlen(parsestate->leftargs[i]);
+        if (piovec[i].iov_base == NULL) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+    if (pargs->m_output != NULL) {
+        writefd = open(pargs->m_output,O_APPEND | O_RDWR | O_CREAT,S_IRWXU|S_IRWXG|S_IXOTH);
+        if (writefd < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "cannot open [%s] error[%d]\n",pargs->m_output,ret);
+            goto out;
+        }
+    }
+
+    ret = writev(writefd,piovec,ioveclen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "write error[%d] %m\n", ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    if (piovec) {
+        for(i=0;i<ioveclen;i++) {
+            if (piovec[i].iov_base != NULL) {
+                free(piovec[i].iov_base);
+            }
+            piovec[i].iov_base = NULL;
+            piovec[i].iov_len = 0;
+        }
+        free(piovec);
+    }
+    piovec = NULL;
+
+    if (writefd >= 0 && writefd != fileno(stdout)) {
+        close(writefd);
+    }
+    writefd = -1;
+    SETERRNO(ret);
+    return ret;
+}

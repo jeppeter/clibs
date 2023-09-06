@@ -17,6 +17,7 @@
 #include <signal.h>
 #include <sys/eventfd.h>
 #include <sys/epoll.h>
+#include <sys/uio.h>
 #include <ctype.h>
 #include <termios.h>
 
@@ -74,6 +75,7 @@ int ttycfgget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int ttycfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int useropen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int unlzma_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int writev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
