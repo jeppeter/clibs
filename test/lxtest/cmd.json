@@ -110,5 +110,8 @@
     },
     "writev<writev_handler>##msgs ... to call writev in output##" : {
         "$" : "+"
+    },
+    "scandir<scandir_handler>##dname ... to scan dir##" : {
+        "$" : "+"
     }
 }

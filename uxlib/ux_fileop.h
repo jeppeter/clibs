@@ -1,6 +1,8 @@
 #ifndef __UX_FILEOP_H_36C20057D60A2BC5108FF8E12352DCE4__
 #define __UX_FILEOP_H_36C20057D60A2BC5108FF8E12352DCE4__
 
+#include <dirent.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus*/
@@ -16,6 +18,10 @@ int realpath_safe(char* path, char** pprealpath, int *psize);
 int read_offset_file(char* infile,unsigned long long offset,char* pbuf,int bufsize);
 int write_offset_file(char* outfile,unsigned long long offset,char* pbuf,int bufsize);
 int read_file_lines(char* infile,char*** pplines, int *psize);
+
+
+typedef int (*scandir_func_t)(void* arg,struct dirent* d);
+int scandir_callback(const char* dname,scandir_func_t func,void* arg);
 
 /*************************************
 * dev_get_mntdir : to get the device mounted directory

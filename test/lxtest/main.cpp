@@ -76,6 +76,7 @@ int ttycfgset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int useropen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int unlzma_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int writev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int scandir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \

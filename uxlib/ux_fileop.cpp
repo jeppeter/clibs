@@ -1451,3 +1451,49 @@ int is_path_exist(const char* path)
      }
      return retval;
 }
+
+
+
+int scandir_callback(const char* dname,scandir_func_t func,void* arg)
+{
+    struct dirent **namelist=NULL;
+    int retlen = 0;
+    int ret;
+    int dircnt = 0;
+    int i;
+
+    ret = scandir(dname,&namelist,NULL,NULL);
+    if (ret <0) {
+        GETERRNO(ret);
+        ERROR_INFO("can not scandir [%s] error[%d]",dname,ret);
+        goto fail;
+    }
+    dircnt = ret;
+    retlen = 0;
+    for(i=0;i<dircnt;i++) {
+        if (func!= NULL && strcmp(namelist[i]->d_name,".") != 0 && strcmp(namelist[i]->d_name,"..") != 0) {
+            ret = func(arg,namelist[i]);
+            if (ret == 0) {
+                break;
+            } else if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+        }
+        retlen ++;
+    }
+
+    if (namelist) {
+        free(namelist);
+    }
+    namelist = NULL;
+
+    return retlen;
+fail:
+    if (namelist) {
+        free(namelist);
+    }
+    namelist = NULL;
+    SETERRNO(ret);
+    return ret;
+}

@@ -1936,3 +1936,114 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+typedef struct _d_store {
+    char* m_dname;
+} d_store_t, *pd_store_t;
+
+void free_d_store(pd_store_t* ppdstore)
+{
+    if (ppdstore && *ppdstore) {
+        pd_store_t pdstore=  *ppdstore;
+        if (pdstore->m_dname) {
+            free(pdstore->m_dname);
+        }
+        pdstore->m_dname =NULL;
+        free(*ppdstore);
+        *ppdstore= NULL;
+    }
+    return;
+}
+
+pd_store_t alloc_d_store(char* dname)
+{
+    pd_store_t pdstore = NULL;
+    int ret;
+    pdstore = (pd_store_t)malloc(sizeof(*pdstore));
+    if (pdstore == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    memset(pdstore,0,sizeof(*pdstore));
+    pdstore->m_dname = strdup(dname);
+    if (pdstore->m_dname == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    return pdstore;
+fail:
+    free_d_store(&pdstore);
+    SETERRNO(ret);
+    return NULL;
+}
+
+
+int print_out_value(void* arg, struct dirent* dent)
+{
+    pd_store_t pdstore = (pd_store_t) arg;
+    char* curname = NULL;
+    int cursize=0;
+    pd_store_t nstore = NULL;
+    int ret;
+    printf("%s/%s\n",pdstore->m_dname,dent->d_name);
+    if (dent->d_type == DT_DIR) {
+        ret = snprintf_safe(&curname,&cursize,"%s/%s",pdstore->m_dname,dent->d_name);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        nstore = alloc_d_store(curname);
+        if (nstore == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        ret = scandir_callback(curname,print_out_value,nstore);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    snprintf_safe(&curname,&cursize,NULL);
+    free_d_store(&nstore);
+    return 1;
+fail:
+    snprintf_safe(&curname,&cursize,NULL);
+    free_d_store(&nstore);
+    SETERRNO(ret);
+    return ret;
+}
+
+int scandir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+    char* dname;
+    pd_store_t pdstore = NULL;
+
+
+    init_log_verbose(pargs);
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        free_d_store(&pdstore);
+        dname = parsestate->leftargs[i];
+        pdstore = alloc_d_store(dname);
+        if (pdstore == NULL) {
+            GETERRNO(ret);
+            goto out;
+        }
+        ret = scandir_callback(dname,print_out_value,pdstore);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "can [%s] error[%d]\n",dname,ret);
+            goto out;
+        }
+    }
+
+    ret = 0;
+out:
+    free_d_store(&pdstore);
+    SETERRNO(ret);
+    return ret;
+}
