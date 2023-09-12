@@ -1451,7 +1451,7 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	}
 
 	if (pargs->m_ecpriv) {
-
+		DEBUG_INFO("will write [%s]", pargs->m_ecpriv);
 		ret = write_file_whole(pargs->m_ecpriv, (char*)pout, outlen);
 		if (ret != outlen) {
 			GETERRNO(ret);
@@ -1490,6 +1490,7 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	}
 
 	if (pargs->m_ecparam) {
+		DEBUG_INFO("write [%s] ecparam", pargs->m_ecparam);
 		ret = write_file_whole(pargs->m_ecparam, (char*)pout, outlen);
 		if (ret != outlen) {
 			GETERRNO(ret);
@@ -1527,6 +1528,7 @@ int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 	}
 
 	if (pargs->m_ecpub) {
+		DEBUG_INFO("out ecpub [%s]",pargs->m_ecpub);
 		ret = write_file_whole(pargs->m_ecpub, (char*)pout, outlen);
 		if (ret != outlen) {
 			GETERRNO(ret);
@@ -1542,7 +1544,6 @@ out:
 	if (pout != NULL) {
 		free(pout);
 	}
-	ret = 0;
 
 	if (eckey != NULL) {
 		EC_KEY_free(eckey);
@@ -1552,7 +1553,6 @@ out:
 		BN_free(bn);
 	}
 	bn = NULL;
-
 	SETERRNO(ret);
 	return ret;
 }
