@@ -112,7 +112,7 @@ int eccurveenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int eccurvedec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecparamsenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecparamsdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ecgenbase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecsignbase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ecvfybase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bnbinmul_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);

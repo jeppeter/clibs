@@ -246,7 +246,7 @@
     "ecparamsdec<ecparamsdec_handler>##binfile ... to decode ECPARAMETERS##" : {
         "$" : "+"
     },
-    "ecgen<ecgen_handler>##ecnid to dump ec##" : {
+    "ecgenbase<ecgenbase_handler>##ecnid to dump ec##" : {
         "$" : "+"
     },
     "ecsignbase<ecsignbase_handler>##ecpriv hashnum [hashsize] default hashsize 16 ##" : {

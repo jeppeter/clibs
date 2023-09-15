@@ -1365,7 +1365,7 @@ fail:
 
 
 
-int ecgen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+int ecgenbase_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	int ret;
 	int nid = NID_undef;
