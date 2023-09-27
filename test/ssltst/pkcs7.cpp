@@ -1452,3 +1452,61 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int asn1bitdataflagleftenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	ASN1_BIT_STRING* ita = NULL;
+	int i;
+	unsigned char* pout = NULL;
+	int outlen = 0;
+	int ret;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	uint8_t* phexbuf=NULL;
+	int hexsize=0,hexlen=0;
+
+	init_log_verbose(pargs);
+
+	ita = ASN1_BIT_STRING_new();
+	if (ita == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("can not use string error[%d]", ret);
+		goto out;
+	}
+
+	for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+		ret = parse_hex_string(parsestate->leftargs[i],&phexbuf,&hexsize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "parse [%s] error\n", parsestate->leftargs[i]);
+			goto out;
+		}
+		hexlen = ret;
+
+
+		ret = ASN1_BIT_STRING_set(ita,phexbuf,hexlen | 0x80000000);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			fprintf(stderr,"cannot set [%s]\n",parsestate->leftargs[i]);
+			goto out;
+		}
+
+		outlen = i2d_ASN1_BIT_STRING(ita, &pout);
+		if (outlen <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO( "i2d error[%d]", ret);
+			goto out;
+		}
+		DEBUG_BUFFER_FMT(pout, outlen, "integer format");
+		OPENSSL_free(pout);
+		pout = NULL;
+	}
+
+	ret = 0;
+out:
+	OPENSSL_free(pout);
+	pout = NULL;
+	ASN1_BIT_STRING_free(ita);
+	ita = NULL;
+	SETERRNO(ret);
+	return ret;
+}

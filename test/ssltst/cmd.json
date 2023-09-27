@@ -314,5 +314,8 @@
     },
     "bnmodsqrt<bnmodsqrt_handler>##anum pnum for BN_mod_sqrt(rval,anum,pnum)##" : {
         "$" : 2
+    },
+    "asn1bitdataflagleftenc<asn1bitdataflagleftenc_handler>##hex ... to set hex##" : {
+        "$" : "+"
     }
 }

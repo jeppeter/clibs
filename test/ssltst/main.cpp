@@ -135,6 +135,7 @@ int modexpmont_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int bnlshift_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bnusub_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bnmodsqrt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int asn1bitdataflagleftenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
