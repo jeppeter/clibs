@@ -474,5 +474,8 @@
     },
     "queryregdword<queryregdword_handler>##keyname subkey path to get value##" : {
         "$" : 3
+    },
+    "memscan<memscan_handler>##[pid]... to scan pid if omit just current##" : {
+        "$" : "*"
     }
 }
