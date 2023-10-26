@@ -17,7 +17,6 @@ int memscan_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 			CloseHandle(hproc);
 		}
 		hproc = NULL;
-		hproc = OpenProcess(pid,)
 	}
 	
 
