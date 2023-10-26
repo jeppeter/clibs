@@ -25,6 +25,7 @@
 #include <sddl.h>
 #include <accctrl.h>
 #include <aclapi.h>
+#include <psapi.h>
 
 #pragma warning(pop)
 
@@ -3964,7 +3965,31 @@ fail:
 
 #define   MOD_INFO_HANDLE()                                                                       \
 do{                                                                                               \
-    ret = TcharToAnsi(pmod->szModule, &pmodname, &modsize);                                       \
+	do {                                                                                          \
+		if (pfullname == NULL) {                                                                  \
+			pfullname = (TCHAR*)malloc(fullnamesize * sizeof(*pfullname));                        \
+			if (pfullname == NULL) {                                                              \
+				GETERRNO(ret);                                                                    \
+				goto fail;                                                                        \
+			}                                                                                     \
+		}                                                                                         \
+		memset(pfullname,0, fullnamesize * sizeof(*pfullname));                                   \
+		dret = GetModuleFileNameEx(hproc,pmod->hModule,pfullname,(DWORD)fullnamesize);            \
+		if (dret == 0) {                                                                          \
+			GETERRNO_DIRECT(ret);                                                                 \
+			ERROR_INFO("get error [%d]",ret);                                                     \
+			goto fail;                                                                            \
+		} else if ((int)dret < fullnamesize) {                                                    \
+			fullnamelen = (int) dret;                                                             \
+			break;                                                                                \
+		}                                                                                         \
+		if (pfullname) {                                                                          \
+			free(pfullname);                                                                      \
+		}                                                                                         \
+		pfullname = NULL;                                                                         \
+		fullnamesize <<= 1;                                                                       \
+	} while(1);                                                                                   \
+    ret = TcharToAnsi(pfullname, &pmodname, &modsize);                                            \
     if (ret < 0) {                                                                                \
         GETERRNO(ret);                                                                            \
         goto fail;                                                                                \
@@ -4021,6 +4046,11 @@ int get_module_info(int procid, const char* name, pmod_info_t *ppinfo, int *psiz
 	pmod_info_t pretinfo = NULL, ptmpinfo = NULL;
 	int retsize = 0;
 	int retlen = 0;
+	TCHAR* pfullname =NULL;
+	int fullnamesize = 4;
+	int fullnamelen = 0;
+	DWORD dret;
+	HANDLE hproc=NULL;
 
 	if (name == NULL) {
 		if (ppinfo && *ppinfo) {
@@ -4041,6 +4071,13 @@ int get_module_info(int procid, const char* name, pmod_info_t *ppinfo, int *psiz
 
 	pretinfo = *ppinfo;
 	retsize = *psize;
+
+	hproc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ ,FALSE,(DWORD)procid);
+	if (hproc == NULL || hproc == INVALID_HANDLE_VALUE) {
+		GETERRNO(ret);
+		ERROR_INFO("cannot open %d process query",procid);
+		goto fail;
+	}
 
 	hd = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, (DWORD)procid);
 	if (hd == INVALID_HANDLE_VALUE) {
@@ -4085,7 +4122,13 @@ int get_module_info(int procid, const char* name, pmod_info_t *ppinfo, int *psiz
 		MOD_INFO_HANDLE();
 	}
 succ:
-
+	if (pfullname) {
+		free(pfullname);
+	}
+	pfullname = NULL;
+	fullnamesize = 0;
+	fullnamelen = 0;
+	
 	TcharToAnsi(NULL, &pmodname, &modsize);
 	if (pmod) {
 		free(pmod);
@@ -4096,6 +4139,12 @@ succ:
 		CloseHandle(hd);
 	}
 	hd = NULL;
+
+	if (hproc != NULL && hproc != INVALID_HANDLE_VALUE) {
+		CloseHandle(hproc);
+	}
+	hproc = NULL;
+
 	if (*ppinfo && *ppinfo != pretinfo) {
 		free(*ppinfo);
 	}
@@ -4104,6 +4153,15 @@ succ:
 
 	return (int)(retlen * sizeof(*pretinfo));
 fail:
+	
+
+	if (pfullname) {
+		free(pfullname);
+	}
+	pfullname = NULL;
+	fullnamesize = 0;
+	fullnamelen = 0;
+	
 
 	if (pretinfo && pretinfo != *ppinfo) {
 		free(pretinfo);
@@ -4120,6 +4178,10 @@ fail:
 	}
 	hd = NULL;
 
+	if (hproc != NULL && hproc != INVALID_HANDLE_VALUE) {
+		CloseHandle(hproc);
+	}
+	hproc = NULL;
 	SETERRNO(ret);
 	return ret;
 }
