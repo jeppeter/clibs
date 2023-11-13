@@ -1,6 +1,8 @@
 #ifndef __UX_LIBEV_H_67994DBB1801B781E9DC25491EF003BC__
 #define __UX_LIBEV_H_67994DBB1801B781E9DC25491EF003BC__
 
+#include <ux_err.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus*/
@@ -10,13 +12,19 @@ extern "C" {
 #define   ERROR_EVENT            4
 #define   TIME_EVENT             8
 
-typedef int (*evt_callback_func_t)(void* pev,int fd,int event);
+#define   LIBEV_CLOEXEC          1
+
+typedef int (*evt_callback_func_t)(void* pev,uint64_t fd,int event);
 
 void free_uxev(void** ppev);
-void* init_uxev(void);
+void* init_uxev(int flag);
+int add_uxev_timer(void* pev,int interval,int conti,uint64_t* ptimeid,evt_callback_func_t callback);
+int del_uxev_timer(void* pev,uint64_t timeid);
+int modi_uxev_timer(void* pev,uint64_t timeid,evt_callback_func_t callback,int interval,int conti);
 int add_uxev_callback(void* pev,int fd,int event, evt_callback_func_t func,void* args);
-int delete_uxev(void* pev,int fd,int event);
+int delete_uxev_callback(void* pev,int fd,int event);
 int break_uxev(void* pev);
+int loop_uxev(void* pev);
 
 #ifdef __cplusplus
 };
