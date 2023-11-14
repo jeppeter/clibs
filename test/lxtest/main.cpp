@@ -11,6 +11,7 @@
 #include <ux_strop.h>
 #include <ux_sock.h>
 #include <ux_tty.h>
+#include <ux_libev.h>
 
 #include <string.h>
 #include <unistd.h>
@@ -22,6 +23,10 @@
 #include <termios.h>
 
 #include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <lzma.h>
@@ -77,6 +82,8 @@ int useropen_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int unlzma_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int writev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int scandir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
@@ -175,6 +182,54 @@ void print_buffer(FILE* fp, unsigned char* pbuf, int buflen, const char* fmt, ..
     return;
 }
 
+static int st_evtfd = -1;
+
+void sig_handler(int signum)
+{
+    uint64_t lval=1;
+    if (signum == SIGINT && st_evtfd >= 0) {
+        write(st_evtfd,&lval,sizeof(lval));
+    }
+    return ;
+}
+
+int init_sighandler(void)
+{
+    int ret;
+    sighandler_t sigret;
+    if (st_evtfd < 0) {
+        st_evtfd = eventfd(0,EFD_NONBLOCK);
+        if (st_evtfd < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    sigret = signal(SIGINT,sig_handler);
+    if (sigret == SIG_ERR) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    return st_evtfd;
+fail:
+    if (st_evtfd >= 0) {
+        close(st_evtfd);
+    }
+    st_evtfd = -1;
+    SETERRNO(ret);
+    return ret;
+}
+
+void fini_sighandler(void)
+{
+    if (st_evtfd >= 0) {
+        close(st_evtfd);
+    }
+    st_evtfd = -1;
+    return;
+}
+
+
 #include "tstdebug.cpp"
 #include "tstproc.cpp"
 #include "tstregex.cpp"
@@ -182,6 +237,8 @@ void print_buffer(FILE* fp, unsigned char* pbuf, int buflen, const char* fmt, ..
 #include "tststr.cpp"
 #include "tstfile.cpp"
 #include "tstsock.cpp"
+#include "tstev.cpp"
+
 
 int main(int argc, char* argv[])
 {

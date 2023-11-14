@@ -75,21 +75,3 @@ int sleep_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     SETERRNO(ret);
     return ret;
 }
-
-static int st_evtfd = -1;
-
-void sig_handler(int signo)
-{
-    uint64_t u;
-    int ret;
-    if (st_evtfd >= 0) {
-        u = 1;
-        ret = write(st_evtfd, &u, sizeof(u));
-        if (ret != sizeof(u)) {
-            GETERRNO(ret);
-            fprintf(stderr, "int write error[%d]", ret);
-        }
-    }
-    return;
-}
-
