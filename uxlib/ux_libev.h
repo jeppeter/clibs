@@ -24,7 +24,7 @@ int modi_uxev_timer_callback(void* pev,uint64_t timeid, evt_callback_func_t call
 int modi_uxev_timer_interval(void* pev, uint64_t timeid, int interval);
 int modi_uxev_timer_conti(void* pev,uint64_t timeid,int conti);
 int add_uxev_callback(void* pev,int fd,int event, evt_callback_func_t func,void* args);
-int delete_uxev_callback(void* pev,int fd,int event);
+int delete_uxev_callback(void* pev,int fd);
 int break_uxev(void* pev);
 int loop_uxev(void* pev);
 

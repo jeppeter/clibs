@@ -504,7 +504,7 @@ int __find_fd_callback(pux_ev_t pev,int fd)
 	return fidx;
 }
 
-int delete_uxev_callback(void* pev1,int fd,int event)
+int delete_uxev_callback(void* pev1,int fd)
 {
 	pux_ev_t pev = (pux_ev_t)pev1;
 	int ret;

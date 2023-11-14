@@ -384,7 +384,7 @@ int write_server_notify(void* pev, uint64_t sock, int event, void* arg)
 				goto fail;
 			}
 			if (ret == 0) {
-				ret = delete_uxev_callback(pev, sock, poldcli->m_event);
+				ret = delete_uxev_callback(pev, sock);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
@@ -431,7 +431,7 @@ int read_server_notify(void* pev, uint64_t sock, int event, void* arg)
 				fprintf(stderr, "read sock error[%d]\n", ret);
 				goto fail;
 			} else if (ret == 0) {
-				ret = delete_uxev_callback(pev, sock, poldcli->m_event);
+				ret = delete_uxev_callback(pev, sock);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
@@ -451,7 +451,7 @@ int read_server_notify(void* pev, uint64_t sock, int event, void* arg)
 				if (ret < 0) {
 					if (ret == -EWOULDBLOCK || ret == -EAGAIN) {
 						if ((poldcli->m_event & WRITE_EVENT) == 0) {
-							ret = delete_uxev_callback(pev, sock, poldcli->m_event);
+							ret = delete_uxev_callback(pev, sock);
 							if (ret < 0) {
 								GETERRNO(ret);
 								goto fail;
@@ -471,7 +471,7 @@ int read_server_notify(void* pev, uint64_t sock, int event, void* arg)
 						goto fail;
 					} else if (clen == 0) {
 						if (poldcli->m_event != READ_EVENT) {
-							ret = delete_uxev_callback(pev, sock, poldcli->m_event);
+							ret = delete_uxev_callback(pev, sock);
 							if (ret < 0) {
 								GETERRNO(ret);
 								goto fail;
@@ -486,7 +486,7 @@ int read_server_notify(void* pev, uint64_t sock, int event, void* arg)
 
 					} else if (clen > 0) {
 						if (poldcli->m_event != (READ_EVENT | WRITE_EVENT)) {
-							ret = delete_uxev_callback(pev, sock, poldcli->m_event);
+							ret = delete_uxev_callback(pev, sock);
 							if (ret < 0) {
 								GETERRNO(ret);
 								goto fail;
@@ -630,7 +630,137 @@ out:
 	return ret;
 }
 
+typedef __chatcli {
+	char* m_ip;
+	int port;
+	int m_sock;
+	int m_fd;
+	int m_connected;
+	uint8_t* m_pwbuf;
+	int m_wleft;
+} chatcli_t,*pchatcli_t;
+
+void __free_chatcli(pchatcli_t* ppcli)
+{
+	if (ppcli && *ppcli) {
+		pchatcli_t pcli = *ppcli;
+		if (pcli->m_ip) {
+			free(pcli->m_ip);
+		}
+		pcli->m_ip = NULL;
+		if (pcli->m_sock >= 0) {
+			close(pcli->m_sock);
+		}
+		pcli->m_sock = -1;
+		pcli->m_fd = -1;
+		pcli->m_connected = 0;
+		if (pcli->m_pwbuf) {
+			free(pcli->m_pwbuf);
+		}
+		pcli->m_pwbuf = NULL;
+		pcli->m_wleft = 0;
+		free(pcli);
+		*ppcli = NULL;
+	}
+}
+
+pchatcli_t __alloc_chatcli(const char* ip,int port,int readfd)
+{
+	pchatcli_t pcli=NULL;
+	int ret;
+	struct sockaddr_in sinaddr;
+
+	pcli = (pchatcli_t) malloc(sizeof(*pcli));
+	if (pcli == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	memset(pcli,0,sizeof(*pcli));
+	pcli->m_ip = NULL;
+	pcli->m_port = 0;
+	pcli->m_sock = -1;
+	pcli->m_fd = readfd;
+	pcli->m_connected = 0;
+	pcli->m_pwbuf = NULL;
+	pcli->m_wleft = 0;
+
+	pcli->m_ip = strdup(ip);
+	if (pcli->m_ip == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	pcli->m_port = port;
+
+	pcli->m_sock = socket(AF_INET,SOCK_STREAM,0);
+	if (pcli->m_sock < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	flags = fcntl(pcli->m_sock, F_GETFD,0);
+	ret = fcntl(pcli->m_sock,F_SETFD,flags | O_NONBLOCK);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+
+	return pcli;
+fail:
+	__free_chatcli(&pcli);
+	SETERRNO(ret);
+	return NULL;
+}
+
+
+int chat_cli_timeout(void* pev,uint64_t timeid, int event, void* arg)
+{
+
+}
+
+int chat_cli_connect(void* pev,uint64_t sock, int event,void* arg)
+{
+
+}
+
+int chat_cli_write(void* pev,uint64_t sock,int event,void* arg)
+{
+
+}
+
+int chat_cli_read(void* pev,uint64_t sock,int event,void* arg)
+{
+
+}
+
+int chat_cli_input(void* pev,uint64_t fd, int event,void* arg)
+{
+
+}
 int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	return 0;
+	char* ip= "127.0.0.1";
+	int port = 3390;
+	int ret;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	init_log_verbose(pargs);
+
+	if (parsestate->leftargs) {
+		if (parsestate->leftargs[0]) {
+			ip = parsestate->leftargs[0];
+			if (parsestate->leftargs[1]) {
+				port = atoi(parsestate->leftargs[1]);
+			}
+		}
+	}
+
+
+
+
+	ret = 0;
+out:
+	SETERRNO(ret);
+	return ret;
 }
