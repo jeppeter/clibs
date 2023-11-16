@@ -13,6 +13,7 @@ extern "C" {
 
 WINLIB_API int is_win7(void);
 WINLIB_API int is_win10(void);
+WINLIB_API int is_winserver_2019(void);
 
 #ifdef __cplusplus
 };

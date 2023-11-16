@@ -316,6 +316,7 @@ int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     fprintf(stdout, "win7 %s\n", is_win7() ? "true" : "false");
     fprintf(stdout, "win10 %s\n", is_win10() ? "true" : "false");
+    fprintf(stdout, "win2019server %s\n", is_winserver_2019() ? "true" : "false");
 
     return 0;
 }

@@ -146,3 +146,36 @@ fail:
 	__get_type(1, &ptype,&typesize);
 	return 0;
 }
+
+int is_winserver_2019(void)
+{
+	int isvalid = 0;
+	char* ptype=NULL;
+	int typesize=0;
+	char* pversion=NULL;
+	int versize=0;
+	int ret;
+
+	ret = __get_version(0,&pversion,&versize);
+	if (ret < 0) {
+		goto fail;
+	}
+
+	ret = __get_type(0,&ptype,&typesize);
+	if (ret < 0) {
+		goto fail;
+	}
+
+	if (strcmp(pversion,"6.3") == 0 && 
+		_stricmp(ptype,"Server") == 0) {
+		isvalid = 1;
+	}
+
+	__get_version(1,&pversion,&versize);
+	__get_type(1, &ptype,&typesize);
+	return isvalid;
+fail:
+	__get_version(1,&pversion,&versize);
+	__get_type(1, &ptype,&typesize);
+	return 0;
+}
