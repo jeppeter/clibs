@@ -261,7 +261,7 @@ void __free_chatsvr(pchat_svr_t* ppsvr)
 	if (ppsvr && *ppsvr) {
 		pchat_svr_t psvr = *ppsvr;
 		int i;
-		for(i=0;i<psvr->m_clinum;i++) {
+		for (i = 0; i < psvr->m_clinum; i++) {
 			__free_chatsvr_cli(&psvr->m_clis[i]);
 		}
 		free(psvr->m_clis);
@@ -278,43 +278,43 @@ void __free_chatsvr(pchat_svr_t* ppsvr)
 
 int bind_chat_server(int port)
 {
-	int sock=-1;
+	int sock = -1;
 	int ret;
 	int reuse = 1;
 	struct sockaddr_in sinaddr;
 
-	sock = socket(AF_INET,SOCK_STREAM,0);
+	sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (sock < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = 	setsockopt(sock,SOL_SOCKET,SO_REUSEADDR,&reuse, sizeof(reuse));
+	ret = 	setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
 	if (ret < 0) {
 		GETERRNO(ret);
 		fprintf(stderr, "can not set reuse error [%d]\n", ret);
 		goto fail;
 	}
 
-	ret = ioctl(sock,FIONBIO,&reuse);
+	ret = ioctl(sock, FIONBIO, &reuse);
 	if (ret < 0) {
 		GETERRNO(ret);
 		fprintf(stderr, "set non-block error[%d]\n", ret);
 		goto fail;
 	}
 
-	memset(&sinaddr,0,sizeof(sinaddr));
+	memset(&sinaddr, 0, sizeof(sinaddr));
 	sinaddr.sin_family = AF_INET;
 	sinaddr.sin_addr.s_addr = inet_addr("0.0.0.0");
 	sinaddr.sin_port = htons(port);
-	ret = bind(sock,(struct sockaddr*)&sinaddr,sizeof(sinaddr));
+	ret = bind(sock, (struct sockaddr*)&sinaddr, sizeof(sinaddr));
 	if (ret < 0) {
 		GETERRNO(ret);
-		fprintf(stderr, "bind [%d] error[%d]\n", port,ret);
+		fprintf(stderr, "bind [%d] error[%d]\n", port, ret);
 		goto fail;
 	}
 
-	ret = listen(sock,5);
+	ret = listen(sock, 5);
 	if (ret < 0) {
 		GETERRNO(ret);
 		fprintf(stderr, "listen on [%d] error[%d]\n", port, ret);
@@ -342,7 +342,7 @@ pchat_svr_t __alloc_chatsvr(int port)
 		GETERRNO(ret);
 		goto fail;
 	}
-	memset(psvr,0,sizeof(*psvr));
+	memset(psvr, 0, sizeof(*psvr));
 	psvr->m_bindsock = -1;
 	psvr->m_clis = NULL;
 	psvr->m_clinum = 0;
@@ -534,8 +534,8 @@ int accept_server_notify(void* pev, uint64_t fd, int event, void* arg)
 		goto fail;
 	}
 
-	flags = fcntl(connectfd,F_GETFD,0);
-	ret = fcntl(connectfd,F_SETFD,flags | O_NONBLOCK);
+	flags = fcntl(connectfd, F_GETFD, 0);
+	ret = fcntl(connectfd, F_SETFD, flags | O_NONBLOCK);
 	if (ret < 0) {
 		close(connectfd);
 		connectfd = -1;
@@ -575,7 +575,7 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	int port = 3390;
 	void* pev = NULL;
 	int exitfd = -1;
-	pchat_svr_t psvr=NULL;
+	pchat_svr_t psvr = NULL;
 
 	init_log_verbose(pargs);
 
@@ -609,7 +609,7 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
-	ret = add_uxev_callback(pev,psvr->m_bindsock,READ_EVENT,accept_server_notify,psvr);
+	ret = add_uxev_callback(pev, psvr->m_bindsock, READ_EVENT, accept_server_notify, psvr);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto out;
@@ -630,15 +630,17 @@ out:
 	return ret;
 }
 
-typedef __chatcli {
+typedef struct __chatcli {
 	char* m_ip;
-	int port;
+	int m_port;
 	int m_sock;
 	int m_fd;
 	int m_connected;
+	uint64_t m_timeoutid;
 	uint8_t* m_pwbuf;
 	int m_wleft;
-} chatcli_t,*pchatcli_t;
+	int m_wcnt;
+} chatcli_t, *pchatcli_t;
 
 void __free_chatcli(pchatcli_t* ppcli)
 {
@@ -654,21 +656,25 @@ void __free_chatcli(pchatcli_t* ppcli)
 		pcli->m_sock = -1;
 		pcli->m_fd = -1;
 		pcli->m_connected = 0;
+		pcli->m_timeoutid = 0;
 		if (pcli->m_pwbuf) {
 			free(pcli->m_pwbuf);
 		}
 		pcli->m_pwbuf = NULL;
 		pcli->m_wleft = 0;
+		pcli->m_wcnt = 0;
 		free(pcli);
 		*ppcli = NULL;
 	}
 }
 
-pchatcli_t __alloc_chatcli(const char* ip,int port,int readfd)
+pchatcli_t __alloc_chatcli(const char* ip, int port, int readfd)
 {
-	pchatcli_t pcli=NULL;
+	pchatcli_t pcli = NULL;
 	int ret;
 	struct sockaddr_in sinaddr;
+	int error;
+	int flags;
 
 	pcli = (pchatcli_t) malloc(sizeof(*pcli));
 	if (pcli == NULL) {
@@ -676,14 +682,16 @@ pchatcli_t __alloc_chatcli(const char* ip,int port,int readfd)
 		goto fail;
 	}
 
-	memset(pcli,0,sizeof(*pcli));
+	memset(pcli, 0, sizeof(*pcli));
 	pcli->m_ip = NULL;
 	pcli->m_port = 0;
 	pcli->m_sock = -1;
 	pcli->m_fd = readfd;
 	pcli->m_connected = 0;
+	pcli->m_timeoutid = 0;
 	pcli->m_pwbuf = NULL;
 	pcli->m_wleft = 0;
+	pcli->m_wcnt  = 0;
 
 	pcli->m_ip = strdup(ip);
 	if (pcli->m_ip == NULL) {
@@ -692,19 +700,42 @@ pchatcli_t __alloc_chatcli(const char* ip,int port,int readfd)
 	}
 	pcli->m_port = port;
 
-	pcli->m_sock = socket(AF_INET,SOCK_STREAM,0);
+	pcli->m_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if (pcli->m_sock < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	flags = fcntl(pcli->m_sock, F_GETFD,0);
-	ret = fcntl(pcli->m_sock,F_SETFD,flags | O_NONBLOCK);
+	flags = fcntl(pcli->m_sock, F_GETFD, 0);
+	ret = fcntl(pcli->m_sock, F_SETFD, flags | O_NONBLOCK);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
+	error = 0;
+	ret = setsockopt(pcli->m_sock,SOL_SOCKET,SO_ERROR,&error,sizeof(error));
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("setsockopt error[%d]", ret);
+		goto fail;
+	}
+
+	memset(&sinaddr,0,sizeof(sinaddr));
+	sinaddr.sin_family = AF_INET;
+	sinaddr.sin_addr.s_addr = inet_addr(ip);
+	sinaddr.sin_port = htons(port);
+
+	ret = connect(pcli->m_sock,(struct sockaddr*)&sinaddr,sizeof(sinaddr));
+	if (ret < 0) {
+		GETERRNO(ret);
+		if (ret != -EINPROGRESS) {
+			ERROR_INFO("connect [%s:%d] error[%d]", pcli->m_ip,pcli->m_port,ret);
+			goto fail;
+		}
+	} else {
+		pcli->m_connected = 1;
+	}
 
 
 	return pcli;
@@ -715,36 +746,285 @@ fail:
 }
 
 
-int chat_cli_timeout(void* pev,uint64_t timeid, int event, void* arg)
+int chat_cli_timeout(void* pev, uint64_t timeid, int event, void* arg)
 {
-
+	pchatcli_t pcli = (pchatcli_t)arg;
+	break_uxev(pev);
+	fprintf(stderr, "connect %s:%d timeout\n", pcli->m_ip, pcli->m_port);
+	return 0;
 }
 
-int chat_cli_connect(void* pev,uint64_t sock, int event,void* arg)
-{
+int chat_cli_read(void* pev, uint64_t sock, int event, void* arg);
+int chat_cli_write(void* pev, uint64_t sock, int event, void* arg);
 
+int chat_cli_connect(void* pev, uint64_t sock, int event, void* arg)
+{
+	int ret;
+	int error;
+	pchatcli_t pcli = (pchatcli_t)arg;
+	socklen_t socklen;
+	error = 0;
+	socklen = sizeof(error);
+	ret = getsockopt(sock, SOL_SOCKET, SO_ERROR, &error, &socklen);
+	if (ret < 0) {
+		GETERRNO(ret);
+		ERROR_INFO("getsockopt [%s:%d] error[%d]", pcli->m_ip, pcli->m_port, ret);
+		goto fail;
+	}
+
+	if (error != 0) {
+		GETERRNO(ret);
+		ERROR_INFO("[%s:%d] error[%d]", pcli->m_ip, pcli->m_port, error);
+		goto fail;
+	}
+
+	/*now we should */
+	delete_uxev_callback(pev, sock);
+	if (pcli->m_pwbuf != NULL) {
+		ret = add_uxev_callback(pev,sock,READ_EVENT | WRITE_EVENT,chat_cli_write,arg);
+	} else {
+		/*now to add for the calling */
+		ret = add_uxev_callback(pev, sock, READ_EVENT, chat_cli_read, arg);
+	}
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
 }
 
-int chat_cli_write(void* pev,uint64_t sock,int event,void* arg)
+int chat_cli_write(void* pev, uint64_t sock, int event, void* arg)
 {
+	pchatcli_t pcli = (pchatcli_t) arg;
+	int ret;
+	uint8_t rdbuf[256];
+	int rdnum;
 
+	if ((event & READ_EVENT)) {
+		while (1) {
+			ret = read(pcli->m_sock, rdbuf, sizeof(rdbuf) - 1);
+			if (ret < 0) {
+				GETERRNO(ret);
+				if (ret == -EINTR || ret == -EAGAIN || ret == -EWOULDBLOCK) {
+					break;
+				}
+				ERROR_INFO("[%s:%d] read error[%d]", pcli->m_ip, pcli->m_port, ret);
+				goto fail;
+			} else if (ret == 0) {
+				ret = -EPIPE;
+				ERROR_INFO("[%s:%d] pipe broken", pcli->m_ip, pcli->m_port);
+				goto fail;
+			}
+			rdnum = ret;
+			rdbuf[rdnum] = '\0';
+			fprintf(stdout, "%s", rdbuf);
+		}
+	}
+
+	if ((event & WRITE_EVENT) != 0) {
+		if ((pcli->m_wleft - pcli->m_wcnt) > 0) {
+			ret = write(pcli->m_sock, &(pcli->m_pwbuf[pcli->m_wcnt]), pcli->m_wleft - pcli->m_wcnt);
+			if (ret < 0) {
+				GETERRNO(ret);
+				if (ret == -EINTR || ret == -EWOULDBLOCK || ret == -EAGAIN) {
+					return 0;
+				}
+				ERROR_INFO("write [%s:%d] error[%d]", pcli->m_ip, pcli->m_port, ret);
+				goto fail;
+			}
+			pcli->m_wcnt += ret;
+			if (pcli->m_wcnt == pcli->m_wleft) {
+				free(pcli->m_pwbuf);
+				pcli->m_pwbuf = NULL;
+				pcli->m_wcnt = 0;
+				pcli->m_wleft = 0;
+				delete_uxev_callback(pev, sock);
+				ret = add_uxev_callback(pev, pcli->m_sock, READ_EVENT,chat_cli_read, arg);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+			}
+		}
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
 }
 
-int chat_cli_read(void* pev,uint64_t sock,int event,void* arg)
+int chat_cli_read(void* pev, uint64_t sock, int event, void* arg)
 {
+	pchatcli_t pcli = (pchatcli_t) arg;
+	int ret;
+	uint8_t rdbuf[256];
+	int rdnum;
 
+
+
+	if ((event & READ_EVENT)) {
+		while (1) {
+			ret = read(pcli->m_sock, rdbuf, sizeof(rdbuf) - 1);
+			if (ret < 0) {
+				GETERRNO(ret);
+				if (ret == -EINTR || ret == -EAGAIN || ret == -EWOULDBLOCK) {
+					break;
+				}
+				ERROR_INFO("[%s:%d] read error[%d]", pcli->m_ip, pcli->m_port, ret);
+				goto fail;
+			} else if (ret == 0) {
+				ret = -EPIPE;
+				ERROR_INFO("[%s:%d] pipe broken", pcli->m_ip, pcli->m_port);
+				goto fail;
+			}
+
+			rdnum = ret;
+			rdbuf[rdnum] = '\0';
+			fprintf(stdout, "%s", rdbuf);
+		}
+	}
+
+	if ((pcli->m_wleft - pcli->m_wcnt) > 0) {
+		ret = write(pcli->m_sock, &(pcli->m_pwbuf[pcli->m_wcnt]), pcli->m_wleft - pcli->m_wcnt);
+		if (ret < 0) {
+			GETERRNO(ret);
+			if (ret == -EINTR || ret == -EWOULDBLOCK || ret == -EAGAIN) {
+				delete_uxev_callback(pev, sock);
+				ret = add_uxev_callback(pev, sock, READ_EVENT | WRITE_EVENT, chat_cli_write, arg);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				return 0;
+			}
+			ERROR_INFO("write [%s:%d] error[%d]", pcli->m_ip, pcli->m_port, ret);
+			goto fail;
+		}
+		pcli->m_wcnt += ret;
+		if (pcli->m_wcnt == pcli->m_wleft) {
+			free(pcli->m_pwbuf);
+			pcli->m_pwbuf = NULL;
+			pcli->m_wcnt = 0;
+			pcli->m_wleft = 0;
+		} else {
+			/*we have something to write*/
+			delete_uxev_callback(pev, sock);
+			ret = add_uxev_callback(pev, sock, READ_EVENT | WRITE_EVENT,chat_cli_write, arg);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
 }
 
-int chat_cli_input(void* pev,uint64_t fd, int event,void* arg)
+int chat_cli_input(void* pev, uint64_t fd, int event, void* arg)
 {
+	pchatcli_t pcli = (pchatcli_t) arg;
+	int ret;
+	uint8_t rdbuf[256];
+	int rdnum;
+	int wrnum;
+	uint8_t* pwbuf = NULL;
+	int i;
+	int allsize;
 
+	if ((event & READ_EVENT) != 0) {
+		while (1) {
+			ret = read(fd, rdbuf, sizeof(rdbuf) - 1);
+			if (ret < 0) {
+				GETERRNO(ret);
+				if (ret == -EINTR || ret == -EAGAIN || ret == -EWOULDBLOCK) {
+					break;
+				}
+				ERROR_INFO("[%s:%d] read error[%d]", pcli->m_ip, pcli->m_port, ret);
+				goto fail;
+			}
+			rdnum = ret;
+			if (rdnum > 0) {
+				if (pcli->m_pwbuf == NULL) {
+					if (pcli->m_connected == 0) {
+						/*not connected so we should do this*/
+						goto alloc_wbuf;
+					}
+					ret = write(pcli->m_sock, rdbuf, rdnum);
+					if (ret < 0) {
+						GETERRNO(ret);
+						if (ret == -EAGAIN || ret == -EWOULDBLOCK || ret == -EINTR) {
+							delete_uxev_callback(pev, pcli->m_sock);
+							ret = add_uxev_callback(pev, pcli->m_sock, READ_EVENT | WRITE_EVENT, chat_cli_write, arg);
+							if (ret < 0) {
+								GETERRNO(ret);
+								goto fail;
+							}
+							goto alloc_wbuf;
+						}
+						ERROR_INFO("write [%s:%d] error[%d]", pcli->m_ip, pcli->m_port, ret);
+						goto fail;
+					}
+					wrnum = ret ;
+					if (wrnum < rdnum) {
+						for (i = 0; i < (rdnum - wrnum); i++) {
+							rdbuf[i] = rdbuf[wrnum + i];
+						}
+						rdnum -= wrnum;
+						delete_uxev_callback(pev, pcli->m_sock);
+						ret = add_uxev_callback(pev, pcli->m_sock, READ_EVENT | WRITE_EVENT,chat_cli_write, arg);
+						if (ret < 0) {
+							GETERRNO(ret);
+							goto fail;
+						}
+						goto alloc_wbuf;
+					}
+				} else {
+alloc_wbuf:
+					allsize = pcli->m_wleft + rdnum;
+					pwbuf = (uint8_t*)malloc(allsize);
+					if (pwbuf == NULL) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					memset(pwbuf, 0, allsize);
+					if (pcli->m_wleft > 0) {
+						memcpy(pwbuf, pcli->m_pwbuf, pcli->m_wleft);
+					}
+					memcpy(&(pwbuf[pcli->m_wleft]), rdbuf, rdnum);
+					if (pcli->m_pwbuf) {
+						free(pcli->m_pwbuf);
+					}
+					pcli->m_pwbuf = pwbuf;
+					pwbuf = NULL;
+					pcli->m_wleft += rdnum;
+				}
+			} else {
+				break;
+			}
+		}
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
 }
+
 int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-	char* ip= "127.0.0.1";
+	char* ip = (char*)"127.0.0.1";
 	int port = 3390;
 	int ret;
 	pargs_options_t pargs = (pargs_options_t) popt;
+	pchatcli_t pcli = NULL;
+	void* pev=NULL;
+
 	init_log_verbose(pargs);
 
 	if (parsestate->leftargs) {
@@ -756,11 +1036,55 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		}
 	}
 
+	pev = init_uxev(0);
+	if (pev == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("can not init_uxev error[%d]",ret);
+		goto out;
+	}
 
+	pcli = __alloc_chatcli(ip,port,fileno(stdin));
+	if (pcli == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
 
+	if (pcli->m_connected) {
+		ret = add_uxev_callback(pev,pcli->m_sock,READ_EVENT,chat_cli_read,pcli);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+	} else {
+		ret = add_uxev_callback(pev,pcli->m_sock,WRITE_EVENT,chat_cli_connect,pcli);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+		ret = add_uxev_timer(pev,pargs->m_timeout,0,&(pcli->m_timeoutid),chat_cli_timeout,pcli);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+	}
+
+	ret = add_uxev_callback(pev,pcli->m_fd, READ_EVENT,chat_cli_input,pcli);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+	fprintf(stdout,">");
+	fflush(stdout);
+	ret = loop_uxev(pev);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
 
 	ret = 0;
 out:
+	free_uxev(&pev);
+	__free_chatcli(&pcli);
 	SETERRNO(ret);
 	return ret;
 }

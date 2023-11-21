@@ -14,6 +14,7 @@
 #define  UX_EV_MAGIC   0x99cde2123
 
 typedef struct __ux_ev_callback{
+	uint64_t m_evid;
 	int m_fd;
 	int m_event;
 	evt_callback_func_t m_callback;
@@ -32,12 +33,11 @@ typedef struct __ux_timer_callback {
 typedef struct __ux_ev {
 	uint32_t m_magic;
 	int m_exited;
-	int m_deleted;
 	int m_epollfd;
 	int m_evtnum;
 	int m_timernum;
 	int m_dummyfd;
-	uint64_t m_timeprodid;
+	uint64_t m_uuid;
 	pux_ev_callback_t* m_evtcall;
 	pux_timer_callback_t* m_timercall;
 } ux_ev_t,*pux_ev_t;
@@ -46,6 +46,7 @@ void __free_uxev_callback(pux_ev_callback_t* ppcallback)
 {
 	if (ppcallback && *ppcallback) {
 		pux_ev_callback_t pcallback = *ppcallback;
+		pcallback->m_evid = 0;
 		pcallback->m_fd = -1;
 		pcallback->m_event = 0;
 		pcallback->m_callback = NULL;
@@ -67,6 +68,7 @@ pux_ev_callback_t __alloc_uxcallback(int fd,int event,evt_callback_func_t callba
 		goto fail;
 	}
 	memset(pcallback,0,sizeof(*pcallback));
+	pcallback->m_evid = 0;
 	pcallback->m_fd = fd;
 	pcallback->m_event = event;
 	pcallback->m_callback = callback;
@@ -156,9 +158,8 @@ void __free_uxev_inner(pux_ev_t* ppev)
 			}
 			pev->m_timernum = 0;
 			pev->m_magic = 0;
-			pev->m_timeprodid = 1;
+			pev->m_uuid = 1;
 			pev->m_exited = 1;
-			pev->m_deleted = 0;
 			free(pev);
 			*ppev = NULL;
 		}
@@ -190,13 +191,12 @@ void* init_uxev(int flag)
 	pev->m_epollfd = -1;
 	pev->m_dummyfd = -1;
 	pev->m_exited = 0;
-	pev->m_deleted = 0;
 	pev->m_evtnum = 0;
 	pev->m_evtcall = NULL;
 	pev->m_timernum = 0;
 	pev->m_timercall = NULL;
 	/*we started from timer id*/
-	pev->m_timeprodid = 1;
+	pev->m_uuid = 1;
 
 	if ((flag & LIBEV_CLOEXEC) != 0) {
 		flags |= EPOLL_CLOEXEC;
@@ -238,12 +238,12 @@ fail:
 
 int add_uxev_timer(void* pev1,int interval,int conti,uint64_t* ptimeid,evt_callback_func_t callback,void* arg)
 {
-	uint64_t ntimerid=0;
 	int ntimernum = 0;
 	pux_timer_callback_t* pptimers = NULL;
 	int ret;
 	pux_timer_callback_t ptimer= NULL;
 	pux_ev_t pev = (pux_ev_t) pev1;
+	uint64_t ntimerid;
 
 	if (pev->m_magic != UX_EV_MAGIC) {
 		ret = -EINVAL;
@@ -263,9 +263,9 @@ int add_uxev_timer(void* pev1,int interval,int conti,uint64_t* ptimeid,evt_callb
 		goto fail;
 	}
 
-	ntimerid = pev->m_timeprodid ++;
-	ptimer->m_timerid = ntimerid;
-
+	ntimerid = pev->m_uuid;
+	ptimer->m_timerid = pev->m_uuid;
+	pev->m_uuid += 1;
 	ntimernum = pev->m_timernum + 1;
 
 	pptimers = (pux_timer_callback_t*) malloc(sizeof(*pptimers) * ntimernum);
@@ -335,7 +335,7 @@ int del_uxev_timer(void* pev1, uint64_t timerid)
 	}
 
 	__free_uxtimer_callback(&pev->m_timercall[fidx]);
-	for(i=0;i < (pev->m_timernum - 1);i++) {
+	for(i=fidx;i < (pev->m_timernum - 1);i++) {
 		pev->m_timercall[i] = pev->m_timercall[i+1];
 	}
 	pev->m_timercall[pev->m_timernum - 1] = NULL;
@@ -344,8 +344,7 @@ int del_uxev_timer(void* pev1, uint64_t timerid)
 		free(pev->m_timercall);
 		pev->m_timercall = NULL;
 	}
-	/*to make sure deleted*/
-	pev->m_deleted += 1;
+
 	return 1;
 }
 
@@ -387,6 +386,7 @@ int modi_uxev_timer_interval(void* pev1, uint64_t timeid, int interval)
 	}
 
 	pev->m_timercall[fidx]->m_interval = interval;
+	pev->m_timercall[fidx]->m_starttime = get_cur_ticks();
 	return 1;
 }
 
@@ -432,6 +432,9 @@ int add_uxev_callback(void* pev1,int fd,int event, evt_callback_func_t func,void
 		goto fail;
 	}
 
+	pcallback->m_evid = pev->m_uuid;
+	pev->m_uuid += 1;
+
 	memset(&evtinsert,0,sizeof(evtinsert));
 	evtinsert.events = 0;
 	if ((event & READ_EVENT)!= 0) {
@@ -464,7 +467,7 @@ int add_uxev_callback(void* pev1,int fd,int event, evt_callback_func_t func,void
 		memcpy(pparr,pev->m_evtcall,sizeof(*pparr) * pev->m_evtnum);
 	}
 
-	pparr[pev->m_evtnum] = pcallback;
+	pparr[pev->m_evtnum] = pcallback;	
 	pcallback = NULL;
 	if (pev->m_evtcall) {
 		free(pev->m_evtcall);
@@ -497,6 +500,19 @@ int __find_fd_callback(pux_ev_t pev,int fd)
 	int i;
 	for(i=0;i<pev->m_evtnum;i++) {
 		if (pev->m_evtcall[i]->m_fd == fd) {
+			fidx = i;
+			break;
+		}
+	}
+	return fidx;
+}
+
+int __find_uuid_callback(pux_ev_t pev, uint64_t uuid)
+{
+	int fidx = -1;
+	int i;
+	for(i=0;i<pev->m_evtnum;i++) {
+		if (pev->m_evtcall[i]->m_evid == uuid) {
 			fidx = i;
 			break;
 		}
@@ -550,8 +566,6 @@ int delete_uxev_callback(void* pev1,int fd)
 		free(pev->m_evtcall);
 		pev->m_evtcall = NULL;
 	}
-	/*to make sure we modified the functions*/
-	pev->m_deleted += 1;
 	return 1;
 }
 
@@ -594,12 +608,17 @@ int loop_uxev(void* pev1)
 	int ret;
 	pux_ev_t pev = (pux_ev_t)pev1;
 	struct epoll_event *pmostevt = NULL;
-	int maxepolnum = 4;
+	uint64_t* puuids=NULL;
+	uint64_t* ptimerids=NULL;
+	int timercnt=0;
+	int maxepollnum = 4;
 	int waitmills = 0;
 	int fidx=-1;
 	int i;
 	int notievt;
 	int timeleft;
+	int evnum;
+	int timenum;
 
 
 	if (pev->m_magic != UX_EV_MAGIC) {
@@ -609,22 +628,38 @@ int loop_uxev(void* pev1)
 	}
 
 	if (pev->m_evtnum > 16) {
-		maxepolnum = pev->m_evtnum >> 2;
+		maxepollnum = pev->m_evtnum >> 2;
 	}
 
-	pmostevt = (struct epoll_event* ) malloc(sizeof(*pmostevt) * maxepolnum);
+	pmostevt = (struct epoll_event* ) malloc(sizeof(*pmostevt) * maxepollnum);
 	if (pmostevt == NULL) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
+	puuids = (uint64_t*)malloc(sizeof(*puuids) * maxepollnum);
+	if (puuids == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	timercnt = pev->m_timernum;
+	if (timercnt > 0) {
+		ptimerids = (uint64_t*) malloc(sizeof(*ptimerids) * timercnt);
+		if (ptimerids == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+
+
 	while(pev->m_exited == 0) {
-		/*we handled all the deleted*/
-		pev->m_deleted = 0;
 		/*for most at 30 seconds*/
 		waitmills = __get_max_wait_mills(pev,30000);
+		memset(pmostevt,0,sizeof(*pmostevt) * maxepollnum);
 		SETERRNO(0);
-		ret = epoll_wait(pev->m_epollfd,pmostevt,maxepolnum,waitmills);
+		ret = epoll_wait(pev->m_epollfd,pmostevt,maxepollnum,waitmills);
 		if (ret < 0) {
 			GETERRNO_DIRECT(ret);
 			if (ret == 0) {
@@ -637,13 +672,54 @@ int loop_uxev(void* pev1)
 			goto fail;
 		}
 
+		evnum = 0;
 		if (ret > 0) {
-			for (i=0;i<ret;i++) {
-				if (pev->m_deleted > 0) {
-					/*it deleted so we not get right now*/
-					goto next_cycle;
-				}
+			evnum = ret;
+			for(i=0;i<evnum;i++) {
 				fidx = __find_fd_callback(pev,pmostevt[i].data.fd);
+				if (fidx >= 0) {
+					puuids[i] = pev->m_evtcall[i]->m_evid;
+				}
+			}
+		}
+
+		timenum = 0;
+		if (timercnt < pev->m_timernum) {
+			timercnt = pev->m_timernum;
+			if (ptimerids) {
+				free(ptimerids);
+			}
+			ptimerids = NULL;
+			ptimerids = (uint64_t*)malloc(sizeof(*ptimerids) * timercnt);
+			if (ptimerids == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		} else if (timercnt > (pev->m_timernum >> 1))  {
+			timercnt = pev->m_timernum;
+			if (ptimerids) {
+				free(ptimerids);
+			}
+			ptimerids = NULL;
+			ptimerids = (uint64_t*)malloc(sizeof(*ptimerids) * timercnt);
+			if (ptimerids == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+
+		for(i=0;i<pev->m_timernum;i++) {
+			timeleft = time_left(pev->m_timercall[i]->m_starttime,pev->m_timercall[i]->m_interval);
+			if (timeleft < 0) {
+				ptimerids[timenum] = pev->m_timercall[i]->m_timerid;
+				timenum ++;
+			}
+		}
+
+
+		if (evnum > 0) {
+			for (i=0;i<evnum;i++) {
+				fidx = __find_uuid_callback(pev,puuids[i]);
 				if (fidx >= 0) {
 					notievt = 0;
 					if ((pmostevt[i].events & EPOLLIN) != 0 ) {
@@ -661,33 +737,37 @@ int loop_uxev(void* pev1)
 						goto fail;
 					}
 				}
-			}
+			}			
 		}
 
-		for(i=0;i<pev->m_timernum;i++) {
-			if (pev->m_deleted) {
-				/*has modified so we should give next cycle*/
-				goto next_cycle;
-			}
-			timeleft = time_left(pev->m_timercall[i]->m_starttime,pev->m_timercall[i]->m_interval);
-			if (timeleft < 0) {
-				ret = pev->m_timercall[i]->m_callback(pev1,pev->m_timercall[i]->m_timerid,TIME_EVENT,pev->m_timercall[i]->m_arg);
+		for(i=0;i<timenum;i++) {
+			fidx = __find_timer_idx(pev,ptimerids[i]);
+			if (fidx >= 0) {
+				ret = pev->m_timercall[fidx]->m_callback(pev1,pev->m_timercall[fidx]->m_timerid,TIME_EVENT,pev->m_timercall[fidx]->m_arg);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
 				}
-				if (pev->m_timercall[i]->m_conti == 0) {
+				if (pev->m_timercall[fidx]->m_conti == 0) {
 					del_uxev_timer(pev1,pev->m_timercall[i]->m_timerid);
 				} else {
 					/*we start next cycle*/
-					pev->m_timercall[i]->m_starttime = get_cur_ticks();
+					pev->m_timercall[fidx]->m_starttime = get_cur_ticks();
 				}
 			}
 		}
-	next_cycle:
-		pev1 = pev1;
 	}
 
+
+	if (puuids) {
+		free(puuids);
+	}
+	puuids = NULL;
+
+	if (ptimerids) {
+		free(ptimerids);
+	}
+	ptimerids = NULL;
 
 	if (pmostevt) {
 		free(pmostevt);
@@ -696,6 +776,16 @@ int loop_uxev(void* pev1)
 
 	return 0;
 fail:
+	if (puuids) {
+		free(puuids);
+	}
+	puuids = NULL;
+
+	if (ptimerids) {
+		free(ptimerids);
+	}
+	ptimerids = NULL;
+
 	if (pmostevt) {
 		free(pmostevt);
 	}
