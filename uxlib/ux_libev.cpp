@@ -125,44 +125,44 @@ void __free_uxev_inner(pux_ev_t* ppev)
 	if (ppev && *ppev) {
 		pux_ev_t pev = *ppev;
 		int i;
-		if (pev->m_magic == UX_EV_MAGIC) {
-			if (pev->m_epollfd >= 0) {
-				close(pev->m_epollfd);
-			}
-			pev->m_epollfd = -1;
-
-			if (pev->m_dummyfd >= 0) {
-				close(pev->m_dummyfd);
-			}
-			pev->m_dummyfd = -1;
-
-			if (pev->m_evtcall) {
-				for (i = 0; i < pev->m_evtnum; i++) {
-					if (pev->m_evtcall[i]) {
-						__free_uxev_callback(&(pev->m_evtcall[i]));
-					}
-				}
-				free(pev->m_evtcall);
-				pev->m_evtcall = NULL;
-			}
-			pev->m_evtnum = 0;
-
-			if (pev->m_timercall) {
-				for (i = 0; i < pev->m_timernum; i++) {
-					if (pev->m_timercall[i]) {
-						__free_uxtimer_callback(&(pev->m_timercall[i]));
-					}
-				}
-				free(pev->m_timercall);
-				pev->m_timercall = NULL;
-			}
-			pev->m_timernum = 0;
-			pev->m_magic = 0;
-			pev->m_uuid = 1;
-			pev->m_exited = 1;
-			free(pev);
-			*ppev = NULL;
+		//ERROR_INFO("magic 0x%x UX_EV_MAGIC 0x%x", pev->m_magic, UX_EV_MAGIC);
+		//ERROR_INFO(" ");
+		if (pev->m_epollfd >= 0) {
+			close(pev->m_epollfd);
 		}
+		pev->m_epollfd = -1;
+
+		if (pev->m_dummyfd >= 0) {
+			close(pev->m_dummyfd);
+		}
+		pev->m_dummyfd = -1;
+
+		if (pev->m_evtcall) {
+			for (i = 0; i < pev->m_evtnum; i++) {
+				if (pev->m_evtcall[i]) {
+					__free_uxev_callback(&(pev->m_evtcall[i]));
+				}
+			}
+			free(pev->m_evtcall);
+			pev->m_evtcall = NULL;
+		}
+		pev->m_evtnum = 0;
+
+		if (pev->m_timercall) {
+			for (i = 0; i < pev->m_timernum; i++) {
+				if (pev->m_timercall[i]) {
+					__free_uxtimer_callback(&(pev->m_timercall[i]));
+				}
+			}
+			free(pev->m_timercall);
+			pev->m_timercall = NULL;
+		}
+		pev->m_timernum = 0;
+		pev->m_magic = 0;
+		pev->m_uuid = 1;
+		pev->m_exited = 1;
+		free(pev);
+		*ppev = NULL;
 	}
 }
 
@@ -245,11 +245,6 @@ int add_uxev_timer(void* pev1, int interval, int conti, uint64_t* ptimeid, evt_c
 	pux_ev_t pev = (pux_ev_t) pev1;
 	uint64_t ntimerid;
 
-	if (pev->m_magic != UX_EV_MAGIC) {
-		ret = -EINVAL;
-		SETERRNO(ret);
-		return ret;
-	}
 
 	if (callback == NULL || interval <= 0) {
 		ret = -EINVAL;
@@ -317,16 +312,11 @@ int __find_timer_idx(pux_ev_t pev, uint64_t timeid)
 
 int del_uxev_timer(void* pev1, uint64_t timerid)
 {
-	int ret = 0;
+	//int ret = 0;
 	int fidx = -1;
 	int i;
 	pux_ev_t pev = (pux_ev_t)pev1;
 
-	if (pev->m_magic != UX_EV_MAGIC) {
-		ret = -EINVAL;
-		SETERRNO(ret);
-		return ret;
-	}
 
 	fidx =  __find_timer_idx(pev, timerid);
 	if (fidx < 0) {
@@ -353,7 +343,7 @@ int modi_uxev_timer_callback(void* pev1, uint64_t timeid, evt_callback_func_t ca
 	int fidx = -1;
 	pux_ev_t pev = (pux_ev_t)pev1;
 	int ret;
-	if (pev->m_magic != UX_EV_MAGIC || callback == NULL) {
+	if ( callback == NULL) {
 		ret = -EINVAL;
 		SETERRNO(ret);
 		return ret;
@@ -374,7 +364,7 @@ int modi_uxev_timer_interval(void* pev1, uint64_t timeid, int interval)
 	int fidx = -1;
 	pux_ev_t pev = (pux_ev_t)pev1;
 	int ret;
-	if (pev->m_magic != UX_EV_MAGIC || interval <= 0) {
+	if ( interval <= 0) {
 		ret = -EINVAL;
 		SETERRNO(ret);
 		return ret;
@@ -395,7 +385,7 @@ int modi_uxev_timer_conti(void* pev1, uint64_t timeid, int conti)
 	int fidx = -1;
 	pux_ev_t pev = (pux_ev_t)pev1;
 	int ret;
-	if (pev->m_magic != UX_EV_MAGIC || conti < 0) {
+	if ( conti < 0) {
 		ret = -EINVAL;
 		SETERRNO(ret);
 		return ret;
@@ -420,8 +410,17 @@ int add_uxev_callback(void* pev1, int fd, int event, evt_callback_func_t func, v
 	int ret;
 	int res;
 	struct epoll_event evtinsert;
-	if (pev->m_magic != UX_EV_MAGIC || fd < 0 || func == NULL ) {
+
+	if (fd < 0) {
 		ret = -EINVAL;
+		ERROR_INFO("fd %d", fd);
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (func == NULL) {
+		ret = -EINVAL;
+		ERROR_INFO("func %p", func);
 		SETERRNO(ret);
 		return ret;
 	}
@@ -429,6 +428,7 @@ int add_uxev_callback(void* pev1, int fd, int event, evt_callback_func_t func, v
 	pcallback = __alloc_uxcallback(fd, event, func, args);
 	if (pcallback == NULL) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	}
 
@@ -446,6 +446,7 @@ int add_uxev_callback(void* pev1, int fd, int event, evt_callback_func_t func, v
 	if ((event & ERROR_EVENT) != 0) {
 		evtinsert.events |= EPOLLERR;
 	}
+	evtinsert.events |= EPOLLET;
 	evtinsert.data.fd = fd;
 
 	ret = epoll_ctl(pev->m_epollfd, EPOLL_CTL_ADD, fd, &evtinsert);
@@ -460,6 +461,7 @@ int add_uxev_callback(void* pev1, int fd, int event, evt_callback_func_t func, v
 	pparr = (pux_ev_callback_t*) malloc(sizeof(*pparr) * nsize);
 	if (pparr == NULL ) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	}
 	memset(pparr, 0, sizeof(*pparr) * nsize);
@@ -527,7 +529,7 @@ int delete_uxev_callback(void* pev1, int fd)
 	struct epoll_event evtremove;
 	int fidx = -1;
 	int i;
-	if (pev->m_magic != UX_EV_MAGIC || fd < 0 ) {
+	if ( fd < 0 ) {
 		ret = -EINVAL;
 		SETERRNO(ret);
 		return ret;
@@ -572,12 +574,8 @@ int delete_uxev_callback(void* pev1, int fd)
 int break_uxev(void* pev1)
 {
 	pux_ev_t pev = (pux_ev_t)pev1;
-	int ret;
-	if (pev->m_magic != UX_EV_MAGIC) {
-		ret = -EINVAL;
-		SETERRNO(ret);
-		return ret;
-	}
+	//int ret;
+
 	pev->m_exited = 1;
 	return 0;
 }
@@ -619,13 +617,9 @@ int loop_uxev(void* pev1)
 	int timeleft;
 	int evnum;
 	int timenum;
+	int uuidcnt=0;
 
 
-	if (pev->m_magic != UX_EV_MAGIC) {
-		ret = -EINVAL;
-		SETERRNO(ret);
-		return ret;
-	}
 
 	if (pev->m_evtnum > 16) {
 		maxepollnum = pev->m_evtnum >> 2;
@@ -673,12 +667,14 @@ int loop_uxev(void* pev1)
 		}
 
 		evnum = 0;
+		uuidcnt = 0;
 		if (ret > 0) {
 			evnum = ret;
 			for (i = 0; i < evnum; i++) {
 				fidx = __find_fd_callback(pev, pmostevt[i].data.fd);
 				if (fidx >= 0) {
-					puuids[i] = pev->m_evtcall[i]->m_evid;
+					puuids[uuidcnt] = pev->m_evtcall[fidx]->m_evid;
+					uuidcnt ++;
 				}
 			}
 		}
@@ -717,8 +713,8 @@ int loop_uxev(void* pev1)
 		}
 
 
-		if (evnum > 0) {
-			for (i = 0; i < evnum; i++) {
+		if (uuidcnt > 0) {
+			for (i = 0; i < uuidcnt; i++) {
 				fidx = __find_uuid_callback(pev, puuids[i]);
 				if (fidx >= 0) {
 					notievt = 0;
@@ -753,7 +749,7 @@ int loop_uxev(void* pev1)
 		}
 
 		for (i = 0; i < timenum; i++) {
-			fidx = __find_timer_idx(pev,ptimerids[i]);
+			fidx = __find_timer_idx(pev, ptimerids[i]);
 			if (fidx >= 0) {
 				if (pev->m_timercall[fidx]->m_conti == 0) {
 					del_uxev_timer(pev1, pev->m_timercall[i]->m_timerid);

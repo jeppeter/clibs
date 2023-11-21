@@ -1,6 +1,7 @@
 
 int exit_fd_notify(void* pev, uint64_t fd, int event, void* arg)
 {
+	ERROR_INFO("exit_fd_notify");
 	break_uxev(pev);
 	return 0;
 }
@@ -422,15 +423,16 @@ int read_server_notify(void* pev, uint64_t sock, int event, void* arg)
 		SETERRNO(0);
 		poldcli = __find_server_client(psvr, sock);
 		if (poldcli != NULL) {
-			ret = read(sock, rbuf, sizeof(rbuf));
+			ret = read(sock, rbuf, sizeof(rbuf)-1);
 			if (ret < 0) {
 				GETERRNO_DIRECT(ret);
 				if (ret == -EAGAIN || ret == -EWOULDBLOCK || ret == 0) {
 					return 0;
 				}
 				fprintf(stderr, "read sock error[%d]\n", ret);
-				goto fail;
+				goto close_socket;
 			} else if (ret == 0) {
+			close_socket:
 				ret = delete_uxev_callback(pev, sock);
 				if (ret < 0) {
 					GETERRNO(ret);
@@ -442,11 +444,15 @@ int read_server_notify(void* pev, uint64_t sock, int event, void* arg)
 					goto fail;
 				}
 			} else {
+				rlen = ret;
+				rbuf[rlen] = 0;
+				DEBUG_INFO("read [%s]",rbuf);
 				ret = __add_server_client_write_buffer(poldcli, (uint8_t*)rbuf, rlen);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
 				}
+				DEBUG_BUFFER_FMT(poldcli->m_pwbuf,poldcli->m_wleft,"write %d socket",sock);
 				ret = write(sock, poldcli->m_pwbuf, poldcli->m_wleft);
 				if (ret < 0) {
 					if (ret == -EWOULDBLOCK || ret == -EAGAIN) {
@@ -522,8 +528,9 @@ int accept_server_notify(void* pev, uint64_t fd, int event, void* arg)
 	pchat_svr_t psvr = (pchat_svr_t) arg;
 	socklen = sizeof(addr);
 	memset(&addr, 0, sizeof(addr));
-	SETERRNO(0);
-	connectfd = accept(fd, (struct sockaddr*)&addr, &socklen);
+	DEBUG_INFO("m_bindsock %d accept",psvr->m_bindsock);
+	SETERRNO(0);	
+	connectfd = accept(psvr->m_bindsock, (struct sockaddr*)&addr, &socklen);
 	if (connectfd < 0) {
 		GETERRNO_DIRECT(ret);
 		if (ret == -EAGAIN || ret == -EWOULDBLOCK || ret == -EINTR || ret == 0) {
@@ -541,6 +548,16 @@ int accept_server_notify(void* pev, uint64_t fd, int event, void* arg)
 		connectfd = -1;
 		return 0;
 	}
+
+	flags = 1;
+	ret = setsockopt(connectfd,IPPROTO_TCP,TCP_NODELAY,&flags,sizeof(flags));
+	if (ret < 0) {
+		close(connectfd);
+		connectfd = -1;
+		return 0;
+	}
+
+	DEBUG_INFO("accept fd %d",connectfd);
 
 	ret = add_server_client_socket(psvr, connectfd);
 	if (ret < 0) {
@@ -576,6 +593,7 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	void* pev = NULL;
 	int exitfd = -1;
 	pchat_svr_t psvr = NULL;
+	int flags;
 
 	init_log_verbose(pargs);
 
@@ -585,6 +603,12 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
 	exitfd = init_sighandler();
 	if (exitfd < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+	flags = fcntl(exitfd,F_GETFD);
+	ret = fcntl(exitfd,F_SETFD,flags | O_NONBLOCK);
+	if (ret < 0) {
 		GETERRNO(ret);
 		goto out;
 	}
@@ -612,12 +636,15 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	ret = add_uxev_callback(pev, psvr->m_bindsock, READ_EVENT, accept_server_notify, psvr);
 	if (ret < 0) {
 		GETERRNO(ret);
+		ERROR_INFO("add_uxev_callback error[%d]",ret);
 		goto out;
 	}
 
+	DEBUG_INFO("exitfd %d m_bindsock %d",exitfd, psvr->m_bindsock);
 	ret = loop_uxev(pev);
 	if (ret < 0) {
 		GETERRNO(ret);
+		ERROR_INFO("loop_uxev error[%d]",ret);
 		goto out;
 	}
 	ret = 0;
@@ -673,7 +700,6 @@ pchatcli_t __alloc_chatcli(const char* ip, int port, int readfd)
 	pchatcli_t pcli = NULL;
 	int ret;
 	struct sockaddr_in sinaddr;
-	int error;
 	int flags;
 
 	pcli = (pchatcli_t) malloc(sizeof(*pcli));
@@ -713,13 +739,6 @@ pchatcli_t __alloc_chatcli(const char* ip, int port, int readfd)
 		goto fail;
 	}
 
-	error = 0;
-	ret = setsockopt(pcli->m_sock,SOL_SOCKET,SO_ERROR,&error,sizeof(error));
-	if (ret < 0) {
-		GETERRNO(ret);
-		ERROR_INFO("setsockopt error[%d]", ret);
-		goto fail;
-	}
 
 	memset(&sinaddr,0,sizeof(sinaddr));
 	sinaddr.sin_family = AF_INET;
@@ -865,8 +884,7 @@ int chat_cli_read(void* pev, uint64_t sock, int event, void* arg)
 	uint8_t rdbuf[256];
 	int rdnum;
 
-
-
+	DEBUG_INFO("call chat_cli_read");
 	if ((event & READ_EVENT)) {
 		while (1) {
 			ret = read(pcli->m_sock, rdbuf, sizeof(rdbuf) - 1);
@@ -1047,24 +1065,30 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	pcli = __alloc_chatcli(ip,port,fileno(stdin));
 	if (pcli == NULL) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto out;
 	}
 
 	if (pcli->m_connected) {
+		DEBUG_INFO("add chat_cli_read");
 		ret = add_uxev_callback(pev,pcli->m_sock,READ_EVENT,chat_cli_read,pcli);
 		if (ret < 0) {
 			GETERRNO(ret);
+			ERROR_INFO(" ");
 			goto out;
 		}
 	} else {
+		DEBUG_INFO("add chat_cli_connect");
 		ret = add_uxev_callback(pev,pcli->m_sock,WRITE_EVENT,chat_cli_connect,pcli);
 		if (ret < 0) {
 			GETERRNO(ret);
+			ERROR_INFO(" ");
 			goto out;
 		}
 		ret = add_uxev_timer(pev,pargs->m_timeout,0,&(pcli->m_timeoutid),chat_cli_timeout,pcli);
 		if (ret < 0) {
 			GETERRNO(ret);
+			ERROR_INFO(" ");
 			goto out;
 		}
 	}

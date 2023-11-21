@@ -24,6 +24,7 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/ioctl.h>
@@ -188,6 +189,7 @@ void sig_handler(int signum)
 {
     uint64_t lval=1;
     if (signum == SIGINT && st_evtfd >= 0) {
+        ERROR_INFO("call SIGINT");
         write(st_evtfd,&lval,sizeof(lval));
     }
     return ;
