@@ -779,6 +779,7 @@ int chat_cli_connect(void* pev, uint64_t sock, int event, void* arg)
 	}
 
 	/*now we should */
+	del_uxev_timer(pev,pcli->m_timeoutid);
 	delete_uxev_callback(pev, sock);
 	if (pcli->m_pwbuf != NULL) {
 		ret = add_uxev_callback(pev,sock,READ_EVENT | WRITE_EVENT,chat_cli_write,arg);
