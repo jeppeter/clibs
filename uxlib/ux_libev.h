@@ -11,6 +11,7 @@ extern "C" {
 #define   WRITE_EVENT            2
 #define   ERROR_EVENT            4
 #define   TIME_EVENT             8
+#define   ET_TRIGGER             0x80
 
 #define   LIBEV_CLOEXEC          1
 

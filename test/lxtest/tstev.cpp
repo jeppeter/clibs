@@ -1,7 +1,7 @@
 
 int exit_fd_notify(void* pev, uint64_t fd, int event, void* arg)
 {
-	ERROR_INFO("exit_fd_notify");
+	DEBUG_INFO("exit_fd_notify");
 	break_uxev(pev);
 	return 0;
 }
@@ -903,7 +903,9 @@ int chat_cli_read(void* pev, uint64_t sock, int event, void* arg)
 
 			rdnum = ret;
 			rdbuf[rdnum] = '\0';
-			fprintf(stdout, "%s", rdbuf);
+			fprintf(stdout, "%s>", rdbuf);
+			fflush(stdout);
+			break;
 		}
 	}
 
@@ -990,6 +992,7 @@ int chat_cli_input(void* pev, uint64_t fd, int event, void* arg)
 						goto fail;
 					}
 					wrnum = ret ;
+					DEBUG_INFO("wrnum %d rdnum %d",wrnum,rdnum);
 					if (wrnum < rdnum) {
 						for (i = 0; i < (rdnum - wrnum); i++) {
 							rdbuf[i] = rdbuf[wrnum + i];
@@ -1023,9 +1026,8 @@ alloc_wbuf:
 					pwbuf = NULL;
 					pcli->m_wleft += rdnum;
 				}
-			} else {
-				break;
-			}
+			} 
+			break;			
 		}
 	}
 

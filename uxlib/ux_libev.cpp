@@ -220,6 +220,7 @@ void* init_uxev(int flag)
 	memset(&evt, 0, sizeof(evt));
 	evt.events = EPOLLIN;
 	evt.data.fd = pev->m_dummyfd;
+	DEBUG_BUFFER_FMT(&evt,sizeof(evt),"add dummyfd");
 
 	ret = epoll_ctl(pev->m_epollfd, EPOLL_CTL_ADD, pev->m_dummyfd, &evt);
 	if (ret < 0) {
@@ -446,8 +447,14 @@ int add_uxev_callback(void* pev1, int fd, int event, evt_callback_func_t func, v
 	if ((event & ERROR_EVENT) != 0) {
 		evtinsert.events |= EPOLLERR;
 	}
-	evtinsert.events |= EPOLLET;
+
+	if ((event & ET_TRIGGER) != 0) {
+		evtinsert.events |= EPOLLET;
+	}
+	//evtinsert.events |= EPOLLET;
 	evtinsert.data.fd = fd;
+
+	DEBUG_BUFFER_FMT(&evtinsert,sizeof(evtinsert),"add fd %d",fd);
 
 	ret = epoll_ctl(pev->m_epollfd, EPOLL_CTL_ADD, fd, &evtinsert);
 	if (ret < 0) {
@@ -670,7 +677,9 @@ int loop_uxev(void* pev1)
 		uuidcnt = 0;
 		if (ret > 0) {
 			evnum = ret;
+			DEBUG_BUFFER_FMT(pmostevt,sizeof(*pmostevt)* evnum,"most evt");
 			for (i = 0; i < evnum; i++) {
+				DEBUG_INFO("[%d].[%d] fd [%d]",evnum,i,pmostevt[i].data.fd);
 				fidx = __find_fd_callback(pev, pmostevt[i].data.fd);
 				if (fidx >= 0) {
 					puuids[uuidcnt] = pev->m_evtcall[fidx]->m_evid;
