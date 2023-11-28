@@ -24,6 +24,7 @@ private:
 	int __pick_write_buf();
 	int __write_buffer();
 	static void __log_file_write(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* args);
+	static void __log_file_timeout(HANDLE hd,libev_enum_event_t evt,void* pevmain,void* args);
 	int __log_file_impl();
 	int __reopen_file();
 	int __start_write();

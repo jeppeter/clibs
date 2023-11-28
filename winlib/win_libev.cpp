@@ -20,22 +20,244 @@
 #pragma warning(disable:5045)
 #endif
 
+typedef struct __libev_evt_call {
+    uint64_t m_guid;
+    HANDLE m_handle;
+    libev_evt_callback_t m_func;
+    void* m_args;
+} libev_evt_call_t,*plibev_evt_call_t;
+
+typedef struct __libev_evt_timer {
+    uint64_t m_guid;
+    libev_evt_timer_t m_func;
+    void* m_args;
+    uint64_t m_startticks;
+    uint32_t m_interval;
+    int m_conti;
+} libev_evt_timer_t,*plibev_evt_timer_t;
+
 typedef struct __libev_win_ev{
     int m_exited;
     uint32_t m_waitsize;
+    uint64_t m_guid;
     HANDLE *m_pwaits;
     HANDLE m_htmevt;
-    std::vector<HANDLE> *m_phandle_vec;
-    std::vector<libev_evt_callback_t> *m_pfunc_vec;
-    std::vector<void*> *m_pargs_vec;
-    std::vector<uint64_t> *m_pmills_vec;
-    std::vector<libev_evt_callback_t> *m_ptimer_func_vec;
-    std::vector<void*> *m_ptimer_args_vec;
-    std::vector<uint64_t> *m_ptimer_mills_vec;
-    std::vector<uint32_t> *m_ptimer_time_vec;
+    std::vector<plibev_evt_timer_t> *m_ptimers;
+    std::vector<plibev_evt_call_t> *m_pcallers;
 } libev_win_ev_t,*plibev_win_ev_t;
 
 
+void __free_winev_timer(plibev_evt_timer_t* pptimer)
+{
+    if (pptimer && *pptimer) {
+        plibev_evt_timer_t ptimer = *pptimer;
+        ptimer->m_guid = 0;
+        ptimer->m_func = NULL;
+        ptimer->m_args = NULL;
+        ptimer->m_startticks = 0;
+        ptimer->m_interval = 0;
+        ptimer->m_conti = 0;
+        free(ptimer);
+        *pptimer = NULL;
+    }
+    return;
+}
+
+void __free_winev_call(plibev_evt_call_t* ppcaller)
+{
+    if (ppcaller && *ppcaller) {
+        plibev_evt_call_t pcaller = *ppcaller;
+        pcaller->m_guid = 0;
+        pcaller->m_handle = NULL;
+        pcaller->m_func = NULL;
+        pcaller->m_args = NULL;
+        free(pcaller);
+        *ppcaller = NULL;
+    }
+    return ;
+}
+
+void __free_winev(plibev_win_ev_t* ppev)
+{
+    if (ppev && *ppev) {
+        plibev_win_ev_t pev = *ppev;
+        if (pev->m_ptimers != NULL) {
+            while(pev->m_ptimers->size() > 0) {
+                plibev_evt_timer_t ptimer = pev->m_ptimers->at(0);
+                pev->m_ptimers->erase(pev->m_ptimers->begin());
+                __free_winev_timer(&ptimer);
+                ptimer = NULL;
+            }
+            delete pev->m_ptimers;
+            pev->m_ptimers = NULL;
+        }
+
+        if (pev->m_pcallers != NULL) {
+            while(pev->m_pcallers->size() > 0) {
+                plibev_evt_call_t pcall = pev->m_pcallers->at(0);
+                pev->m_pcallers->erase(pev->m_pcallers->begin());
+                __free_winev_call(&pcall);                
+            }
+            delete pev->m_pcallers;
+            pev->m_pcallers = NULL;
+        }
+
+        if (pev->m_pwaits) {
+            free(pev->m_pwaits);
+        }
+        pev->m_pwaits = NULL;
+        pev->m_waitsize = 0;
+
+        if (pev->m_htmevt != NULL) {
+            CloseHandle(pev->m_htmevt);
+        }
+        pev->m_htmevt = NULL;
+        pev->m_exited = 0;
+        pev->m_guid = 0;
+        free(pev);
+        *ppev = NULL;
+    }
+    return ;
+}
+
+plibev_win_ev_t __alloc_winev()
+{
+    plibev_win_ev_t pev = NULL;
+    int ret;
+
+    pev = (plibev_win_ev_t)malloc(sizeof(*pev));
+    if (pev == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(pev,0,sizeof(*pev));
+    pev->m_exited = 0;
+    pev->m_waitsize = 0;
+    pev->m_pwaits = NULL;
+    pev->m_htmevt = CreateEvent(NULL,TRUE,TRUE,NULL);
+    if (pev->m_htmevt == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("cannot create htmevt");
+        goto fail;
+    }
+
+    pev->m_ptimers = new std::vector<plibev_evt_timer_t>();
+    pev->m_pcallers = new std::vector<plibev_evt_call_t>();
+    return pev;
+fail:
+    __free_winev(&pev);
+    SETERRNO(ret);
+    return NULL;
+}
+
+
+void libev_free_winev(void** ppevmain)
+{
+    plibev_win_ev_t* ppev = (plibev_win_ev_t) ppevmain;
+    __free_winev(ppev);
+    return ;
+}
+
+void* libev_init_winev()
+{
+    return (void*) __alloc_winev();
+}
+
+
+plibev_evt_timer_t __alloc_winev_timer(libev_evt_timer_t pfunc,void* args,uint32_t interval, int conti)
+{
+    plibev_evt_timer_t ptimer = NULL;
+    int ret;
+
+    ptimer = (plibev_evt_timer_t) malloc(sizeof(*ptimer));
+    if (ptimer == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    memset(ptimer, 0, sizeof(*ptimer));
+    ptimer->m_guid = 0;
+    ptimer->m_func = pfunc;
+    ptimer->m_args = args;
+    ptimer->m_interval = interval;
+    ptimer->m_conti = conti;
+    ptimer->m_startticks = get_current_ticks();
+
+    return ptimer;
+fail:
+    __free_winev_timer(&ptimer);
+    SETERRNO(ret);
+    return NULL;
+}
+
+int libev_insert_timer(void* pevmain,unit64_t* pguid,libev_evt_timer_t pfunc,void* args,uint32_t timemills,int conti)
+{
+    plibev_evt_timer_t ptimer = NULL;
+    int ret;
+    plibev_win_ev_t pev = (plibev_win_ev_t) pevmain;
+
+    if (pguid == NULL || pfunc == NULL || timemills == 0 || pev == NULL)  {
+        ret = -ERROR_INVALID_PARAMETERS;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ptimer = __alloc_winev_timer(pfunc,args,timemills,conti);
+    if (ptimer == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pev->m_guid += 1;
+    ptimer->m_guid = pev->m_guid;
+    pev->m_ptimers->push(ptimer);
+    ptimer = NULL;
+
+    *pguid = pev->m_guid;
+    return 1;
+fail:
+    __free_winev_timer(&ptimer);
+    SETERRNO(ret);
+    return ret;
+}
+
+plibev_evt_call_t __alloc_winev_call(HANDLE hd,libev_evt_callback_t pfunc, void* args)
+{
+    plibev_evt_call_t pcall = NULL;
+
+    pcall =(plibev_evt_call_t) malloc(sizeof(*pcall));
+    if (pcall == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(pcall, 0 ,sizeof(*pcall));
+    pcall->m_guid = 0;
+
+    return pcall;
+fail:
+    __free_winev_call(&pcall);
+    SETERRNO(ret);
+    return NULL;
+}
+
+int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void* args)
+{
+
+}
+
+
+/**************************************************************/
+/**************************************************************/
+/**************************************************************/
+/**************************************************************/
+/**************************************************************/
+/**************************************************************/
+/**************************************************************/
+/**************************************************************/
+/**************************************************************/
+/**************************************************************/
+/**************************************************************/
+/**************************************************************/
 
 /*we should at least 10 second timer*/
 #define  MINIMUM_TIMER_VALUE   ((uint32_t)10000)
