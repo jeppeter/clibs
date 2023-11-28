@@ -473,9 +473,11 @@ int libev_winev_loop(void* pevmain)
             if (pev->m_waitnum > 0) {
                 hd = pev->m_pwaits[(dret - WAIT_OBJECT_0)];
             }
-        } else if (dret == WAIT_TIMEOUT) {
-
-        } else {
+            fidx = __find_evt_call(pev,hd);
+            if (fidx >= 0) {
+                
+            }
+        } else if (dret != WAIT_TIMEOUT) {
             GETERRNO(ret);
             ERROR_INFO("wait error [%ld] %d", dret,ret);
             goto fail;
