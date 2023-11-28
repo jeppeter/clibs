@@ -39,9 +39,10 @@ typedef struct __libev_evt_timer {
 typedef struct __libev_win_ev{
     int m_exited;
     uint32_t m_waitsize;
+    uint32_t m_waitnum;
     uint64_t m_guid;
     HANDLE *m_pwaits;
-    HANDLE m_htmevt;
+    HANDLE m_htmevt[1];
     std::vector<plibev_evt_timer_t> *m_ptimers;
     std::vector<plibev_evt_call_t> *m_pcallers;
 } libev_win_ev_t,*plibev_win_ev_t;
@@ -108,10 +109,10 @@ void __free_winev(plibev_win_ev_t* ppev)
         pev->m_pwaits = NULL;
         pev->m_waitsize = 0;
 
-        if (pev->m_htmevt != NULL) {
-            CloseHandle(pev->m_htmevt);
+        if (pev->m_htmevt[0] != NULL) {
+            CloseHandle(pev->m_htmevt[0]);
         }
-        pev->m_htmevt = NULL;
+        pev->m_htmevt[0] = NULL;
         pev->m_exited = 0;
         pev->m_guid = 0;
         free(pev);
@@ -133,9 +134,10 @@ plibev_win_ev_t __alloc_winev()
     memset(pev,0,sizeof(*pev));
     pev->m_exited = 0;
     pev->m_waitsize = 0;
+    pev->m_waitnum = 0;
     pev->m_pwaits = NULL;
-    pev->m_htmevt = CreateEvent(NULL,TRUE,TRUE,NULL);
-    if (pev->m_htmevt == NULL) {
+    pev->m_htmevt[0] = CreateEvent(NULL,TRUE,TRUE,NULL);
+    if (pev->m_htmevt[0] == NULL) {
         GETERRNO(ret);
         ERROR_INFO("cannot create htmevt");
         goto fail;
@@ -232,6 +234,9 @@ plibev_evt_call_t __alloc_winev_call(HANDLE hd,libev_evt_callback_t pfunc, void*
     }
     memset(pcall, 0 ,sizeof(*pcall));
     pcall->m_guid = 0;
+    pcall->m_handle = hd;
+    pcall->m_func = pfunc;
+    pcall->m_args = args;
 
     return pcall;
 fail:
@@ -242,7 +247,246 @@ fail:
 
 int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void* args)
 {
+    int ret;
+    plibev_evt_call_t pcall = NULL;
+    int retlen=0;
+    plibev_win_ev_t pev = (plibev_win_ev_t) pevmain;
+    HANDLE* ptmp= NULL;
+    int nsize=0;
 
+    if (pev == NULL || hd == NULL || pfunc == NULL) {
+        ret = -ERROR_INVALID_PARAMETERS;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pcall = __alloc_winev_call(hd,pfunc,args);
+    if (pcall == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    pev->m_guid += 1;
+    pcall->m_guid = pev->m_guid;
+    
+
+    if (pev->m_waitnum >= pev->m_waitsize) {
+        if (pev->m_waitnum == 0) {
+            nsize = 4;
+        } else {
+            nsize = pev->m_waitsize << 1;
+        }
+        ptmp = (HANDLE*) malloc(sizeof(*ptmp) * nsize);
+        if (ptmp == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+
+        memset(ptmp, 0 ,sizeof(*ptmp) * nsize);
+        if (pev->m_waitnum > 0) {
+            memcpy(ptmp,pev->m_pwaits,sizeof(*ptmp) * pev->m_waitnum);
+        }
+        if (pev->m_pwaits != NULL) {
+            free(pev->m_pwaits);
+        }
+        pev->m_pwaits = ptmp;
+        ptmp = NULL;
+    }
+
+    pev->m_pwaits[pev->m_waitnum] = hd;
+    pev->m_waitnum += 1;
+
+    pev->m_pcallers.push(pcall);
+    return pev->m_waitsize;
+fail:
+    if (ptmp) {
+        free(ptmp);
+    }
+    ptmp = NULL;
+    __free_winev_call(&pcall);
+    SETERRNO(ret);
+    return ret;
+}
+
+int __find_evt_call(plibev_win_ev_t pev,HANDLE hd)
+{
+    unsigned int i;
+    for(i=0;i<pev->m_pcallers->size();i++) {
+        plibev_evt_call_t pcall = pev->m_pcallers->at(i);
+        if (pcall->m_handle == hd) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int __find_evt_call_by_guid(plibev_win_ev_t pev, uint64_t guid)
+{
+    unsigned int i;
+    for(i=0;i<pev->m_pcallers->size();i++) {
+        plibev_evt_call_t pcall = pev->m_pcallers->at(i);
+        if (pcall->m_guid == guid) {
+            return i;
+        }
+    }
+    return -1;    
+}
+
+int __find_evt_timer(plibev_win_ev_t pev, uint64_t guid)
+{
+    unsigned int i;
+    for(i=0;i<pev->m_ptimers->size();i++) {
+        plibev_evt_timer_t ptimer = pev->m_ptimers->at(i);
+        if (ptimer->m_guid == guid) {
+            return i;
+        }
+    }
+    return -1;    
+}
+
+int libev_remove_timer(void* pevmain,uint64_t guid)
+{
+    plibev_win_ev_t pev = (plibev_win_ev_t) pevmain;
+    int fidx=-1;
+    int ret;
+
+    if (pev == NULL || guid == 0) {
+        ret = -ERROR_INVALID_PARAMETERS;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    fidx = __find_evt_timer(pev,guid);
+    if (fidx < 0) {
+        return 0;
+    }
+
+    plibev_evt_timer_t ptimer = pev->m_ptimers->at(fidx);
+    pev->m_ptimers->erase(pev->m_ptimers->begin() + fidx);
+    __free_winev_timer(&ptimer);
+    return 1;
+}
+
+int libev_remove_handle(void* pevmain,HANDLE hd)
+{
+    plibev_win_ev_t pev = (plibev_win_ev_t) pevmain;
+    int fidx=-1;
+    int ret;
+    HANDLE* ptmp =NULL;
+
+    if (pev == NULL || hd == NULL) {
+        ret = -ERROR_INVALID_PARAMETERS;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    fidx = __find_evt_call(pev,hd);
+    if (fidx < 0) {
+        return 0;
+    }
+
+    plibev_evt_call_t pcall = pev->m_pcallers->at(fidx);
+    pev->m_pcallers->erase(pev->m_pcallers->begin() + fidx);
+    __free_winev_call(&pcall);
+
+    if (pev->m_pwaits != NULL) {
+        for(i=fidx;i<(pev->m_waitnum-1);i++) {
+            pev->m_pwaits[i] = pev->m_pwaits[i+1];
+        }
+        pev->m_pwaits[pev->m_waitnum] = NULL;
+        pev->m_waitnum -= 1;
+        /*so big we shrink*/
+        if (pev->m_waitsize > (pev->m_waitnum << 2)) {
+            if (pev->m_waitnum != 0) {
+                ptmp = (HANDLE*)malloc(sizeof(*ptmp) * pev->m_waitnum * 4);
+                if (ptmp != NULL) {
+                    memset(ptmp,0,sizeof(*ptmp) * pev->m_waitnum * 4);
+                    if (pev->m_waitnum > 0) {
+                        memcpy(ptmp,pev->m_pwaits,sizeof(*ptmp) * pev->m_waitnum);
+                    }
+                    if (pev->m_pwaits) {
+                        free(pev->m_pwaits);
+                    }
+                    pev->m_pwaits = ptmp;
+                    ptmp = NULL;
+                    pev->m_waitsize = pev->m_waitnum * 4;
+                }
+            }
+        }
+    }
+
+    return 1;
+}
+
+void libev_break_winev_loop(void* pevmain)
+{
+    plibev_win_ev_t pev = (plibev_win_ev_t) pevmain;
+    if (pev == NULL) {
+        return;
+    }
+    pev->m_exited = 1;
+    return ;
+}
+
+int __get_max_mills(plibev_win_ev_t pev, int maxmills)
+{
+    int retmills = maxmills;
+    unsigned int i;
+    int ret;
+    uint64_t cticks = get_current_ticks();
+    for(i=0;i<pev->m_ptimers->size();i++) {
+        plibev_evt_timer_t ptimer = pev->m_ptimers->at(i);
+        ret = need_wait_times(ptimer->m_startticks,cticks,ptimer->m_interval);
+        if (ret < 0) {
+            return 1;
+        }
+        if (ret < retmills) {
+            retmills = ret;
+        }
+    }
+    return retmills;
+}
+
+
+int libev_winev_loop(void* pevmain)
+{
+    int ret;
+    plibev_win_ev_t pev = (plibev_win_ev_t) pevmain;
+    int maxmills = 30000;
+    DWORD waitnum;
+
+    if (pev == NULL) {
+        ret = -ERROR_INVALID_PARAMETERS;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    while(pev->m_exited == 0) {
+        maxmills = __get_max_mills(pev,30000);
+        if (pev->m_waitnum > 0) {
+            waitnum = pev->m_waitnum;
+            dret = WaitForMultipleObjectsEx(pev->m_waitnum,pev->m_pwaits,FALSE,maxmills,TRUE);
+        } else {
+            waitnum = 1;
+            dret = WaitForMultipleObjectsEx(1,pev->m_htmevt,FALSE,maxmills,TRUE);
+        }
+        if (dret >= WAIT_OBJECT_0 && dret < (WAIT_OBJECT_0 + waitnum - 1)) {
+            if (pev->m_waitnum > 0) {
+                hd = pev->m_pwaits[(dret - WAIT_OBJECT_0)];
+            }
+        } else if (dret == WAIT_TIMEOUT) {
+
+        } else {
+            GETERRNO(ret);
+            ERROR_INFO("wait error [%ld] %d", dret,ret);
+            goto fail;
+        }
+    }
+
+
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;
 }
 
 
