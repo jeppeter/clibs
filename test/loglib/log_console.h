@@ -2,7 +2,13 @@
 #define __LOG_CONSOLE_H_38587978222C71BD746D9FA9FEBD46A2__
 
 #include <log_inter.h>
+
+#pragma warning(push)
+#pragma warning(disable:4514)
 #include <stdio.h>
+#pragma warning(pop)
+
+
 
 class LogConsole : public LogCallback
 {

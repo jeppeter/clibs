@@ -5,7 +5,11 @@
 #include <win_evt.h>
 #include <win_libev.h>
 #include <log_inter.h>
+
+#pragma warning(push)
+#pragma warning(disable:4514)
 #include <vector>
+#pragma warning(pop)
 
 class LogMonitor
 {

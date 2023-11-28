@@ -3,7 +3,11 @@
 
 
 #include <log_inter.h>
+#pragma warning(push)
+#pragma warning(disable:4514)
 #include <vector>
+#pragma warning(pop)
+
 
 class LogFileCallback : public LogCallback
 {
