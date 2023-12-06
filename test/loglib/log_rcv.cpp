@@ -57,7 +57,7 @@ int LogMonitor::__insert_data_ready_evt(void)
 {
 	int ret;
 	ASSERT_IF(this->m_inserted == 0);
-	ret = libev_insert_handle(this->m_pevmain,this->m_dataready,LogMonitor::handle_data_ready,this,INFINIT_TIME);
+	ret = libev_insert_handle(this->m_pevmain,this->m_dataready,LogMonitor::handle_data_ready,this);
 	ASSERT_IF(ret > 0);
 	this->m_inserted = 1;
 	return 0;
@@ -394,7 +394,7 @@ fail:
 	return ret;
 }
 
-void LogMonitor::handle_data_ready(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* args)
+int LogMonitor::handle_data_ready(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* args)
 {
 	LogMonitor* pThis = (LogMonitor*) args;
 	int ret;
@@ -413,5 +413,5 @@ void LogMonitor::handle_data_ready(HANDLE hd,libev_enum_event_t evt,void* pevmai
 			libev_break_winev_loop(pevmain);
 		}
 	}
-	return;
+	return 0;
 }

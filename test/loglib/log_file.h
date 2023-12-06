@@ -23,8 +23,8 @@ private:
 	void __free_write_buf();
 	int __pick_write_buf();
 	int __write_buffer();
-	static void __log_file_write(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* args);
-	static void __log_file_timeout(HANDLE hd,libev_enum_event_t evt,void* pevmain,void* args);
+	static int __log_file_write(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* args);
+	static int __log_file_timeout(uint64_t guid,libev_enum_event_t evt,void* pevmain,void* args);
 	int __log_file_impl();
 	int __reopen_file();
 	int __start_write();
@@ -41,8 +41,10 @@ private:
 	int m_cursize;
 	HANDLE m_hfile;
 	OVERLAPPED m_ov;
+	uint64_t m_timeoutguid;
 	int m_inserted;
 	int m_appended;
+	int m_inserttimeout;
 	int m_isoverlapped;
 };
 

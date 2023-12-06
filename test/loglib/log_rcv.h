@@ -33,7 +33,7 @@ private:
 	int __alloc_event(void);
 	int __map_buff(void);
 	int __data_ready_impl(void);
-	static void handle_data_ready(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* args);
+	static int handle_data_ready(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* args);
 
 private:
 	void* m_pevmain;

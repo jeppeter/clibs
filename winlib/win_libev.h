@@ -34,8 +34,8 @@ typedef int (*libev_timer_callback_t)(uint64_t guid,libev_enum_event_t event,voi
 /*****************************************
 *  return value negative is the 
 *****************************************/
-WINLIB_API int libev_insert_timer(void* pevmain,uint64_t* pguid,libev_evt_callback_t pfunc,void* args,uint32_t timemills,int conti);
-WINLIB_API int libev_insert_handle(void* pevmain,HANDLE hd,libev_timer_callback_t pfunc,void* args);
+WINLIB_API int libev_insert_timer(void* pevmain,uint64_t* pguid,libev_timer_callback_t pfunc,void* args,uint32_t timemills,int conti);
+WINLIB_API int libev_insert_handle(void* pevmain,HANDLE hd, libev_evt_callback_t pfunc,void* args);
 WINLIB_API int libev_remove_timer(void* pevmain,uint64_t guid);
 WINLIB_API int libev_remove_handle(void* pevmain,HANDLE hd);
 

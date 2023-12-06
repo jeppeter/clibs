@@ -38,12 +38,13 @@ int console_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
 static DWORD st_EXITED_MODE = 0;
 
-void exit_event_notify(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* args)
+int exit_event_notify(HANDLE hd,libev_enum_event_t evt,void* pevmain, void* args)
 {
     REFERENCE_ARG(hd);
     REFERENCE_ARG(args);
     REFERENCE_ARG(evt);
     libev_break_winev_loop(pevmain);
+    return 0;
 }
 
 typedef int (*m_init_already_func_t) (void* args,int succ);
@@ -141,7 +142,7 @@ int svrlog_main_loop(HANDLE exitevt,pargs_options_t pargs,pextargs_state_t parse
         }
     }
 
-    ret = libev_insert_handle(pevmain,exitevt,exit_event_notify,NULL,INFINIT_TIME);
+    ret = libev_insert_handle(pevmain,exitevt,exit_event_notify,NULL);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;

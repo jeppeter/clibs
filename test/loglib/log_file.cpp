@@ -17,8 +17,10 @@ LogFileCallback::LogFileCallback(void* pevmain, char* filename, int appendmode)
     this->m_curlen = 0;
     this->m_cursize = 0;
     this->m_hfile = NULL;
+    this->m_timeoutguid = 0;
     memset(&(this->m_ov), 0, sizeof(this->m_ov));
     this->m_inserted = 0;
+    this->m_inserttimeout = 0;
     this->m_appended = appendmode;
     this->m_isoverlapped = 0;
 }
@@ -28,8 +30,14 @@ void LogFileCallback::__remove_write_handle(void)
     int ret;
     if (this->m_inserted) {
         ret = libev_remove_handle(this->m_pevmain, this->m_ov.hEvent);
-        ASSERT_IF(ret > 0);
+        ASSERT_IF(ret >= 0);
         this->m_inserted = 0;
+    }
+    if (this->m_inserttimeout > 0) {
+        ret = libev_remove_timer(this->m_pevmain,this->m_timeoutguid);
+        ASSERT_IF(ret >= 0);
+        this->m_timeoutguid = 0;
+        this->m_inserttimeout = 0;
     }
     return ;
 }
@@ -88,7 +96,6 @@ void LogFileCallback::__free_vecs()
 LogFileCallback::~LogFileCallback()
 {
     this->__close_file();
-    this->__remove_write_handle();
     this->__free_vecs();
     this->m_appended = 0;
     if (this->m_name) {
@@ -103,6 +110,8 @@ void LogFileCallback::__close_file()
 {
     BOOL bret;
     int ret;
+    /*to remove the handles*/
+    this->__remove_write_handle();
     if (this->m_isoverlapped) {
         ASSERT_IF(this->m_hfile != NULL);
         ASSERT_IF(this->m_ov.hEvent != NULL);
@@ -192,9 +201,12 @@ int LogFileCallback::__insert_write_handle()
 {
     int ret;
     ASSERT_IF(this->m_inserted == 0);
-    ret = libev_insert_handle(this->m_pevmain, this->m_ov.hEvent, LogFileCallback::__log_file_write, this, 1000);
-    ASSERT_IF(ret > 0);
+    ret = libev_insert_handle(this->m_pevmain, this->m_ov.hEvent, LogFileCallback::__log_file_write, this);
+    ASSERT_IF(ret >= 0);
     this->m_inserted = 1;
+    ASSERT_IF(this->m_timeoutguid == 0);
+    ret = libev_insert_timer(this->m_pevmain,&this->m_timeoutguid,LogFileCallback::__log_file_timeout,this,1000,0);
+    ASSERT_IF(ret >= 0);
     return 0;
 }
 
@@ -284,7 +296,7 @@ fail:
 }
 
 
-void LogFileCallback::__log_file_write(HANDLE hd, libev_enum_event_t evt, void* pevmain, void* args)
+int LogFileCallback::__log_file_write(HANDLE hd, libev_enum_event_t evt, void* pevmain, void* args)
 {
     int ret;
     LogFileCallback* pThis = (LogFileCallback*) args;
@@ -292,7 +304,6 @@ void LogFileCallback::__log_file_write(HANDLE hd, libev_enum_event_t evt, void* 
     if (evt == normal_event) {
         ret = pThis->__log_file_impl();
         if (ret < 0) {
-re_open:
             ret = pThis->__reopen_file();
             if (ret < 0) {
                 libev_break_winev_loop(pevmain);
@@ -303,14 +314,33 @@ re_open:
                 }
             }
         }
-    } else if (evt == timeout_event) {
-        /*this reopen it */
-        goto re_open;
     } else {
         libev_break_winev_loop(pevmain);
     }
-    return ;
+    return 0;
 }
+
+int LogFileCallback::__log_file_timeout(uint64_t guid, libev_enum_event_t evt, void* pevmain, void* args)
+{
+    int ret;
+    LogFileCallback* pThis = (LogFileCallback*) args;
+    REFERENCE_ARG(guid);
+    if (evt == timeout_event) {
+        ret = pThis->__reopen_file();
+        if (ret < 0) {
+            libev_break_winev_loop(pevmain);
+        } else {
+            ret = pThis->__start_write();
+            if (ret < 0) {
+                libev_break_winev_loop(pevmain);
+            }
+        }
+    } else {
+        libev_break_winev_loop(pevmain);
+    }
+    return 0;
+}
+
 
 int LogFileCallback::__alloc_vecs()
 {
