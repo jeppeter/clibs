@@ -474,5 +474,11 @@
     },
     "queryregdword<queryregdword_handler>##keyname subkey path to get value##" : {
         "$" : 3
+    },
+    "evchatsvr<evchatsvr_handler>##[port] [ipaddr] to listen on port default 0.0.0.0:4012##" : {
+        "$" : "?"
+    },
+    "evchatcli<evchatcli_handler>##[port] [ipaddr] to connect ipaddr port default 127.0.0.1:4012##" : {
+        "$" : "*"
     }
 }
