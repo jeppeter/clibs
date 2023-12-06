@@ -284,7 +284,6 @@ int getdpi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int setdpi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setregdword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int queryregdword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int memscan_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1

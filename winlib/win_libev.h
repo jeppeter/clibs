@@ -7,6 +7,7 @@
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus*/
@@ -25,16 +26,16 @@ typedef enum {
 } libev_enum_event_t;
 
 
-typedef void (*libev_evt_callback_t)(HANDLE hd,void* pevmain,void* args);
-typedef void (*libev_evt_timer_t)(uint64_t guid,void* pevmain,void* args);
+typedef int (*libev_evt_callback_t)(HANDLE hd,libev_enum_event_t event,void* pevmain,void* args);
+typedef int (*libev_timer_callback_t)(uint64_t guid,libev_enum_event_t event,void* pevmain,void* args);
 
 
 
 /*****************************************
 *  return value negative is the 
 *****************************************/
-WINLIB_API int libev_insert_timer(void* pevmain,unit64_t* pguid,libev_evt_callback_t pfunc,void* args,uint32_t timemills,int conti);
-WINLIB_API int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void* args);
+WINLIB_API int libev_insert_timer(void* pevmain,uint64_t* pguid,libev_evt_callback_t pfunc,void* args,uint32_t timemills,int conti);
+WINLIB_API int libev_insert_handle(void* pevmain,HANDLE hd,libev_timer_callback_t pfunc,void* args);
 WINLIB_API int libev_remove_timer(void* pevmain,uint64_t guid);
 WINLIB_API int libev_remove_handle(void* pevmain,HANDLE hd);
 
