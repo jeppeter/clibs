@@ -1480,6 +1480,9 @@ typedef struct __file_ov {
     char* m_pwbuf;
     int m_wlen;
     int m_wsize;
+    char* m_prbuf;
+    int m_rlen;
+    int m_rsize;
     char* m_fname;
 } file_ov_t,*pfile_ov_t;
 
@@ -1536,6 +1539,11 @@ void __free_file_ov(pfile_ov_t* ppov)
         pov->m_wsize = 0;
         pov->m_wlen = 0;
 
+        /*we do not free this function*/
+        pov->m_prbuf = NULL;
+        pov->m_rlen = 0;
+        pov->m_rsize = 0;
+
         if (pov->m_rdov.hEvent != NULL) {
             CloseHandle(pov->m_rdov.hEvent);
         }
@@ -1578,13 +1586,34 @@ pfile_ov_t __alloc_file_ov(HANDLE hd,const char* fname)
     pov->m_wrcomplete = 1;
     pov->m_magic = FILE_OV_MAGIC;
     pov->m_filehd = hd;
+    pov->m_fname = NULL;
+    pov->m_pwrbufs = NULL;
+    pov->m_wrlens = NULL;
+    pov->m_pwbuf = NULL;
+    pov->m_wsize = 0;
+    pov->m_wlen = 0;
     pov->m_fname = _strdup(fname);
     if (pov->m_fname == NULL) {
         GETERRNO(ret);
         goto fail;
     }
 
-    
+    pov->m_rdov.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (pov->m_rdov.hEvent == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create [%s] read event error[%d]",pov->m_fname, ret);
+        goto fail;
+    }
+
+    pov->m_wrov.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+    if (pov->m_wrov.hEvent == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("create [%s] write event error[%d]", pov->m_fname, ret);
+        goto fail;
+    }
+
+    pov->m_pwrbufs = new std::vector<char*>();
+    pov->m_wrlens = new std::vector<int>();
 
 
     return pov;
@@ -1593,6 +1622,8 @@ fail:
     SETERRNO(ret);
     return NULL;
 }
+
+
 
 #if _MSC_VER >= 1910
 #pragma warning(pop)
