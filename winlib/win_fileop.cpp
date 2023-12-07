@@ -1562,6 +1562,31 @@ pfile_ov_t __alloc_file_ov(HANDLE hd,const char* fname)
     pfile_ov_t pov= NULL;
     int ret;
 
+    if (hd == NULL || hd == INVALID_HANDLE_VALUE || fname == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    pov = (pfile_ov_t) malloc(sizeof(*pov));
+    if (pov == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    memset(pov,0,sizeof(*pov));
+    pov->m_rdcomplete = 1;
+    pov->m_wrcomplete = 1;
+    pov->m_magic = FILE_OV_MAGIC;
+    pov->m_filehd = hd;
+    pov->m_fname = _strdup(fname);
+    if (pov->m_fname == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    
+
+
     return pov;
 fail:
     __free_file_ov(&pov);
