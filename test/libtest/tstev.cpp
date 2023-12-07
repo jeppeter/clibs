@@ -315,3 +315,60 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     REFERENCE_ARG(popt);
     return ret;
 }
+
+typedef struct __stdin_out_file {
+	HANDLE m_stdin;
+	HANDLE m_stdout;
+	OVERLAPPED 
+
+	int m_stdinadd;
+	int m_stdoutadd;
+	std::vector<char*> *m_pwbufs;
+	std::vector<int> *m_wlens;
+	char* m_pcurbuf;
+	int 
+} stdin_out_file_t,*pstdin_out_file_t;
+
+int read_stdin_proc()
+
+int stdinoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int ret;
+	HANDLE hstdin=NULL,hstdout=NULL;
+	DWORD dret;
+	pargs_options_t pargs = (pargs_options_t)popt;
+	HANDLE exithd = NULL;
+	void* pemain=NULL;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	REFERENCE_ARG(parsestate);
+	init_log_level(pargs);
+
+	hstdin = GetStdHandle(STD_INPUT_HANDLE);
+	hstdout = GetStdHandle(STD_OUTPUT_HANDLE);
+
+	if (hstdin == NULL || hstdin == INVALID_HANDLE_VALUE || hstdout == NULL || hstdout == INVALID_HANDLE_VALUE) {
+		ret = -ERROR_INVALID_PARAMETER;
+		goto out;
+	}
+
+	exithd = set_ctrlc_handle();
+	if (exithd == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	while(1) {
+
+	}
+
+
+
+out:
+	close_ctrlc_handle();
+	hstdin = NULL;
+	hstdout = NULL;
+	SETERRNO(ret);
+	return ret;
+}

@@ -1466,6 +1466,109 @@ int enumerate_directory(char* basedir,enum_callback_t callback,void* arg)
     return __enumerate_dir_inner(basedir,basedir,0,callback,arg);
 }
 
+#define   FILE_OV_MAGIC      0x77021123
+
+typedef struct __file_ov {
+    uint32_t m_magic;
+    HANDLE m_filehd;
+    OVERLAPPED m_rdov;
+    OVERLAPPED m_wrov;
+    int m_rdcomplete;
+    int m_wrcomplete;
+    std::vector<char*>  *m_pwrbufs;
+    std::vector<int> m_wrlens;
+    char* m_pwbuf;
+    int m_wlen;
+    int m_wsize;
+    char* m_fname;
+} file_ov_t,*pfile_ov_t;
+
+void __free_file_ov(pfile_ov_t* ppov)
+{
+    BOOL bret;
+    if (ppov && *ppov) {
+        pfile_ov_t pov = *ppov;
+        if (pov->m_rdcomplete == 0) {
+            bret = CancelIOEx(pov->m_filehd,&(pov->m_rdov));
+            if (!bret) {
+                GETERRNO(ret);
+                ERROR_INFO("cancel read [%s] error[%d]", pov->m_fname, ret);
+            }
+        }
+        pov->m_rdcomplete = 1;
+
+        if (pov->m_wrcomplete == 0) {
+            bret = CancelIOEx(pov->m_filehd, &(pov->m_wrov));
+            if (!bret) {
+                GETERRNO(ret);
+                ERROR_INFO("cancel write [%s] error[%d]",pov->m_fname, ret);
+            }
+        }
+        pov->m_wrcomplete = 1;
+
+        if (pov->m_pwrbufs && pov->m_wrlens) {
+            while(pov->m_pwrbufs->size() > 0) {
+                ASSERT_IF(pov->m_pwrbufs->size() == pov->m_wrlens->size());
+                char* pwbuf = pov->m_pwrbufs->at(0);
+                int wlen = pov->m_wrlens->at(0);
+                pov->m_pwrbufs->erase(pov->m_pwrbufs->begin());
+                pov->m_wrlens->erase(pov->m_wrlens->begin());
+                free(pwbuf);
+                pwbuf = NULL;
+                wlen = 0;
+            }            
+        }
+
+        if (pov->m_pwrbufs) {
+            delete pov->m_pwrbufs;
+        }
+        pov->m_pwrbufs = NULL;
+
+        if (pov->m_wrlens) {
+            delete pov->m_wrlens;
+        }
+        pov->m_wrlens = NULL;
+
+        if (pov->m_pwbuf) {
+            free(pov->m_pwbuf);
+        }
+        pov->m_pwbuf = NULL;
+        pov->m_wsize = 0;
+        pov->m_wlen = 0;
+
+        if (pov->m_rdov.hEvent != NULL) {
+            CloseHandle(pov->m_rdov.hEvent);
+        }
+        pov->m_rdov.hEvent = NULL;
+
+        if (pov->m_wrov.hEvent != NULL) {
+            CloseHandle(pov->m_wrov.hEvent);
+        }
+        pov->m_wrov.hEvent = NULL;
+
+        if (pov->m_fname) {
+            free(pov->m_fname);
+        }
+        pov->m_fname = NULL;
+        pov->m_magic = 0;
+        pov->m_filehd = NULL;
+        free(pov);
+        *ppov = NULL;
+    }
+}
+
+pfile_ov_t __alloc_file_ov(HANDLE hd,const char* fname)
+{
+    pfile_ov_t pov= NULL;
+    int ret;
+
+    return pov;
+fail:
+    __free_file_ov(&pov);
+    SETERRNO(ret);
+    return NULL;
+}
+
 #if _MSC_VER >= 1910
 #pragma warning(pop)
 #endif

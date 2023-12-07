@@ -480,5 +480,8 @@
     },
     "evchatcli<evchatcli_handler>##[port] [ipaddr] to connect ipaddr port default 127.0.0.1:4012##" : {
         "$" : "*"
+    },
+    "stdinoutev<stdinoutev_handler>##to make stdin and stdout with WaitForMultipleObjects##" : {
+        "$" : 0
     }
 }

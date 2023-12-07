@@ -58,6 +58,17 @@ WINLIB_API HANDLE get_file_handle(void* pfile);
 typedef int (*enum_callback_t)(char* basedir,char* curdir,char *curpat,void* arg);
 WINLIB_API int enumerate_directory(char* basedir,enum_callback_t callback,void* arg);
 
+
+WINLIB_API void* create_file_ov(HANDLE hd,char* fname);
+WINLIB_API void free_file_ov(void** ppov);
+WINLIB_API int read_file_ov(void* pov,char* pbuf,int buflen);
+WINLIB_API int read_complete_ov(void* pov);
+WINLIB_API HANDLE get_read_handle_ov(void* pov);
+WINLIB_API int write_file_ov(void* pov,char* pbuf,int buflen);
+WINLIB_API int write_complete_ov(VOID* pov);
+WINLIB_API HANDLE get_write_handle_ov(void* pov);
+
+
 #ifdef __cplusplus
 };
 #endif
