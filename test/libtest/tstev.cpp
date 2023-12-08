@@ -316,20 +316,7 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     return ret;
 }
 
-typedef struct __stdin_out_file {
-	HANDLE m_stdin;
-	HANDLE m_stdout;
-	OVERLAPPED 
 
-	int m_stdinadd;
-	int m_stdoutadd;
-	std::vector<char*> *m_pwbufs;
-	std::vector<int> *m_wlens;
-	char* m_pcurbuf;
-	int 
-} stdin_out_file_t,*pstdin_out_file_t;
-
-int read_stdin_proc()
 
 int stdinoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -338,7 +325,19 @@ int stdinoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	DWORD dret;
 	pargs_options_t pargs = (pargs_options_t)popt;
 	HANDLE exithd = NULL;
-	void* pemain=NULL;
+	int stdoutcomplete=0;
+	HANDLE waithds[3];
+	DWORD waitnum =0;
+	HANDLE hd;
+	INPUT_RECORD ir[10];
+	DWORD retnum;
+	BOOL bret;
+	DWORD mode;
+	int isstdin=1,isstdout=1;
+	char stdinbuf[256];
+	OVERLAPPED stdinov={0};
+	OVERLAPPED stdoutov = {0};
+	DWORD i;
 
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
@@ -353,19 +352,113 @@ int stdinoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 		goto out;
 	}
 
+	bret = GetConsoleMode(hstdin,&mode);
+	if (!bret) {
+		isstdin = 0;
+	}
+	bret = GetConsoleMode(hstdout,&mode);
+	if (!bret) {
+		isstdout = 0;
+	}
+
 	exithd = set_ctrlc_handle();
 	if (exithd == NULL) {
 		GETERRNO(ret);
 		goto out;
 	}
 
-	while(1) {
-
+	if (isstdout == 0) {
+		stdinov.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+		if (stdinov.hEvent == NULL) {
+			GETERRNO(ret);
+			fprintf(stderr, "stdinov event error[%d]\n", ret);
+			goto out;
+		}
+		bret = ReadFile(hstdin,stdinbuf,sizeof(stdinbuf),&retnum,&stdinov);
+		if (!bret) {
+			GETERRNO(ret);
+			ERROR_INFO("can not read stdin");
+			goto out;
+		}
+		DEBUG_BUFFER_FMT(stdinbuf,retnum,"read stdin");
 	}
 
+	while(1) {
+		waitnum = 0;
+		waithds[waitnum] = exithd;
+		waitnum ++;
+		waithds[waitnum] = hstdin;
+		waitnum ++;
+		if (stdoutcomplete > 0) {
+			waithds[waitnum] = hstdout;
+			waitnum ++;
+		}
 
+		dret = WaitForMultipleObjectsEx(waitnum,waithds,FALSE,(DWORD)300000,TRUE);
+		if (dret < (WAIT_OBJECT_0+waitnum)) {
+			hd = waithds[(dret - WAIT_OBJECT_0)];
+			if (hd == exithd) {
+				ERROR_INFO("exithd notified");
+				break;
+			} else if (hd == hstdin) {
+				if (isstdin > 0) {
+#if 1
+					bret = PeekConsoleInput(hstdin,ir,sizeof(ir)/sizeof(ir[0]),&retnum);
+					if (bret) {
+						bret = ReadConsoleInput(hstdin,ir,sizeof(ir)/sizeof(ir[0]),&retnum);
+						if (!bret) {
+							GETERRNO(ret);
+							ERROR_INFO("can not read stdin error[%d]",ret);
+							goto out;
+						}
+						for(i=0;i<retnum;i++) {
+							if (ir[i].EventType == KEY_EVENT  && ir[i].Event.KeyEvent.bKeyDown) {
+								//DEBUG_BUFFER_FMT(&(ir[i]),sizeof(ir[0]),"[%d] ir  0x%x",i,ir[i].Event.KeyEvent.uChar.AsciiChar);
+								if (ir[i].Event.KeyEvent.uChar.AsciiChar != 0) {
+									fprintf(stdout,"%c",ir[i].Event.KeyEvent.uChar.AsciiChar);
+									if (ir[i].Event.KeyEvent.uChar.AsciiChar == '\r') {
+										fprintf(stdout,"\n");
+									}
+									fflush(stdout);
+								}
+								
+							}							
+						}
+					}
+#endif
+				} else {
+					memset(stdinbuf,0,sizeof(stdinbuf));
+					bret = ReadFile(hstdin,stdinbuf,sizeof(stdinbuf),&retnum,&stdinov);
+					if (!bret) {
+						GETERRNO(ret);
+						ERROR_INFO("can not read stdin");
+						goto out;
+					}
+					//DEBUG_BUFFER_FMT(stdinbuf,retnum,"read stdin");
+					fprintf(stdout,"%s",stdinbuf);
+				}
+			} else if (stdoutcomplete > 0 && hd == hstdout) {
+				DEBUG_INFO("read stdout");
+				stdoutcomplete = 1;
+			}
+		} else if (dret == WAIT_TIMEOUT) {
+			continue;
+		} else {
+			GETERRNO(ret);
+			ERROR_INFO("wait error [%ld] %d",dret,ret);
+			goto out;
+		}
+	}
+
+	ret = 0;
 
 out:
+	if (isstdin == 0) {
+		if (stdinov.hEvent != NULL) {
+			CloseHandle(stdinov.hEvent);
+		}
+		stdinov.hEvent = NULL;
+	}
 	close_ctrlc_handle();
 	hstdin = NULL;
 	hstdout = NULL;

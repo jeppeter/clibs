@@ -11,10 +11,12 @@
 #pragma warning(disable:4668)
 #pragma warning(disable:4820)
 #pragma warning(disable:4514)
+#pragma warning(disable:4577)
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <io.h>
+#include <vector>
 
 #pragma warning(pop)
 
@@ -1470,13 +1472,14 @@ int enumerate_directory(char* basedir,enum_callback_t callback,void* arg)
 
 typedef struct __file_ov {
     uint32_t m_magic;
+    uint32_t m_reserv1;
     HANDLE m_filehd;
     OVERLAPPED m_rdov;
     OVERLAPPED m_wrov;
     int m_rdcomplete;
     int m_wrcomplete;
     std::vector<char*>  *m_pwrbufs;
-    std::vector<int> m_wrlens;
+    std::vector<int> *m_wrlens;
     char* m_pwbuf;
     int m_wlen;
     int m_wsize;
@@ -1489,10 +1492,11 @@ typedef struct __file_ov {
 void __free_file_ov(pfile_ov_t* ppov)
 {
     BOOL bret;
+    int ret;
     if (ppov && *ppov) {
         pfile_ov_t pov = *ppov;
         if (pov->m_rdcomplete == 0) {
-            bret = CancelIOEx(pov->m_filehd,&(pov->m_rdov));
+            bret = CancelIoEx(pov->m_filehd,&(pov->m_rdov));
             if (!bret) {
                 GETERRNO(ret);
                 ERROR_INFO("cancel read [%s] error[%d]", pov->m_fname, ret);
@@ -1501,7 +1505,7 @@ void __free_file_ov(pfile_ov_t* ppov)
         pov->m_rdcomplete = 1;
 
         if (pov->m_wrcomplete == 0) {
-            bret = CancelIOEx(pov->m_filehd, &(pov->m_wrov));
+            bret = CancelIoEx(pov->m_filehd, &(pov->m_wrov));
             if (!bret) {
                 GETERRNO(ret);
                 ERROR_INFO("cancel write [%s] error[%d]",pov->m_fname, ret);
@@ -1509,7 +1513,7 @@ void __free_file_ov(pfile_ov_t* ppov)
         }
         pov->m_wrcomplete = 1;
 
-        if (pov->m_pwrbufs && pov->m_wrlens) {
+        if (pov->m_pwrbufs != NULL && pov->m_wrlens != NULL) {
             while(pov->m_pwrbufs->size() > 0) {
                 ASSERT_IF(pov->m_pwrbufs->size() == pov->m_wrlens->size());
                 char* pwbuf = pov->m_pwrbufs->at(0);
@@ -1522,12 +1526,12 @@ void __free_file_ov(pfile_ov_t* ppov)
             }            
         }
 
-        if (pov->m_pwrbufs) {
+        if (pov->m_pwrbufs != NULL) {
             delete pov->m_pwrbufs;
         }
         pov->m_pwrbufs = NULL;
 
-        if (pov->m_wrlens) {
+        if (pov->m_wrlens != NULL) {
             delete pov->m_wrlens;
         }
         pov->m_wrlens = NULL;
