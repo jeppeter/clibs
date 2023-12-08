@@ -316,16 +316,25 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     return ret;
 }
 
+void read_stdin_callback(DWORD errcode,DWORD numbytes,LPOVERLAPPED pov)
+{
+	pov->InternalHigh = 0;
+	if (errcode != 0) {
+		pov->InternalHigh = errcode;
+	}
+	pov->Internal = numbytes;
+	SetEvent(pov->hEvent);
+	return;
+}
 
 
-int stdinoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+int stdinev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	int ret;
-	HANDLE hstdin=NULL,hstdout=NULL;
+	HANDLE hstdin=NULL;
 	DWORD dret;
 	pargs_options_t pargs = (pargs_options_t)popt;
 	HANDLE exithd = NULL;
-	int stdoutcomplete=0;
 	HANDLE waithds[3];
 	DWORD waitnum =0;
 	HANDLE hd;
@@ -333,11 +342,11 @@ int stdinoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	DWORD retnum;
 	BOOL bret;
 	DWORD mode;
-	int isstdin=1,isstdout=1;
+	int isstdin=1;
 	char stdinbuf[256];
 	OVERLAPPED stdinov={0};
-	OVERLAPPED stdoutov = {0};
 	DWORD i;
+	int res;	
 
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
@@ -345,9 +354,8 @@ int stdinoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	init_log_level(pargs);
 
 	hstdin = GetStdHandle(STD_INPUT_HANDLE);
-	hstdout = GetStdHandle(STD_OUTPUT_HANDLE);
 
-	if (hstdin == NULL || hstdin == INVALID_HANDLE_VALUE || hstdout == NULL || hstdout == INVALID_HANDLE_VALUE) {
+	if (hstdin == NULL || hstdin == INVALID_HANDLE_VALUE ) {
 		ret = -ERROR_INVALID_PARAMETER;
 		goto out;
 	}
@@ -356,10 +364,6 @@ int stdinoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	if (!bret) {
 		isstdin = 0;
 	}
-	bret = GetConsoleMode(hstdout,&mode);
-	if (!bret) {
-		isstdout = 0;
-	}
 
 	exithd = set_ctrlc_handle();
 	if (exithd == NULL) {
@@ -367,41 +371,48 @@ int stdinoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 		goto out;
 	}
 
-	if (isstdout == 0) {
+	if (isstdin == 0) {
 		stdinov.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 		if (stdinov.hEvent == NULL) {
 			GETERRNO(ret);
 			fprintf(stderr, "stdinov event error[%d]\n", ret);
 			goto out;
 		}
-		bret = ReadFile(hstdin,stdinbuf,sizeof(stdinbuf),&retnum,&stdinov);
+#if 1	
+		memset(stdinbuf,0,sizeof(stdinbuf));
+		DEBUG_INFO("before ReadFileEx");
+		bret = ReadFileEx(hstdin,stdinbuf,sizeof(stdinbuf),&stdinov,read_stdin_callback);
+		DEBUG_INFO("after ReadFileEx");
 		if (!bret) {
 			GETERRNO(ret);
 			ERROR_INFO("can not read stdin");
 			goto out;
 		}
-		DEBUG_BUFFER_FMT(stdinbuf,retnum,"read stdin");
+		//DEBUG_BUFFER_FMT(stdinbuf,retnum,"read stdin");
+#endif
 	}
 
 	while(1) {
 		waitnum = 0;
 		waithds[waitnum] = exithd;
 		waitnum ++;
-		waithds[waitnum] = hstdin;
-		waitnum ++;
-		if (stdoutcomplete > 0) {
-			waithds[waitnum] = hstdout;
+		if (isstdin > 0) {
+			waithds[waitnum] = hstdin;
+			waitnum ++;
+		} else {
+			waithds[waitnum] = stdinov.hEvent;
 			waitnum ++;
 		}
 
+		DEBUG_INFO("wait before");
 		dret = WaitForMultipleObjectsEx(waitnum,waithds,FALSE,(DWORD)300000,TRUE);
+		DEBUG_INFO("wait after");
 		if (dret < (WAIT_OBJECT_0+waitnum)) {
 			hd = waithds[(dret - WAIT_OBJECT_0)];
 			if (hd == exithd) {
 				ERROR_INFO("exithd notified");
 				break;
-			} else if (hd == hstdin) {
-				if (isstdin > 0) {
+			} else if (isstdin > 0 &&  hd == hstdin) {
 #if 1
 					bret = PeekConsoleInput(hstdin,ir,sizeof(ir)/sizeof(ir[0]),&retnum);
 					if (bret) {
@@ -426,22 +437,25 @@ int stdinoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 						}
 					}
 #endif
-				} else {
-					memset(stdinbuf,0,sizeof(stdinbuf));
-					bret = ReadFile(hstdin,stdinbuf,sizeof(stdinbuf),&retnum,&stdinov);
-					if (!bret) {
-						GETERRNO(ret);
-						ERROR_INFO("can not read stdin");
-						goto out;
-					}
-					//DEBUG_BUFFER_FMT(stdinbuf,retnum,"read stdin");
-					fprintf(stdout,"%s",stdinbuf);
+			} else if (isstdin == 0 && hd == stdinov.hEvent) {
+				DEBUG_INFO("stdin hEvent");
+				ResetEvent(stdinov.hEvent);
+				stdinbuf[stdinov.Internal] = '\0';
+				printf("%s",stdinbuf);
+				memset(stdinbuf,0,sizeof(stdinbuf));
+				DEBUG_INFO("before ReadFileEx");
+				bret= ReadFileEx(hstdin,stdinbuf,sizeof(stdinbuf),&stdinov,read_stdin_callback);
+				DEBUG_INFO("after ReadFileEx");
+				if (!bret) {
+					GETERRNO(ret);
+					ERROR_INFO("ReadFileEx error[%d]", ret);
+					goto out;
 				}
-			} else if (stdoutcomplete > 0 && hd == hstdout) {
-				DEBUG_INFO("read stdout");
-				stdoutcomplete = 1;
 			}
 		} else if (dret == WAIT_TIMEOUT) {
+			continue;
+		} else if (dret == WAIT_IO_COMPLETION) {
+			DEBUG_INFO("io completion");
 			continue;
 		} else {
 			GETERRNO(ret);
@@ -454,6 +468,11 @@ int stdinoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 
 out:
 	if (isstdin == 0) {
+		bret = CancelIoEx(hstdin,&stdinov);
+		if (!bret) {
+			GETERRNO(res);
+			ERROR_INFO("cancel stdin error [%d]",res);
+		}
 		if (stdinov.hEvent != NULL) {
 			CloseHandle(stdinov.hEvent);
 		}
@@ -461,7 +480,14 @@ out:
 	}
 	close_ctrlc_handle();
 	hstdin = NULL;
-	hstdout = NULL;
 	SETERRNO(ret);
 	return ret;
+}
+
+int stdoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	return 0;
 }

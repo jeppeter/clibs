@@ -287,7 +287,8 @@ int setregdword_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int queryregdword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int stdinoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int stdinev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int stdoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #define PIPE_NONE                0
 #define PIPE_READY               1
