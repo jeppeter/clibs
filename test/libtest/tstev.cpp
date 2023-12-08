@@ -316,22 +316,13 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     return ret;
 }
 
-void read_stdin_callback(DWORD errcode,DWORD numbytes,LPOVERLAPPED pov)
-{
-	pov->InternalHigh = 0;
-	if (errcode != 0) {
-		pov->InternalHigh = errcode;
-	}
-	pov->Internal = numbytes;
-	SetEvent(pov->hEvent);
-	return;
-}
 
 
 int stdinev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	int ret;
 	HANDLE hstdin=NULL;
+	HANDLE hrestdin = NULL;
 	DWORD dret;
 	pargs_options_t pargs = (pargs_options_t)popt;
 	HANDLE exithd = NULL;
@@ -346,7 +337,9 @@ int stdinev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 	char stdinbuf[256];
 	OVERLAPPED stdinov={0};
 	DWORD i;
-	int res;	
+	int res;
+	FILE_NAME_INFO* pnameinfo = NULL;
+	DWORD namesize = sizeof(*pnameinfo);
 
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
@@ -378,14 +371,45 @@ int stdinev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 			fprintf(stderr, "stdinov event error[%d]\n", ret);
 			goto out;
 		}
+
+		while(1) {
+
+			if (pnameinfo) {
+				free(pnameinfo);
+			}
+			pnameinfo = NULL;
+			pnameinfo = (FILE_NAME_INFO*)malloc(namesize);
+			if (pnameinfo == NULL) {
+				GETERRNO(ret);
+				goto out;
+			}
+			memset(pnameinfo,0,namesize);
+			bret = GetFileInformationByHandleEx(hstdin,FileNameInfo,pnameinfo,namesize);
+			if (bret) {
+				break;
+			}
+			GETERRNO(ret);
+			DEBUG_INFO("FileNameInfo error[%d]",ret);
+			goto out;
+		}
+		DEBUG_BUFFER_FMT(pnameinfo,namesize,"name info");
+		
+
+		hrestdin = ReOpenFile(hstdin,FILE_GENERIC_READ,FILE_SHARE_READ,FILE_FLAG_NO_BUFFERING | FILE_FLAG_OVERLAPPED);
+		if (hrestdin == NULL || hrestdin == INVALID_HANDLE_VALUE) {
+			hrestdin = NULL;
+			GETERRNO(ret);
+			ERROR_INFO("can not reopen hstdin [%d]",ret);
+			goto out;
+		}
 #if 1	
 		memset(stdinbuf,0,sizeof(stdinbuf));
-		DEBUG_INFO("before ReadFileEx");
-		bret = ReadFileEx(hstdin,stdinbuf,sizeof(stdinbuf),&stdinov,read_stdin_callback);
-		DEBUG_INFO("after ReadFileEx");
+		DEBUG_INFO("before ReadFile");
+		bret = ReadFile(hrestdin,stdinbuf,sizeof(stdinbuf),&retnum,&stdinov);
+		DEBUG_INFO("after ReadFile");
 		if (!bret) {
 			GETERRNO(ret);
-			ERROR_INFO("can not read stdin");
+			ERROR_INFO("can not read stdin [%d]",ret);
 			goto out;
 		}
 		//DEBUG_BUFFER_FMT(stdinbuf,retnum,"read stdin");
@@ -438,17 +462,20 @@ int stdinev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 					}
 #endif
 			} else if (isstdin == 0 && hd == stdinov.hEvent) {
-				DEBUG_INFO("stdin hEvent");
-				ResetEvent(stdinov.hEvent);
-				stdinbuf[stdinov.Internal] = '\0';
-				printf("%s",stdinbuf);
-				memset(stdinbuf,0,sizeof(stdinbuf));
-				DEBUG_INFO("before ReadFileEx");
-				bret= ReadFileEx(hstdin,stdinbuf,sizeof(stdinbuf),&stdinov,read_stdin_callback);
-				DEBUG_INFO("after ReadFileEx");
+				bret = GetOverlappedResult(hrestdin,&stdinov,&retnum,FALSE);
 				if (!bret) {
 					GETERRNO(ret);
-					ERROR_INFO("ReadFileEx error[%d]", ret);
+					ERROR_INFO("GetOverlappedResult ret [%d]",ret);
+					goto out;
+				}
+				stdinbuf[retnum] = '\0';
+				fprintf(stdout,"%s",stdinbuf);
+				fflush(stdout);
+				memset(stdinbuf,0,sizeof(stdinbuf));
+				bret = ReadFile(hrestdin,stdinbuf,sizeof(stdinbuf),&retnum,&stdinov);
+				if (!bret) {
+					GETERRNO(ret);
+					ERROR_INFO("ReadFile error[%d]",ret);
 					goto out;
 				}
 			}
@@ -468,16 +495,22 @@ int stdinev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
 out:
 	if (isstdin == 0) {
-		bret = CancelIoEx(hstdin,&stdinov);
-		if (!bret) {
-			GETERRNO(res);
-			ERROR_INFO("cancel stdin error [%d]",res);
+		if (hrestdin != NULL) {
+			bret = CancelIoEx(hrestdin,&stdinov);
+			if (!bret) {
+				GETERRNO(res);
+				ERROR_INFO("cancel stdin error [%d]",res);
+			}			
 		}
 		if (stdinov.hEvent != NULL) {
 			CloseHandle(stdinov.hEvent);
 		}
 		stdinov.hEvent = NULL;
 	}
+	if (hrestdin != NULL) {
+		CloseHandle(hrestdin);
+	}
+	hrestdin = NULL;
 	close_ctrlc_handle();
 	hstdin = NULL;
 	SETERRNO(ret);
