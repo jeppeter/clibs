@@ -67,6 +67,7 @@ int remove_conn(void* pacc1, pchatsvr_conn_t pconn)
 
 void __stop_chatsvr_conn_event(pchatsvr_conn_t* ppconn)
 {
+	int ret;
 	if (ppconn && *ppconn) {
 		pchatsvr_conn_t pconn = *ppconn;
 		if (pconn->m_insertrd > 0) {
@@ -85,7 +86,6 @@ void __stop_chatsvr_conn_event(pchatsvr_conn_t* ppconn)
 
 void __free_chatsvr_conn(pchatsvr_conn_t* ppconn)
 {
-	int ret;
 	__stop_chatsvr_conn_event(ppconn);
 	if (ppconn && *ppconn) {
 		pchatsvr_conn_t pconn = *ppconn;
@@ -107,7 +107,6 @@ void __free_chatsvr_conn(pchatsvr_conn_t* ppconn)
 			while (pconn->m_ppwrbufs->size() > 0) {
 				ASSERT_IF(pconn->m_ppwrbufs->size() == pconn->m_pwrlens->size());
 				char* pwbuf = pconn->m_ppwrbufs->at(0);
-				int wlen = pconn->m_pwrlens->at(0);
 				pconn->m_ppwrbufs->erase(pconn->m_ppwrbufs->begin());
 				pconn->m_pwrlens->erase(pconn->m_pwrlens->begin());
 				free(pwbuf);
@@ -261,6 +260,9 @@ int exit_chatsvr(HANDLE hd, libev_enum_event_t event, void* pevmain, void* args)
 int write_chatsvr_conn_callback(HANDLE hd, libev_enum_event_t event, void* pevmain, void* args)
 {
 	pchatsvr_conn_t pconn = (pchatsvr_conn_t)args;
+	int ret;
+	REFERENCE_ARG(pevmain);
+	REFERENCE_ARG(hd);
 	if (event == normal_event && pconn != NULL) {
 		ret = complete_tcp_write(pconn->m_psock);
 		if (ret < 0) {
@@ -284,7 +286,7 @@ int write_chatsvr_conn_callback(HANDLE hd, libev_enum_event_t event, void* pevma
 					pconn->m_wrsize = pconn->m_pwrlens->at(0);
 					pconn->m_ppwrbufs->erase(pconn->m_ppwrbufs->begin());
 					pconn->m_pwrlens->erase(pconn->m_pwrlens->begin());
-					ret = write_tcp_socket(pconn->m_psock, pconn->m_pwrbuf, pconn->m_wrsize);
+					ret = write_tcp_socket(pconn->m_psock, (uint8_t*)pconn->m_pwrbuf, pconn->m_wrsize);
 					if (ret < 0) {
 						GETERRNO(ret);
 						goto fail;
@@ -326,9 +328,11 @@ int write_chatsvr_conn(pchatsvr_conn_t pconn)
 	int wrsize = 0;
 	int startwr = 0;
 	int curidx;
+	int ret;
+	int i;
 
 	wrsize = pconn->m_rdlen;
-	pwrbuf = malloc(wrsize);
+	pwrbuf = (char*)malloc((size_t)wrsize);
 	if (pwrbuf == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -346,7 +350,7 @@ int write_chatsvr_conn(pchatsvr_conn_t pconn)
 		pconn->m_pwrbuf = pwrbuf;
 		pwrbuf = NULL;
 		pconn->m_wrsize = wrsize;
-		ret = write_tcp_socket(pconn->m_psock, pconn->m_pwrbuf, pconn->m_wrsize);
+		ret = write_tcp_socket(pconn->m_psock, (uint8_t*)pconn->m_pwrbuf, pconn->m_wrsize);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -391,6 +395,8 @@ fail:
 int read_chatsvr_conn(HANDLE hd, libev_enum_event_t event, void* pevmain, void* args)
 {
 	pchatsvr_conn_t pconn = (pchatsvr_conn_t) args;
+	int ret;
+	REFERENCE_ARG(pevmain);
 	REFERENCE_ARG(hd);
 	if (event == normal_event && pconn != NULL) {
 		ret = complete_tcp_read(pconn->m_psock);
@@ -408,9 +414,8 @@ int read_chatsvr_conn(HANDLE hd, libev_enum_event_t event, void* pevmain, void* 
 						GETERRNO(ret);
 						goto fail;
 					}
-					readed = 0;
 				}
-				ret = read_tcp_socket(pconn->m_psock, &(pconn->m_rdbuf[pconn->m_rdeidx]), 1);
+				ret = read_tcp_socket(pconn->m_psock, (uint8_t*)&(pconn->m_rdbuf[pconn->m_rdeidx]), 1);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
@@ -446,8 +451,6 @@ int accept_chatsvr(HANDLE hd, libev_enum_event_t event, void* pevmain, void* arg
 	pchatsvr_conn_t pconn = NULL;
 	void* psock = NULL;
 	int ret;
-	int readed = 0;
-	int needinsertwr = 0;
 	REFERENCE_ARG(hd);
 	if (event == normal_event) {
 		ASSERT_IF(pacc->m_psock != NULL);
@@ -471,7 +474,7 @@ int accept_chatsvr(HANDLE hd, libev_enum_event_t event, void* pevmain, void* arg
 				psock = NULL;
 
 				while (1) {
-					ret = read_tcp_socket(pconn->m_psock, &(pconn->m_rdbuf[pconn->m_rdeidx]), 1);
+					ret = read_tcp_socket(pconn->m_psock, (uint8_t*)&(pconn->m_rdbuf[pconn->m_rdeidx]), 1);
 					if (ret == 0) {
 						break;
 					} else if (ret < 0) {
@@ -563,7 +566,6 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
-	pconn
 
 	psvr->m_pevmain = pevmain;
 	ret = libev_insert_handle(pevmain, get_tcp_accept_handle(psvr->m_psock), accept_chatsvr, psvr);
@@ -814,7 +816,8 @@ out:
 
 int stdoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-
+	REFERENCE_ARG(popt);
+	REFERENCE_ARG(parsestate);
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
 	return 0;
