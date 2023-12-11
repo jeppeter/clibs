@@ -772,9 +772,9 @@ try_read_again:
 			} else if (ret > 0) {
 				totalrd += numread;
 				if (numread < 16) {
-					DEBUG_BUFFER_FMT(prbuf, numread, "read buffer [%d] [%d]", numread,totalrd);
+					DEBUG_BUFFER_FMT(prbuf, numread, "read buffer [%d] [%d]", numread, totalrd);
 				} else {
-					DEBUG_BUFFER_FMT(prbuf, 16, "read buffer [%d] [%d]", numread,totalrd);
+					DEBUG_BUFFER_FMT(prbuf, 16, "read buffer [%d] [%d]", numread, totalrd);
 				}
 
 			}
@@ -826,9 +826,9 @@ try_read_again:
 				} else if (ret > 0) {
 					totalrd += numread;
 					if (numread < 16) {
-						DEBUG_BUFFER_FMT(prbuf, numread, "read buffer [%d] [%d]",numread,totalrd);
+						DEBUG_BUFFER_FMT(prbuf, numread, "read buffer [%d] [%d]", numread, totalrd);
 					} else {
-						DEBUG_BUFFER_FMT(prbuf, 16, "read buffer [%d] [%d]", numread,totalrd);
+						DEBUG_BUFFER_FMT(prbuf, 16, "read buffer [%d] [%d]", numread, totalrd);
 					}
 				}
 			}
@@ -1015,3 +1015,192 @@ out:
 }
 
 
+int sockacc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	void* psvr = NULL;
+	int ret;
+	int port = 7201;
+	char* bindip = "0.0.0.0";
+	pargs_options_t pargs = (pargs_options_t) popt;
+	HANDLE exithd = NULL;
+	HANDLE* phdl = NULL;
+	DWORD hdlsize = 0;
+	DWORD waitnum = 0;
+	std::vector<void*>* conns = NULL;
+	char rdbuf[256];
+	unsigned int i;
+	void* pcli=NULL;
+	DWORD dret;
+	HANDLE hd;
+
+	REFERENCE_ARG(argv);
+	REFERENCE_ARG(argc);
+
+	init_log_level(pargs);
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		port = atoi(parsestate->leftargs[0]);
+		if (parsestate->leftargs[1]) {
+			bindip = parsestate->leftargs[1];
+		}
+	}
+
+	ret = init_socket();
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	psvr = bind_tcp_socket(bindip, port, 5);
+	if (psvr == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+	hdlsize = 4;
+	phdl = (HANDLE*)malloc(sizeof(*phdl) * hdlsize);
+	if (phdl == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	DEBUG_INFO("wait for [%s:%d]",bindip,port);
+
+	exithd = set_ctrlc_handle();
+	if (exithd == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+	conns = new std::vector<void*>();
+
+	while (1) {
+		waitnum = 0;
+		phdl[waitnum] = exithd;
+		waitnum ++;
+		phdl[waitnum] = get_tcp_accept_handle(psvr);
+		waitnum ++;
+		if (conns->size() > 0) {
+			for (i = 0; i < conns->size(); i++) {
+				pcli = conns->at(i);
+				if (get_tcp_read_handle(pcli) != NULL) {
+					phdl[waitnum] = get_tcp_read_handle(pcli);
+					waitnum ++;					
+				}
+			}
+		}
+
+		dret = WaitForMultipleObjectsEx(waitnum, phdl, FALSE, 30000, FALSE);
+		if (dret < (WAIT_OBJECT_0 + waitnum)) {
+			hd = phdl[(dret - WAIT_OBJECT_0)];
+			if (hd == exithd) {
+				break;
+			} else if (hd == get_tcp_accept_handle(psvr)) {
+				ret = complete_tcp_accept(psvr);
+				if (ret < 0) {
+					GETERRNO(ret);
+					ERROR_INFO("complete_tcp_accept error[%d]", ret);
+					goto out;
+				} else if (ret > 0) {
+					pcli = accept_tcp_socket(psvr);
+					if (pcli == NULL) {
+						GETERRNO(ret);
+						ERROR_INFO("accept_tcp_socket error[%d]", ret);
+						goto out;
+					}
+					conns->push_back(pcli);
+					while (1) {
+						ret = read_tcp_socket(pcli, (uint8_t*)rdbuf, sizeof(rdbuf));
+						if (ret < 0) {
+							GETERRNO(ret);
+							if (ret != -WSAESHUTDOWN) {
+								ERROR_INFO("read_tcp_socket [%d] error[%d]", conns->size() - 1, ret);
+								goto out;
+							} else {
+								DEBUG_INFO("shutdown socket");
+								conns->pop_back();
+								free_socket(&pcli);
+							}
+						} else if (ret > 0) {
+							DEBUG_BUFFER_FMT(rdbuf, sizeof(rdbuf), "[%d] read buf", conns->size() - 1);
+						} else {
+							break;
+						}
+					}
+
+					if (hdlsize <= (conns->size() + 2)) {
+						hdlsize = (DWORD)(conns->size() + 2 + 1);
+						if (phdl) {
+							free(phdl);
+						}
+						phdl = NULL;
+						phdl = (HANDLE*)malloc(sizeof(*phdl) * hdlsize);
+						if (phdl == NULL) {
+							GETERRNO(ret);
+							goto out;
+						}
+					}
+				}
+			} else {
+				for (i = 0; i < conns->size(); i++) {
+					pcli = conns->at(i);
+					if (hd == get_tcp_read_handle(pcli)) {
+						ret = complete_tcp_read(pcli);
+						if (ret < 0) {
+							if (ret != -WSAESHUTDOWN) {
+								ERROR_INFO("[%d]read error [%d]", i, ret);
+								goto out;
+							}
+							DEBUG_INFO("[%d] closed",i);
+							conns->erase(conns->begin() + i);
+							free_socket(&pcli);
+							break;
+						} else if (ret > 0) {
+							DEBUG_BUFFER_FMT(rdbuf, sizeof(rdbuf), "read [%d] conn", i);
+							while (1) {
+								ret = read_tcp_socket(pcli, (uint8_t*)rdbuf, sizeof(rdbuf));
+								if (ret < 0) {
+									GETERRNO(ret);
+									if (ret != -WSAESHUTDOWN) {
+										ERROR_INFO("read_tcp_socket [%d] error[%d]", i, ret);
+										goto out;
+									}
+									DEBUG_INFO("[%d] closed", i);
+									conns->erase(conns->begin()+i);
+									free_socket(&pcli);
+									goto next_cycle;
+								} else if (ret > 0) {
+									DEBUG_BUFFER_FMT(rdbuf, sizeof(rdbuf), "[%d] read buf", conns->size() - 1);
+								} else {
+									break;
+								}
+							}
+						}
+					}
+				}
+			}
+		} else if (dret == WAIT_TIMEOUT) {
+			continue;
+		} else {
+			GETERRNO(ret);
+			ERROR_INFO("wait error [%ld] %d", dret, ret);
+			goto out;
+		}
+	next_cycle:
+		phdl = phdl;
+	}
+	ret = 0;
+out:
+	if (conns != NULL) {
+		while (conns->size() > 0) {
+			pcli = conns->at(0);
+			conns->erase(conns->begin());
+			free_socket(&pcli);
+		}
+		delete conns;
+	}
+	conns = NULL;
+	free_socket(&psvr);
+	fini_socket();
+	close_ctrlc_handle();
+	exithd = NULL;
+	SETERRNO(ret);
+	return ret;
+}

@@ -486,5 +486,8 @@
     },
     "stdoutev<stdoutev_handler>##to file make stdout with WaitForMultipleObjects##" : {
         "$" : 0
+    },
+    "sockacc<sockacc_handler>##[port]to make socket accept port 7201##" : {
+        "$" : "*"
     }
 }
