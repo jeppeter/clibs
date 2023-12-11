@@ -451,65 +451,70 @@ int accept_chatsvr(HANDLE hd, libev_enum_event_t event, void* pevmain, void* arg
 	REFERENCE_ARG(hd);
 	if (event == normal_event) {
 		ASSERT_IF(pacc->m_psock != NULL);
-		ret = complete_tcp_accept(pacc->m_psock);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-
-		psock = accept_tcp_socket(pacc->m_psock);
-		if (psock == NULL) {
-			GETERRNO(ret);
-			goto fail;
-		}
-
-		pconn = __alloc_chatsvr_conn(psock, pacc, pevmain);
-		if (pconn == NULL) {
-			GETERRNO(ret);
-			goto fail;
-		}
-		psock = NULL;
-
 		while (1) {
-			ret = read_tcp_socket(pconn->m_psock, &(pconn->m_rdbuf[pconn->m_rdeidx]), 1);
-			if (ret == 0) {
-				break;
-			} else if (ret < 0) {
+			ret = complete_tcp_accept(pacc->m_psock);
+			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
-			}
+			} else if (ret > 0) {
+				psock = accept_tcp_socket(pacc->m_psock);
+				if (psock == NULL) {
+					GETERRNO(ret);
+					goto fail;
+				}
 
-			pconn->m_rdeidx ++;
-			pconn->m_rdeidx %= pconn->m_rdsize;
-			pconn->m_rdlen ++;
-			if (pconn->m_rdlen >= pconn->m_rdsize) {
-				ret = write_chatsvr_conn(pconn);
+				pconn = __alloc_chatsvr_conn(psock, pacc, pevmain);
+				if (pconn == NULL) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				psock = NULL;
+
+				while (1) {
+					ret = read_tcp_socket(pconn->m_psock, &(pconn->m_rdbuf[pconn->m_rdeidx]), 1);
+					if (ret == 0) {
+						break;
+					} else if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
+
+					pconn->m_rdeidx ++;
+					pconn->m_rdeidx %= pconn->m_rdsize;
+					pconn->m_rdlen ++;
+					if (pconn->m_rdlen >= pconn->m_rdsize) {
+						ret = write_chatsvr_conn(pconn);
+						if (ret < 0) {
+							GETERRNO(ret);
+							goto fail;
+						}
+					}
+				}
+
+				if (pconn->m_rdlen > 0) {
+					ret = write_chatsvr_conn(pconn);
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
+				}
+
+
+				ret = libev_insert_handle(pconn->m_pevmain, get_tcp_read_handle(pconn->m_psock), read_chatsvr_conn, pconn);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
 				}
+
+				pconn->m_insertrd = 1;
+
+				/*now to add */
+				pacc->m_pconns->push_back(pconn);
+			} else {
+				break;	
 			}
+			
 		}
-
-		if (pconn->m_rdlen > 0) {
-			ret = write_chatsvr_conn(pconn);
-			if (ret < 0) {
-				GETERRNO(ret);
-				goto fail;
-			}
-		}
-
-
-		ret = libev_insert_handle(pconn->m_pevmain, get_tcp_read_handle(pconn->m_psock), read_chatsvr_conn, pconn);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-
-		pconn->m_insertrd = 1;
-
-		/*now to add */
-		pacc->m_pconns->push_back(pconn);
 	}
 	return 0;
 fail:
@@ -557,6 +562,8 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		GETERRNO(ret);
 		goto out;
 	}
+
+	pconn
 
 	psvr->m_pevmain = pevmain;
 	ret = libev_insert_handle(pevmain, get_tcp_accept_handle(psvr->m_psock), accept_chatsvr, psvr);
