@@ -277,6 +277,7 @@ int write_chatsvr_conn_callback(HANDLE hd, libev_enum_event_t event, void* pevma
 				GETERRNO(ret);
 				goto fail_really;
 			}
+			pconn->m_insertwr = 0;
 
 			if (pconn->m_ppwrbufs->size() > 0) {
 				while (pconn->m_ppwrbufs->size() > 0) {
@@ -300,13 +301,13 @@ int write_chatsvr_conn_callback(HANDLE hd, libev_enum_event_t event, void* pevma
 				}
 			}
 
-			if (pconn->m_pwrbuf == NULL) {
-				ret = libev_remove_handle(pconn->m_pevmain, pconn->m_wrhd);
+			if (pconn->m_pwrbuf != NULL) {
+				ret = libev_insert_handle(pconn->m_pevmain,pconn->m_wrhd,write_chatsvr_conn_callback,pconn);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail_really;
 				}
-				pconn->m_insertwr = 0;
+				pconn->m_insertwr = 1;
 			}
 		}
 
@@ -367,7 +368,6 @@ int write_chatsvr_conn(pchatsvr_conn_t pconn)
 				GETERRNO(ret);
 				goto fail;
 			}
-			startwr = 1;
 			pconn->m_insertwr = 1;
 		}
 
@@ -596,20 +596,142 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	fprintf(stdout, "exit winev ok\n");
 	ret = 0;
 out:
-	__free_chatsvr_acc(&psvr);
 	libev_free_winev(&pevmain);
+	__free_chatsvr_acc(&psvr);
 	fini_socket();
 	SETERRNO(ret);
 	return ret;
 }
 
+typedef struct __chatcli {
+	void* m_psock;
+	void* m_pevmain;
+	char* m_connip;
+	int m_port;
+	int m_insertrd;
+	int m_insertwr;
+	int m_insertconn;
+	int m_inserttimeout;
+	uint64_t m_timeoutguid;
+	HANDLE m_connhd;
+	HANDLE m_rdhd;
+	HANDLE m_wrhd;
+	HANDLE m_stdinhd;
+} chatcli_t,*pchatcli_t;
+
+void __stop_chatcli(pchatcli_t*ppcli)
+{
+	int ret;
+	if (ppcli && *ppcli) {
+		pchatcli_t pcli = *ppcli;
+		if (pcli->m_inserttimeout > 0) {
+			ret = libev_remove_timeout(pcli->m_pevmain,pcli->m_timeoutguid);
+			ASSERT_IF(ret >= 0);
+		}
+		pcli->m_inserttimeout = 0;
+		pcli->m_timeoutguid = 0;
+
+		if (pcli->m_insertconn > 0) {
+			ret= libev_remove_handle(pcli->m_pevmain,pcli->m_connhd);
+			ASSERT_IF(ret >= 0);
+		}
+		pcli->m_insertconn  =0;
+
+		if (pcli->m_insertrd > 0) {
+			ret = libev_remove_handle(pcli->m_pevmain,pcli->m_rdhd);
+			ASSERT_IF(ret >= 0);
+		}
+		pcli->m_insertrd = 0;
+
+		if (pcli->m_insertwr > 0) {
+			ret = libev_remove_handle(pcli->m_pevmain,pcli->m_wrhd);
+			ASSERT_IF(ret >= 0);
+		}
+		pcli->m_insertwr = 0;
+	}
+}
+
+void __free_chatcli(pchatcli_t*ppcli)
+{
+
+	if (ppcli && *ppcli) {
+		pchatcli_t pcli = *ppcli;
+
+
+		pcli->m_rdhd = NULL;
+		pcli->m_connhd = NULL;
+		free_socket(&(pcli->m_psock));
+		free(pcli);
+		*ppcli = NULL;
+	}
+}
+
+pchatcli_t __alloc_chat_cli(char* connip,int port)
+{
+	pchatcli_t pcli = NULL;
+	int ret;
+
+	return pcli;
+fail:
+	__free_chatcli(&pcli);
+	SETERRNO(ret);
+	return NULL;	
+}
+
 int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	int ret = 0;
+	char* connip = "127.0.0.1";
+	int port = 4012;
+	pargs_options_t pargs=  (pargs_options_t) popt;
+	HANDLE exithd=NULL;
+	void* pcli=NULL;
+	void* pevmain = NULL;
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
-	REFERENCE_ARG(parsestate);
-	REFERENCE_ARG(popt);
+	init_log_level(pargs);
+
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		port = atoi(parsestate->leftargs[0]);
+		if (parsestate->leftargs[1]) {
+			connip = parsestate->leftargs[1];
+		}
+	}
+
+	ret=  init_socket();
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	pevmain = libev_init_winev();
+	if (pevmain == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	pcli = connect_tcp_socket(connip,port,NULL,0,0);
+	if (pcli == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("connect [%s:%d] error[%d]",connip,port);
+		goto out;
+	}
+
+	connhd = get_tcp_connect_handle(pcli);
+	if (connhd == NULL) {
+		/*connected*/
+	} else {
+		/*not connected*/
+	}
+
+
+	ret=  0;
+out:
+	libev_free_winev(&pevmain);
+	free_socket(&pcli);
+	fini_socket();
+	close_ctrlc_handle();
+	SETERRNO(ret);
 	return ret;
 }
 
