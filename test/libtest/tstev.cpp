@@ -302,7 +302,7 @@ int write_chatsvr_conn_callback(HANDLE hd, libev_enum_event_t event, void* pevma
 			}
 
 			if (pconn->m_pwrbuf != NULL) {
-				ret = libev_insert_handle(pconn->m_pevmain,pconn->m_wrhd,write_chatsvr_conn_callback,pconn);
+				ret = libev_insert_handle(pconn->m_pevmain, pconn->m_wrhd, write_chatsvr_conn_callback, pconn);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail_really;
@@ -415,7 +415,7 @@ int read_chatsvr_conn(HANDLE hd, libev_enum_event_t event, void* pevmain, void* 
 						goto fail;
 					}
 				}
-				ret = read_tcp_socket(pconn->m_psock, (uint8_t*)&(pconn->m_rdbuf[pconn->m_rdeidx]), 1);
+				ret = read_tcp_socket(pconn->m_psock, (uint8_t*) & (pconn->m_rdbuf[pconn->m_rdeidx]), 1);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
@@ -474,7 +474,7 @@ int accept_chatsvr(HANDLE hd, libev_enum_event_t event, void* pevmain, void* arg
 				psock = NULL;
 
 				while (1) {
-					ret = read_tcp_socket(pconn->m_psock, (uint8_t*)&(pconn->m_rdbuf[pconn->m_rdeidx]), 1);
+					ret = read_tcp_socket(pconn->m_psock, (uint8_t*) & (pconn->m_rdbuf[pconn->m_rdeidx]), 1);
 					if (ret == 0) {
 						break;
 					} else if (ret < 0) {
@@ -514,9 +514,9 @@ int accept_chatsvr(HANDLE hd, libev_enum_event_t event, void* pevmain, void* arg
 				/*now to add */
 				pacc->m_pconns->push_back(pconn);
 			} else {
-				break;	
+				break;
 			}
-			
+
 		}
 	}
 	return 0;
@@ -612,12 +612,25 @@ typedef struct __chatcli {
 	int m_insertwr;
 	int m_insertconn;
 	int m_inserttimeout;
+	int m_insertstdin;
 	uint64_t m_timeoutguid;
 	HANDLE m_connhd;
 	HANDLE m_rdhd;
 	HANDLE m_wrhd;
 	HANDLE m_stdinhd;
-} chatcli_t,*pchatcli_t;
+	char* m_pwrbuf;
+	int m_wsize;
+	std::vector<char*> *m_ppwrbufs;
+	std::vector<int> *m_pwlens;
+	char m_rdbuf[256];
+	int m_rdsidx;
+	int m_rdeidt;
+	int m_rdlen;
+	char m_stdinrdbuf[256];
+	int m_stdinrdlen;
+	int m_stdinrdsidx;
+	int m_stdinrdeidx;
+} chatcli_t, *pchatcli_t;
 
 void __stop_chatcli(pchatcli_t*ppcli)
 {
@@ -625,67 +638,546 @@ void __stop_chatcli(pchatcli_t*ppcli)
 	if (ppcli && *ppcli) {
 		pchatcli_t pcli = *ppcli;
 		if (pcli->m_inserttimeout > 0) {
-			ret = libev_remove_timeout(pcli->m_pevmain,pcli->m_timeoutguid);
+			ret = libev_remove_timeout(pcli->m_pevmain, pcli->m_timeoutguid);
 			ASSERT_IF(ret >= 0);
 		}
 		pcli->m_inserttimeout = 0;
 		pcli->m_timeoutguid = 0;
 
 		if (pcli->m_insertconn > 0) {
-			ret= libev_remove_handle(pcli->m_pevmain,pcli->m_connhd);
+			ret = libev_remove_handle(pcli->m_pevmain, pcli->m_connhd);
 			ASSERT_IF(ret >= 0);
 		}
-		pcli->m_insertconn  =0;
+		pcli->m_insertconn  = 0;
 
 		if (pcli->m_insertrd > 0) {
-			ret = libev_remove_handle(pcli->m_pevmain,pcli->m_rdhd);
+			ret = libev_remove_handle(pcli->m_pevmain, pcli->m_rdhd);
 			ASSERT_IF(ret >= 0);
 		}
 		pcli->m_insertrd = 0;
 
 		if (pcli->m_insertwr > 0) {
-			ret = libev_remove_handle(pcli->m_pevmain,pcli->m_wrhd);
+			ret = libev_remove_handle(pcli->m_pevmain, pcli->m_wrhd);
 			ASSERT_IF(ret >= 0);
 		}
 		pcli->m_insertwr = 0;
+
+		if (pcli->m_insertstdin > 0) {
+			ret = libev_remove_handle(pcli->m_pevmain, pcli->m_stdinhd);
+			ASSERT_IF(ret >= 0);
+		}
+		pcli->m_insertstdin = 0;
+
 	}
 }
 
 void __free_chatcli(pchatcli_t*ppcli)
 {
 
+	__stop_chatcli(ppcli);
 	if (ppcli && *ppcli) {
 		pchatcli_t pcli = *ppcli;
 
+		if (pcli->m_connip) {
+			free(pcli->m_connip);
+		}
+		pcli->m_connip = NULL;
+		pcli->m_port = -1;
 
+		pcli->m_stdinhd = NULL;
+		pcli->m_wrhd = NULL;
 		pcli->m_rdhd = NULL;
 		pcli->m_connhd = NULL;
 		free_socket(&(pcli->m_psock));
+
+		/*we put here to free the buffer ,because in free_socket will cancelio*/
+
+		pcli->m_rdsidx = 0;
+		pcli->m_rdlen = 0;
+		pcli->m_rdeidx = 0;
+		memset(pcli->m_rdbuf, 0, sizeof(pcli->m_rdbuf));
+
+		pcli->m_stdinrdlen = 0;
+		pcli->m_stdinrdsidx = 0;
+		pcli->m_stdinrdeidx = 0;
+		memset(pcli->m_stdinrdbuf, 0, sizeof(pcli->m_stdinrdbuf));
+
+		if (pcli->m_pwrbuf) {
+			free(pcli->m_pwrbuf);
+		}
+		pcli->m_pwrbuf = NULL;
+		pcli->m_wrsize = 0;
+
+		if (pcli->m_ppwrbufs && pcli->m_pwrlens) {
+			while (pcli->m_ppwrbufs->size() > 0) {
+				ASSERT_IF(pcli->m_ppwrbufs->size() == pcli->m_pwrlens->size());
+				char* pwrbuf = pcli->m_ppwrbufs->at(0);
+				pcli->m_ppwrbufs->erase(pcli->m_ppwrbufs->begin());
+				pcli->m_pwrlens->erase(pcli->m_pwrlens->begin());
+				free(pwrbuf);
+				pwrbuf = NULL;
+			}
+		}
+
+		if (pcli->m_ppwrbufs) {
+			delete pcli->m_ppwrbufs;
+		}
+		pcli->m_ppwrbufs = NULL;
+
+		if (pcli->m_pwrlens) {
+			delete pcli->m_pwrlens;
+		}
+		pcli->m_pwrlens = NULL;
+
+
 		free(pcli);
 		*ppcli = NULL;
 	}
 }
 
-pchatcli_t __alloc_chat_cli(char* connip,int port)
+pchatcli_t __alloc_chat_cli(char* connip, int port)
 {
 	pchatcli_t pcli = NULL;
 	int ret;
+
+	pcli = (pchatcli_t) malloc(sizeof(*pcli));
+	if (pcli == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	memset(pcli, 0, sizeof(*pcli));
+	pcli->m_psock = NULL;
+	pcli->m_pevmain = NULL;
+	pcli->m_connip = NULL;
+	pcli->m_port = -1;
+
+	pcli->m_insertrd = 0;
+	pcli->m_insertwr = 0;
+	pcli->m_insertconn = 0;
+	pcli->m_inserttimeout = 0;
+	pcli->m_insertstdin = 0;
+
+	pcli->m_timeoutguid = 0;
+
+	pcli->m_connhd = NULL;
+	pcli->m_rdhd = NULL;
+	pcli->m_wrhd = NULL;
+	pcli->m_ppwrbufs = NULL;
+	pcli->m_pwrlens = NULL;
+	pcli->m_pwrbuf = NULL;
+	pcli->m_wrsize = 0;
+
+	pcli->m_stdinhd = GetStdHandle(STD_INPUT_HANDLE);
+	if (pcli->m_stdinhd == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	pcli->m_psock = connect_tcp_socket(connip, port, NULL, 0, 0);
+	if (pcli->m_psock == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	pcli->m_connip = _strdup(connip);
+	if (pcli->m_connip == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	pcli->m_port = port;
+
+	pcli->m_ppwrbufs = new std::vector<char*>();
+	pcli->m_pwrlens = new std::vector<int>();
 
 	return pcli;
 fail:
 	__free_chatcli(&pcli);
 	SETERRNO(ret);
-	return NULL;	
+	return NULL;
 }
+
+int write_chatcli_stdout_conn(pchatcli_t pcli)
+{
+	char* pwrbuf = NULL;
+	int wrsize = 0;
+	int i;
+	int ret;
+
+	wrsize = pcli->m_rdlen;
+	pwrbuf = (char*) malloc(wrsize);
+	if (pwrbuf == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	for (i = 0; i < pcli->m_stdinrdlen; i++) {
+		curidx = pcli->m_stdinrdsidx + i;
+		curidx %= sizeof(pcli->m_stdinrdbuf);
+		pwrbuf[i] = pcli->m_stdinrdbuf[curidx];
+	}
+	pcli->m_stdinrdsidx = pcli->m_stdinrdeidx;
+	pcli->m_stdinrdlen = 0;
+
+	if (pcli->m_pwrbuf == NULL) {
+		pcli->m_pwrbuf = pwrbuf;
+		pcli->m_wrsize = wrsize;
+		pwrbuf = NULL;
+		wrsize = 0;
+		ret =  write_tcp_socket(pcli->m_psock, pcli->m_pwrbuf, pcli->m_wrsize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		} else if (ret > 0) {
+			free(pcli->m_pwrbuf);
+			pcli->m_pwrbuf = NULL;
+			pcli->m_wrsize = 0;
+			if (pcli->m_insertwr > 0) {
+				ret = libev_remove_handle(pcli->m_pevmain, pcli->m_wrhd);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				pcli->m_insertwr = 0;
+			}
+		} else {
+			pcli->m_wrhd = get_tcp_write_handle(pcli->m_psock);
+			if (pcli->m_insertwr == 0) {
+				ret = libev_insert_handle(pcli->m_pevmain, pcli->m_wrhd, write_chatcli_conn, pcli);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				pcli->m_insertwr = 1;
+			}
+		}
+	} else {
+		pcli->m_ppwrbufs->push_back(pwrbuf);
+		pcli->m_pwrlens->push_back(wrsize);
+		pwrbuf = NULL;
+		wrsize = 0;
+	}
+
+	if (pcli->m_pwrbuf == NULL) {
+		while (pcli->m_ppwrbufs->size() > 0) {
+			pcli->m_pwrbuf = pcli->m_ppwrbufs->at(0);
+			pcli->m_wrsize = pcli->m_pwrlens->at(0);
+			pcli->m_ppwrbufs->erase(pcli->m_ppwrbufs->begin());
+			pcli->m_pwrlens->erase(pcli->m_pwrlens->begin());
+			ret =  write_tcp_socket(pcli->m_psock, pcli->m_pwrbuf, pcli->m_wrsize);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			} else if (ret > 0) {
+				free(pcli->m_pwrbuf);
+				pcli->m_pwrbuf = NULL;
+				pcli->m_wrsize = 0;
+				if (pcli->m_insertwr > 0) {
+					ret = libev_remove_handle(pcli->m_pevmain, pcli->m_wrhd);
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					pcli->m_insertwr = 0;
+				}
+			} else {
+				pcli->m_wrhd = get_tcp_write_handle(pcli->m_psock);
+				if (pcli->m_insertwr == 0) {
+					ret = libev_insert_handle(pcli->m_pevmain, pcli->m_wrhd, write_chatcli_conn, pcli);
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					pcli->m_insertwr = 1;
+				}
+				/*break*/
+				break;
+			}
+		}
+	}
+
+
+	return 0;
+fail:
+	if (pwrbuf) {
+		free(pwrbuf);
+	}
+	pwrbuf = NULL;
+	wrsize = 0;
+	SETERRNO(ret);
+	return ret;
+}
+
+int write_chatcli_conn(pchatcli_t pcli)
+{
+	char* pwrbuf = NULL;
+	int wrsize = 0;
+	int i;
+	int ret;
+	int curidx;
+
+	wrsize = pcli->m_rdlen + 1;
+	pwrbuf = (char*) malloc(wrsize);
+	if (pwrbuf == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	memset(pwrbuf, 0, wrsize);
+	for (i = 0; i < pcli->m_rdlen; i++) {
+		curidx = pcli->m_rdsidx + i;
+		curidx %= sizeof(pcli->m_rdbuf);
+		pwrbuf[i] = pcli->m_rdbuf[curidx];
+	}
+
+	pcli->m_rdlen = 0;
+	pcli->m_rdsidx = pcli->m_rdeidx;
+
+	fprintf(stdout, "%s", pwrbuf);
+	fflush(stdout);
+	free(pwrbuf);
+	pwrbuf = NULL;
+
+	return 0;
+fail:
+	if (pwrbuf) {
+		free(pwrbuf);
+	}
+	pwrbuf = NULL;
+	wrsize = 0;
+	SETERRNO(ret);
+	return ret;
+}
+
+int read_chatcli_stdin(pchatcli_t pcli);
+
+int read_chatcli_stdin_callback(HANDLE hd, libev_enum_event_t event, void* pevmain, void* args)
+{
+	int ret;
+	pchatcli_t pcli = (pchatcli_t)args;
+	if (event == normal_event) {
+		ret = read_chatcli_stdin(pcli);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+	return 0;
+fail:
+	return ret;
+}
+
+int read_chatcli_conn(HANDLE hd, libev_enum_event_t event, void* pevmain, void* args);
+int read_chatcli_conn_inner(pchatcli_t pcli)
+{
+	int ret;
+	/*connected*/
+	while (1) {
+		ret = read_tcp_socket(pcli->m_psock, &(pcli->m_rdbuf[pcli->m_rdeidx]), 1);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		} else if (ret == 0) {
+			break;
+		}
+		pcli->m_rdlen ++;
+		pcli->m_rdeidx ++;
+		pcli->m_rdeidx %= sizeof(pcli->m_rdbuf);
+		if (pcli->m_rdlen == sizeof(pcli->m_rdbuf)) {
+			ret = write_chatcli_stdout_conn(pcli);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+	}
+
+	if (pcli->m_rdlen != 0) {
+		ret =  write_chatcli_stdout_conn(pcli);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	/*now to add */
+	pcli->m_rdhd = get_tcp_read_handle(pcli->m_psock);
+	if (pcli->m_insertrd == 0) {
+		ret = libev_insert_handle(pcli->m_pevmain, pevmain->m_rdhd, read_chatcli_conn, pcli);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		pcli->m_insertrd = 1;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+
+}
+
+int connect_chatcli_conn(HANDLE hd, libev_enum_event_t event, void* pevmain, void* args)
+{
+	pchatcli_t pcli = (pchatcli_t)args;
+	int ret;
+	if (event == normal_event) {
+		ret = complete_tcp_connect(pcli->m_psock);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		} else if (ret > 0) {
+			ASSERT_IF(pcli->m_insertconn > 0);
+			ret= libev_remove_handle(pcli->m_pevmain,pcli->m_connhd);
+			ASSERT_IF(ret >= 0);
+			pcli->m_insertconn = 0;
+			ASSERT_IF(pcli->m_inserttimeout > 0);
+			ret= libev_remove_timer(pcli->m_pevmain,pcli->m_timeoutguid);
+			ASSERT_IF(ret >= 0);
+			pcli->m_inserttimeout = 0;
+			ret = read_chatcli_conn_inner(pcli);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int connect_chatcli_timeout(HANDLE hd, libev_enum_event_t event, void* pevmain, void* args)
+{
+	int ret;
+	pchatcli_t pcli = (pchatcli_t)args;
+	if (event == normal_event) {
+		ret = -ETIMEDOUT;
+		ERROR_INFO("connect [%s:%d] timedout",pcli->m_connip,pcli->m_port);
+		goto fail;
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+
+}
+
+int read_chatcli_conn(HANDLE hd, libev_enum_event_t event, void* pevmain, void* args)
+{
+	int ret;
+	pchatcli_t pcli = (pchatcli_t)args;
+	if (event == normal_event) {
+		ret = complete_tcp_read(pcli->m_psock);
+		if (ret > 0) {
+			pcli->m_rdeidx ++;
+			pcli->m_rdlen ++;
+			pcli->m_rdeidx %= sizeof(pcli->m_rdbuf);
+			if (pcli->m_rdlen == sizeof(pcli->m_rdbuf)) {
+				ret = write_chatcli_stdout_conn(pcli);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+			}
+
+			ret = read_chatcli_conn_inner(pcli);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		} else if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int read_chatcli_stdin(pchatcli_t pcli)
+{
+	int ret;
+	INPUT_RECORD ri;
+	DWORD retnum;
+	int iscr = 0;
+
+	while (1) {
+		bret = PeekConsoleInput(pcli->m_stdinhd, &ri, 1, &retnum);
+		if (!bret) {
+			break;
+		}
+		bret = ReadConsoleInput(pcli->m_stdinhd, &ri, 1, &retnum);
+		if (!bret) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		if (pcli->m_stdinrdlen >= (sizeof(pcli->m_stdinrdbuf) - 2)) {
+			ret = write_chatcli_stdout_conn(pcli);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+
+		if (ir.EventType == KEY_EVENT  && ir.Event.KeyEvent.bKeyDown) {
+			//DEBUG_BUFFER_FMT(&(ir[i]),sizeof(ir[0]),"[%d] ir  0x%x",i,ir[i].Event.KeyEvent.uChar.AsciiChar);
+			if (ir.Event.KeyEvent.uChar.AsciiChar != 0) {
+				pcli->m_stdinrdbuf[pcli->m_stdinrdeidx] = ir.Event.KeyEvent.uChar.AsciiChar;
+				if (ir.Event.KeyEvent.uChar.AsciiChar == '\r') {
+					iscr = 1;
+				}
+				pcli->m_stdinrdeidx ++;
+				pcli->m_stdinrdlen ++;
+				if (iscr) {
+					pcli->m_stdinrdbuf[pcli->m_stdinrdeidx] = '\n';
+					pcli->m_stdinrdeidx ++;
+					pcli->m_stdinrdlen ++;
+				}
+				iscr = 0;
+			}
+		}
+	}
+
+	if (pcli->m_stdinrdlen > 0) {
+		ret = write_chatcli_stdout_conn(pcli);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	if (pcli->m_insertstdin == 0) {
+		ret = libev_insert_handle(pcli->m_pevmain, pcli->m_stdinhd, read_chatcli_stdin_callback, pcli);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		pcli->m_insertstdin = 1;
+	}
+
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
 
 int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	int ret = 0;
 	char* connip = "127.0.0.1";
 	int port = 4012;
-	pargs_options_t pargs=  (pargs_options_t) popt;
-	HANDLE exithd=NULL;
-	void* pcli=NULL;
+	pargs_options_t pargs =  (pargs_options_t) popt;
+	HANDLE exithd = NULL;
+	void* pcli = NULL;
 	void* pevmain = NULL;
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
@@ -698,7 +1190,7 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		}
 	}
 
-	ret=  init_socket();
+	ret =  init_socket();
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto out;
@@ -710,22 +1202,64 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
-	pcli = connect_tcp_socket(connip,port,NULL,0,0);
+	pcli = __alloc_chat_cli(connip, port);
 	if (pcli == NULL) {
 		GETERRNO(ret);
-		ERROR_INFO("connect [%s:%d] error[%d]",connip,port);
 		goto out;
 	}
 
+	pcli->m_pevmain = pevmain;
+
 	connhd = get_tcp_connect_handle(pcli);
 	if (connhd == NULL) {
-		/*connected*/
+		ret = read_chatcli_conn_inner(pcli);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
 	} else {
 		/*not connected*/
+		pcli->m_connhd = get_tcp_connect_handle(pcli->m_psock);
+		ret = libev_insert_handle(pcli->m_pevmain, pevmain->m_connhd, connect_chatcli_conn, pcli);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+		pcli->m_insertconn = 1;
+
+		ret = libev_insert_timer(pcli->m_pevmain,&(pcli->m_timeoutguid),connect_chatcli_timeout,pcli,5000,0);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+		pcli->m_inserttimeout = 1;
 	}
 
+	ret = libev_insert_handle(pevmain, exithd, exit_chatsvr, NULL);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
 
-	ret=  0;
+	ret = libev_insert_handle(pcli->m_pevmain, pevmain->m_stdinhd, read_stdin_chatcli, pcli);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret =  read_chatcli_stdin(pcli);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = libev_winev_loop(pevmain);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret =  0;
 out:
 	libev_free_winev(&pevmain);
 	free_socket(&pcli);
