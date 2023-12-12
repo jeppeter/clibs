@@ -535,6 +535,7 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 	}
 
 succ:
+	DEBUG_INFO("connect_tcp_socket inconn %d", psock->m_inconn);
 	return psock;
 fail:
 	__free_socket(&psock);
@@ -549,6 +550,7 @@ HANDLE get_tcp_connect_handle(void* ptcp)
 	if (psock && psock->m_inconn > 0)  {
 		hret = psock->m_connevt;
 	}
+	DEBUG_INFO("m_inconn %d hret %p",psock->m_inconn,hret);
 	return hret;
 }
 
@@ -567,6 +569,8 @@ int complete_tcp_connect(void* ptcp)
 			goto fail;
 		}
 		psock->m_inconn = 0;
+		DEBUG_INFO("DRET %ld",dret);
+		DEBUG_BUFFER_FMT(&(psock->m_connov),sizeof(psock->m_connov),"connov");
 
 		ret = __get_self_name(psock);
 		if (ret < 0) {
@@ -758,6 +762,10 @@ int complete_tcp_accept(void* ptcp)
 		bret = GetOverlappedResult((HANDLE)psock->m_sock, &(psock->m_accov),&dret,NULL);
 		if (!bret) {
 			GETERRNO(ret);
+			if (ret == -ERROR_IO_INCOMPLETE || ret == -ERROR_IO_PENDING) {
+				/*this is coding*/
+				return 0;
+			}
 			ERROR_INFO("get accept [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
 			goto fail;
 		}

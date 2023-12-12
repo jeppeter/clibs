@@ -581,28 +581,28 @@ BOOL WINAPI HandlerConsoleRoutine(DWORD dwCtrlType)
     BOOL bret = TRUE;
     switch (dwCtrlType) {
     case CTRL_C_EVENT:
-        DEBUG_INFO("CTRL_C_EVENT\n");
+        DEBUG_INFO("CTRL_C_EVENT");
         break;
     case CTRL_BREAK_EVENT:
-        DEBUG_INFO("CTRL_BREAK_EVENT\n");
+        DEBUG_INFO("CTRL_BREAK_EVENT");
         break;
     case CTRL_CLOSE_EVENT:
-        DEBUG_INFO("CTRL_CLOSE_EVENT\n");
+        DEBUG_INFO("CTRL_CLOSE_EVENT");
         break;
     case CTRL_LOGOFF_EVENT:
-        DEBUG_INFO("CTRL_LOGOFF_EVENT\n");
+        DEBUG_INFO("CTRL_LOGOFF_EVENT");
         break;
     case CTRL_SHUTDOWN_EVENT:
-        DEBUG_INFO("CTRL_SHUTDOWN_EVENT\n");
+        DEBUG_INFO("CTRL_SHUTDOWN_EVENT");
         break;
     default:
-        DEBUG_INFO("ctrltype %d\n", dwCtrlType);
+        DEBUG_INFO("ctrltype %d", dwCtrlType);
         bret = FALSE;
         break;
     }
 
     if (bret && st_ExitEvt) {
-        DEBUG_INFO("setevent 0x%x\n", st_ExitEvt);
+        DEBUG_INFO("setevent 0x%x", st_ExitEvt);
         SetEvent(st_ExitEvt);
     }
 

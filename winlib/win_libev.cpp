@@ -258,6 +258,7 @@ int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void*
 
     if (pev == NULL || hd == NULL || pfunc == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("pev %p hd %p pfunc %p",pev,hd,pfunc);
         SETERRNO(ret);
         return ret;
     }
@@ -294,6 +295,7 @@ int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void*
         ptmp = NULL;
     }
 
+    DEBUG_INFO("insert[%d] %p",pev->m_waitnum,hd);
     pev->m_pwaits[pev->m_waitnum] = hd;
     pev->m_waitnum += 1;
 
@@ -387,16 +389,20 @@ int libev_remove_handle(void* pevmain,HANDLE hd)
         return 0;
     }
 
+    DEBUG_INFO("remove handle %p",hd);
+
     plibev_evt_call_t pcall = pev->m_pcallers->at((uint64_t)fidx);
     pev->m_pcallers->erase(pev->m_pcallers->begin() + fidx);
     __free_winev_call(&pcall);
 
     if (pev->m_pwaits != NULL) {
         for(i=fidx;i<(int)(pev->m_waitnum-1);i++) {
+            DEBUG_INFO("[%d] %p => %p",i,pev->m_pwaits[i],pev->m_pwaits[i+1]);
             pev->m_pwaits[i] = pev->m_pwaits[i+1];
         }
-        pev->m_pwaits[pev->m_waitnum] = NULL;
+        pev->m_pwaits[pev->m_waitnum-1] = NULL;
         pev->m_waitnum -= 1;
+        DEBUG_INFO("waitnum %d",pev->m_waitnum);
         /*so big we shrink*/
         if (pev->m_waitsize > (pev->m_waitnum << 2)) {
             if (pev->m_waitnum != 0) {
@@ -474,17 +480,19 @@ int libev_winev_loop(void* pevmain)
         maxmills = __get_max_mills(pev,30000);
         if (pev->m_waitnum > 0) {
             waitnum = pev->m_waitnum;
+            DEBUG_INFO("waitnum %d",waitnum);
             dret = WaitForMultipleObjectsEx(pev->m_waitnum,pev->m_pwaits,FALSE,(DWORD)maxmills,TRUE);
         } else {
             waitnum = 1;
             dret = WaitForMultipleObjectsEx(1,pev->m_htmevt,FALSE,(DWORD)maxmills,TRUE);
         }
-        if (dret <= (WAIT_OBJECT_0 + waitnum - 1)) {
+        if (dret < (WAIT_OBJECT_0 + waitnum)) {
             if (pev->m_waitnum > 0) {
                 hd = pev->m_pwaits[(dret - WAIT_OBJECT_0)];
             } else {
                 hd = pev->m_htmevt[0];
             }
+            DEBUG_INFO("[%d]hd %p",dret,hd);
             fidx = __find_evt_call(pev,hd);
             if (fidx >= 0) {
                 plibev_evt_call_t pcall = pev->m_pcallers->at((uint64_t)fidx);
