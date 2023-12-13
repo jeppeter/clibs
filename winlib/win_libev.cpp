@@ -295,7 +295,7 @@ int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void*
         ptmp = NULL;
     }
 
-    DEBUG_INFO("insert[%d] %p",pev->m_waitnum,hd);
+    DEBUG_INFO("insert[%d] %p func %p",pev->m_waitnum,hd,pcall->m_func);
     pev->m_pwaits[pev->m_waitnum] = hd;
     pev->m_waitnum += 1;
 
@@ -496,12 +496,15 @@ int libev_winev_loop(void* pevmain)
             fidx = __find_evt_call(pev,hd);
             if (fidx >= 0) {
                 plibev_evt_call_t pcall = pev->m_pcallers->at((uint64_t)fidx);
+                DEBUG_INFO("pcall->m_func %p",pcall->m_func);
                 ret = pcall->m_func(pcall->m_handle,normal_event,pev,pcall->m_args);
                 if (ret < 0) {
                     GETERRNO(ret);
                     goto fail;
                 }
+                DEBUG_INFO(" ");
             }
+            DEBUG_INFO(" ");
         } else if (dret != WAIT_TIMEOUT) {
             GETERRNO(ret);
             ERROR_INFO("wait error [%ld] %d", dret,ret);
