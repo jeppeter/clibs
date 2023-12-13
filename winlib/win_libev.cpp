@@ -297,7 +297,7 @@ int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void*
         ptmp = NULL;
     }
 
-    DEBUG_INFO("insert[%d] %p func %p",pev->m_waitnum,hd,pcall->m_func);
+    //DEBUG_INFO("insert[%d] %p func %p",pev->m_waitnum,hd,pcall->m_func);
     pev->m_pwaits[pev->m_waitnum] = hd;
     pev->m_waitnum += 1;
 
@@ -393,7 +393,7 @@ int libev_remove_handle(void* pevmain,HANDLE hd)
         return 0;
     }
 
-    DEBUG_INFO("remove handle %p",hd);
+    //DEBUG_INFO("remove handle %p",hd);
 
     plibev_evt_call_t pcall = pev->m_pcallers->at((uint64_t)fidx);
     pev->m_pcallers->erase(pev->m_pcallers->begin() + fidx);
@@ -401,12 +401,12 @@ int libev_remove_handle(void* pevmain,HANDLE hd)
 
     if (pev->m_pwaits != NULL) {
         for(i=fidx;i<(int)(pev->m_waitnum-1);i++) {
-            DEBUG_INFO("[%d] %p => %p",i,pev->m_pwaits[i],pev->m_pwaits[i+1]);
+            //DEBUG_INFO("[%d] %p => %p",i,pev->m_pwaits[i],pev->m_pwaits[i+1]);
             pev->m_pwaits[i] = pev->m_pwaits[i+1];
         }
         pev->m_pwaits[pev->m_waitnum-1] = NULL;
         pev->m_waitnum -= 1;
-        DEBUG_INFO("waitnum %d",pev->m_waitnum);
+        //DEBUG_INFO("waitnum %d",pev->m_waitnum);
         /*so big we shrink*/
         if (pev->m_waitsize > (pev->m_waitnum << 2)) {
             if (pev->m_waitnum != 0) {
@@ -492,7 +492,7 @@ int libev_winev_loop(void* pevmain)
         maxmills = __get_max_mills(pev,30000);
         if (pev->m_waitnum > 0) {
             waitnum = pev->m_waitnum;
-            DEBUG_INFO("waitnum %d",waitnum);
+            //DEBUG_INFO("waitnum %d",waitnum);
             dret = WaitForMultipleObjectsEx(pev->m_waitnum,pev->m_pwaits,FALSE,(DWORD)maxmills,TRUE);
         } else {
             waitnum = 1;
@@ -504,19 +504,17 @@ int libev_winev_loop(void* pevmain)
             } else {
                 hd = pev->m_htmevt[0];
             }
-            DEBUG_INFO("[%d]hd %p",dret,hd);
+            //DEBUG_INFO("[%d]hd %p",dret,hd);
             fidx = __find_evt_call(pev,hd);
             if (fidx >= 0) {
                 plibev_evt_call_t pcall = pev->m_pcallers->at((uint64_t)fidx);
-                DEBUG_INFO("pcall->m_func %p",pcall->m_func);
+                //DEBUG_INFO("pcall->m_func %p",pcall->m_func);
                 ret = pcall->m_func(pcall->m_handle,normal_event,pev,pcall->m_args);
                 if (ret < 0) {
                     GETERRNO(ret);
                     goto fail;
                 }
-                DEBUG_INFO(" ");
             }
-            DEBUG_INFO(" ");
         } else if (dret != WAIT_TIMEOUT) {
             GETERRNO(ret);
             ERROR_INFO("wait error [%ld] %d", dret,ret);

@@ -74,7 +74,7 @@ void __stop_chatsvr_conn_event(pchatsvr_conn_t* ppconn)
 		pchatsvr_conn_t pconn = *ppconn;
 		if (pconn->m_insertrd > 0) {
 			ASSERT_IF(pconn->m_rdhd != NULL);
-			DEBUG_INFO("remove %p",pconn->m_rdhd);
+			//DEBUG_INFO("remove %p",pconn->m_rdhd);
 			ret = libev_remove_handle(pconn->m_pevmain, pconn->m_rdhd);
 			ASSERT_IF(ret >= 0);
 		}
@@ -82,7 +82,7 @@ void __stop_chatsvr_conn_event(pchatsvr_conn_t* ppconn)
 
 		if (pconn->m_insertwr > 0) {
 			ASSERT_IF(pconn->m_wrhd != NULL);
-			DEBUG_INFO("remove %p",pconn->m_wrhd);
+			//DEBUG_INFO("remove %p",pconn->m_wrhd);
 			ret = libev_remove_handle(pconn->m_pevmain, pconn->m_wrhd);
 			ASSERT_IF(ret >= 0);
 		}
@@ -358,7 +358,6 @@ int write_chatsvr_conn(pchatsvr_conn_t pconn)
 	int i;
 
 	wrsize = pconn->m_rdlen;
-	DEBUG_INFO(" ");
 	pwrbuf = (char*)malloc((size_t)wrsize);
 	if (pwrbuf == NULL) {
 		GETERRNO(ret);
@@ -366,42 +365,36 @@ int write_chatsvr_conn(pchatsvr_conn_t pconn)
 		goto fail;
 	}
 
-	DEBUG_INFO("pwrbuf %p wrsize %d",pwrbuf,wrsize);
+	//DEBUG_INFO("pwrbuf %p wrsize %d",pwrbuf,wrsize);
 	for (i = 0; i < pconn->m_rdlen; i++) {
 		curidx = pconn->m_rdsidx + i;
 		curidx %= pconn->m_rdsize;
-		DEBUG_INFO("[%d] => [%d]",curidx, i);
+		//DEBUG_INFO("[%d] => [%d]",curidx, i);
 		pwrbuf[i] = pconn->m_rdbuf[curidx];
 	}
 	pconn->m_rdlen = 0;
 	pconn->m_rdsidx = pconn->m_rdeidx;
-	DEBUG_INFO("m_rdsidx %d",pconn->m_rdsidx);
+	//DEBUG_INFO("m_rdsidx %d",pconn->m_rdsidx);
 
 	if (pconn->m_pwrbuf == NULL) {
-		DEBUG_INFO("pwrbuf %p wrsize %d",pwrbuf,wrsize);
 		DEBUG_BUFFER_FMT(pwrbuf,wrsize,"buffer");
 		pconn->m_pwrbuf = pwrbuf;
 		pwrbuf = NULL;
 		pconn->m_wrsize = wrsize;
-		DEBUG_INFO(" ");
 		ret = write_tcp_socket(pconn->m_psock, (uint8_t*)pconn->m_pwrbuf, pconn->m_wrsize);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO(" ");
 			goto fail;
 		} else if (ret > 0) {
-			DEBUG_INFO("pwrbuf %p",pconn->m_pwrbuf);
 			free(pconn->m_pwrbuf);
-			DEBUG_INFO(" ");
 			pconn->m_pwrbuf = NULL;
 			pconn->m_wrsize = 0;
-			DEBUG_INFO(" ");
 		} else {
-			DEBUG_INFO("m_insertwr %d",pconn->m_insertwr);
 			/*not write ok*/
 			ASSERT_IF(pconn->m_insertwr == 0);
 			pconn->m_wrhd = get_tcp_write_handle(pconn->m_psock);
-			DEBUG_INFO("insert wrhd %p",pconn->m_wrhd);
+			//DEBUG_INFO("insert wrhd %p",pconn->m_wrhd);
 			ret =  libev_insert_handle(pconn->m_pevmain, pconn->m_wrhd, write_chatsvr_conn_callback, pconn);
 			if (ret < 0) {
 				GETERRNO(ret);
@@ -409,16 +402,12 @@ int write_chatsvr_conn(pchatsvr_conn_t pconn)
 				goto fail;
 			}
 			pconn->m_insertwr = 1;
-			DEBUG_INFO(" ");
 		}
-		DEBUG_INFO(" ");
 	} else {
-		DEBUG_INFO(" ");
 		pconn->m_ppwrbufs->push_back(pwrbuf);
 		pconn->m_pwrlens->push_back(wrsize);
 		pwrbuf = NULL;
 		wrsize = 0;
-		DEBUG_INFO(" ");
 	}
 
 	return startwr;
@@ -441,9 +430,7 @@ int read_chatsvr_conn_inner(pchatsvr_conn_t pconn)
 {
 	int ret;
 	while (1) {
-		DEBUG_INFO(" ");
 		if (pconn->m_rdlen >= pconn->m_rdsize) {
-			DEBUG_INFO(" ");
 			ret = write_chatsvr_conn(pconn);
 			if (ret < 0) {
 				GETERRNO(ret);
@@ -451,23 +438,20 @@ int read_chatsvr_conn_inner(pchatsvr_conn_t pconn)
 				goto fail;
 			}
 		}
-		DEBUG_INFO(" ");
+
 		ret = read_tcp_socket(pconn->m_psock, (uint8_t*) & (pconn->m_rdbuf[pconn->m_rdeidx]), 1);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO(" ");
 			goto fail;
 		} else if (ret == 0) {
-			DEBUG_INFO(" ");
 			break;
 		}
 		pconn->m_rdlen ++;
 		pconn->m_rdeidx ++;
 		pconn->m_rdeidx %= pconn->m_rdsize;
-		DEBUG_INFO(" ");
 	}
 	if (pconn->m_rdlen > 0) {
-		DEBUG_INFO(" ");
 		ret = write_chatsvr_conn(pconn);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -476,20 +460,17 @@ int read_chatsvr_conn_inner(pchatsvr_conn_t pconn)
 		}
 	}
 
-	DEBUG_INFO(" ");
 	if (pconn->m_insertrd == 0) {
 		pconn->m_rdhd = get_tcp_read_handle(pconn->m_psock);
-		DEBUG_INFO("insert rdhd %p",pconn->m_rdhd);
+		//DEBUG_INFO("insert rdhd %p",pconn->m_rdhd);
 		ret =  libev_insert_handle(pconn->m_pevmain, pconn->m_rdhd, read_chatsvr_conn, pconn);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO(" ");
 			goto fail;
 		}
-		DEBUG_INFO(" ");
 		pconn->m_insertrd = 1;
 	}
-	DEBUG_INFO(" ");
 	return 0;
 fail:
 	SETERRNO(ret);
@@ -500,33 +481,25 @@ int read_chatsvr_conn(HANDLE hd, libev_enum_event_t event, void* pevmain, void* 
 {
 	pchatsvr_conn_t pconn = (pchatsvr_conn_t) args;
 	int ret;
-	DEBUG_INFO(" ");
 	REFERENCE_ARG(pevmain);
 	REFERENCE_ARG(hd);
-	DEBUG_INFO("hd %p rdhd %p",hd,pconn->m_rdhd);
 	if (event == normal_event && pconn != NULL) {
-		DEBUG_INFO(" ");
 		ret = complete_tcp_read(pconn->m_psock);
-		DEBUG_INFO(" ");
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO(" ");
 			goto fail;
 		} else if (ret > 0) {
-			DEBUG_INFO(" ");
 			pconn->m_rdeidx ++;
 			pconn->m_rdeidx %= pconn->m_rdsize;
 			pconn->m_rdlen ++;
-			DEBUG_INFO(" ");
 			ret =  read_chatsvr_conn_inner(pconn);
 			if (ret < 0) {
 				GETERRNO(ret);
 				ERROR_INFO(" ");
 				goto fail;
 			}
-			DEBUG_INFO(" ");
 		}
-
 	}
 
 	return 0;
@@ -543,7 +516,7 @@ int accept_chatsvr(HANDLE hd, libev_enum_event_t event, void* pevmain, void* arg
 	pchatsvr_conn_t pconn = NULL;
 	void* psock = NULL;
 	int ret;
-	DEBUG_INFO(" ");
+	//DEBUG_INFO(" ");
 	REFERENCE_ARG(hd);
 	if (event == normal_event) {
 		ASSERT_IF(pacc->m_psock != NULL);
@@ -636,7 +609,7 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
 	psvr->m_pevmain = pevmain;
 	psvr->m_acchd= get_tcp_accept_handle(psvr->m_psock);
-	DEBUG_INFO("insert accept handle %p",psvr->m_acchd);
+	//DEBUG_INFO("insert accept handle %p",psvr->m_acchd);
 	ret = libev_insert_handle(pevmain, psvr->m_acchd, accept_chatsvr, psvr);
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -652,7 +625,7 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
-	DEBUG_INFO("insert exithd %p",exithd);
+	//DEBUG_INFO("insert exithd %p",exithd);
 	ret =  libev_insert_handle(pevmain, exithd, exit_chatsvr, NULL);
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -965,13 +938,14 @@ int write_chatcli_stdout(pchatcli_t pcli)
 	int curidx;
 
 	wrsize = pcli->m_rdlen;
-	pwrbuf = (char*) malloc((size_t)wrsize);
+	pwrbuf = (char*) malloc((size_t)wrsize+1);
 	if (pwrbuf == NULL) {
 		GETERRNO(ret);
 		ERROR_INFO(" ");
 		goto fail;
 	}
 
+	memset(pwrbuf,0,(size_t)wrsize + 1);
 	for (i = 0; i < pcli->m_rdlen; i++) {
 		curidx = pcli->m_rdsidx + i;
 		curidx %= sizeof(pcli->m_rdbuf);
@@ -979,6 +953,7 @@ int write_chatcli_stdout(pchatcli_t pcli)
 	}
 	pcli->m_rdsidx = pcli->m_rdeidx;
 	pcli->m_rdlen = 0;
+	DEBUG_INFO("m_rdsidx %d m_rdlen %d",pcli->m_rdsidx,pcli->m_rdlen);
 	fprintf(stdout,"%s",pwrbuf);
 	fflush(stdout);
 	free(pwrbuf);
@@ -1007,6 +982,10 @@ int write_chatcli_stdout_conn(pchatcli_t pcli)
 		GETERRNO(ret);
 		ERROR_INFO(" ");
 		goto fail;
+	}
+
+	if (pcli->m_stdinrdlen > 128) {
+		ERROR_INFO("need write %d",pcli->m_stdinrdlen);
 	}
 
 	for (i = 0; i < pcli->m_stdinrdlen; i++) {
@@ -1330,6 +1309,7 @@ int read_chatcli_stdin(pchatcli_t pcli)
 			goto fail;
 		}
 
+
 		if (pcli->m_stdinrdlen >= (sizeof(pcli->m_stdinrdbuf) - 2)) {
 			ret = write_chatcli_stdout_conn(pcli);
 			if (ret < 0) {
@@ -1348,10 +1328,12 @@ int read_chatcli_stdin(pchatcli_t pcli)
 				}
 				pcli->m_stdinrdeidx ++;
 				pcli->m_stdinrdlen ++;
+				pcli->m_stdinrdeidx %= sizeof(pcli->m_stdinrdbuf);
 				if (iscr) {
 					pcli->m_stdinrdbuf[pcli->m_stdinrdeidx] = '\n';
 					pcli->m_stdinrdeidx ++;
 					pcli->m_stdinrdlen ++;
+					pcli->m_stdinrdeidx %= sizeof(pcli->m_stdinrdbuf);
 				}
 				iscr = 0;
 			}

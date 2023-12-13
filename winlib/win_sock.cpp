@@ -715,7 +715,7 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 		ERROR_INFO("get acceptex function for [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
 		goto fail;
 	}
-	DEBUG_INFO("m_acceptexfunc %p",psock->m_acceptexfunc);
+	//DEBUG_INFO("m_acceptexfunc %p",psock->m_acceptexfunc);
 
 	/**/
 	psock->m_accevt = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -777,17 +777,16 @@ int complete_tcp_accept(void* ptcp)
 			ERROR_INFO("get accept [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
 			goto fail;
 		}
-		DEBUG_INFO("accept dret [%ld]", dret);
+		//DEBUG_INFO("accept dret [%ld]", dret);
 		psock->m_ooaccrd = (int)dret;
 		if (dret > 0) {
 			DEBUG_INFO("dret %d m_accbuflen %d",dret,psock->m_accbuflen);
 			DEBUG_BUFFER_FMT(psock->m_paccbuf, psock->m_accbuflen, "dret [%ld]", dret);
 		}
 		psock->m_inacc = 0;
-		DEBUG_INFO("m_ooaccrd %d", psock->m_ooaccrd);
+		//DEBUG_INFO("m_ooaccrd %d", psock->m_ooaccrd);
 	}
 
-	DEBUG_INFO(" ");
 	return ret;
 fail:
 	SETERRNO(ret);
