@@ -239,6 +239,7 @@ pchatsvr_acc_t __alloc_chatsvr_acc(const char* ipaddr, int port)
 	pacc->m_ipaddr = NULL;
 	pacc->m_port = -1;
 	pacc->m_pevmain = NULL;
+	pacc->m_acchd = NULL;
 
 	pacc->m_ipaddr = _strdup(ipaddr);
 	if (pacc->m_ipaddr == NULL) {
@@ -525,8 +526,8 @@ int read_chatsvr_conn(HANDLE hd, libev_enum_event_t event, void* pevmain, void* 
 
 	return 0;
 fail:
-	remove_conn(pconn->m_paccsock, pconn);
 	__free_chatsvr_conn(&pconn);
+	DEBUG_INFO("pconn remove");
 	SETERRNO(ret);
 	return 0;
 }
