@@ -277,7 +277,7 @@ int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void*
         if (pev->m_waitnum == 0) {
             nsize = 4;
         } else {
-            nsize = (int)(pev->m_waitsize << 1);
+            nsize = (pev->m_waitsize << 1);
         }
         ptmp = (HANDLE*) malloc(sizeof(*ptmp) * nsize);
         if (ptmp == NULL) {
@@ -303,6 +303,7 @@ int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void*
 
     pev->m_pcallers->push_back(pcall);
     ASSERT_IF(pev->m_waitnum == pev->m_pcallers->size());
+    ASSERT_IF(pev->m_waitnum <= pev->m_waitsize);
     return (int)pev->m_pcallers->size();
 fail:
     if (ptmp) {
@@ -422,10 +423,17 @@ int libev_remove_handle(void* pevmain,HANDLE hd)
                     ptmp = NULL;
                     pev->m_waitsize = pev->m_waitnum * 4;
                 }
+            } else {
+                if (pev->m_pwaits != NULL) {
+                    free(pev->m_pwaits);
+                }                
+                pev->m_pwaits = NULL;
+                pev->m_waitsize = 0;
             }
         }
     }
     ASSERT_IF(pev->m_pcallers->size() == pev->m_waitnum);
+    ASSERT_IF(pev->m_waitnum <= pev->m_waitsize );
 
     return 1;
 }

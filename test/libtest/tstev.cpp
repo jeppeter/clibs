@@ -956,6 +956,43 @@ fail:
 	return ret;
 }
 
+int write_chatcli_stdout(pchatcli_t pcli)
+{
+	char* pwrbuf = NULL;
+	int wrsize = 0;
+	int i;
+	int ret;
+	int curidx;
+
+	wrsize = pcli->m_rdlen;
+	pwrbuf = (char*) malloc((size_t)wrsize);
+	if (pwrbuf == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO(" ");
+		goto fail;
+	}
+
+	for (i = 0; i < pcli->m_rdlen; i++) {
+		curidx = pcli->m_rdsidx + i;
+		curidx %= sizeof(pcli->m_rdbuf);
+		pwrbuf[i] = pcli->m_rdbuf[curidx];
+	}
+	pcli->m_rdsidx = pcli->m_rdeidx;
+	pcli->m_rdlen = 0;
+	fprintf(stdout,"%s",pwrbuf);
+	fflush(stdout);
+	free(pwrbuf);
+	pwrbuf = NULL;
+	return 0;
+fail:
+	if (pwrbuf) {
+		free(pwrbuf);
+	}
+	pwrbuf = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
 int write_chatcli_stdout_conn(pchatcli_t pcli)
 {
 	char* pwrbuf = NULL;
@@ -1127,7 +1164,7 @@ int read_chatcli_conn_inner(pchatcli_t pcli)
 		pcli->m_rdeidx ++;
 		pcli->m_rdeidx %= sizeof(pcli->m_rdbuf);
 		if (pcli->m_rdlen == sizeof(pcli->m_rdbuf)) {
-			ret = write_chatcli_stdout_conn(pcli);
+			ret = write_chatcli_stdout(pcli);
 			if (ret < 0) {
 				GETERRNO(ret);
 				ERROR_INFO(" ");
@@ -1137,7 +1174,7 @@ int read_chatcli_conn_inner(pchatcli_t pcli)
 	}
 
 	if (pcli->m_rdlen != 0) {
-		ret =  write_chatcli_stdout_conn(pcli);
+		ret =  write_chatcli_stdout(pcli);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO(" ");
@@ -1241,7 +1278,7 @@ int read_chatcli_conn(HANDLE hd, libev_enum_event_t event, void* pevmain, void* 
 			pcli->m_rdlen ++;
 			pcli->m_rdeidx %= sizeof(pcli->m_rdbuf);
 			if (pcli->m_rdlen == sizeof(pcli->m_rdbuf)) {
-				ret = write_chatcli_stdout_conn(pcli);
+				ret = write_chatcli_stdout(pcli);
 				if (ret < 0) {
 					GETERRNO(ret);
 					ERROR_INFO(" ");
