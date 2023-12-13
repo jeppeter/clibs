@@ -325,6 +325,7 @@ int write_chatsvr_conn_callback(HANDLE hd, libev_enum_event_t event, void* pevma
 			}
 
 			if (pconn->m_pwrbuf != NULL && pconn->m_insertwr == 0) {
+				DEBUG_INFO("insert wrhd %p",pconn->m_wrhd);
 				ret = libev_insert_handle(pconn->m_pevmain, pconn->m_wrhd, write_chatsvr_conn_callback, pconn);
 				if (ret < 0) {
 					GETERRNO(ret);
@@ -400,7 +401,8 @@ int write_chatsvr_conn(pchatsvr_conn_t pconn)
 			/*not write ok*/
 			ASSERT_IF(pconn->m_insertwr == 0);
 			pconn->m_wrhd = get_tcp_write_handle(pconn->m_psock);
-			ret =  libev_insert_handle(pconn->m_pevmain, get_tcp_write_handle(pconn->m_psock), write_chatsvr_conn_callback, pconn);
+			DEBUG_INFO("insert wrhd %p",pconn->m_wrhd);
+			ret =  libev_insert_handle(pconn->m_pevmain, pconn->m_wrhd, write_chatsvr_conn_callback, pconn);
 			if (ret < 0) {
 				GETERRNO(ret);
 				ERROR_INFO(" ");
@@ -477,12 +479,14 @@ int read_chatsvr_conn_inner(pchatsvr_conn_t pconn)
 	DEBUG_INFO(" ");
 	if (pconn->m_insertrd == 0) {
 		pconn->m_rdhd = get_tcp_read_handle(pconn->m_psock);
+		DEBUG_INFO("insert rdhd %p",pconn->m_rdhd);
 		ret =  libev_insert_handle(pconn->m_pevmain, pconn->m_rdhd, read_chatsvr_conn, pconn);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO(" ");
 			goto fail;
 		}
+		DEBUG_INFO(" ");
 		pconn->m_insertrd = 1;
 	}
 	DEBUG_INFO(" ");
@@ -499,6 +503,7 @@ int read_chatsvr_conn(HANDLE hd, libev_enum_event_t event, void* pevmain, void* 
 	DEBUG_INFO(" ");
 	REFERENCE_ARG(pevmain);
 	REFERENCE_ARG(hd);
+	DEBUG_INFO("hd %p rdhd %p",hd,pconn->m_rdhd);
 	if (event == normal_event && pconn != NULL) {
 		DEBUG_INFO(" ");
 		ret = complete_tcp_read(pconn->m_psock);
@@ -631,6 +636,7 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
 	psvr->m_pevmain = pevmain;
 	psvr->m_acchd= get_tcp_accept_handle(psvr->m_psock);
+	DEBUG_INFO("insert accept handle %p",psvr->m_acchd);
 	ret = libev_insert_handle(pevmain, psvr->m_acchd, accept_chatsvr, psvr);
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -646,6 +652,7 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
+	DEBUG_INFO("insert exithd %p",exithd);
 	ret =  libev_insert_handle(pevmain, exithd, exit_chatsvr, NULL);
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -1016,6 +1023,8 @@ int write_chatcli_stdout_conn(pchatcli_t pcli)
 
 	if (pcli->m_pwrbuf != NULL) {
 		if (pcli->m_insertwr == 0) {
+			pcli->m_wrhd = get_tcp_write_handle(pcli->m_psock);
+			DEBUG_INFO("insert wrhd %p",pcli->m_wrhd);
 			ret = libev_insert_handle(pcli->m_pevmain, pcli->m_wrhd, write_chatcli_conn_callback, pcli);
 			if (ret < 0) {
 				GETERRNO(ret);
@@ -1139,6 +1148,7 @@ int read_chatcli_conn_inner(pchatcli_t pcli)
 	/*now to add */
 	pcli->m_rdhd = get_tcp_read_handle(pcli->m_psock);
 	if (pcli->m_insertrd == 0) {
+		DEBUG_INFO("insert rdhd %p",pcli->m_rdhd);
 		ret = libev_insert_handle(pcli->m_pevmain, pcli->m_rdhd, read_chatcli_conn, pcli);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -1321,6 +1331,7 @@ int read_chatcli_stdin(pchatcli_t pcli)
 	}
 
 	if (pcli->m_insertstdin == 0) {
+		DEBUG_INFO("insert stdinhd %p",pcli->m_stdinhd);
 		ret = libev_insert_handle(pcli->m_pevmain, pcli->m_stdinhd, read_chatcli_stdin_callback, pcli);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -1410,7 +1421,7 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	} else {
 		/*not connected*/
 		pcli->m_connhd = get_tcp_connect_handle(pcli->m_psock);
-		DEBUG_INFO("connhd %p",pcli->m_connhd);
+		DEBUG_INFO("insert connhd %p",pcli->m_connhd);
 		ret = libev_insert_handle(pcli->m_pevmain, pcli->m_connhd, connect_chatcli_conn, pcli);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -1428,7 +1439,7 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		pcli->m_inserttimeout = 1;
 	}
 
-	DEBUG_INFO("exithd %p insert",exithd);
+	DEBUG_INFO("insert exithd %p",exithd);
 	ret = libev_insert_handle(pevmain, exithd, exit_chatcli, NULL);
 	if (ret < 0) {
 		GETERRNO(ret);

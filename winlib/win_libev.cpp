@@ -110,6 +110,7 @@ void __free_winev(plibev_win_ev_t* ppev)
         }
         pev->m_pwaits = NULL;
         pev->m_waitsize = 0;
+        pev->m_waitnum = 0;
 
         if (pev->m_htmevt[0] != NULL) {
             CloseHandle(pev->m_htmevt[0]);
@@ -254,7 +255,7 @@ int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void*
     plibev_evt_call_t pcall = NULL;
     plibev_win_ev_t pev = (plibev_win_ev_t) pevmain;
     HANDLE* ptmp= NULL;
-    int nsize=0;
+    DWORD nsize=0;
 
     if (pev == NULL || hd == NULL || pfunc == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
@@ -292,6 +293,7 @@ int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void*
             free(pev->m_pwaits);
         }
         pev->m_pwaits = ptmp;
+        pev->m_waitsize = nsize;
         ptmp = NULL;
     }
 
@@ -300,7 +302,8 @@ int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void*
     pev->m_waitnum += 1;
 
     pev->m_pcallers->push_back(pcall);
-    return (int)pev->m_waitsize;
+    ASSERT_IF(pev->m_waitnum == pev->m_pcallers->size());
+    return (int)pev->m_pcallers->size();
 fail:
     if (ptmp) {
         free(ptmp);
@@ -422,6 +425,7 @@ int libev_remove_handle(void* pevmain,HANDLE hd)
             }
         }
     }
+    ASSERT_IF(pev->m_pcallers->size() == pev->m_waitnum);
 
     return 1;
 }

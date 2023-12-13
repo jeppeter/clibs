@@ -715,6 +715,7 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 		ERROR_INFO("get acceptex function for [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
 		goto fail;
 	}
+	DEBUG_INFO("m_acceptexfunc %p",psock->m_acceptexfunc);
 
 	/**/
 	psock->m_accevt = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -971,7 +972,7 @@ int complete_tcp_read(void* ptcp)
 		bret = GetOverlappedResult((HANDLE) psock->m_sock, &(psock->m_rdov), &dret, NULL);
 		if (!bret) {
 			GETERRNO(ret);
-			ERROR_INFO("read complete [%s:%d] => [%s:%d] left[%ld] error[%d]", psock->m_peeraddr, psock->m_peerport,
+			ERROR_INFO("read %p:%p complete [%s:%d] => [%s:%d] left[%ld] error[%d]",psock->m_rdov.hEvent,psock->m_rdevt, psock->m_peeraddr, psock->m_peerport,
 			           psock->m_selfaddr, psock->m_selfport, psock->m_rdleft, ret);
 			goto fail;
 		}
