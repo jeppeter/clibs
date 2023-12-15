@@ -85,6 +85,7 @@ int writev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int scandir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int sockaddrinfmt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \

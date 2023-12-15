@@ -119,6 +119,9 @@
     },
     "evchatcli<evchatcli_handler>##[ip] [port] to connect to server default 127.0.0.1 3390##" : {
         "$" : "*"
+    },
+    "sockaddrinfmt<sockaddrinfmt_handler>##ip port to format sockaddr_in##" : {
+        "$" : 2
     }
 
 }

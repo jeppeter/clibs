@@ -1019,3 +1019,42 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int sockaddrinfmt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	char* ipaddr=NULL;
+	int port = -1;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	struct sockaddr_in sinaddr;
+	int ret;
+	init_log_verbose(pargs);
+
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		ipaddr = parsestate->leftargs[0];
+		if (parsestate->leftargs[1]) {
+			port = atoi(parsestate->leftargs[1]);
+		}
+	}
+
+	if (ipaddr == NULL || port < 0) {
+		ret = -EINVAL;
+		fprintf(stderr, "need ipaddr port\n");
+		goto out;
+	}
+
+	memset(&sinaddr, 0, sizeof(sinaddr));
+	sinaddr.sin_family = AF_INET;
+	ret = inet_pton(AF_INET, ipaddr, &(sinaddr.sin_addr));
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("inet_pton [%s:%d] error[%d]", ipaddr, port, ret);
+		goto out;
+	}
+	sinaddr.sin_port = htons(port);
+	DEBUG_BUFFER_FMT(&sinaddr,sizeof(sinaddr),"sinaddr buffer");
+
+	ret = 0;
+out:
+	SETERRNO(ret);
+	return ret;
+}
