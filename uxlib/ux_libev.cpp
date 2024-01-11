@@ -220,7 +220,7 @@ void* init_uxev(int flag)
 	memset(&evt, 0, sizeof(evt));
 	evt.events = EPOLLIN;
 	evt.data.fd = pev->m_dummyfd;
-	DEBUG_BUFFER_FMT(&evt,sizeof(evt),"add dummyfd");
+	DEBUG_BUFFER_FMT(&evt,sizeof(evt),"add dummyfd EPOLLIN");
 
 	ret = epoll_ctl(pev->m_epollfd, EPOLL_CTL_ADD, pev->m_dummyfd, &evt);
 	if (ret < 0) {
@@ -439,22 +439,26 @@ int add_uxev_callback(void* pev1, int fd, int event, evt_callback_func_t func, v
 	memset(&evtinsert, 0, sizeof(evtinsert));
 	evtinsert.events = 0;
 	if ((event & READ_EVENT) != 0) {
+		DEBUG_INFO("add EPOLLIN");
 		evtinsert.events |= EPOLLIN;
 	}
 	if ((event & WRITE_EVENT) != 0) {
+		DEBUG_INFO("add EPOLLOUT");
 		evtinsert.events |= EPOLLOUT;
 	}
 	if ((event & ERROR_EVENT) != 0) {
+		DEBUG_INFO("add EPOLLERR");
 		evtinsert.events |= EPOLLERR;
 	}
 
 	if ((event & ET_TRIGGER) != 0) {
+		DEBUG_INFO("add EPOLLET");
 		evtinsert.events |= EPOLLET;
 	}
 	//evtinsert.events |= EPOLLET;
 	evtinsert.data.fd = fd;
 
-	DEBUG_BUFFER_FMT(&evtinsert,sizeof(evtinsert),"add fd %d",fd);
+	DEBUG_BUFFER_FMT(&evtinsert,sizeof(evtinsert),"add fd %d events 0x%x",fd,evtinsert.events);
 
 	ret = epoll_ctl(pev->m_epollfd, EPOLL_CTL_ADD, fd, &evtinsert);
 	if (ret < 0) {
@@ -656,8 +660,10 @@ int loop_uxev(void* pev1)
 
 
 	while (pev->m_exited == 0) {
+		DEBUG_INFO(" ");
 		/*for most at 30 seconds*/
 		waitmills = __get_max_wait_mills(pev, 30000);
+		DEBUG_INFO("waitmills %d",waitmills);
 		memset(pmostevt, 0, sizeof(*pmostevt) * maxepollnum);
 		SETERRNO(0);
 		ret = epoll_wait(pev->m_epollfd, pmostevt, maxepollnum, waitmills);

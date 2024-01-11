@@ -331,9 +331,11 @@ void* connect_tcp_socket(const char* ipaddr, int port, const char* bindip, int b
 	}
 	paddr->sin_port = htons(port);
 	inconn = 0;
+	DEBUG_INFO(" ");
 	ret = connect(psock->m_sock, &saddr, sizeof(*paddr));
 	if (ret < 0) {
 		GETERRNO(ret);
+		DEBUG_INFO("connect ret %d",ret);
 		if (ret != -EINPROGRESS) {
 			ERROR_INFO("connect [%s:%d] error[%d]", ipaddr, port, ret);
 			goto fail;

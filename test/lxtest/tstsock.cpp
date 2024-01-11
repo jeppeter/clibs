@@ -74,7 +74,9 @@ int tstsockconn_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 			fprintf(stderr, "can not add connectfd [%d] error[%d]\n", connectfd, ret);
 			goto out;
 		}
+		DEBUG_INFO(" epoll_wait ");
 		ret = epoll_wait(evfd, &getevt, 1, pargs->m_timeout);
+		DEBUG_INFO(" epoll_wait ret %d",ret);
 		if (ret < 0) {
 			GETERRNO(ret);
 			fprintf(stderr, "epoll_wait error[%d]\n", ret);
@@ -132,6 +134,7 @@ int tstsockacc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	void* paccsock = NULL;
 
 	init_log_verbose(pargs);
+	DEBUG_INFO(" ");
 
 	ret = init_socket();
 	if (ret < 0) {
@@ -151,6 +154,7 @@ int tstsockacc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 	}
 
 
+	DEBUG_INFO(" ");
 	psock = bind_tcp_socket(bindip, bindport, backlog);
 	if (psock == NULL) {
 		GETERRNO(ret);
