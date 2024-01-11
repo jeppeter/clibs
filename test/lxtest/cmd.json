@@ -114,10 +114,10 @@
     "scandir<scandir_handler>##dname ... to scan dir##" : {
         "$" : "+"
     },
-    "evchatsvr<evchatsvr_handler>##[port] to listen on port default 3390##" : {
+    "evchatsvr<evchatsvr_handler>##[port] to listen on port default 4091##" : {
         "$" : "?"
     },
-    "evchatcli<evchatcli_handler>##[ip] [port] to connect to server default 127.0.0.1 3390##" : {
+    "evchatcli<evchatcli_handler>##[ip] [port] to connect to server default 127.0.0.1 4091##" : {
         "$" : "*"
     },
     "sockaddrinfmt<sockaddrinfmt_handler>##ip port to format sockaddr_in##" : {

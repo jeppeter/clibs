@@ -21,6 +21,7 @@ int get_tcp_connect_handle(void* ptcp);
 int get_tcp_accept_handle(void* ptcp);
 int get_tcp_read_handle(void* ptcp);
 int get_tcp_write_handle(void* ptcp);
+int get_tcp_real_handle(void* ptcp);
 int complete_tcp_connect(void* ptcp);
 int complete_tcp_read(void* ptcp);
 int complete_tcp_write(void* ptcp);

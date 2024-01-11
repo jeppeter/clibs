@@ -400,6 +400,14 @@ int get_tcp_connect_handle(void* ptcp)
 	return conn;
 }
 
+int get_tcp_real_handle(void* ptcp)
+{
+	int conn = -1;
+	psock_data_priv_t psock = (psock_data_priv_t) ptcp;
+	conn = psock->m_sock;
+	return conn;
+}
+
 int complete_tcp_connect(void* ptcp)
 {
 	psock_data_priv_t psock = (psock_data_priv_t)ptcp;
