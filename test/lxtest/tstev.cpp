@@ -390,7 +390,7 @@ int write_server_notify(void* pev, uint64_t sock, int event, void* arg)
 					GETERRNO(ret);
 					goto fail;
 				}
-				ret = add_uxev_callback(pev, sock, READ_EVENT | ET_TRIGGER, read_server_notify, pev);
+				ret = add_uxev_callback(pev, sock, READ_EVENT, read_server_notify, pev);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
@@ -462,7 +462,7 @@ int read_server_notify(void* pev, uint64_t sock, int event, void* arg)
 								GETERRNO(ret);
 								goto fail;
 							}
-							ret = add_uxev_callback(pev, sock, READ_EVENT | WRITE_EVENT | ET_TRIGGER, write_server_notify, arg);
+							ret = add_uxev_callback(pev, sock, READ_EVENT | WRITE_EVENT, write_server_notify, arg);
 							if (ret < 0) {
 								GETERRNO(ret);
 								goto fail;
@@ -482,7 +482,7 @@ int read_server_notify(void* pev, uint64_t sock, int event, void* arg)
 								GETERRNO(ret);
 								goto fail;
 							}
-							ret = add_uxev_callback(pev, sock, READ_EVENT | ET_TRIGGER, read_server_notify, arg);
+							ret = add_uxev_callback(pev, sock, READ_EVENT, read_server_notify, arg);
 							if ( ret < 0 ) {
 								GETERRNO(ret);
 								goto fail;
@@ -497,7 +497,7 @@ int read_server_notify(void* pev, uint64_t sock, int event, void* arg)
 								GETERRNO(ret);
 								goto fail;
 							}
-							ret = add_uxev_callback(pev, sock, READ_EVENT | ET_TRIGGER, write_server_notify, arg);
+							ret = add_uxev_callback(pev, sock, READ_EVENT, write_server_notify, arg);
 							if ( ret < 0 ) {
 								GETERRNO(ret);
 								goto fail;
@@ -567,7 +567,7 @@ int accept_server_notify(void* pev, uint64_t fd, int event, void* arg)
 	tmpfd = connectfd;
 	connectfd = -1;
 
-	ret = add_uxev_callback(pev, tmpfd, READ_EVENT | ET_TRIGGER, read_server_notify, arg);
+	ret = add_uxev_callback(pev, tmpfd, READ_EVENT, read_server_notify, arg);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -620,7 +620,7 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
-	ret = add_uxev_callback(pev, exitfd, READ_EVENT | ET_TRIGGER, exit_fd_notify, NULL);
+	ret = add_uxev_callback(pev, exitfd, READ_EVENT, exit_fd_notify, NULL);
 	if (ret < 0) {
 		GETERRNO(ret);
 		fprintf(stderr, "add exit_fd_notify error[%d]\n", ret);
@@ -633,7 +633,7 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
-	ret = add_uxev_callback(pev, psvr->m_bindsock, READ_EVENT | ET_TRIGGER, accept_server_notify, psvr);
+	ret = add_uxev_callback(pev, psvr->m_bindsock, READ_EVENT, accept_server_notify, psvr);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("add_uxev_callback error[%d]",ret);
@@ -660,7 +660,8 @@ out:
 typedef struct __chatcli {
 	char* m_ip;
 	int m_port;
-	void* m_sock;
+	int m_sock;
+	int m_fd;
 	int m_connected;
 	uint64_t m_timeoutid;
 	uint8_t* m_pwbuf;
@@ -743,18 +744,15 @@ pchatcli_t __alloc_chatcli(const char* ip, int port, int readfd)
 	sinaddr.sin_family = AF_INET;
 	sinaddr.sin_addr.s_addr = inet_addr(ip);
 	sinaddr.sin_port = htons(port);
-	DEBUG_INFO(" ");
 
 	ret = connect(pcli->m_sock,(struct sockaddr*)&sinaddr,sizeof(sinaddr));
 	if (ret < 0) {
 		GETERRNO(ret);
-		DEBUG_INFO("ret %d",ret);
 		if (ret != -EINPROGRESS) {
 			ERROR_INFO("connect [%s:%d] error[%d]", pcli->m_ip,pcli->m_port,ret);
 			goto fail;
 		}
 	} else {
-		DEBUG_INFO("connect ok");
 		pcli->m_connected = 1;
 	}
 
@@ -803,10 +801,10 @@ int chat_cli_connect(void* pev, uint64_t sock, int event, void* arg)
 	del_uxev_timer(pev,pcli->m_timeoutid);
 	delete_uxev_callback(pev, sock);
 	if (pcli->m_pwbuf != NULL) {
-		ret = add_uxev_callback(pev,sock,READ_EVENT | WRITE_EVENT | ET_TRIGGER,chat_cli_write,arg);
+		ret = add_uxev_callback(pev,sock,READ_EVENT | WRITE_EVENT,chat_cli_write,arg);
 	} else {
 		/*now to add for the calling */
-		ret = add_uxev_callback(pev, sock, READ_EVENT | ET_TRIGGER, chat_cli_read, arg);
+		ret = add_uxev_callback(pev, sock, READ_EVENT, chat_cli_read, arg);
 	}
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -865,7 +863,7 @@ int chat_cli_write(void* pev, uint64_t sock, int event, void* arg)
 				pcli->m_wcnt = 0;
 				pcli->m_wleft = 0;
 				delete_uxev_callback(pev, sock);
-				ret = add_uxev_callback(pev, pcli->m_sock, READ_EVENT | ET_TRIGGER,chat_cli_read, arg);
+				ret = add_uxev_callback(pev, pcli->m_sock, READ_EVENT,chat_cli_read, arg);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
@@ -917,7 +915,7 @@ int chat_cli_read(void* pev, uint64_t sock, int event, void* arg)
 			GETERRNO(ret);
 			if (ret == -EINTR || ret == -EWOULDBLOCK || ret == -EAGAIN) {
 				delete_uxev_callback(pev, sock);
-				ret = add_uxev_callback(pev, sock, READ_EVENT | WRITE_EVENT | ET_TRIGGER, chat_cli_write, arg);
+				ret = add_uxev_callback(pev, sock, READ_EVENT | WRITE_EVENT, chat_cli_write, arg);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
@@ -936,7 +934,7 @@ int chat_cli_read(void* pev, uint64_t sock, int event, void* arg)
 		} else {
 			/*we have something to write*/
 			delete_uxev_callback(pev, sock);
-			ret = add_uxev_callback(pev, sock, READ_EVENT | WRITE_EVENT | ET_TRIGGER,chat_cli_write, arg);
+			ret = add_uxev_callback(pev, sock, READ_EVENT | WRITE_EVENT,chat_cli_write, arg);
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
@@ -983,7 +981,7 @@ int chat_cli_input(void* pev, uint64_t fd, int event, void* arg)
 						GETERRNO(ret);
 						if (ret == -EAGAIN || ret == -EWOULDBLOCK || ret == -EINTR) {
 							delete_uxev_callback(pev, pcli->m_sock);
-							ret = add_uxev_callback(pev, pcli->m_sock, READ_EVENT | WRITE_EVENT | ET_TRIGGER, chat_cli_write, arg);
+							ret = add_uxev_callback(pev, pcli->m_sock, READ_EVENT | WRITE_EVENT, chat_cli_write, arg);
 							if (ret < 0) {
 								GETERRNO(ret);
 								goto fail;
@@ -1001,7 +999,7 @@ int chat_cli_input(void* pev, uint64_t fd, int event, void* arg)
 						}
 						rdnum -= wrnum;
 						delete_uxev_callback(pev, pcli->m_sock);
-						ret = add_uxev_callback(pev, pcli->m_sock, READ_EVENT | WRITE_EVENT | ET_TRIGGER,chat_cli_write, arg);
+						ret = add_uxev_callback(pev, pcli->m_sock, READ_EVENT | WRITE_EVENT,chat_cli_write, arg);
 						if (ret < 0) {
 							GETERRNO(ret);
 							goto fail;
@@ -1075,7 +1073,7 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
 	if (pcli->m_connected) {
 		DEBUG_INFO("add chat_cli_read");
-		ret = add_uxev_callback(pev,pcli->m_sock,READ_EVENT | ET_TRIGGER | ET_TRIGGER,chat_cli_read,pcli);
+		ret = add_uxev_callback(pev,pcli->m_sock,READ_EVENT,chat_cli_read,pcli);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO(" ");
@@ -1083,7 +1081,7 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		}
 	} else {
 		DEBUG_INFO("add chat_cli_connect");
-		ret = add_uxev_callback(pev,pcli->m_sock,WRITE_EVENT | ET_TRIGGER,chat_cli_connect,pcli);
+		ret = add_uxev_callback(pev,pcli->m_sock,WRITE_EVENT,chat_cli_connect,pcli);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO(" ");
@@ -1097,7 +1095,7 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		}
 	}
 
-	ret = add_uxev_callback(pev,pcli->m_fd, READ_EVENT | ET_TRIGGER,chat_cli_input,pcli);
+	ret = add_uxev_callback(pev,pcli->m_fd, READ_EVENT,chat_cli_input,pcli);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto out;
@@ -1114,6 +1112,61 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 out:
 	free_uxev(&pev);
 	__free_chatcli(&pcli);
+	SETERRNO(ret);
+	return ret;
+}
+
+int noechopass_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	struct termios term;
+	int stdinfd = fileno(stdin);
+	int ret;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	char passwd[256];
+	char* ptr=NULL;
+
+	init_log_verbose(pargs);
+
+	ret = tcgetattr(stdinfd,&term);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "tcgetattr error %d\n", ret);
+		goto out;
+	}
+
+	term.c_lflag &= ~ECHO;
+
+	ret = tcsetattr(stdinfd,0,&term);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "tcsetattr error %d\n", ret);
+		goto out;
+	}
+
+	fprintf(stdout,"please enter password:");
+	fflush(stdout);
+	memset(passwd,0,sizeof(passwd));
+	fgets(passwd,sizeof(passwd),stdin);
+	ptr = passwd;
+	while(*ptr != '\0') {
+		if (*ptr == '\r' || *ptr == '\n') {
+			*ptr = '\0';
+			break;
+		}
+		ptr ++;
+	}
+
+	term.c_lflag |= ECHO;
+	ret = tcsetattr(stdinfd,0,&term);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "retcsetattr error %d\n", ret);
+		goto out;
+	}
+
+	fprintf(stdout,"\npassword [%s]\n",passwd);
+	ret = 0;
+out:
 	SETERRNO(ret);
 	return ret;
 }

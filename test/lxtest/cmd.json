@@ -122,6 +122,9 @@
     },
     "sockaddrinfmt<sockaddrinfmt_handler>##ip port to format sockaddr_in##" : {
         "$" : 2
+    },
+    "noechopass<noechopass_handler>##to start noecho password##" : {
+        "$" : 0
     }
 
 }

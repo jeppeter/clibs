@@ -86,6 +86,7 @@ int scandir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sockaddrinfmt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int noechopass_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
