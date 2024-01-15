@@ -31,6 +31,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <lzma.h>
+#include <assert.h>
 
 #include <crypt_md5.h>
 
