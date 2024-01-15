@@ -588,6 +588,7 @@ int break_uxev(void* pev1)
 	//int ret;
 
 	pev->m_exited = 1;
+	DEBUG_INFO("set m_exited");
 	return 0;
 }
 
@@ -599,7 +600,7 @@ int __get_max_wait_mills(pux_ev_t pev, int maxmills)
 	for (i = 0; i < pev->m_timernum; i++) {
 
 		retv = time_left(pev->m_timercall[i]->m_starttime, pev->m_timercall[i]->m_interval);
-		if (retv < 0) {
+		if (retv <= 0) {
 			/*we need one time*/
 			retmills = 1;
 			break;
@@ -609,6 +610,7 @@ int __get_max_wait_mills(pux_ev_t pev, int maxmills)
 			retmills = retv;
 		}
 	}
+	//DEBUG_INFO("retmills %d",retmills);
 	return retmills;
 }
 
@@ -660,30 +662,26 @@ int loop_uxev(void* pev1)
 
 
 	while (pev->m_exited == 0) {
-		DEBUG_INFO(" ");
+		DEBUG_INFO("pev->m_exited %d",pev->m_exited);
 		/*for most at 30 seconds*/
 		waitmills = __get_max_wait_mills(pev, 30000);
-		DEBUG_INFO("waitmills %d",waitmills);
+		//DEBUG_INFO("waitmills %d",waitmills);
 		memset(pmostevt, 0, sizeof(*pmostevt) * maxepollnum);
 		SETERRNO(0);
 		ret = epoll_wait(pev->m_epollfd, pmostevt, maxepollnum, waitmills);
 		if (ret < 0) {
 			GETERRNO_DIRECT(ret);
-			if (ret == 0) {
-				continue;
+			if (ret != 0 && ret != -EINTR && ret != -EAGAIN && ret != -EWOULDBLOCK) {
+				ERROR_INFO("wait epoll fd error[%d]", ret);
+				goto fail;
 			}
-			if (ret == -EINTR) {
-				continue;
-			}
-			ERROR_INFO("wait epoll fd error[%d]", ret);
-			goto fail;
 		}
-
+		DEBUG_INFO("ret %d", ret);
 		evnum = 0;
 		uuidcnt = 0;
 		if (ret > 0) {
 			evnum = ret;
-			DEBUG_BUFFER_FMT(pmostevt,sizeof(*pmostevt)* evnum,"most evt");
+			//DEBUG_BUFFER_FMT(pmostevt,sizeof(*pmostevt)* evnum,"most evt");
 			for (i = 0; i < evnum; i++) {
 				DEBUG_INFO("[%d].[%d] fd [%d]",evnum,i,pmostevt[i].data.fd);
 				fidx = __find_fd_callback(pev, pmostevt[i].data.fd);
@@ -721,7 +719,7 @@ int loop_uxev(void* pev1)
 
 		for (i = 0; i < pev->m_timernum; i++) {
 			timeleft = time_left(pev->m_timercall[i]->m_starttime, pev->m_timercall[i]->m_interval);
-			if (timeleft < 0) {
+			if (timeleft <= 0) {
 				ptimerids[timenum] = pev->m_timercall[i]->m_timerid;
 				timenum ++;
 			}
@@ -755,6 +753,7 @@ int loop_uxev(void* pev1)
 			fidx = __find_timer_idx(pev, ptimerids[i]);
 			if (fidx >= 0) {
 				/*this maybe change the timercall so we handle delete and set for next time*/
+				DEBUG_INFO("call timercall %p",pev->m_timercall[fidx]->m_callback);
 				ret = pev->m_timercall[fidx]->m_callback(pev1, pev->m_timercall[fidx]->m_timerid, TIME_EVENT, pev->m_timercall[fidx]->m_arg);
 				if (ret < 0) {
 					GETERRNO(ret);

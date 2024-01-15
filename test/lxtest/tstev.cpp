@@ -829,7 +829,9 @@ int chat_cli_timeout(void* pev, uint64_t timeid, int event, void* arg);
 int __read_socket_chatcli(pchatcli_t pcli) 
 {
 	int ret;
+	DEBUG_INFO("__read_socket_chatcli");
 	if (pcli->m_inrd == 0) {
+		DEBUG_INFO("__read_socket_chatcli");
 		while(1) {
 			if (pcli->m_rdlen == pcli->m_rdsize) {
 				ret = __write_stdout_chatcli(pcli);
@@ -855,6 +857,7 @@ int __read_socket_chatcli(pchatcli_t pcli)
 			pcli->m_rdlen += 1;
 			pcli->m_rdeidx += 1;
 			pcli->m_rdeidx %= pcli->m_rdsize;
+			DEBUG_INFO("m_rdeidx %d",pcli->m_rdeidx);
 		}
 	}
 
@@ -1063,7 +1066,9 @@ int __read_stdin_chatcli(pchatcli_t pcli)
 		pcli->m_stdinrdeidx += 1;
 		pcli->m_stdinrdeidx %= pcli->m_stdinrdsize;
 		pcli->m_stdinrdlen += 1;
+		DEBUG_INFO("read %d",pcli->m_stdinrdeidx);
 	}
+
 
 	if (pcli->m_insertstdin == 0) {
 		ret = add_uxev_callback(pcli->m_pev,pcli->m_stdinfd,READ_EVENT,chat_cli_proc,pcli);
@@ -1072,6 +1077,7 @@ int __read_stdin_chatcli(pchatcli_t pcli)
 			goto fail;
 		}
 		pcli->m_insertstdin = 1;
+		DEBUG_INFO("insert stdin");
 	}
 
 	return 0;
@@ -1089,19 +1095,19 @@ int __insert_socket_chatcli(pchatcli_t pcli)
 	int ret;
 
 	if(pcli->m_inrd || pcli->m_inwr || pcli->m_inconn) {
-		if ((pcli->m_evttype & READ_EVENT) == 0 && (pcli->m_inrd > 0 || pcli->m_inconn > 0)) {
+		if ((pcli->m_evttype & READ_EVENT) == 0 && (pcli->m_inrd > 0 )) {
 			insertsock = 1;
 		}
-		if ((pcli->m_evttype & WRITE_EVENT) == 0 && pcli->m_inwr > 0) {
-			insertsock = 1;
-		}
-
-
-		if ((pcli->m_evttype & READ_EVENT) != 0 && pcli->m_inconn == 0) {
+		if ((pcli->m_evttype & WRITE_EVENT) == 0 && (pcli->m_inwr > 0 || pcli->m_inconn > 0 )) {
 			insertsock = 1;
 		}
 
-		if ((pcli->m_evttype & WRITE_EVENT) != 0 && (pcli->m_inwr == 0)) {
+
+		if ((pcli->m_evttype & READ_EVENT) != 0 && ( pcli->m_inrd == 0)) {
+			insertsock = 1;
+		}
+
+		if ((pcli->m_evttype & WRITE_EVENT) != 0 && ((pcli->m_inwr == 0 && pcli->m_inconn == 0 ))) {
 			insertsock = 1;
 		}
 	}
@@ -1112,11 +1118,11 @@ int __insert_socket_chatcli(pchatcli_t pcli)
 
 	if (insertsock > 0) {
 		pcli->m_evttype = 0;
-		if ((pcli->m_inrd > 0 || pcli->m_inconn > 0)) {
+		if ((pcli->m_inrd > 0 )) {
 			pcli->m_evttype |= READ_EVENT;
 		}
 
-		if (pcli->m_inwr > 0) {
+		if (pcli->m_inwr > 0 || pcli->m_inconn > 0) {
 			pcli->m_evttype |= WRITE_EVENT;
 		}
 
@@ -1126,7 +1132,8 @@ int __insert_socket_chatcli(pchatcli_t pcli)
 			pcli->m_insertsock = 0;
 		}
 
-		pcli->m_sockfd = get_tcp_real_handle(pcli->m_pev);
+		pcli->m_sockfd = get_tcp_real_handle(pcli->m_sock);
+		DEBUG_INFO("add [%d] sockfd m_evttype 0x%x",pcli->m_sockfd,pcli->m_evttype);
 		ret = add_uxev_callback(pcli->m_pev,pcli->m_sockfd,pcli->m_evttype,chat_cli_proc,pcli);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -1227,6 +1234,7 @@ pchatcli_t __alloc_chatcli(const char* ip, int port,void* pev, int readfd,int ex
 
 	pcli->m_sockfd = get_tcp_connect_handle(pcli->m_sock);
 	if (pcli->m_sockfd < 0) {
+		DEBUG_INFO("connected");
 		/*now to read*/
 		ret = __read_socket_chatcli(pcli);
 		if (ret < 0) {
@@ -1240,6 +1248,7 @@ pchatcli_t __alloc_chatcli(const char* ip, int port,void* pev, int readfd,int ex
 			goto fail;
 		}
 	} else {
+		DEBUG_INFO("sockfd %d",pcli->m_sockfd);
 		pcli->m_inconn = 1;
 		ret = add_uxev_timer(pcli->m_pev,5000,0,&pcli->m_timeoutid,chat_cli_timeout,pcli);
 		if (ret < 0) {
@@ -1273,6 +1282,7 @@ pchatcli_t __alloc_chatcli(const char* ip, int port,void* pev, int readfd,int ex
 int chat_cli_timeout(void* pev, uint64_t timeid, int event, void* arg)
 {
 	pchatcli_t pcli = (pchatcli_t)arg;
+	DEBUG_INFO("timeout ");
 	break_uxev(pev);
 	fprintf(stderr, "connect %s:%d timeout\n", pcli->m_ip, pcli->m_port);
 	return 0;
@@ -1283,34 +1293,18 @@ int chat_cli_proc(void* pev, uint64_t sock, int event,void* arg)
 	pchatcli_t pcli = (pchatcli_t) arg;
 	int completed;
 	int ret;
-
+	DEBUG_INFO("sock 0x%x event 0x%x",sock,event);
 	if (sock == (uint64_t)pcli->m_sockfd) {
 		if ((event & READ_EVENT) != 0) {
 			if (pcli->m_inrd > 0) {
 				completed = complete_tcp_read(pcli->m_sock);
 				if (completed > 0) {
 					pcli->m_inrd = 0;
+					/*to make one step*/
+					pcli->m_rdlen += 1;
+					pcli->m_rdeidx += 1;
+					pcli->m_rdeidx %= pcli->m_rdsize;
 					ret = __read_socket_chatcli(pcli);
-					if (ret < 0) {
-						GETERRNO(ret);
-						goto fail;
-					}
-				}
-			} else if (pcli->m_inconn > 0) {
-				completed = complete_tcp_connect(pcli->m_sock);
-				if (completed > 0) {
-					if (pcli->m_inserttimeout > 0)  {
-						del_uxev_timer(pcli->m_pev,pcli->m_timeoutid);
-						pcli->m_inserttimeout = 0;
-					}
-
-					pcli->m_inconn = 0;
-					ret = __read_socket_chatcli(pcli);
-					if (ret < 0) {
-						GETERRNO(ret);
-						goto fail;
-					}
-					ret = __read_stdin_chatcli(pcli);
 					if (ret < 0) {
 						GETERRNO(ret);
 						goto fail;
@@ -1325,6 +1319,26 @@ int chat_cli_proc(void* pev, uint64_t sock, int event,void* arg)
 				if (completed > 0) {
 					pcli->m_inwr = 0;
 					ret = __write_socket_chatcli(pcli);
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
+				}
+			}  else if (pcli->m_inconn > 0) {
+				completed = complete_tcp_connect(pcli->m_sock);
+				if (completed > 0) {
+					if (pcli->m_inserttimeout > 0)  {
+						del_uxev_timer(pcli->m_pev,pcli->m_timeoutid);
+						pcli->m_inserttimeout = 0;
+					}
+
+					pcli->m_inconn = 0;
+					ret = __read_socket_chatcli(pcli);
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					ret = __read_stdin_chatcli(pcli);
 					if (ret < 0) {
 						GETERRNO(ret);
 						goto fail;
@@ -1373,8 +1387,11 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 	pargs_options_t pargs = (pargs_options_t) popt;
 	pchatcli_t pcli = NULL;
 	void* pev=NULL;
-	struct termios term;
+	struct termios term,oldterm;
 	int exithd;
+	int echodisabled =  0;
+	int flags;
+
 
 	init_log_verbose(pargs);
 
@@ -1394,21 +1411,26 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		goto out;
 	}
 
-	ret = tcgetattr(fileno(stdin),&term);
+	ret = tcgetattr(fileno(stdin),&oldterm);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("tcgetattr error [%d]",ret);
 		goto out;
 	}
+	memcpy(&term,&oldterm,sizeof(oldterm));
 
-	term.c_lflag &= ~ECHO;
+	term.c_lflag &= ~(ECHO | ICANON);
 
-	ret = tcsetattr(fileno(stdin),0,&term);
+	ret = tcsetattr(fileno(stdin),TCSAFLUSH,&term);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("tcsetattr error [%d]",ret);
 		goto out;
 	}
+	echodisabled = 1;
+
+	flags = fcntl(fileno(stdin),F_GETFL,0);
+	fcntl(fileno(stdin),F_SETFL, O_NONBLOCK | flags);
 
 	exithd = init_sighandler();
 	if (exithd < 0) {
@@ -1433,6 +1455,11 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
 	ret = 0;
 out:
+	if (echodisabled) {
+		tcsetattr(fileno(stdin),TCSAFLUSH,&oldterm);
+		echodisabled = 0;
+	}
+
 	__free_chatcli(&pcli);
 	free_uxev(&pev);
 	fini_sighandler();
@@ -1490,7 +1517,7 @@ int noechopass_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 
 	fprintf(stdout,"\npassword [%s]\n",passwd);
 	ret = 0;
-	out:
+out:
 	SETERRNO(ret);
 	return ret;
 }
