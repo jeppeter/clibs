@@ -7,14 +7,34 @@ int exit_fd_notify(void* pev, uint64_t fd, int event, void* arg)
 }
 
 typedef struct __chatsvr_cli {
-	int m_sock;
+	void* m_sock;
 	int m_event;
+
+	int m_sockfd;
+	void* m_pev;
+
+
+	int m_inrd;
+	int m_inwr;
+	int m_insertsock;
+
+
 	uint8_t* m_pwbuf;
 	int m_wleft;
+
+	uint8_t* m_ppwbufs;
+	int* m_ppwlens;
+	int m_wbufsize;
+
 } chatsvr_cli_t, *pchatsvr_cli_t;
 
 typedef struct __chat_svr {
 	int m_bindsock;
+	void* m_pev;
+
+	int m_inacc;
+	int m_insertsock;
+
 	pchatsvr_cli_t* m_clis;
 	int m_clinum;
 } chat_svr_t, *pchat_svr_t;
@@ -23,22 +43,228 @@ void __free_chatsvr_cli(pchatsvr_cli_t* ppcli)
 {
 	if (ppcli && *ppcli) {
 		pchatsvr_cli_t pcli = *ppcli;
-		if (pcli->m_sock >= 0) {
-			close(pcli->m_sock);
+
+		if (pcli->m_insertsock > 0) {
+			delete_uxev_callback(pcli->m_pev,pcli->m_sockfd);
+			pcli->m_insertsock = 0;
 		}
-		pcli->m_sock = -1;
+
+		free_sock(&pcli->m_sock);
+		pcli->m_sockfd = -1;
+
 		if (pcli->m_pwbuf) {
 			free(pcli->m_pwbuf);
 		}
 		pcli->m_pwbuf = NULL;
 		pcli->m_wleft = 0;
+
+		if (pcli->m_ppwbufs && pcli->m_ppwlens) {
+			for(i=0;i<pcli->m_wbufsize;i++) {
+				if (pcli->m_ppwbufs[i] != NULL) {
+					free(pcli->m_ppwbufs[i]);
+					pcli->m_ppwbufs[i] = NULL;
+				}
+			}
+		}
+
+		if (pcli->m_ppwbufs) {
+			free(pcli->m_ppwbufs);
+		}
+		pcli->m_ppwbufs = NULL;
+
+		if (pcli->m_ppwlens) {
+			free(pcli->m_ppwlens);
+		}
+		pcli->m_ppwlens = NULL;
+
+		pcli->m_wbufsize = 0;
+
 		free(pcli);
 		*ppcli = NULL;
 	}
 }
 
+int __write_socket_chatsvr_cli(pchatsvr_cli_t pcli)
+{
+	int ret;
+	int i;
+	if (pcli->m_inwr == 0) {
+		while(1) {
+			if (pcli->m_pwbuf != NULL) {
+				ret = write_tcp_socket(pcli->m_sock,pcli->m_pwbuf,pcli->m_wleft);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				} else if (ret == 0) {
+					pcli->m_inwr = 1;
+					break;
+				}
+				free(pcli->m_pwbuf);
+				pcli->m_pwbuf = NULL;
+				pcli->m_wleft = 0;
+			}
 
-pchatsvr_cli_t __alloc_chatsvr_cli(int sock)
+			if (pcli->m_ppwbufs && pcli->m_ppwlens) {
+				if (pcli->m_ppwbufs[0] != NULL) {
+					pcli->m_pwbuf = pcli->m_ppwbufs[0];
+					pcli->m_wleft = pcli->m_ppwlens[0];
+					for(i=1;i<pcli->m_wbufsize;i++) {
+						pcli->m_ppwlens[(i-1)] = pcli->m_ppwlens[i];
+						pcli->m_ppwbufs[(i-1)] = pcli->m_ppwbufs[i];
+					}
+					pcli->m_ppwbufs[(pcli->m_wbufsize - 1)] = NULL;
+					pcli->m_ppwlens[(pcli->m_wbufsize-1)] = 0;
+				}
+			}
+
+			if (pcli->m_pwbuf == NULL) {
+				pcli->m_inwr = 0;
+				break;
+			}
+		}
+	}
+	return 0;
+
+fail:
+	SETERRNO(ret);
+	return ret;	
+}
+
+int __echo_socket_chatsvr_cli(pchatsvr_cli_t pcli)
+{
+	int wlen = 0;
+	uint8_t* pwbuf = NULL;
+
+	if (pcli->m_rdlen == 0) {
+		return 0;
+	}
+
+	wlen = pcli->m_rdlen;
+	pwbuf = (uint8_t*) malloc(wlen + 1);
+	if (pwbuf == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(pwbuf,0,wlen + 1);
+
+	for(i=0;i<pcli->m_rdlen;i++) {
+		cidx = pcli->m_rdsidx + idx;
+		cidx %= pcli->m_rdsize;
+		pwbuf[i] = pcli->M_rdbuf[cidx];
+	}
+	pcli->m_rdlen = 0;
+	pcli->m_rdsidx = pcli->m_rdeidx;
+
+	if (pcli->m_pwbuf == NULL) {
+		pcli->m_pwbuf = pwbuf;
+		pcli->m_wleft = wlen;
+		pwbuf = NULL;
+	} else {
+		for(i=0;i<pcli->m_wbufsize;i++) {
+			if (pcli->m_ppwbufs[i] == NULL) {
+				fidx = i;
+				break;
+			}
+		}
+
+		if (fidx >= 0) {
+			pcli->m_ppwbufs[fidx] = pwbuf;
+			pcli->m_ppwlens[fidx] = wlen;
+			pwbuf = NULL;
+			wlen = 0;
+		} else {
+			if (pcli->m_wbufsize == 0) {
+				wbufsize = 4;
+			} else {
+				wbufsize = pcli->m_wbufsize << 1;
+			}
+
+			ppwbufs = (uint8_t**) malloc(sizeof(*ppwbufs) * wbufsize);
+			ppwlens = (int*) malloc(sizeof(*ppwlens) * wbufsize);
+			if (ppwbufs == NULL || ppwlens == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			memset(ppwbufs,0, sizeof(*ppwbufs) * wbufsize);
+			memset(ppwlens,0, sizeof(*ppwlens) * wbufsize);
+			if (pcli->m_wbufsize > 0) {
+				memcpy(ppwbufs,pcli->m_ppwbufs,sizeof(*ppwbufs) * pcli->m_wbufsize);
+				memcpy(ppwlens,pcli->m_ppwlens,sizeof(*ppwlens) * pcli->m_wbufsize);
+			}
+
+			ppwbufs[pcli->m_wbufsize] = pwbuf;
+			ppwlens[pcli->m_wbufsize] = wlen;
+			pwbuf = NULL;
+			wlen = 0;
+			if (pcli->m_ppwbufs) {
+				free(pcli->m_ppwbufs);
+			}
+			pcli->m_ppwbufs = ppwbufs;
+			if (pcli->m_ppwlens) {
+				free(pcli->m_ppwlens);
+			}
+			pcli->m_ppwlens = ppwlens;
+			ppwbufs = NULL;
+			ppwlens = NULL;
+			pcli->m_wbufsize = wbufsize;
+		}		
+	}
+
+	ret = __write_socket_chatsvr_cli(pcli);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	return 0;
+fail:
+	if (pwbuf) {
+		free(pwbuf);
+	}
+	pwbuf = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int __read_socket_chatsvr_cli(pchatsvr_cli_t pcli)
+{
+	int ret;
+	if (pcli->m_inrd == 0) {
+		while(1) {
+			if (pcli->m_rdlen == pcli->m_rdsize) {
+				ret = __echo_socket_chatsvr_cli(pcli);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+			}
+
+			ret = read_tcp_socket(pcli->m_sock,&(pcli->M_rdbuf[pcli->m_rdeidx]),1);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			} else if (ret == 0) {
+				pcli->m_inrd = 1;
+				ret = __echo_socket_chatsvr_cli(pcli);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+				break;
+			}
+
+			pcli->m_rdeidx += 1;
+			pcli->m_rdeidx %= pcli->m_rdsize;
+			pcli->m_rdlen += 1;
+		}
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
+pchatsvr_cli_t __alloc_chatsvr_cli(void* psock,void* pev)
 {
 	pchatsvr_cli_t pcli = NULL;
 	int ret;
@@ -49,10 +275,25 @@ pchatsvr_cli_t __alloc_chatsvr_cli(int sock)
 		goto fail;
 	}
 	memset(pcli, 0, sizeof(*pcli));
-	pcli->m_sock = sock;
-	pcli->m_event = READ_EVENT;
+	pcli->m_sock = psock;
+	pcli->m_pev = pev;
+	pcli->m_event = 0;
 	pcli->m_pwbuf = NULL;
 	pcli->m_wleft = 0;
+	pcli->m_insertsock = 0;
+
+	pcli->m_inrd = 0;
+	pcli->m_inwr = 0;
+
+	pcli->m_ppwbufs = NULL;
+	pcli->m_ppwlens = NULL;
+	pcli->m_wbufsize = 0;
+
+	ret = __read_socket_chatsvr_cli(pcli);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
 
 	return pcli;
 	fail:
@@ -63,7 +304,7 @@ pchatsvr_cli_t __alloc_chatsvr_cli(int sock)
 
 
 
-int add_server_client_socket(pchat_svr_t psvr, int sock)
+int add_server_client_socket(pchat_svr_t psvr, void* psock)
 {
 	pchatsvr_cli_t*parr = NULL;
 	int nsize = 0;
@@ -80,7 +321,7 @@ int add_server_client_socket(pchat_svr_t psvr, int sock)
 	if (psvr->m_clinum > 0) {
 		memcpy(parr, psvr->m_clis, sizeof(*parr) * psvr->m_clinum);
 	}
-	pnewcli = __alloc_chatsvr_cli(sock);
+	pnewcli = __alloc_chatsvr_cli(psock,psvr->m_pev);
 	if (pnewcli == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -108,7 +349,7 @@ pchatsvr_cli_t __find_server_client(pchat_svr_t psvr, int sock)
 {
 	int i;
 	for (i = 0; i < psvr->m_clinum; i++) {
-		if (psvr->m_clis[i]->m_sock == sock) {
+		if (psvr->m_clis[i]->m_sock->get_tcp_real_handle() == (uint64_t)sock) {
 			return psvr->m_clis[i];
 		}
 	}
