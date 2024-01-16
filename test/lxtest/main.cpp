@@ -192,7 +192,7 @@ void sig_handler(int signum)
 {
     uint64_t lval=1;
     if (signum == SIGINT && st_evtfd >= 0) {
-        ERROR_INFO("call SIGINT");
+        ERROR_INFO("call SIGINT write evtfd %d",st_evtfd);
         write(st_evtfd,&lval,sizeof(lval));
     }
     return ;

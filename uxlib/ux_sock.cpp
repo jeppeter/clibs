@@ -660,6 +660,7 @@ int __inner_read(psock_data_priv_t psock)
 		ret = recv(psock->m_sock, psock->m_prdptr, psock->m_rdleft, MSG_DONTWAIT);
 		if (ret < 0) {
 			GETERRNO(ret);
+			DEBUG_INFO("__inner_read ret %d",ret);
 			if (ret == -EAGAIN || ret == -EWOULDBLOCK) {
 				psock->m_inrd = 1;
 				break;

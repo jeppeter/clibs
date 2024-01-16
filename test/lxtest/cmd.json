@@ -114,8 +114,8 @@
     "scandir<scandir_handler>##dname ... to scan dir##" : {
         "$" : "+"
     },
-    "evchatsvr<evchatsvr_handler>##[port] to listen on port default 4091##" : {
-        "$" : "?"
+    "evchatsvr<evchatsvr_handler>##[port] [ipaddr] to listen on port default 4091##" : {
+        "$" : "*"
     },
     "evchatcli<evchatcli_handler>##[ip] [port] to connect to server default 127.0.0.1 4091##" : {
         "$" : "*"
