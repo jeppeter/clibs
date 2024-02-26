@@ -265,6 +265,9 @@
     "utf8json<utf8json_handler>## jsonfile ... to parse json into json string utf-8 ##" : {
         "$" : "+"
     },
+    "jsonarrget<jsonarrget_handler>##jsonfile key [item] to get json value##" : {
+        "$" : "+"
+    },
     "termproc<termproc_handler>## pids ... to terminate pids ##" : {
         "$" : "+"
     },

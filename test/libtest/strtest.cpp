@@ -19,7 +19,7 @@ int quote_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
         fprintf(stdout, "[%d][%s] quoted [%s]\n", i, parsestate->leftargs[i], qstr);
     }
     ret = 0;
-out:
+    out:
     quote_string(&qstr, &qsize, NULL);
     SETERRNO(ret);
     return ret;
@@ -65,7 +65,7 @@ int regexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     for (i = 1; i < argcnt; i++) {
         pcurstr = parsestate->leftargs[i];
         handled = 0;
-try_again:
+        try_again:
         ret = regex_exec(preg, pcurstr, &pstartpos, &pendpos, &possize);
         if (ret < 0) {
             GETERRNO(ret);
@@ -106,7 +106,7 @@ try_again:
     }
 
     ret = 0;
-out:
+    out:
     if (pmatchstr != NULL) {
         free(pmatchstr);
     }
@@ -190,7 +190,7 @@ int iregexec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     }
 
     ret = 0;
-out:
+    out:
     if (pmatchstr != NULL) {
         free(pmatchstr);
     }
@@ -274,7 +274,7 @@ int regsplit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     }
 
     ret = 0;
-out:
+    out:
     if (pmatchstr != NULL) {
         free(pmatchstr);
     }
@@ -358,7 +358,7 @@ int iregsplit_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
 
     ret = 0;
-out:
+    out:
     if (pmatchstr != NULL) {
         free(pmatchstr);
     }
@@ -423,8 +423,8 @@ int __get_code(pextargs_state_t parsestate, char** ppcode, int* psize)
     *ppcode = pcode;
     *psize = retsize;
     return cnt;
-out:
-fail:
+    out:
+    fail:
     if (pcode && pcode != *ppcode) {
         free(pcode);
     }
@@ -468,7 +468,7 @@ int utf8toansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     fprintf(stdout, "ansi buffer [%d]\n", ansilen);
     debug_buffer(stdout, pansi, ansilen,NULL);
     ret = 0;
-out:
+    out:
     Utf8ToAnsi(NULL, &pansi, &ansisize);
     __get_code(NULL, &putf8, &utf8size);
     SETERRNO(ret);
@@ -507,7 +507,7 @@ int ansitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     fprintf(stdout, "utf8 buffer [%d]\n", utf8len);
     debug_buffer(stdout, putf8, utf8len,NULL);
     ret = 0;
-out:
+    out:
     AnsiToUtf8(NULL, &putf8, &utf8size);
     __get_code(NULL, &pansi, &ansisize);
     SETERRNO(ret);
@@ -559,7 +559,7 @@ int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     inlen = ret;
 
     outsize = 32;
-try_again:
+    try_again:
     if (outbuf) {
         free(outbuf);
     }
@@ -605,7 +605,7 @@ try_again:
     fprintf(stdout, "encode [%s] => [%s] succ\n", input, output );
     ret = 0;
 
-out:
+    out:
     base64_splite_line(NULL, 0, 0, &expandline, &expandsize);
     read_file_whole(NULL, &inbuf, &insize);
     if (outbuf) {
@@ -654,7 +654,7 @@ int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     compactlen = ret;
 
     outsize = 32;
-try_again:
+    try_again:
     if (outbuf) {
         free(outbuf);
     }
@@ -693,7 +693,7 @@ try_again:
     fprintf(stdout, "decode [%s] => [%s] succ\n", input, output );
     ret = 0;
 
-out:
+    out:
     base64_compact_line(NULL, 0, &compactbuf, &compactsize);
     read_file_whole(NULL, &inbuf, &insize);
     if (outbuf) {
@@ -739,15 +739,15 @@ static int format_pipe_data(jvalue* pj, char** ppsndbuf, int* psndsize)
         for (i = 0; i < entriesizes; i++) {
             pcurentry = entries[i];
             switch (pcurentry->value->type) {
-            case JNONE:
-            case JBOOL:
-            case JNULL:
-            case JINT:
-            case JINT64:
-            case JREAL:
-            case JSTRING:
-            case JARRAY:
-            case JOBJECT:
+                case JNONE:
+                case JBOOL:
+                case JNULL:
+                case JINT:
+                case JINT64:
+                case JREAL:
+                case JSTRING:
+                case JARRAY:
+                case JOBJECT:
                 if (valstr) {
                     free(valstr);
                 }
@@ -764,7 +764,7 @@ static int format_pipe_data(jvalue* pj, char** ppsndbuf, int* psndsize)
                     goto fail;
                 }
                 break;
-            default:
+                default:
                 ret = -ERROR_INVALID_PARAMETER;
                 goto fail;
             }
@@ -802,7 +802,7 @@ static int format_pipe_data(jvalue* pj, char** ppsndbuf, int* psndsize)
     jentries_destroy(&entries);
 
     return sndlen;
-fail:
+    fail:
     if (pretbuf && pretbuf != *ppsndbuf) {
         free(pretbuf);
     }
@@ -870,7 +870,7 @@ int pipedata_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     }
 
     ret = 0;
-out:
+    out:
     if (pj) {
         jvalue_destroy(pj);
     }
@@ -913,7 +913,7 @@ int utf8touni_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     fprintf(stdout, "unicode buffer [%d]\n", unilen);
     debug_buffer(stdout, (char*)puni, unilen,NULL);
     ret = 0;
-out:
+    out:
     Utf8ToUnicode(NULL, &puni, &unisize);
     __get_code(NULL, &putf8, &utf8size);
     SETERRNO(ret);
@@ -957,7 +957,7 @@ int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     fprintf(stdout, "utf8 buffer [%d]\n", utf8len);
     debug_buffer(stdout, putf8, utf8len,NULL);
     ret = 0;
-out:
+    out:
     UnicodeToUtf8(NULL, &putf8, &utf8size);
     __get_code(NULL, &pbuf, &bufsize);
     SETERRNO(ret);
@@ -1053,7 +1053,7 @@ int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             insertval = NULL;
         }
 
-next:
+        next:
         jentries_destroy(&entries);
         if (filepj) {
             jvalue_destroy(filepj);
@@ -1074,7 +1074,7 @@ next:
     debug_buffer(stdout, poutbuf, (int)outbufsize,NULL);
 
     ret = 0;
-out:
+    out:
     if (poutbuf) {
         free(poutbuf);
     }
@@ -1096,6 +1096,126 @@ out:
         jvalue_destroy(mainpj);
     }
     mainpj = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int jsonarrget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* jsonfile=NULL;
+    int jsonsize=0;
+    unsigned int jsonlen=0;
+    char* jsons = NULL;
+    int ret;
+    jvalue* pj = NULL;
+    jarray* parr = NULL;
+    char* keyname = NULL;
+    int kidx = -1;
+    unsigned int arrsize = 0;
+    char* formjson=NULL;
+    unsigned int formsize=0;
+    int error = 0;
+    unsigned int i;
+    const jvalue* pcur=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        jsonfile = parsestate->leftargs[0];
+        if (parsestate->leftargs[1]) {
+            keyname = parsestate->leftargs[1];
+            if (parsestate->leftargs[2]) {
+                kidx = atoi(parsestate->leftargs[2]);
+            }
+        }
+    }
+
+    if (jsonfile == NULL || keyname == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "no jsonfile or keyname set\n");
+        goto out;
+    }
+
+    ret = read_file_whole(jsonfile,&jsons,&jsonsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    jsonlen = (unsigned int)jsonsize;
+    pj = jvalue_read(jsons,&jsonlen);
+    if (pj == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr, "not parse [%s]\n%s\n",jsonfile,jsons);
+        goto out;
+    }
+
+    parr = jobject_get_array(pj,keyname,&error);
+    if (parr == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not get [%s]\n",keyname);
+        goto out;
+    }
+
+    arrsize = jarray_size((const jvalue*)parr);
+    if (kidx < 0) {
+            /*now to get all */
+        for(i=0;i<arrsize;i++) {
+            pcur = jarray_get((const jvalue*)parr,i,&error);
+            if (pcur == NULL) {
+                GETERRNO(ret);
+                goto out;
+            }
+            ASSERT_IF(formjson == NULL);
+            formjson = jvalue_write(pcur,&formsize);
+            if (formjson != NULL) {
+                fprintf(stdout,"[%s].[%d]item\n%s\n",keyname,i,formjson);
+                free(formjson);
+            } else {
+                fprintf(stdout,"[%s].[%d]item\nreally null\n",keyname,i);
+            }
+            formjson = NULL;
+            formsize = 0;
+        }
+    } else {
+        if (kidx < (int)arrsize) {
+            pcur = jarray_get((const jvalue*)parr,(unsigned int)kidx,&error);
+            if (pcur == NULL) {
+                GETERRNO(ret);
+                goto out;
+            }
+            ASSERT_IF(formjson == NULL);
+            formjson = jvalue_write(pcur,&formsize);
+            if (formjson != NULL) {
+                fprintf(stdout,"[%s].[%d]item\n%s\n",keyname,kidx,formjson);
+                free(formjson);
+            } else {
+                fprintf(stdout,"[%s].[%d]item\nreally null\n",keyname,kidx);
+            }
+            formjson = NULL;
+            formsize = 0;
+        } else {
+            ret = -ERROR_INVALID_PARAMETER;
+            fprintf(stderr, "[%s] size [%d] <= kidx [%d]\n", keyname,arrsize,kidx);
+            goto out;
+        }
+    }
+
+    ret = 0;
+    out:
+    if (formjson) {
+        free(formjson);
+    }
+    formjson = NULL;
+    formsize = 0;
+    if (pj) {
+        jvalue_destroy(pj);
+    }
+    pj = NULL;
+    read_file_whole(NULL,&jsons,&jsonsize);
     SETERRNO(ret);
     return ret;
 }

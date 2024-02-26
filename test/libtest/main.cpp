@@ -216,6 +216,7 @@ int md5sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int checkpriv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int iswts_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int jsonarrget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int termproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int listproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int okpassword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
@@ -290,6 +291,7 @@ int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int stdinev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int stdoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sockacc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+
 
 #define PIPE_NONE                0
 #define PIPE_READY               1

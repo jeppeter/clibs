@@ -81,6 +81,7 @@ static const char *parse_json_number(jvalue **parent, const char* src)
   UTIL_DEBUG("p %p src %p pos %d tmp %s",p,src,pos,tmp);
   /* empty character */
   if (p == src) {
+    UTIL_DEBUG("create null");
     value = jnull_create();
   }
   /* string is larger than MAX_VALUE_NUMBER_SIZE */
