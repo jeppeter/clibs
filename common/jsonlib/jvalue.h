@@ -103,6 +103,8 @@ typedef struct jint64   jint64;
 typedef struct jobject jobject;
 /** User defined data */
 typedef struct juser    juser;
+/** Null data in array defined */
+typedef struct jstore   jstore;
 /** Jvalue union */
 typedef union  jvalue   jvalue;
 
@@ -119,7 +121,8 @@ typedef enum {
   JSTRING,      /**< String data type */
   JARRAY,       /**< Array data type */
   JOBJECT,      /**< List of key/value objects data type */
-  JUSER         /**< User defined data type */
+  JUSER,        /**< User defined data type */
+  JSTORE        /**< the store type*/  
 } JTYPE;
 
 /**
@@ -135,6 +138,10 @@ struct jbool {
  */
 struct jnull {
   int type; /**< JNULL */
+};
+
+struct jstore {
+  int type;
 };
 
 /**
@@ -343,6 +350,13 @@ WINLIB_API jvalue *jbool_create(int bvalue);
 WINLIB_API jvalue *jnull_create(void);
 
 /**
+ * @brief Creates a jstore object and returns it as a jvalue pointer.
+ * @return a jvalue pointer to the jnull object, or null for not enough memory
+ */
+WINLIB_API jvalue *jstore_create(void);
+
+
+/**
  * @brief Creates a juser object and returns it as a jvalue pointer.
  * @details
  * The user defined object is stored as a void object.  When it is
@@ -531,6 +545,20 @@ WINLIB_API jvalue *jobject_put(jvalue *object, const char* key, jvalue *value, i
  * - 5 for not enough memory
  */
 WINLIB_API int jobject_put_null(jvalue *object, const char* key);
+
+
+/**
+ * @brief Maps the specified key to the specified null value in this jobject.
+ * @param object the jobject object casting to jvalue
+ * @param key the key string
+ * @return
+ * an error status
+ * - 0 for success
+ * - 2 for null parameters
+ * - 3 for wrong data type in parameter
+ * - 5 for not enough memory
+ */
+WINLIB_API int jobject_put_store(jvalue *object, const char* key);
 
 /**
  * @brief Maps the specified key to the specified boolean value in this jobject.
@@ -961,6 +989,19 @@ WINLIB_API int jarray_put_real(jvalue *array, double number);
 WINLIB_API int jarray_put_null(jvalue *array);
 
 /**
+ * @brief Adds the store value in the end of the array.
+ * @param array the array object casting to jvalue
+ * @return
+ * an error status
+ * - 0 for success
+ * - 2 for null parameters
+ * - 3 for wrong data type in parameter
+ * - 5 for not enough memory
+ */
+WINLIB_API int jarray_put_store(jvalue *array);
+
+
+/**
  * @brief Adds the jarray object in the end of the array.
  * @details
  * A null array value is not allowed.
@@ -1063,6 +1104,8 @@ WINLIB_API int jarray_put_string_list(jvalue *array, const char *strs[], unsigne
  */
 WINLIB_API int jarray_put_jvalue_list(jvalue *array, jvalue *values[], unsigned int size);
 
+
+WINLIB_API void jarray_destroy(jarray *array);
 /*@}*/
 
 #ifdef __cplusplus

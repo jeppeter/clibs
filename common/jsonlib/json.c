@@ -34,6 +34,8 @@ static void print_jarray(const jarray *array, char **buf, unsigned int *bufsiz, 
 static void print_jentry(const jentry *object, char **buf, unsigned int *bufsiz, unsigned int *pos);
 static void print_jobject(const jobject *table, char **buf, unsigned int *bufsiz, unsigned int *pos);
 
+extern jarray* jarray_filter_clone(const jarray* array);
+
 /******************************************************************************/
 /* reading */
 /******************************************************************************/
@@ -81,8 +83,8 @@ static const char *parse_json_number(jvalue **parent, const char* src)
   UTIL_DEBUG("p %p src %p pos %d tmp %s",p,src,pos,tmp);
   /* empty character */
   if (p == src) {
-    UTIL_DEBUG("create null");
-    value = jnull_create();
+    UTIL_DEBUG("create store");
+    value = jstore_create();
   }
   /* string is larger than MAX_VALUE_NUMBER_SIZE */
   else if (pos == 0) {
@@ -168,6 +170,7 @@ static const char *parse_json_value(jvalue **parent, const char *key, const char
   /* array */
   if (*p == '[') {
     jvalue *array = jarray_create();
+    jvalue *darr = NULL;
     /* advance the pointer to next */
     p++;
     while (p && *p != 0 && *p != ']') {
@@ -180,7 +183,10 @@ static const char *parse_json_value(jvalue **parent, const char *key, const char
       }
     }
     if (p && (*p == ']')) p++; /* increment to point the next */
-    value = array;
+    darr = (jvalue*)jarray_filter_clone((const jarray*)array);
+    jarray_destroy((jarray*)array);
+    array = NULL;
+    value = darr;
   }
   /* object */
   else if (*p == '{') {
@@ -198,6 +204,7 @@ static const char *parse_json_value(jvalue **parent, const char *key, const char
   /* number, true, false, null */
   else if (*p != 0) {
     jvalue *number = 0;
+    UTIL_DEBUG("p [%p] [0x%02x]",p,*p);
     p = parse_json_number(&number, p);
     value = number;
   }
@@ -325,6 +332,8 @@ static void print_jvalue(const jvalue *value, char **buf, unsigned int *bufsiz, 
   if (value == 0) return;
   if (value->type == JNULL) {
     util_strexpand(buf, bufsiz, pos, "null", 4);
+  } else if (value->type == JSTORE) {
+    util_strexpand(buf,bufsiz,pos,"jstore",6);
   } else if (value->type == JSTRING) {
     const jstring *v = (const jstring *) value;
     char *s = (char *) v->value;
@@ -508,6 +517,8 @@ static void print_jvalue_raw(const jvalue *value, char **buf, unsigned int *bufs
   if (value == 0) return;
   if (value->type == JNULL) {
     util_strexpand(buf, bufsiz, pos, "null", 4);
+  } else if (value->type == JSTORE) {
+    util_strexpand(buf,bufsiz,pos,"jstore",6);
   } else if (value->type == JSTRING) {
     const jstring *v = (const jstring *) value;
     char *s = (char *) v->value;

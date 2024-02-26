@@ -216,7 +216,7 @@ int md5sum_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int checkpriv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int iswts_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
-int jsonarrget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int jsonget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int termproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int listproc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int okpassword_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);

@@ -1100,17 +1100,18 @@ int utf8json_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     return ret;
 }
 
-int jsonarrget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+int jsonget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     char* jsonfile=NULL;
     int jsonsize=0;
     unsigned int jsonlen=0;
     char* jsons = NULL;
+    char* jsontype="string";
     int ret;
     jvalue* pj = NULL;
     jarray* parr = NULL;
+    jvalue* pobj= NULL;
     char* keyname = NULL;
-    int kidx = -1;
     unsigned int arrsize = 0;
     char* formjson=NULL;
     unsigned int formsize=0;
@@ -1128,7 +1129,7 @@ int jsonarrget_handler(int argc, char* argv[], pextargs_state_t parsestate, void
         if (parsestate->leftargs[1]) {
             keyname = parsestate->leftargs[1];
             if (parsestate->leftargs[2]) {
-                kidx = atoi(parsestate->leftargs[2]);
+                jsontype = parsestate->leftargs[2];
             }
         }
     }
@@ -1153,15 +1154,16 @@ int jsonarrget_handler(int argc, char* argv[], pextargs_state_t parsestate, void
         goto out;
     }
 
-    parr = jobject_get_array(pj,keyname,&error);
-    if (parr == NULL) {
-        GETERRNO(ret);
-        fprintf(stderr,"can not get [%s]\n",keyname);
-        goto out;
-    }
+    if (strcmp(jsontype,"array") == 0) {
+        parr = jobject_get_array(pj,keyname,&error);
+        if (parr == NULL) {
+            GETERRNO(ret);
+            fprintf(stderr,"can not get [%s]\n",keyname);
+            goto out;
+        }
 
-    arrsize = jarray_size((const jvalue*)parr);
-    if (kidx < 0) {
+        arrsize = jarray_size((const jvalue*)parr);
+        fprintf(stdout,"[%s] array size [%d]\n",keyname,arrsize);
             /*now to get all */
         for(i=0;i<arrsize;i++) {
             pcur = jarray_get((const jvalue*)parr,i,&error);
@@ -1180,28 +1182,78 @@ int jsonarrget_handler(int argc, char* argv[], pextargs_state_t parsestate, void
             formjson = NULL;
             formsize = 0;
         }
-    } else {
-        if (kidx < (int)arrsize) {
-            pcur = jarray_get((const jvalue*)parr,(unsigned int)kidx,&error);
-            if (pcur == NULL) {
-                GETERRNO(ret);
-                goto out;
-            }
-            ASSERT_IF(formjson == NULL);
-            formjson = jvalue_write(pcur,&formsize);
-            if (formjson != NULL) {
-                fprintf(stdout,"[%s].[%d]item\n%s\n",keyname,kidx,formjson);
-                free(formjson);
-            } else {
-                fprintf(stdout,"[%s].[%d]item\nreally null\n",keyname,kidx);
-            }
-            formjson = NULL;
-            formsize = 0;
-        } else {
-            ret = -ERROR_INVALID_PARAMETER;
-            fprintf(stderr, "[%s] size [%d] <= kidx [%d]\n", keyname,arrsize,kidx);
+    } else if (strcmp(jsontype,"object") == 0) {
+        pobj = jobject_get(pj,keyname);
+        if (pobj == NULL) {
+            GETERRNO(ret);
+            fprintf(stderr, "get [%s] error[%d]\n", keyname,ret);
             goto out;
         }
+        jsons = jvalue_write(pobj,&formsize);
+        if (jsons == NULL) {
+            GETERRNO(ret);
+            fprintf(stderr, "write [%s] error [%d]\n", keyname,ret);
+            goto out;
+        }
+        fprintf(stdout,"[%s]\n%s\n",keyname,jsons);
+    } else if (strcmp(jsontype,"int") == 0) {
+        error = 0;
+        int retval = jobject_get_int(pj,keyname,&error);
+        if (error != 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "[%s] get error[%d]\n", keyname,ret);
+            goto out;
+        }
+        fprintf(stderr, "%s = %d\n", keyname,retval);
+    } else if (strcmp(jsontype,"int64") == 0) {
+        error = 0;
+        long long int retval = jobject_get_int64(pj,keyname,&error);
+        if (error != 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "[%s] get error[%d]\n", keyname,ret);
+            goto out;
+        }
+        fprintf(stderr, "%s = %lld\n", keyname,retval);
+    } else if (strcmp(jsontype,"bool") == 0) {
+        error = 0;
+        int retval = jobject_get_bool(pj,keyname,&error);
+        if (error != 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "[%s] get error[%d]\n", keyname,ret);
+            goto out;
+        }
+        fprintf(stderr, "%s = %s\n", keyname,retval ? "true": "false");
+    } else if (strcmp(jsontype,"float") == 0 ) {
+        error = 0;
+        double retval = jobject_get_real(pj,keyname,&error);
+        if (error != 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "[%s] get error[%d]\n", keyname,ret);
+            goto out;
+        }
+        fprintf(stderr, "%s = %f\n", keyname,retval);
+    } else if (strcmp(jsontype,"null") == 0 ) {
+        error = 0;
+        jobject_get_real(pj,keyname,&error);
+        if (error != 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "[%s] get error[%d]\n", keyname,ret);
+            goto out;
+        }
+        fprintf(stderr, "%s = null\n", keyname);
+    } else if (strcmp(jsontype,"string") == 0 ) {
+        error = 0;
+        const char* retval = jobject_get_string(pj,keyname,&error);
+        if (error != 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "[%s] get error[%d]\n", keyname,ret);
+            goto out;
+        }
+        fprintf(stderr, "%s = %s\n", keyname,retval);
+    } else {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "not support type [%s]\n", jsontype);
+        goto out;
     }
 
     ret = 0;
