@@ -492,5 +492,8 @@
     },
     "sockacc<sockacc_handler>##[port]to make socket accept port 7201##" : {
         "$" : "*"
+    },
+    "nslookup<nslookup_handler>##domainname ... to find ip for domainname##" : {
+        "$" : "+"
     }
 }

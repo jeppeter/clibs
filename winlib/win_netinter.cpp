@@ -754,6 +754,157 @@ fail:
     return ret;
 }
 
+int get_domain_ipaddr(const char* pdomain,char*** pppips,int *psize)
+{
+    int i;
+    int retlen=0;
+    int retsize=0;
+    char** ppretips= NULL;
+    struct addrinfo* ptr=NULL;
+    char** pptmpips=NULL;
+    int ret;
+    PADDRINFOA presult=NULL;
+    if (pdomain == NULL) {
+        if (pppips && *pppips) {
+            ppretips = *pppips;
+            for(i=0;ppretips[i] != NULL;i++) {
+                free(ppretips[i]);
+                ppretips[i] = NULL;
+            }
+
+            free(ppretips);
+            *pppips = NULL;
+        }
+
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (pppips == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ppretips = *pppips;
+    retsize = *psize;
+    /*now to free all*/
+    if (ppretips != NULL) {
+        for(i=0;i<retsize;i++) {
+            if (ppretips[i]) {
+                free(ppretips[i]);
+                ppretips[i] = NULL;
+            }
+        }
+    }
+
+    ret = getaddrinfo(pdomain,"80",NULL,&presult);
+    if (ret != 0) {
+        GETERRNO(ret);
+        ERROR_INFO("get [%s] addr error [%d]",pdomain,ret);
+        goto fail;
+    }
+
+    for(ptr = presult; ptr != NULL;ptr = ptr->ai_next) {
+        if (ptr->ai_family == AF_INET) {
+            struct sockaddr_in* pinaddr4 = (struct sockaddr_in*)ptr->ai_addr;
+            size_t iplen=16;
+            if (retsize == 0 || (retlen > 0 && retsize <= (retlen - 1))) {
+                ASSERT_IF(pptmpips == NULL);
+                if (retsize == 0) {
+                    retsize = 4;
+                } else {
+                    retsize <<= 1;
+                }
+
+                pptmpips = (char**) malloc(sizeof(*pptmpips) * retsize);
+                if (pptmpips == NULL) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+                memset(pptmpips,0,sizeof(*pptmpips) * retsize);
+                if (retlen > 0) {
+                    memcpy(pptmpips,ppretips,retlen * sizeof(*pptmpips));
+                }
+                if (ppretips && ppretips != *pppips) {
+                    free(ppretips);
+                }
+                ppretips = pptmpips;
+                pptmpips = NULL;
+            }
+
+            while(1) {
+                if (ppretips[retlen] != NULL) {
+                    free(ppretips[retlen]);
+                }
+                ppretips[retlen] = NULL;
+
+                ppretips[retlen] = (char*) malloc(iplen);
+                if (ppretips[retlen] == NULL) {
+                    GETERRNO(ret);
+                    goto fail;
+                }
+
+                PCSTR pretptr=NULL;
+                pretptr = inet_ntop(AF_INET,&(pinaddr4->sin_addr),ppretips[retlen],iplen-1);
+                if (pretptr != NULL) {
+                    break;
+                }
+
+                GETERRNO(ret);
+                if (ret != -WSAEINVAL) {
+                    ERROR_INFO("trans [%s] error [%d]",pdomain,ret);
+                    goto fail;                    
+                }
+                iplen <<= 1;
+            }
+            retlen += 1;
+        }
+    }
+
+    if (*pppips && *pppips != ppretips) {
+        free(*pppips);
+    }
+    *pppips = ppretips;
+    *psize = retsize;
+
+
+    if (presult) {
+        freeaddrinfo(presult);    
+    }
+    presult = NULL;    
+
+    return retlen;
+fail:
+    if (presult) {
+        freeaddrinfo(presult);
+    }
+    presult = NULL;
+
+    if (pptmpips) {
+        free(pptmpips);
+    }
+    pptmpips = NULL;
+
+    if (ppretips) {
+        for(i=0;i<retsize;i++) {
+            if(ppretips[i]) {
+                free(ppretips[i]);
+                ppretips[i] = NULL;
+            }
+        }
+    }
+
+    if (ppretips && ppretips != *pppips) {
+        free(ppretips);
+    }
+    ppretips = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
 #if _MSC_VER >= 1910
 #pragma warning(pop)
 #endif

@@ -38,6 +38,7 @@ WINLIB_API int get_all_adapter_info(int freed,char* pfilter,pnet_inter_info_t* p
 WINLIB_API int set_adapter_info(pnet_inter_info_t pinfo);
 WINLIB_API int get_adapter_servicenames(int freed, char*** pppsvcnames,int *psize);
 WINLIB_API int get_arp_request(const char* srcip,const char* destip,void** ppmacaddr);
+WINLIB_API int get_domain_ipaddr(const char* pdomain,char*** pppips,int *psize);
 
 #ifdef __cplusplus
 };

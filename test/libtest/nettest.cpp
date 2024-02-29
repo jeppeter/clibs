@@ -162,3 +162,45 @@ out:
     return ret;
 }
 
+int nslookup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    char** ppips = NULL;
+    int retlen = 0;
+    int retsize=0;
+    int i,j;
+    char* curdomain;
+    pargs_options_t pargs = (pargs_options_t)popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+    ret = init_socket();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "cannot init_socket [%d]\n", ret);
+        goto out;
+    }
+
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        curdomain = parsestate->leftargs[i];
+        ret = get_domain_ipaddr(curdomain,&ppips,&retsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr, "get [%s] error[%d]\n", curdomain,ret);
+            goto out;
+        }
+        retlen = ret;
+        fprintf(stdout, "[%s] ips\n", curdomain);
+        for(j=0;j<retlen;j++) {
+            fprintf(stdout,"    [%d] [%s]\n",j,ppips[j]);
+        }
+    }
+
+    ret = 0;
+out:
+    get_domain_ipaddr(NULL,&ppips,&retsize);
+    fini_socket();
+    SETERRNO(ret);
+    return ret;
+}
