@@ -105,6 +105,14 @@ int setwinpos_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 		fprintf(stderr, "set 0x%p after 0x%p x %d y %d cx %d cy %d uflags 0x%x error[%d]\n", winhd,afterhd,x,y,cx,cy, uflags, ret);
 		goto out;
 	}
+	if (afterhd == HWND_TOPMOST) {
+		fprintf(stdout, "HWND_TOPMOST\n");
+		//bret = SetWindowPos(winhd,HWND_NOTOPMOST,0,0,0,0,uflags);
+		SetForegroundWindow(winhd);
+		//RedrawWindow(winhd, NULL, NULL, RDW_INVALIDATE | RDW_INTERNALPAINT);
+	}
+
+
 	fprintf(stdout, "set 0x%p after 0x%p x %d y %d cx %d cy %d uflags 0x%x succ\n", winhd,afterhd,x,y,cx,cy, uflags);
 	ret = 0;
 out:
