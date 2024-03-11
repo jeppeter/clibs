@@ -495,5 +495,11 @@
     },
     "nslookup<nslookup_handler>##domainname ... to find ip for domainname##" : {
         "$" : "+"
+    },
+    "findwin<findwin_handler>##pid to find win in pid##" : {
+        "$" : "+"
+    },
+    "setwinpos<setwinpos_handler>##winhdl topwinhdl x y w h uflags##" : {
+        "$" : "+"
     }
 }

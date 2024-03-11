@@ -292,6 +292,8 @@ int stdinev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int stdoutev_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sockacc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int nslookup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int findwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int setwinpos_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -709,6 +711,7 @@ void close_ctrlc_handle()
 #include "tstsock.cpp"
 #include "tstfile.cpp"
 #include "tstev.cpp"
+#include "tstwin.cpp"
 
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {

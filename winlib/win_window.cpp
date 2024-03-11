@@ -397,9 +397,9 @@ fail:
 }
 
 
-int get_window_from_pid(int pid, HANDLE** pphdl,int *psize)
+int get_window_from_pid(int pid, HWND** pphdl,int *psize)
 {
-	HANDLE* prethdl = NULL;
+	HWND* prethdl = NULL;
 	int retsize=0;
 	int ret;
 	int retlen = 0;
@@ -444,7 +444,7 @@ int get_window_from_pid(int pid, HANDLE** pphdl,int *psize)
 
 	if (pwin->m_len > retsize) {
 		retsize = pwin->m_len;
-		prethdl = (HANDLE*)malloc(sizeof(HANDLE) * retsize);
+		prethdl = (HWND*)malloc(sizeof(HWND) * retsize);
 		if (prethdl == NULL) {
 			GETERRNO(ret);
 			goto fail;
@@ -453,8 +453,8 @@ int get_window_from_pid(int pid, HANDLE** pphdl,int *psize)
 
 	retlen = pwin->m_len;
 	if (retlen > 0) {
-		memset(prethdl,0,sizeof(HANDLE)*retsize);
-		memcpy(prethdl,pwin->m_phds,sizeof(HANDLE)*retlen);
+		memset(prethdl,0,sizeof(HWND)*retsize);
+		memcpy(prethdl,pwin->m_phds,sizeof(HWND)*retlen);
 	}
 
 	if (*pphdl && *pphdl != prethdl) {

@@ -2936,7 +2936,7 @@ int getprocwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 {
     pargs_options_t pargs = (pargs_options_t)popt;
     int ret;
-    HANDLE *phds = NULL;
+    HWND *phds = NULL;
     int hdsize = 0;
     int hdlen = 0;
     int i;
