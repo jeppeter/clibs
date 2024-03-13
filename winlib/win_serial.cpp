@@ -3,6 +3,14 @@
 #include <win_output_debug.h>
 #include <win_uniansi.h>
 
+#pragma warning(push)
+
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+#endif
+
 
 #define  SERIAL_DATA_MAGIC   0x710129d3
 
@@ -1098,3 +1106,5 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+#pragma warning(pop)

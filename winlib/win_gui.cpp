@@ -3,6 +3,14 @@
 #include <win_err.h>
 #include <win_uniansi.h>
 
+#pragma warning(push)
+
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+#endif
+
 
 int enum_display_devices(int freed, pdisplay_name_t* ppdevices, int *psize)
 {
@@ -747,3 +755,5 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+#pragma warning(pop)

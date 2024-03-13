@@ -14,6 +14,14 @@
 #pragma warning(pop)
 
 
+#pragma warning(push)
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+#endif
+
+
 #define MAX_QUERY_BUF_SIZE   (2UL << 20)
 
 typedef struct __info_variables {
@@ -957,3 +965,4 @@ fail:
 	return ret;
 }
 
+#pragma warning(pop)

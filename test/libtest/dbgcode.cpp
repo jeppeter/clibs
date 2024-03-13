@@ -12,7 +12,6 @@
 
 #include <Windows.h>
 #include <dbgeng.h>
-#include <atlcomcli.h>
 
 #pragma warning(pop)
 

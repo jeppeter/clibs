@@ -19,6 +19,11 @@
 #pragma comment(lib,"Ole32.lib")
 #pragma comment(lib,"OleAut32.lib")
 
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+#endif
 
 static int st_vs_cominitialized=0;
 

@@ -9,6 +9,13 @@
 #include "hashtable.h"
 #include "arraylist.h"
 
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+#endif
+
+
 jvalue *jobject_create(void)
 {
   jobject *object = (jobject *) util_malloc(sizeof(jobject));

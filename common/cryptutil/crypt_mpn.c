@@ -23,6 +23,12 @@
 #if _MSC_VER >= 1500
 #pragma warning(disable:4146)
 #endif
+
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
+
 #endif
 
 /* Memory allocation and other helper functions. */

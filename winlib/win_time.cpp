@@ -1,3 +1,5 @@
+
+#pragma warning(push)
 #pragma warning(disable:4668)
 #pragma warning(disable:4820)
 #pragma warning(disable:4514)
@@ -11,6 +13,13 @@
 
 #pragma warning(default:4820)
 #pragma warning(default:4668)
+
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+#endif
+
 
 #define  MAX_TICK_COUNT  (0xffffffffffffffffULL)
 
@@ -200,3 +209,4 @@ fail:
 }
 
 #pragma warning(default:4514)
+#pragma warning(pop)

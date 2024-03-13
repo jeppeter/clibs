@@ -18,6 +18,13 @@
 #define RSA_ERROR(...)   do { if(printfunc != NULL) { printfunc("[%s:%d] ",__FILE__,__LINE__); printfunc(__VA_ARGS__); printfunc("\n");}} while(0)
 #endif
 
+
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+#endif
+
 /*
  * Initialize an RSA context
  */

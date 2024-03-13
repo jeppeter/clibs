@@ -1316,7 +1316,7 @@ def set_log_level(args):
     return
 
 def get_ver_tuple(ver):
-    sarr = re.split('\.',ver)
+    sarr = re.split('\\.',ver)
     i = 0
     while i < len(sarr):
         sarr[i] = int(sarr[i])
@@ -1563,8 +1563,8 @@ class debug_coutput_case(unittest.TestCase):
         '''
         rets = format_optstruct_string(commandline,'args_options_t','',optstr)
         logging.info('rets (%s)'%(rets))
-        listexpr = re.compile('^\s+char\*\*\s+list\s*;.*')
-        stringexpr = re.compile('^\s+char\*\s+string\s*;.*')
+        listexpr = re.compile('^\\s+char\\*\\*\\s+list\\s*;.*')
+        stringexpr = re.compile('^\\s+char\\*\\s+string\\s*;.*')
         listcnt = 0
         stringcnt = 0
         sarr = re.split('\n',rets)

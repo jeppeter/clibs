@@ -16,6 +16,15 @@
 
 #include <initguid.h>
 
+#pragma warning(push)
+
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+#endif
+
+
 #pragma comment(lib,"Cfgmgr32.lib")
 #pragma comment(lib,"SetupAPI.lib")
 
@@ -1462,3 +1471,5 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+#pragma warning(pop)

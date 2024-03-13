@@ -21,6 +21,13 @@
 
 #pragma warning(pop)
 
+#pragma warning(push)
+
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+#endif
 
 
 // Need to link with Ws2_32.lib
@@ -1096,3 +1103,4 @@ int write_tcp_socket(void* ptcp, uint8_t* pbuf, int bufsize)
 
 	return __inner_start_write(psock);
 }
+#pragma warning(pop)
