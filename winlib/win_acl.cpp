@@ -2244,16 +2244,13 @@ try_again:
                     }
                     memset(psid, 0 , (size_t)sidsize);
                     memcpy(psid, plsid, (size_t)cplen - 1);
+                    sidlen = cplen - 1;
                     break;
                 }
             } 
 
             cplen ++;
         }
-
-        GETERRNO(ret);
-        goto fail;
-
     }
     retlen = (int)sidlen;
 
@@ -3252,6 +3249,7 @@ int remove_sacl(void* pacl1, const char* username, const char* action, const cha
     ret = __get_sid_from_name(username, &psid, &sidsize);
     if (ret < 0) {
         GETERRNO(ret);
+        DEBUG_INFO(" ");
         goto fail;
     }
     DEBUG_INFO(" ");
@@ -3357,21 +3355,22 @@ int remove_dacl(void* pacl1, const char* username, const char* action, const cha
     ret = __get_sid_from_name(username, &psid, &sidsize);
     if (ret < 0) {
         GETERRNO(ret);
+        DEBUG_INFO(" ");
         goto fail;
     }
-
+    DEBUG_INFO(" ");
     ret = __get_action(action, &mode);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-
+    DEBUG_INFO(" ");
     ret = __get_right(right, &perm);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-
+    DEBUG_INFO(" ");
     if (pinherit != NULL) {
         ret = __get_inherit(pinherit, &inheritmode);
         if (ret < 0) {
@@ -3379,23 +3378,20 @@ int remove_dacl(void* pacl1, const char* username, const char* action, const cha
             goto fail;
         }
     }
-
+    DEBUG_INFO(" ");
     ret = __get_dacl_from_descriptor(pacl->m_daclsdp, &dacl);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
+    DEBUG_INFO(" ");
     ret = __handle_sdp_acl(dacl, psid, mode, perm, (inheritmode != 0 ? (&inheritmode) : NULL), (void*)DACL_MODE, &pdp, &dpsize, __remove_acl_inner);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
     dplen = ret;
+    DEBUG_INFO(" ");
 
     ret = __set_file_descriptor(pacl->m_fname, DACL_SECURITY_INFORMATION, pdp);
     if (ret < 0) {
