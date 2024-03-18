@@ -115,7 +115,7 @@ libtest.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMI
 .cpp.obj:
 	$(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
 
-main.cpp:args_options.cpp protectkill.cpp proctest.cpp pipecmd.cpp crypttest.cpp filetest.cpp maptest.cpp strtest.cpp nettest.cpp guitest.cpp regtest.cpp tstjson.cpp tstsock.cpp tstfile.cpp memop.cpp windowtest.cpp tstev.cpp tstwin.cpp
+main.cpp:args_options.cpp  acltest.cpp protectkill.cpp proctest.cpp pipecmd.cpp crypttest.cpp filetest.cpp maptest.cpp strtest.cpp nettest.cpp guitest.cpp regtest.cpp tstjson.cpp tstsock.cpp tstfile.cpp memop.cpp windowtest.cpp tstev.cpp tstwin.cpp
 
 proto_win.cpp:$(CURDIR)\..\proto_win\proto_win.cpp
 	$(QUIETCMD)copy /Y $(CURDIR)\..\proto_win\proto_win.cpp proto_win.cpp

@@ -13,6 +13,7 @@
 #include <accctrl.h>
 #include <aclapi.h>
 #include <sddl.h>
+#include <tchar.h>
 
 #pragma warning(pop)
 
@@ -612,6 +613,7 @@ try_get_sid_old:
             tdomainsize = tdomainlen << 1;
             goto try_get_sid_old;
         }
+
         ERROR_INFO("get sid error [%d]", ret);
         goto fail;
     }
@@ -1097,6 +1099,7 @@ int __get_acl_user_inner(PEXPLICIT_ACCESS paccess, int accnum, int idx, char** p
     DWORD tusersize = 0, tuserlen = 0;
     TCHAR* ptdomain = NULL;
     DWORD tdomainsize = 0, tdomainlen = 0;
+    TCHAR* pluser = NULL;
     SID_NAME_USE siduse;
     idx = idx;
     if (paccess == NULL) {
@@ -1158,14 +1161,49 @@ try_get_sid:
             tdomainsize = tdomainlen << 1;
             goto try_get_sid;
         }
-        ERROR_INFO("get sid error [%d]", ret);
-        goto fail;
+
+        if (ptuser) {
+            free(ptuser);    
+        }
+        ptuser = NULL;
+        tusersize = 0;
+        tuserlen = 0;
+
+        if (ptdomain) {
+            free(ptdomain);
+        }
+        ptdomain = NULL;
+        tdomainsize = 0;
+        tdomainlen = 0;
+
+        bret = ConvertSidToStringSid(psid,&pluser);
+        if (!bret) {
+            ERROR_INFO("get sid error [%d]", ret);
+            goto fail;            
+        }
+
+#ifdef _UNICODE        
+        tusersize = (DWORD)wcslen(pluser) +1;
+#else
+        tusersize = (DWORD)strlen(ptuser) +1;
+#endif
+        tuserlen= tusersize -1;
+        ptuser = (TCHAR*)malloc(sizeof(*ptuser) *tusersize);
+        if (ptuser == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        memset(ptuser,0,sizeof(*ptuser) * tusersize);
+        memcpy(ptuser,pluser, sizeof(*ptuser)* tuserlen);
+        DEBUG_BUFFER_FMT(pluser, sizeof(*pluser) * tusersize, "pluser");
     }
+    DEBUG_INFO(" ");
     ret = TcharToAnsi(ptuser, &pname, &namesize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
+    DEBUG_INFO(" ");
     if (ptdomain != NULL && tdomainlen > 0) {
         ret = TcharToAnsi(ptdomain, &pdomain, &domainsize);
         if (ret < 0) {
@@ -1173,12 +1211,14 @@ try_get_sid:
             goto fail;
         }
     }
+    DEBUG_INFO(" ");
 
     if (pdomain != NULL) {
         ret = snprintf_safe(ppstr, pstrsize, "%s\\%s", pdomain, pname);
     } else {
         ret = snprintf_safe(ppstr, pstrsize, "%s", pname);
     }
+    DEBUG_INFO(" ");
 
     if (ret < 0) {
         GETERRNO(ret);
@@ -1186,14 +1226,22 @@ try_get_sid:
     }
     retlen = ret;
 
+    DEBUG_INFO(" ");
     if (ptuser) {
         free(ptuser);
     }
     ptuser = NULL;
+    DEBUG_INFO(" ");
     if (ptdomain) {
         free(ptdomain);
     }
     ptdomain = NULL;
+
+    if (pluser) {
+        LocalFree(pluser);
+    }
+    pluser = NULL;
+    DEBUG_INFO("ppstr [%s]",*ppstr);
 
     TcharToAnsi(NULL, &pname, &namesize);
     TcharToAnsi(NULL, &pdomain, &domainsize);
@@ -1212,6 +1260,11 @@ fail:
         free(ptdomain);
     }
     ptdomain = NULL;
+    if (pluser) {
+        LocalFree(pluser);
+    }
+    pluser = NULL;
+
     TcharToAnsi(NULL, &pname, &namesize);
     TcharToAnsi(NULL, &pdomain, &domainsize);
     SETERRNO(ret);
@@ -2045,6 +2098,11 @@ int __get_sid_from_name(const char* name, PSID* ppsid, int *psidsize)
     DWORD tdomainlen = 0;
     SID_NAME_USE buse;
     BOOL bret;
+    PSID plsid=NULL;
+    PSID pcpsid = NULL;
+    int cplen=0;
+    TCHAR* plname=NULL;
+    int lnamelen=0;
     if (name == NULL) {
         if (ppsid && *ppsid) {
             LocalFree(*ppsid);
@@ -2113,8 +2171,89 @@ try_again:
             }
             goto try_again;
         }
-        ERROR_INFO("lookup account for [%s] error[%d]", name, ret);
+
+        if (ptdomain) {
+            free(ptdomain);
+        }
+        ptdomain = NULL;
+        tdomainsize = 0;
+        tdomainlen = 0;
+
+        cplen = 4;
+
+        while(1) {
+            if (cplen > 1024) {
+                ret = -ERROR_BUFFER_OVERFLOW;
+                ERROR_INFO("cplen 1024");
+                goto fail;
+            }
+
+            if (plsid) {
+                LocalFree(plsid);
+            }
+            plsid = NULL;
+
+
+            bret = ConvertStringSidToSid(ptname,&plsid);
+            if (!bret) {
+                ERROR_INFO("lookup account for [%s] error[%d]", name, ret);
+                goto fail;            
+            }
+
+            if (pcpsid) {
+                free(pcpsid);
+            }
+            pcpsid = NULL;
+
+            pcpsid = (PSID) malloc((size_t)cplen);
+            if (pcpsid == NULL) {
+                GETERRNO(ret);
+                goto fail;
+            }
+
+            memset(pcpsid, 0, (size_t)cplen);
+            if (cplen > 1) {
+
+                if (plname) {
+                    LocalFree(plname);
+                }
+                plname = NULL;
+                memcpy(pcpsid, plsid, (size_t)cplen - 1);
+                DEBUG_BUFFER_FMT(plsid, cplen, "plsid");
+                DEBUG_BUFFER_FMT(pcpsid, cplen,"pcpsid");
+
+                bret = ConvertSidToStringSid(pcpsid,&plname);
+                if (!bret) {
+                    ERROR_INFO("ReConvertSidToStringSid for [%s] error[%d]", name, ret);
+                    goto fail;
+                }
+                DEBUG_BUFFER_FMT(plname,(_tcslen(plname)+1)*sizeof(TCHAR), "plname");
+                DEBUG_BUFFER_FMT(ptname,(_tcslen(ptname)+1)*sizeof(TCHAR), "ptname");
+                if (_tcscmp(plname,ptname) == 0) {
+                    if (sidsize < cplen) {
+                        sidsize = cplen;
+                        if (psid && psid != *ppsid) {
+                            LocalFree(psid);
+                        }
+                        psid = NULL;
+                        psid = (PSID) LocalAlloc(LMEM_FIXED,(size_t)sidsize);
+                        if (psid == NULL) {
+                            GETERRNO(ret);
+                            goto fail;
+                        }
+                    }
+                    memset(psid, 0 , (size_t)sidsize);
+                    memcpy(psid, plsid, (size_t)cplen - 1);
+                    break;
+                }
+            } 
+
+            cplen ++;
+        }
+
+        GETERRNO(ret);
         goto fail;
+
     }
     retlen = (int)sidlen;
 
@@ -2128,6 +2267,15 @@ try_again:
         LocalFree(*ppsid);
     }
     *ppsid = psid;
+    if (plname) {
+        LocalFree(plname);
+    }
+    plname = NULL;
+    lnamelen = 0;
+    if (plsid) {
+        LocalFree(plsid);
+    }
+    plsid = NULL;
     AnsiToTchar(NULL, &ptname, &tnamesize);
     return retlen;
 fail:
@@ -2142,6 +2290,15 @@ fail:
     }
     psid = NULL;
     AnsiToTchar(NULL, &ptname, &tnamesize);
+    if (plsid) {
+        LocalFree(plsid);
+    }
+    plsid = NULL;    
+    if (plname) {
+        LocalFree(plname);
+    }
+    plname = NULL;
+    lnamelen = 0;
     SETERRNO(ret);
     return ret;
 }
@@ -2680,7 +2837,7 @@ int get_name_sid(const char* name, char** ppsid, int *psize)
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
-    }
+    } 
 
     bret = ConvertSidToStringSid(psid, &ptsid);
     if (!bret) {
@@ -3097,18 +3254,22 @@ int remove_sacl(void* pacl1, const char* username, const char* action, const cha
         GETERRNO(ret);
         goto fail;
     }
+    DEBUG_INFO(" ");
 
     ret = __get_action(action, &mode);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
+    DEBUG_INFO(" ");
 
     ret = __get_right(right, &perm);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
+
+    DEBUG_INFO(" ");
 
     if (pinherit != NULL) {
         ret = __get_inherit(pinherit, &inheritmode);
@@ -3118,15 +3279,15 @@ int remove_sacl(void* pacl1, const char* username, const char* action, const cha
         }
     }
 
+    DEBUG_INFO(" ");
+
     ret = __get_sacl_from_descriptor(pacl->m_saclsdp, &sacl);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
+
+    DEBUG_INFO(" ");
 
     ret = __handle_sdp_acl(sacl, psid, mode, perm, (inheritmode != 0 ? (&inheritmode) : NULL), (void*)SACL_MODE, &pdp, &dpsize, __remove_acl_inner);
     if (ret < 0) {
