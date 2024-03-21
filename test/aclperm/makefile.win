@@ -1,0 +1,123 @@
+
+CURDIR=$(MAKEDIR)
+TOPDIR=$(CURDIR)\..\..
+DYNAMICDIR=$(TOPDIR)\dynamiclib
+STATICDIR=$(TOPDIR)\staticlib
+
+CC      = cl.exe
+LD      = link.exe
+AR      = lib.exe
+RM      = del
+PYTHON  = python.exe
+GIT     = git.exe
+CP      = copy /Y
+GOBIN   = go.exe
+
+!IFDEF UNICODE_MODE
+!IF $(UNICODE_MODE) != 0
+UNICODE_CFLAGS=-DUNICODE -D_UNICODE
+!ELSE
+UNICODE_CFLAGS=
+!ENDIF
+!ELSE
+UNICODE_CFLAGS=
+!ENDIF
+
+
+!IFDEF MAKEVERBOSE
+!IF $(MAKEVERBOSE) != 0
+QUIETCMD=
+NOLOGO_CFLAGS=
+NOLOGO_LDFLAGS=
+NOLOGO_MAKEFLAGS=
+GIT_VERBOSE=
+!ELSE
+QUIETCMD=@
+NOLOGO_CFLAGS=/nologo
+NOLOGO_LDFLAGS=/nologo
+NOLOGO_MAKEFLAGS=/NOLOGO
+GIT_VERBOSE=--quiet
+!ENDIF
+!ELSE
+QUIETCMD=@
+NOLOGO_CFLAGS=/nologo
+NOLOGO_LDFLAGS=/nologo
+NOLOGO_MAKEFLAGS=/NOLOGO
+GIT_VERBOSE=--quiet
+!ENDIF
+
+!IFDEF STATICLIB
+!IF $(STATICLIB) != 0
+STATIC_LIB_CFLAGS=-DWINLIB_STATIC_EXPORT /MT
+EXTARGSLIB_VALUE=1
+WINLIB_VALUE=1
+
+INC_LDFLAGS = "$(STATICDIR)\extargslib.lib" "$(STATICDIR)\winlib.lib" "$(STATICDIR)\json.lib" "$(STATICDIR)\cryptutil.lib"
+
+!ELSE
+STATIC_LIB_CFLAGS=-DWINLIB_DLL_IMPORT /MT
+EXTARGSLIB_VALUE=0
+WINLIB_VALUE=0
+
+INC_LDFLAGS = "$(DYNAMICDIR)\extargslib.lib" "$(DYNAMICDIR)\winlib.lib" "$(DYNAMICDIR)\json.lib" "$(DYNAMICDIR)\cryptutil.lib"
+
+!ENDIF
+!ELSE
+STATIC_LIB_CFLAGS=-DWINLIB_DLL_IMPORT /MT
+EXTARGSLIB_VALUE=0
+WINLIB_VALUE=0
+
+INC_LDFLAGS = "$(DYNAMICDIR)\extargslib.lib" "$(DYNAMICDIR)\winlib.lib" "$(DYNAMICDIR)\json.lib"  "$(DYNAMICDIR)\cryptutil.lib"
+!ENDIF
+
+INC_CFLAGS = /I"$(CURDIR)\..\proto" /I"$(CURDIR)\..\proto_win" /I"$(TOPDIR)\common\extargslib" /I"$(TOPDIR)\winlib" /I"$(TOPDIR)\common\jsonlib" /I"$(TOPDIR)\common" /I"$(TOPDIR)\common\cryptutil"
+COM_CFLAGS = /Wall /wd"4710"
+REL_CFLAGS = 
+DBG_CFLAGS = /Zi /Od 
+
+
+#INC_LDFLAGS = "$(TOPDIR)\winlib\winlib.lib" Advapi32.lib
+REL_LDFLAGS = 
+
+CFLAGS  = $(UNICODE_CFLAGS) $(NOLOGO_CFLAGS) $(STATIC_LIB_CFLAGS) $(INC_CFLAGS) $(COM_CFLAGS) $(REL_CFLAGS) $(DBG_CFLAGS)
+LDFLAGS = $(NOLOGO_LDFLAGS) $(INC_LDFLAGS) $(REL_LDFLAGS)
+
+SOURCES=aclperm.cpp
+OBJECTS=$(SOURCES:.cpp=.obj)
+
+all:aclperm.exe
+
+!IFDEF STATICLIB
+!IF $(STATICLIB) != 0
+aclperm.exe:$(OBJECTS)
+    $(QUIETCMD) echo "call static $(OBJECTS)"
+    $(QUIETCMD)$(LD) -out:$@  $(LDFLAGS)  $(OBJECTS)
+    $(QUIETCMD)echo "use static lib"
+!ELSE
+aclperm.exe:$(OBJECTS)
+    $(QUIETCMD) echo "call dynamic $(OBJECTS)"
+    $(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
+    $(QUIETCMD)echo "use dynamic lib"
+!ENDIF  
+
+!ELSE
+aclperm.exe:$(OBJECTS)
+    $(QUIETCMD) echo "call dynamic $(OBJECTS)"
+    $(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
+    $(QUIETCMD) copy /Y $(DYNAMICDIR)\extargslib.dll $(CURDIR)\extargslib.dll
+    $(QUIETCMD) copy /Y $(DYNAMICDIR)\winlib.dll $(CURDIR)\winlib.dll
+    $(QUIETCMD) copy /Y $(DYNAMICDIR)\json.dll $(CURDIR)\json.dll
+    $(QUIETCMD) copy /Y $(DYNAMICDIR)\cryptutil.dll $(CURDIR)\cryptutil.dll
+    $(QUIETCMD)echo "use dynamic lib"
+!ENDIF
+
+
+.cpp.obj:
+    $(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
+
+
+
+
+clean:
+    $(QUIETCMD) $(RM) *.exe *.obj 2>NUL
+    $(QUIETCMD) $(RM) *.pdb *.ilk 2>NUL
