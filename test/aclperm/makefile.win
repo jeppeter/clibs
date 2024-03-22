@@ -89,19 +89,19 @@ all:aclperm.exe
 
 !IFDEF STATICLIB
 !IF $(STATICLIB) != 0
-aclperm.exe:$(OBJECTS)
+aclperm.exe:$(OBJECTS) $(STATICDIR)\winlib.lib $(STATICDIR)\json.lib $(STATICDIR)\extargslib.lib $(STATICDIR)\cryptutil.lib
     $(QUIETCMD) echo "call static $(OBJECTS)"
     $(QUIETCMD)$(LD) -out:$@  $(LDFLAGS)  $(OBJECTS)
     $(QUIETCMD)echo "use static lib"
 !ELSE
-aclperm.exe:$(OBJECTS)
+aclperm.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMICDIR)\extargslib.dll $(DYNAMICDIR)\cryptutil.dll
     $(QUIETCMD) echo "call dynamic $(OBJECTS)"
     $(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
     $(QUIETCMD)echo "use dynamic lib"
 !ENDIF  
 
 !ELSE
-aclperm.exe:$(OBJECTS)
+aclperm.exe:$(OBJECTS)  $(DYNAMICDIR)\winlib.dll $(DYNAMICDIR)\json.dll $(DYNAMICDIR)\extargslib.dll $(DYNAMICDIR)\cryptutil.dll
     $(QUIETCMD) echo "call dynamic $(OBJECTS)"
     $(QUIETCMD)$(LD) -out:$@ $(LDFLAGS) $(OBJECTS)
     $(QUIETCMD) copy /Y $(DYNAMICDIR)\extargslib.dll $(CURDIR)\extargslib.dll
@@ -117,7 +117,45 @@ aclperm.exe:$(OBJECTS)
 
 
 
+$(DYNAMICDIR)\extargslib.dll:
+    $(QUIETCMD)cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)"
 
-clean:
+$(DYNAMICDIR)\winlib.dll:
+    $(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)"
+
+$(DYNAMICDIR)\json.dll:
+    $(QUIETCMD)cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)"
+
+$(DYNAMICDIR)\cryptutil.dll:
+    $(QUIETCMD)cd $(TOPDIR)\common\cryptutil && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=0 /f makefile.win all && cd "$(CURDIR)"
+
+
+$(STATICDIR)\extargslib.lib:
+    $(QUIETCMD)cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)"
+
+$(STATICDIR)\winlib.lib:
+    $(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)"
+
+$(STATICDIR)\json.lib:
+    $(QUIETCMD)cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)"
+
+$(STATICDIR)\cryptutil.lib:
+    $(QUIETCMD)cd $(TOPDIR)\common\cryptutil && $(MAKE) $(NOLOGO_MAKEFLAGS) STATICLIB=1 /f makefile.win all && cd "$(CURDIR)"
+
+
+clean_winlib:
+    $(QUIETCMD)cd $(TOPDIR)\winlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd "$(CURDIR)"
+
+clean_json:clean_winlib
+    $(QUIETCMD)cd $(TOPDIR)\common\jsonlib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd "$(CURDIR)"
+
+clean_extargslib: clean_json
+    $(QUIETCMD)cd $(TOPDIR)\common\extargslib && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd "$(CURDIR)"
+
+clean_cryptutil:
+    $(QUIETCMD)cd $(TOPDIR)\common\cryptutil && $(MAKE) $(NOLOGO_MAKEFLAGS) /f makefile.win clean && cd "$(CURDIR)" 
+
+clean:clean_extargslib clean_cryptutil
     $(QUIETCMD) $(RM) *.exe *.obj 2>NUL
     $(QUIETCMD) $(RM) *.pdb *.ilk 2>NUL
+    $(QUIETCMD) $(RM) *.dll 2>NUL
