@@ -51,12 +51,11 @@ Abstract:
 
 --*/
 
-#include <windows.h>
-#include <aclapi.h>
-#include <lmerr.h>
+//#include <aclapi.h>
+//#include <lmerr.h>
 
-#include <stdio.h>
-#include <assert.h>
+//#include <stdio.h>
+//#include <assert.h>
 #include <win_priv.h>
 #include <win_output_debug.h>
 
@@ -95,21 +94,24 @@ main(
     DWORD dwError;
     BOOL bSuccess = FALSE; // assume failure
     int ret;
+    int enpriv = 0;
 
     if(argc < 4) {
         printf("Usage: %s <filename> {/Deny | /Grant | /Revoke | /Set} [<trustee>] [<permissions>] [<InheritFlag>]\n", argv[0]);
-        return RTN_USAGE;
+        goto cleanup;
     }
 
     ret = AnsiToTchar(argv[1],&FileName,&filesize);
     if (ret < 0) {
         GETERRNO(ret);
-        return RTN_USAGE;
+        goto cleanup;
     }
 
     ret = AnsiToTchar(argv[3],&TrusteeName,&trustsize);
-
-    TrusteeName = (LPTSTR)argv[3];
+    if (ret < 0 ){
+        GETERRNO(ret);
+        goto cleanup;
+    }
 
     if ( (0 == _stricmp(argv[2], "/Deny") ) ||
         (0 == _stricmp(argv[2], "/D") ) )
@@ -145,8 +147,10 @@ main(
     ret = enable_security_priv();
     if (ret < 0) {
         fprintf(stderr,"enable_security_priv error\n");
-        return -1;
+        goto cleanup;
     }
+    enpriv = 1;
+    fprintf(stdout, "AccessMask 0x%x InheritFlag 0x%x\n", AccessMask,InheritFlag);
     //
     // get current Dacl on specified file
     //
@@ -213,11 +217,14 @@ main(
 
     bSuccess = TRUE; // indicate success
 
+
 cleanup:
 
     if( NewAcl != NULL ) AccFree( NewAcl );
     if( psd != NULL) AccFree( psd );
 
+    AnsiToTchar(NULL,&FileName,&filesize);
+    AnsiToTchar(NULL,&TrusteeName,&trustsize);
 
     if(!bSuccess)
         return RTN_ERROR;
