@@ -51,13 +51,14 @@ Abstract:
 
 --*/
 
-//#include <aclapi.h>
-//#include <lmerr.h>
+#include <aclapi.h>
+#include <lmerr.h>
 
-//#include <stdio.h>
+#include <stdio.h>
 //#include <assert.h>
 #include <win_priv.h>
 #include <win_output_debug.h>
+#include <win_uniansi.h>
 
 #define RTN_OK 0
 #define RTN_USAGE 1
@@ -95,6 +96,9 @@ main(
     BOOL bSuccess = FALSE; // assume failure
     int ret;
     int enpriv = 0;
+    PEXPLICIT_ACCESS pacc=NULL;
+    ULONG lcnt;
+    ULONG i;
 
     if(argc < 4) {
         printf("Usage: %s <filename> {/Deny | /Grant | /Revoke | /Set} [<trustee>] [<permissions>] [<InheritFlag>]\n", argv[0]);
@@ -149,7 +153,7 @@ main(
         fprintf(stderr,"enable_security_priv error\n");
         goto cleanup;
     }
-    enpriv = 1;
+    //enpriv = 1;
     fprintf(stdout, "AccessMask 0x%x InheritFlag 0x%x\n", AccessMask,InheritFlag);
     //
     // get current Dacl on specified file
@@ -200,6 +204,33 @@ main(
     // apply new security to file
     //
 
+    dwError = GetExplicitEntriesFromAcl(ExistingDacl,&lcnt,&pacc);
+    if (dwError != ERROR_SUCCESS) {
+        DisplayLastError("GetExplicitEntriesFromAcl");
+        goto cleanup;
+    }
+
+    for (i=0;i<lcnt;i++) {
+        fprintf(stdout,"exist[%d] access [0x%lx] perm [0x%lx]\n",i,pacc[i].grfAccessPermissions, pacc[i].grfAccessMode);
+    }
+
+    if (pacc) {
+        LocalFree(pacc);
+    }
+    pacc =NULL;
+
+
+    dwError = GetExplicitEntriesFromAcl(NewAcl,&lcnt,&pacc);
+    if (dwError != ERROR_SUCCESS) {
+        DisplayLastError("GetExplicitEntriesFromAcl");
+        goto cleanup;
+    }
+
+    for (i=0;i<lcnt;i++) {
+        fprintf(stdout,"new[%d] access [0x%lx] perm [0x%lx]\n",i,pacc[i].grfAccessPermissions, pacc[i].grfAccessMode);
+    }
+
+
     dwError = SetNamedSecurityInfo(
                     FileName,
                     SE_FILE_OBJECT, // object type
@@ -210,15 +241,24 @@ main(
                     NULL
                     );
 
-    if(dwError != ERROR_SUCCESS) {
+    if(dwError != ERROR_SUCCESS) {        
         DisplayLastError("SetNamedSecurityInfo");
+        fprintf(stderr,"dwError [%d]", dwError);
         goto cleanup;
     }
+
+
+
 
     bSuccess = TRUE; // indicate success
 
 
 cleanup:
+
+    if (pacc) {
+        LocalFree(pacc);
+    }
+    pacc =NULL;
 
     if( NewAcl != NULL ) AccFree( NewAcl );
     if( psd != NULL) AccFree( psd );
