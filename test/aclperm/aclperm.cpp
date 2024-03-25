@@ -50,11 +50,20 @@ Abstract:
     the new Windows NT 4.0 Acl management API.
 
 --*/
+#pragma warning(push)
+
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
 
 #include <aclapi.h>
+#pragma warning(pop)
 #include <lmerr.h>
 
+#pragma warning(push)
+#pragma warning(disable:4514)
 #include <stdio.h>
+#pragma warning(pop)
+
 //#include <assert.h>
 #include <win_priv.h>
 #include <win_output_debug.h>
@@ -63,6 +72,7 @@ Abstract:
 #define RTN_OK 0
 #define RTN_USAGE 1
 #define RTN_ERROR 13
+
 
 #pragma comment(lib,"Advapi32.lib")
 
@@ -95,7 +105,6 @@ main(
     DWORD dwError;
     BOOL bSuccess = FALSE; // assume failure
     int ret;
-    int enpriv = 0;
     PEXPLICIT_ACCESS pacc=NULL;
     ULONG lcnt;
     ULONG i;
@@ -138,14 +147,12 @@ main(
         return RTN_ERROR;
     }
 
-    if (argc > 4)
-    {
-        AccessMask = atol( argv[4] );
+    if (argc > 4) {
+        AccessMask = (DWORD)atol( argv[4] );
     }
 
-    if (argc > 5)
-    {
-       InheritFlag = atol( argv[5] );
+    if (argc > 5) {
+       InheritFlag = (DWORD)atol( argv[5] );
     }
 
     ret = enable_security_priv();
@@ -154,7 +161,7 @@ main(
         goto cleanup;
     }
     //enpriv = 1;
-    fprintf(stdout, "AccessMask 0x%x InheritFlag 0x%x\n", AccessMask,InheritFlag);
+    fprintf(stdout, "AccessMask 0x%lx InheritFlag 0x%lx\n", AccessMask,InheritFlag);
     //
     // get current Dacl on specified file
     //
@@ -210,8 +217,9 @@ main(
         goto cleanup;
     }
 
+    fprintf(stderr,"get [%ld]\n",lcnt);
     for (i=0;i<lcnt;i++) {
-        fprintf(stdout,"exist[%d] access [0x%lx] perm [0x%lx]\n",i,pacc[i].grfAccessPermissions, pacc[i].grfAccessMode);
+        fprintf(stdout,"exist[%ld] access [0x%lx] perm [0x%x]\n",i,pacc[i].grfAccessPermissions, pacc[i].grfAccessMode);
     }
 
     if (pacc) {
@@ -226,8 +234,9 @@ main(
         goto cleanup;
     }
 
+    fprintf(stderr,"get [%ld]\n",lcnt);
     for (i=0;i<lcnt;i++) {
-        fprintf(stdout,"new[%d] access [0x%lx] perm [0x%lx]\n",i,pacc[i].grfAccessPermissions, pacc[i].grfAccessMode);
+        fprintf(stdout,"new[%ld] access [0x%lx] perm [0x%x]\n",i,pacc[i].grfAccessPermissions, pacc[i].grfAccessMode);
     }
 
 
@@ -243,7 +252,7 @@ main(
 
     if(dwError != ERROR_SUCCESS) {        
         DisplayLastError("SetNamedSecurityInfo");
-        fprintf(stderr,"dwError [%d]", dwError);
+        fprintf(stderr,"dwError [%ld]", dwError);
         goto cleanup;
     }
 
@@ -308,7 +317,7 @@ DisplayLastError(
     // from the system or the supplied module handle
     //
 
-    if(dwBufferLength = FormatMessageA(
+    dwBufferLength = FormatMessageA(
         dwFormatFlags,
         hModule, // module to get message from (NULL == system)
         dwLastError,
@@ -316,7 +325,8 @@ DisplayLastError(
         (LPSTR) &MessageBuffer,
         0,
         NULL
-        ))
+        );
+    if(dwBufferLength != 0)
     {
         DWORD dwBytesWritten;
 
