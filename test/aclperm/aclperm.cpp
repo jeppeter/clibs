@@ -50,6 +50,7 @@ Abstract:
     the new Windows NT 4.0 Acl management API.
 
 --*/
+#if 0
 #pragma warning(push)
 
 #pragma warning(disable:4668)
@@ -353,3 +354,218 @@ DisplayLastError(
     if(hModule != NULL)
         FreeLibrary(hModule);
 }
+#else
+#pragma warning(push)
+
+#pragma warning(disable:4668)
+#include <windows.h>
+
+#include <stdio.h>
+#pragma warning(pop)
+
+#include <Sddl.h>
+
+#pragma comment(lib,"Advapi32.lib")
+
+SECURITY_DESCRIPTOR *get_security_descriptor(char *filename) {
+  /* First find out the amount of memory needed for the security descriptor */
+  SECURITY_DESCRIPTOR *sd;
+  unsigned long size = 0;
+
+  GetFileSecurityA(filename, DACL_SECURITY_INFORMATION, 0, 0, &size);
+
+  /* We should have failed GetFileSecurity with an out of memory error */
+  int ret = (int)GetLastError();
+  if (ret != ERROR_INSUFFICIENT_BUFFER) {
+    fprintf(stderr, "Error getting file security DACL: %d\n", ret);
+    return 0;
+  }
+
+  /* Allocate memory for security descriptor */
+  sd = (SECURITY_DESCRIPTOR *) HeapAlloc(GetProcessHeap(), 0, size);
+  if (! sd) {
+    fprintf(stderr, "Out of memory for security descriptor!\n");
+    return 0;
+  }
+
+  /* Now perform the actual GetFileSecurity() call */
+  if (! GetFileSecurityA(filename, DACL_SECURITY_INFORMATION, sd, size, &size)) {
+    fprintf(stderr, "Error getting file security DACL: %ld\n", GetLastError());
+    HeapFree(GetProcessHeap(), 0, sd);
+    return 0;
+  }
+
+  return sd;
+}
+
+/* Security descriptor needs to have DACL_SECURITY_INFORMATION */
+ACL *get_dacl(SECURITY_DESCRIPTOR *sd) {
+  if (! sd) return 0;
+
+  /* Get DACL from the security descriptor */
+  ACL *acl;
+  int defaulted, present;
+  if (! GetSecurityDescriptorDacl(sd, &present, &acl, &defaulted)) {
+    fprintf(stderr, "Error getting DACL from security descriptor: %ld\n", GetLastError());
+    return 0;
+  }
+
+  /* If there is one */
+  if (! present) {
+    fprintf(stderr, "Security descriptor has no DACL present\n");
+    HeapFree(GetProcessHeap(), 0, acl);
+    return 0;
+  }
+
+  return acl;
+}
+
+void display_ace(void *ace) {
+  if (! ace) return;
+
+  SID *sid;
+  char *stringsid;
+  int mask;
+  char *type;
+
+  /* Check type of ACE and whether it's inherited or not */
+  if (((ACCESS_ALLOWED_ACE *) ace)->Header.AceType == ACCESS_ALLOWED_ACE_TYPE) {
+    ACCESS_ALLOWED_ACE *access = (ACCESS_ALLOWED_ACE *) ace;
+    sid = (SID *) &access->SidStart;
+    mask = (int)access->Mask;
+    type = "Allow";
+  }
+  else if (((ACCESS_DENIED_ACE *) ace)->Header.AceType == ACCESS_DENIED_ACE_TYPE) {
+    ACCESS_DENIED_ACE *access = (ACCESS_DENIED_ACE *) ace;
+    sid = (SID *) &access->SidStart;
+    mask = (int)access->Mask;
+    type = "Deny";
+  }
+  else return;
+
+  /* Check SID to which this ACE applies */
+  if (! IsValidSid(sid)) {
+    printf(" invalid SID!\n");
+    return;
+  }
+
+  /* Get size of buffers for account name */
+  SID_NAME_USE snu;
+  char *name = 0;
+  char *domain = 0;
+  unsigned long namesize = 0;
+  unsigned long domainsize = 0;
+
+  LookupAccountSidA(0, sid, name, &namesize, domain, &domainsize, &snu);
+  int ret = (int)GetLastError();
+  if (ret != ERROR_INSUFFICIENT_BUFFER) {
+    fprintf(stderr, "Error getting size of name and domain: %d\n", ret);
+    printf("\n");
+    return;
+  }
+
+  /* Allocate memory for them */
+  name = (char *) HeapAlloc(GetProcessHeap(), 0, namesize);
+  if (! name) {
+    fprintf(stderr, "Out of memory for account name!\n");
+    printf("\n");
+    return;
+  }
+
+  domain = (char *) HeapAlloc(GetProcessHeap(), 0, domainsize);
+  if (! domain) {
+    fprintf(stderr, "Out of memory for domain name!\n");
+    printf("\n");
+    return;
+  }
+
+  /* Perform the actual lookup */
+  if (! LookupAccountSidA(0, sid, name, &namesize, domain, &domainsize, &snu)) {
+    fprintf(stderr, "Error looking up account name: %ld\n", GetLastError());
+    printf("\n");
+    HeapFree(GetProcessHeap(), 0, name);
+    HeapFree(GetProcessHeap(), 0, domain);
+  }
+
+  /* Get the sid as a string */
+  if (! ConvertSidToStringSidA(sid, &stringsid)) {
+    fprintf(stderr, "Error converting SID to string : %ld\n", GetLastError());
+    printf("\n");
+    HeapFree(GetProcessHeap(), 0, name);
+    HeapFree(GetProcessHeap(), 0, domain);
+  }
+
+  /* Print 'em */
+  if (*domain) printf("%s\\", domain);
+  printf("%s\n%s\n", name, stringsid);
+
+  /* Cleanup */
+  HeapFree(GetProcessHeap(), 0, stringsid);
+  HeapFree(GetProcessHeap(), 0, name);
+  HeapFree(GetProcessHeap(), 0, domain);
+
+  /* Print permissions as a string */
+  if (mask & FILE_READ_DATA) printf("\t%s\tFILE_READ_DATA\n", type);
+  if (mask & FILE_WRITE_DATA) printf("\t%s\tFILE_WRITE_DATA\n", type);
+  if (mask & FILE_APPEND_DATA) printf("\t%s\tFILE_APPEND_DATA\n", type);
+  if (mask & FILE_READ_EA) printf("\t%s\tFILE_READ_EA\n", type);
+  if (mask & FILE_WRITE_EA) printf("\t%s\tFILE_WRITE_EA\n", type);
+  if (mask & FILE_EXECUTE) printf("\t%s\tFILE_EXECUTE\n", type);
+  if (mask & FILE_READ_ATTRIBUTES) printf("\t%s\tFILE_READ_ATTRIBUTES\n", type);
+  if (mask & FILE_WRITE_ATTRIBUTES) printf("\t%s\tFILE_WRITE_ATTRIBUTES\n", type);
+  if (mask & FILE_DELETE_CHILD) printf("\t%s\tFILE_DELETE\n", type);
+  if (mask & DELETE) printf("\t%s\tDELETE\n", type);
+  if (mask & READ_CONTROL) printf("\t%s\tREAD_CONTROL\n", type);
+  if (mask & WRITE_DAC) printf("\t%s\tWRITE_DAC\n", type);
+  if (mask & WRITE_OWNER) printf("\t%s\tWRITE_OWNER\n", type);
+  if (mask & SYNCHRONIZE) printf("\t%s\tSYNCHRONIZE\n", type);
+}
+
+int main(int argc, char **argv) {
+  if (argc == 1) {
+    fprintf(stderr, "Usage: %s pathspec\n", argv[0]);
+    fprintf(stderr, "Example: %s c:\\winnt\n", argv[0]);
+    return 1;
+  }
+
+  /* Get security descriptor for the file */
+  SECURITY_DESCRIPTOR *sd = get_security_descriptor(argv[1]);
+  if (! sd) return 2;
+
+  /* Get ACL */
+  ACL *dacl = get_dacl(sd);
+  if (! dacl) {
+    HeapFree(GetProcessHeap(), 0, sd);
+    return 3;
+  }
+
+  /* Get information about the ACL (ie number of ACEs) */
+  ACL_SIZE_INFORMATION acl_size_info;
+  if (! GetAclInformation(dacl, (void *) &acl_size_info, sizeof(acl_size_info), AclSizeInformation)) {
+    fprintf(stderr, "Error getting DACL size information: %ld\n", GetLastError());
+    HeapFree(GetProcessHeap(), 0, dacl);
+    HeapFree(GetProcessHeap(), 0, sd);
+    return 4;
+  }
+
+  /* Process ACEs */
+  for (int i = 0; i < (int)acl_size_info.AceCount; i++) {
+    void *ace;
+
+    if (! GetAce(dacl, (DWORD)i, &ace)) {
+      fprintf(stderr, "Can't get ACE %d: %ld\n", i, GetLastError());
+      HeapFree(GetProcessHeap(), 0, dacl);
+      HeapFree(GetProcessHeap(), 0, sd);
+      return 4;
+    }
+
+    display_ace(ace);
+  }
+
+  /* Cleanup */
+  HeapFree(GetProcessHeap(), 0, dacl);
+  HeapFree(GetProcessHeap(), 0, sd);
+
+  return 0;
+}
+#endif
