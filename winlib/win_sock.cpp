@@ -1176,5 +1176,50 @@ void close_udp_socket(void** ppudp)
 	return;
 }
 
+pudp_socket_t __alloc_udp_socket(void)
+{
+	pudp_socket_t pudp = NULL;
+	int ret;
+
+	pudp = (pudp_socket_t)malloc(sizeof(*pudp));
+	if (pudp == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	memset(pudp,0,sizeof(*pudp));
+	pudp->m_sock = INVALID_SOCKET;
+	pudp->m_type = 0;
+
+	pudp->m_rdov.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (pudp->m_rdov.hEvent == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	pudp->m_wrov.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (pudp->m_wrov.hEvent == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+
+	return pudp;
+fail:
+	if (pudp) {
+		_close_udp_socket(pudp);
+		free(pudp);
+		pudp = NULL;
+	}
+	SETERRNO(ret);
+	return NULL;
+}
+
+void* bind_udp_socket(char* ipaddr, int port)
+{
+	return NULL;
+}
+
 
 #pragma warning(pop)
