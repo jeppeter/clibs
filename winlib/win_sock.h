@@ -32,6 +32,12 @@ WINLIB_API HANDLE get_tcp_write_handle(void* ptcp);
 WINLIB_API int complete_tcp_connect(void* ptcp);
 WINLIB_API int complete_tcp_read(void* ptcp);
 WINLIB_API int complete_tcp_write(void* ptcp);
+WINLIB_API void*　bind_udp_socket(char* ipaddr, int port);
+WINLIB_API void*  connect_udp_socket(char* ipaddr,int port, char* localip,int bindport);
+WINLIB_API int read_udp_socket(void* pudp,char* pbuf, int bufsize, struct sockaddr* sinaddr,int *psinsize);
+WINLIB_API int write_udp_socket(void* pudp,struct sockaddr* sinaddr, int sinsize,char* pbuf,int bufsize);
+WINLIB_API HANDLE get_udp_read_handle(void* pudp);
+WINLIB_API HANDLE get_udp_write_handle(void* pudp);
 
 
 #ifdef __cplusplus

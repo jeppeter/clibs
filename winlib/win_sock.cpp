@@ -1103,4 +1103,12 @@ int write_tcp_socket(void* ptcp, uint8_t* pbuf, int bufsize)
 
 	return __inner_start_write(psock);
 }
+
+
+
+typedef struct __udp_sock {
+	
+} udp_socket_t,*pudp_socket_t;
+
+
 #pragma warning(pop)
