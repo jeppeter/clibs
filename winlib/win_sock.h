@@ -38,6 +38,7 @@ WINLIB_API int read_udp_socket(void* pudp,char* pbuf, int bufsize, struct sockad
 WINLIB_API int write_udp_socket(void* pudp,struct sockaddr* sinaddr, int sinsize,char* pbuf,int bufsize);
 WINLIB_API HANDLE get_udp_read_handle(void* pudp);
 WINLIB_API HANDLE get_udp_write_handle(void* pudp);
+WINLIB_API void close_udp_socket(void** ppudp);
 
 
 #ifdef __cplusplus

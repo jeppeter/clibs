@@ -101,7 +101,7 @@ int init_socket(void)
 	}
 
 	return 0;
-fail:
+	fail:
 
 	SETERRNO(ret);
 	return ret;
@@ -276,7 +276,7 @@ psock_data_priv_t __alloc_sock_priv(int typeval, char* ipaddr, int port)
 	}
 
 	return psock;
-fail:
+	fail:
 	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
@@ -320,7 +320,7 @@ int __get_self_name(psock_data_priv_t psock)
 	psock->m_selfport = ntohs(name->sin_port);
 
 	return 0;
-fail:
+	fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -360,7 +360,7 @@ int __get_peer_name(psock_data_priv_t psock)
 	inet_ntop(AF_INET, &(name->sin_addr), psock->m_peeraddr, INET_ADDRSTRLEN);
 	psock->m_peerport = ntohs(name->sin_port);
 	return 0;
-fail:
+	fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -394,7 +394,7 @@ int __inner_make_read_write(psock_data_priv_t psock)
 	}
 
 	return 0;
-fail:
+	fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -472,7 +472,7 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 
 
 	ret = WSAIoctl(psock->m_sock, SIO_GET_EXTENSION_FUNCTION_POINTER,
-	               &guid, sizeof(guid), &(psock->m_connexfunc), sizeof(psock->m_connexfunc), &dret, NULL, NULL);
+		&guid, sizeof(guid), &(psock->m_connexfunc), sizeof(psock->m_connexfunc), &dret, NULL, NULL);
 	if (ret != 0) {
 		WSA_GETERRNO(ret);
 		ERROR_INFO("get ConnectEx for [%s:%d] error[%d]", psock->m_peeraddr, psock->m_peerport, ret);
@@ -548,10 +548,10 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 		}
 	}
 
-succ:
+	succ:
 	DEBUG_INFO("connect_tcp_socket inconn %d", psock->m_inconn);
 	return psock;
-fail:
+	fail:
 	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
@@ -602,7 +602,7 @@ int complete_tcp_connect(void* ptcp)
 	}
 	return ret;
 
-fail:
+	fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -645,7 +645,7 @@ int __inner_accept(psock_data_priv_t psock)
 	}
 
 	return psock->m_inacc;
-fail:
+	fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -715,8 +715,8 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 	}
 
 	ret = WSAIoctl(psock->m_sock, SIO_GET_EXTENSION_FUNCTION_POINTER,
-	               &GuidAcceptEx, sizeof(GuidAcceptEx), &(psock->m_acceptexfunc), sizeof(psock->m_acceptexfunc),
-	               &dret, NULL, NULL);
+		&GuidAcceptEx, sizeof(GuidAcceptEx), &(psock->m_acceptexfunc), sizeof(psock->m_acceptexfunc),
+		&dret, NULL, NULL);
 	if (ret == SOCKET_ERROR) {
 		WSA_GETERRNO(ret);
 		ERROR_INFO("get acceptex function for [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
@@ -749,7 +749,7 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 	}
 
 	return psock;
-fail:
+	fail:
 	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
@@ -795,7 +795,7 @@ int complete_tcp_accept(void* ptcp)
 	}
 
 	return ret;
-fail:
+	fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -863,7 +863,7 @@ void* accept_tcp_socket(void* ptcp)
 	}
 
 	return psock;
-fail:
+	fail:
 	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
@@ -887,7 +887,7 @@ int __inner_start_read(psock_data_priv_t psock)
 	DWORD flags;
 	WSABUF rdbuf;
 	psock->m_inrd = 1;
-try_read_again:
+	try_read_again:
 	flags = 0;
 	memset(&rdbuf, 0, sizeof(rdbuf));
 	rdbuf.len = psock->m_rdleft;
@@ -915,9 +915,9 @@ try_read_again:
 		//DEBUG_INFO("rdleft %d", psock->m_rdleft);
 		return 0;
 	}
-fail:
+	fail:
 	ERROR_INFO("read [%s:%d] => [%s:%d] left [%d] error[%d]", psock->m_peeraddr,
-	           psock->m_peerport, psock->m_selfaddr, psock->m_selfport, psock->m_rdleft, ret);
+		psock->m_peerport, psock->m_selfaddr, psock->m_selfport, psock->m_rdleft, ret);
 	SETERRNO(ret);
 	return ret;
 }
@@ -929,7 +929,7 @@ int __inner_start_write(psock_data_priv_t psock)
 	DWORD flags;
 	WSABUF wrbuf;
 	psock->m_inwr = 1;
-try_write_again:
+	try_write_again:
 	flags = 0;
 	memset(&wrbuf, 0, sizeof(wrbuf));
 	wrbuf.len = psock->m_wrleft;
@@ -952,7 +952,7 @@ try_write_again:
 		return 0;
 	}
 	ERROR_INFO("write [%s:%d] => [%s:%d] left [%d] error[%d]", psock->m_selfaddr,
-	           psock->m_selfport, psock->m_peeraddr, psock->m_peerport, psock->m_wrleft, ret);
+		psock->m_selfport, psock->m_peeraddr, psock->m_peerport, psock->m_wrleft, ret);
 	SETERRNO(ret);
 	return ret;
 }
@@ -979,7 +979,7 @@ int complete_tcp_read(void* ptcp)
 		if (!bret) {
 			GETERRNO(ret);
 			ERROR_INFO("read %p:%p complete [%s:%d] => [%s:%d] left[%ld] error[%d]",psock->m_rdov.hEvent,psock->m_rdevt, psock->m_peeraddr, psock->m_peerport,
-			           psock->m_selfaddr, psock->m_selfport, psock->m_rdleft, ret);
+				psock->m_selfaddr, psock->m_selfport, psock->m_rdleft, ret);
 			goto fail;
 		}
 
@@ -1000,7 +1000,7 @@ int complete_tcp_read(void* ptcp)
 	}
 
 	return ret;
-fail:
+	fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -1016,7 +1016,7 @@ int complete_tcp_write(void* ptcp)
 		if (!bret) {
 			GETERRNO(ret);
 			ERROR_INFO("write complete [%s:%d] => [%s:%d] left [%ld] error[%d]", psock->m_selfaddr, psock->m_selfport,
-			           psock->m_peeraddr, psock->m_peerport, psock->m_wrleft, ret);
+				psock->m_peeraddr, psock->m_peerport, psock->m_wrleft, ret);
 			goto fail;
 		}
 
@@ -1036,7 +1036,7 @@ int complete_tcp_write(void* ptcp)
 	}
 
 	return ret;
-fail:
+	fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -1107,8 +1107,74 @@ int write_tcp_socket(void* ptcp, uint8_t* pbuf, int bufsize)
 
 
 typedef struct __udp_sock {
-	
+	SOCKET m_sock;
+	uint32_t m_magic;
+	int m_inrd;
+	int m_inwr;
+	int m_type;
+	struct sockaddr m_sndaddr;
+	int m_sinlen;
+	int m_reserv1;
+	OVERLAPPED m_rdov;
+	OVERLAPPED m_wrov;
 } udp_socket_t,*pudp_socket_t;
+
+void _close_udp_socket(pudp_socket_t pudp)
+{
+	BOOL bret;
+	int ret;
+	if (pudp->m_inrd) {
+		bret = CancelIoEx((HANDLE)pudp->m_sock, &(pudp->m_rdov));
+		if (!bret) {
+			GETERRNO(ret);
+			if (ret != -ERROR_NOT_FOUND) {
+				ERROR_INFO("udp CancelIoEx rdov error [%d]",ret);
+			}
+		}
+		pudp->m_inrd = 0;
+	}
+	if (pudp->m_inwr) {
+		bret = CancelIoEx((HANDLE)pudp->m_sock,&(pudp->m_wrov));
+		if (!bret) {
+			GETERRNO(ret);
+			if (ret != -ERROR_NOT_FOUND) {
+				ERROR_INFO("udp CancelIoEx wrov error [%d]",ret);
+			}
+		}
+		pudp->m_inwr = 0;
+	}
+
+	if (pudp->m_rdov.hEvent != NULL) {
+		CloseHandle(pudp->m_rdov.hEvent);
+		pudp->m_rdov.hEvent = NULL;
+	}
+
+	if (pudp->m_wrov.hEvent != NULL) {
+		CloseHandle(pudp->m_wrov.hEvent);
+		pudp->m_wrov.hEvent = NULL;
+	}
+
+	if(pudp->m_sock != INVALID_SOCKET) {
+		closesocket(pudp->m_sock);
+	}
+	pudp->m_sock = INVALID_SOCKET;
+
+	memset(&(pudp->m_sndaddr),0,sizeof(pudp->m_sndaddr));
+	pudp->m_sinlen = 0;
+	pudp->m_type = 0;
+	return ;
+}
+
+void close_udp_socket(void** ppudp)
+{
+	if (ppudp && *ppudp) {
+		pudp_socket_t pudp = (pudp_socket_t)*ppudp;
+		_close_udp_socket(pudp);
+		free(pudp);
+		*ppudp = NULL;
+	}
+	return;
+}
 
 
 #pragma warning(pop)
