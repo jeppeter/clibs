@@ -16,6 +16,14 @@ extern "C" {
 #define ACCESS_KEY_WRITE      0x2
 #define ACCESS_KEY_ALL        0x4
 
+#define HKLM_KEY              "HKEY_LOCAL_MACHINE"
+#define HKCLASS_KEY           "HKEY_CLASSES_ROOT"
+#define HKCFG_KEY             "HKEY_CURRENT_CONFIG"
+#define HKCU_KEY              "HKEY_CURRENT_USER"
+#define HKUSERS_KEY           "HKEY_USERS"
+#define HKPERM_DATA_KEY       "HKEY_PERFORMANCE_DATA"
+#define HKPERM_NL_KEY         "HKEY_PERFORMANCE_NLSTEXT"
+
 
 WINLIB_API void* open_hklm(const char* psubkey,int accessmode);
 WINLIB_API int query_hklm_string(void* pregop,const char* path,char** ppretval,int *pretsize);
@@ -32,6 +40,10 @@ WINLIB_API int delete_reg_value(void* pregop1, const char* path);
 WINLIB_API void close_hklm(void** ppregop);
 WINLIB_API void* open_reg_key(const char* pkeyname,const char* psubkey, int accessmode);
 WINLIB_API int delete_reg_key(void* pregop1, const char* psubkey);
+WINLIB_API void* create_reg_key(const char* pkeyname,const char* psubkey,int accessmode);
+WINLIB_API void close_reg_key(void** ppregop);
+WINLIB_API int set_reg_sz(void* pregop1, const char* path, char* valstr);
+WINLIB_API int exist_reg_key(const char* pkeyname,const char* psubkey);
 
 #ifdef __cplusplus
 };

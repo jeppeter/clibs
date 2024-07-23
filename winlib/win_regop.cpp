@@ -130,13 +130,10 @@ fail:
     return NULL;
 }
 
-void* open_reg_key(const char* pkeyname, const char* psubkey, int accessmode)
+HKEY __name_to_hkey(const char* pkeyname)
 {
     HKEY hkey = NULL;
-    int ret;
-    REGSAM regaccess = 0;
-
-
+    int ret=0;
     if (_stricmp(pkeyname, "HKEY_LOCAL_MACHINE") == 0) {
         hkey = HKEY_LOCAL_MACHINE;
     } else if (_stricmp(pkeyname, "HKEY_CLASSES_ROOT") == 0) {
@@ -157,6 +154,15 @@ void* open_reg_key(const char* pkeyname, const char* psubkey, int accessmode)
         goto fail;
     }
 
+    return hkey;
+fail:
+    SETERRNO(ret);
+    return NULL;
+}
+
+REGSAM __access_to_regsam(int accessmode)
+{
+    REGSAM regaccess = 0;
     if (accessmode & ACCESS_KEY_READ) {
         regaccess |= KEY_READ;
     }
@@ -169,6 +175,22 @@ void* open_reg_key(const char* pkeyname, const char* psubkey, int accessmode)
         regaccess = KEY_ALL_ACCESS ;
     }
 
+    return regaccess;
+}
+
+void* open_reg_key(const char* pkeyname, const char* psubkey, int accessmode)
+{
+    HKEY hkey = NULL;
+    int ret;
+    REGSAM regaccess = 0;
+
+
+    hkey = __name_to_hkey(pkeyname);
+    if (hkey == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    regaccess = __access_to_regsam(accessmode);
 
     return __open_reg(hkey, psubkey, regaccess);
 fail:
@@ -482,7 +504,7 @@ int set_hklm_binary(void* pregop1, const char* path, void* pdata, int size)
     return __set_key_value(pregop, path, REG_BINARY, pdata, size);
 }
 
-int set_hklm_string(void* pregop1, const char* path, char* valstr)
+int __inner_set_reg_sz(void* pregop1, const char* path, char* valstr)
 {
     TCHAR* ptval = NULL;
     int valsize = 0;
@@ -505,7 +527,7 @@ int set_hklm_string(void* pregop1, const char* path, char* valstr)
     }
 
     vallen = (int)_tcslen(ptval);
-    ret = __set_key_value(pregop, path, REG_EXPAND_SZ, ptval, (int)((vallen + 1) * sizeof(TCHAR)));
+    ret = __set_key_value(pregop, path, REG_SZ, ptval, (int)((vallen + 1) * sizeof(TCHAR)));
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -518,7 +540,12 @@ int set_hklm_string(void* pregop1, const char* path, char* valstr)
 fail:
     AnsiToTchar(NULL, &ptval, &valsize);
     SETERRNO(ret);
-    return ret;
+    return ret;    
+}
+
+int set_hklm_string(void* pregop1, const char* path, char* valstr)
+{
+    return __inner_set_reg_sz(pregop1,path,valstr);
 }
 
 int set_hklm_sz(void* pregop1, const char* path, char* valstr)
@@ -1051,4 +1078,150 @@ int query_hklm_dword(void* pregop1,const char* path,uint32_t* pvalue)
         return ret;
     }
     return ret;
+}
+
+
+void* __create_reg(HKEY hkey, const char* psubkey, REGSAM keyaccess)
+{
+    char* path =NULL;
+    int pathsize=0;
+    TCHAR* tpath=NULL;
+    int tpathsize=0;
+    char* pcurptr=NULL;
+    int namesize = 0;
+    int ret;
+    LSTATUS lret;
+    HKEY nkey = NULL;
+
+    DEBUG_INFO(" ");
+    pathsize = (int)strlen(psubkey) + 1;
+    path = (char*)malloc((size_t)pathsize);
+    if (path == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pcurptr = (char*)psubkey;
+    DEBUG_INFO("start pcurptr %p",pcurptr);
+    while(1) {
+        if ((*pcurptr == '\\' || *pcurptr == 0x0) && namesize > 0) {
+            DEBUG_INFO("pcurptr [%p] namesize %d",pcurptr,namesize);
+            memset(path,0,(size_t)pathsize);
+            /*now we should give the name */
+            memcpy(path,psubkey,(size_t)namesize);
+            ret = AnsiToTchar(path,&tpath,&tpathsize);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            if (nkey != NULL) {
+                RegCloseKey(nkey);
+            }
+            nkey = NULL;
+            DEBUG_INFO("path [%s]",path);
+            lret = RegCreateKey(hkey,tpath,&nkey);
+            if (lret != ERROR_SUCCESS) {
+                GETERRNO(ret);
+                ERROR_INFO("create [%s] error %ld %d",path,lret,ret);
+                goto fail;
+            }
+
+            RegCloseKey(nkey);
+            nkey = NULL;
+
+            if (*pcurptr == 0x0) {
+                break;
+            }
+        }
+        pcurptr += 1;
+        namesize += 1;
+    }
+
+    if (nkey != NULL) {
+        RegCloseKey(nkey);
+    }
+    nkey = NULL;
+
+    AnsiToTchar(NULL,&tpath,&tpathsize);
+    if (path) {
+        free(path);
+    }
+    path = NULL;
+
+    return __open_reg(hkey,psubkey,keyaccess);
+fail:
+    if (nkey != NULL) {
+        RegCloseKey(nkey);
+    }
+    nkey = NULL;
+
+    AnsiToTchar(NULL,&tpath,&tpathsize);
+    if (path) {
+        free(path);
+    }
+    path = NULL;
+    SETERRNO(ret);
+    return NULL;
+}
+
+void* create_reg_key(const char* pkeyname,const char* psubkey,int accessmode)
+{
+    void* pregop = NULL;
+    HKEY hkey = NULL;
+    REGSAM regaccess = 0;
+    int ret;
+    
+    DEBUG_INFO(" ");
+    pregop = open_reg_key(pkeyname,pkeyname,accessmode);
+    if (pregop != NULL) {
+        DEBUG_INFO(" ");
+        return pregop;
+    }
+
+    DEBUG_INFO(" ");
+    hkey = __name_to_hkey(pkeyname);
+    if (hkey == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    regaccess = __access_to_regsam(accessmode);
+    DEBUG_INFO(" ");
+    return __create_reg(hkey,psubkey, regaccess);
+fail:
+    close_reg_key(&pregop);
+    SETERRNO(ret);
+    return NULL;
+
+}
+
+void close_reg_key(void** ppregop)
+{
+    __close_regop((pregop_t*)ppregop);
+    return;
+}
+
+int set_reg_sz(void* pregop1, const char* path, char* valstr)
+{
+    return __inner_set_reg_sz(pregop1,path,valstr);
+}
+
+int exist_reg_key(const char* pkeyname,const char* psubkey)
+{
+    void* pregop = NULL;
+    HKEY hkey = NULL;
+    REGSAM regaccess = 0;
+    int ret;
+    
+
+    hkey = __name_to_hkey(pkeyname);
+    if (hkey == NULL) {
+        return 0;
+    }
+    regaccess = __access_to_regsam(ACCESS_KEY_READ);
+    pregop = __open_reg(hkey,psubkey,regaccess);
+    if (pregop != NULL) {
+        close_reg_key(&pregop);
+        return 1;
+    }
+    return 0;
 }

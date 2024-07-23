@@ -501,5 +501,17 @@
     },
     "setwinpos<setwinpos_handler>##winhdl topwinhdl x y w h uflags##" : {
         "$" : "+"
+    },
+    "listuser<listuser_handler>##to list user info##" : {
+        "$" : 0
+    },
+    "createreg<createreg_handler>##keyname pathname to create registry key keyname HKEY_LOCAL_MACHINE or HKEY_CLASSES_ROOT or HKEY_CURRENT_CONFIG or HKEY_CURRENT_USER HKEY_USERS HKEY_PERFORMANCE_DATA HKEY_PERFORMANCE_NLSTEXT##" : {
+        "$" : 2
+    },
+    "setregsz<setregsz_handler>##keyname pathname kname value to set sz for path##" : {
+        "$" : 4
+    },
+    "existregkey<existregkey_handler>##keyname pathname to check registry key keyname HKEY_LOCAL_MACHINE or HKEY_CLASSES_ROOT or HKEY_CURRENT_CONFIG or HKEY_CURRENT_USER HKEY_USERS HKEY_PERFORMANCE_DATA HKEY_PERFORMANCE_NLSTEXT##" : {
+        "$" : 2
     }
 }

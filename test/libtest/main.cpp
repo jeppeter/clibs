@@ -294,6 +294,10 @@ int sockacc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int nslookup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int findwin_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setwinpos_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int listuser_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int createreg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int setregsz_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int existregkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -712,6 +716,8 @@ void close_ctrlc_handle()
 #include "tstfile.cpp"
 #include "tstev.cpp"
 #include "tstwin.cpp"
+#include "tstreg.cpp"
+#include "tstuser.cpp"
 
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
