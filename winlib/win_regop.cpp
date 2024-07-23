@@ -1093,7 +1093,6 @@ void* __create_reg(HKEY hkey, const char* psubkey, REGSAM keyaccess)
     LSTATUS lret;
     HKEY nkey = NULL;
 
-    DEBUG_INFO(" ");
     pathsize = (int)strlen(psubkey) + 1;
     path = (char*)malloc((size_t)pathsize);
     if (path == NULL) {
@@ -1102,10 +1101,8 @@ void* __create_reg(HKEY hkey, const char* psubkey, REGSAM keyaccess)
     }
 
     pcurptr = (char*)psubkey;
-    DEBUG_INFO("start pcurptr %p",pcurptr);
     while(1) {
         if ((*pcurptr == '\\' || *pcurptr == 0x0) && namesize > 0) {
-            DEBUG_INFO("pcurptr [%p] namesize %d",pcurptr,namesize);
             memset(path,0,(size_t)pathsize);
             /*now we should give the name */
             memcpy(path,psubkey,(size_t)namesize);
@@ -1171,21 +1168,17 @@ void* create_reg_key(const char* pkeyname,const char* psubkey,int accessmode)
     REGSAM regaccess = 0;
     int ret;
     
-    DEBUG_INFO(" ");
     pregop = open_reg_key(pkeyname,pkeyname,accessmode);
     if (pregop != NULL) {
-        DEBUG_INFO(" ");
         return pregop;
     }
 
-    DEBUG_INFO(" ");
     hkey = __name_to_hkey(pkeyname);
     if (hkey == NULL) {
         GETERRNO(ret);
         goto fail;
     }
     regaccess = __access_to_regsam(accessmode);
-    DEBUG_INFO(" ");
     return __create_reg(hkey,psubkey, regaccess);
 fail:
     close_reg_key(&pregop);
