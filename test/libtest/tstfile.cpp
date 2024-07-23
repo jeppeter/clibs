@@ -1196,3 +1196,45 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int existfile_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	const char* fname=NULL;
+	int i;
+	int ret;
+	pargs_options_t pargs=(pargs_options_t)popt;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	init_log_level(pargs);
+
+	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+		fname = parsestate->leftargs[i];
+		ret = exist_file(fname);
+		fprintf(stdout,"[%s] %s\n",fname, ret ? "exists" : "not exists");
+	}
+
+	ret = 0;
+	return 0;
+}
+
+int existdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	const char* dname=NULL;
+	int i;
+	int ret;
+	pargs_options_t pargs=(pargs_options_t)popt;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	init_log_level(pargs);
+
+	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+		dname = parsestate->leftargs[i];
+		ret = exist_dir(dname);
+		fprintf(stdout,"[%s] %s\n",dname, ret ? "exists" : "not exists");
+	}
+
+	ret = 0;
+	return 0;
+}

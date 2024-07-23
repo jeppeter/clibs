@@ -1628,6 +1628,81 @@ fail:
 }
 
 
+int exist_file(const char* fname)
+{
+    TCHAR* tfname=NULL;
+    int tfsize=0;
+    int ret=0;
+    int isfile=0;
+    DWORD fattr = INVALID_FILE_ATTRIBUTES;
+
+    ret = AnsiToTchar(fname,&tfname,&tfsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    fattr = GetFileAttributes(tfname);
+    if (fattr == INVALID_FILE_ATTRIBUTES) {
+        GETERRNO(ret);
+        ERROR_INFO("[%s] can not get [%d]",fname,ret);
+        goto fail;
+    }
+
+    if ((fattr & FILE_ATTRIBUTE_READONLY) != 0 ||
+        (fattr & FILE_ATTRIBUTE_HIDDEN) != 0 || 
+        (fattr & FILE_ATTRIBUTE_SYSTEM) != 0 ||
+        (fattr & FILE_ATTRIBUTE_ARCHIVE) != 0 || 
+        (fattr & FILE_ATTRIBUTE_NORMAL) != 0 ||
+        (fattr & FILE_ATTRIBUTE_SPARSE_FILE) != 0) {
+        isfile = 1;
+    }
+
+    AnsiToTchar(NULL,&tfname,&tfsize);
+    return isfile;
+fail:
+    AnsiToTchar(NULL,&tfname,&tfsize);
+    SETERRNO(ret);
+    return 0;
+
+
+}
+
+int exist_dir(const char* dname)
+{
+    TCHAR* tdname=NULL;
+    int tdsize=0;
+    int ret=0;
+    int isdir=0;
+    DWORD fattr = INVALID_FILE_ATTRIBUTES;
+
+    ret = AnsiToTchar(dname,&tdname,&tdsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    fattr = GetFileAttributes(tdname);
+    if (fattr == INVALID_FILE_ATTRIBUTES) {
+        GETERRNO(ret);
+        ERROR_INFO("[%s] can not get [%d]",dname,ret);
+        goto fail;
+    }
+
+    if ((fattr & FILE_ATTRIBUTE_DIRECTORY) != 0) {
+        isdir = 1;
+    }
+
+    AnsiToTchar(NULL,&tdname,&tdsize);
+    return isdir;
+fail:
+    AnsiToTchar(NULL,&tdname,&tdsize);
+    SETERRNO(ret);
+    return 0;
+
+
+}
+
 
 #if _MSC_VER >= 1910
 #pragma warning(pop)

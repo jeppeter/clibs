@@ -1209,9 +1209,7 @@ int exist_reg_key(const char* pkeyname,const char* psubkey)
 {
     void* pregop = NULL;
     HKEY hkey = NULL;
-    REGSAM regaccess = 0;
-    int ret;
-    
+    REGSAM regaccess = 0;    
 
     hkey = __name_to_hkey(pkeyname);
     if (hkey == NULL) {

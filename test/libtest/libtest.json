@@ -513,5 +513,11 @@
     },
     "existregkey<existregkey_handler>##keyname pathname to check registry key keyname HKEY_LOCAL_MACHINE or HKEY_CLASSES_ROOT or HKEY_CURRENT_CONFIG or HKEY_CURRENT_USER HKEY_USERS HKEY_PERFORMANCE_DATA HKEY_PERFORMANCE_NLSTEXT##" : {
         "$" : 2
+    },
+    "existfile<existfile_handler>##file ... to test exist##" : {
+        "$" : "+"
+    },
+    "existdir<existdir_handler>##dir ... to test exist##" : {
+        "$" : "+"
     }
 }

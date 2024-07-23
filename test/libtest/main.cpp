@@ -298,6 +298,8 @@ int listuser_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int createreg_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setregsz_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int existregkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int existfile_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int existdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0

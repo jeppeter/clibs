@@ -67,6 +67,8 @@ WINLIB_API HANDLE get_read_handle_ov(void* pov);
 WINLIB_API int write_file_ov(void* pov,char* pbuf,int buflen);
 WINLIB_API int write_complete_ov(VOID* pov);
 WINLIB_API HANDLE get_write_handle_ov(void* pov);
+WINLIB_API int exist_file(const char* fname);
+WINLIB_API int exist_dir(const char* dname);
 
 
 #ifdef __cplusplus
