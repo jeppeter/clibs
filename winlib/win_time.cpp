@@ -205,7 +205,133 @@ fail:
     snprintf_safe(&cmd,&cmdsize,NULL);
     SETERRNO(ret);
     return ret;
+}
 
+int tm_to_str(struct tm* ptm, char** ppstr, int *psize)
+{
+    if (ptm == NULL) {
+        return snprintf_safe(ppstr,psize,NULL);
+    }
+
+    return snprintf_safe(ppstr,psize,"%04d-%02d-%02d %02d:%02d:%02d",ptm->tm_year + 1900 ,ptm->tm_mon+1,ptm->tm_mday,ptm->tm_hour,ptm->tm_min,ptm->tm_sec);
+}
+
+#define SKIP_NUM(ptr)                                                                             \
+do{                                                                                               \
+    while(1) {                                                                                    \
+        if ((*ptr)< '0' || (*ptr) > '9') {                                                        \
+            break;                                                                                \
+        }                                                                                         \
+        ptr ++;                                                                                   \
+    }                                                                                             \
+}while(0)
+
+#define MATCH_CHAR(ptr,ch)                                                                        \
+do{                                                                                               \
+    if ((*ptr) != ch) {                                                                           \
+        ret = -ERROR_INVALID_PARAMETER;                                                           \
+        goto fail;                                                                                \
+    }                                                                                             \
+    ptr ++;                                                                                       \
+}while(0)
+
+int tm_from_str(char* str, struct tm* ptm)
+{
+    int ret;
+    char* pcurptr=NULL;
+    struct tm *psettm=NULL;
+    if (str == NULL || ptm == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    psettm = (struct tm*)malloc(sizeof(*psettm));
+    if (psettm == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pcurptr = str;
+
+    memset(psettm, 0, sizeof(*psettm));
+    psettm->tm_year = atoi(pcurptr);
+    psettm->tm_year -= 1900;
+    SKIP_NUM(pcurptr);
+    MATCH_CHAR(pcurptr,'-');
+    psettm->tm_mon = atoi(pcurptr);
+    psettm->tm_mon -= 1;
+    if (psettm->tm_mon < 0) {
+        ret =-ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+    SKIP_NUM(pcurptr);
+    MATCH_CHAR(pcurptr,'-');
+    psettm->tm_mday = atoi(pcurptr);
+    SKIP_NUM(pcurptr);
+
+    while(1) {
+        if (*pcurptr != ' ') {
+            break;
+        }
+        pcurptr ++;
+    }
+
+    psettm->tm_hour = atoi(pcurptr);
+    SKIP_NUM(pcurptr);
+    MATCH_CHAR(pcurptr,':');
+
+    psettm->tm_min = atoi(pcurptr);
+    SKIP_NUM(pcurptr);
+    MATCH_CHAR(pcurptr,':');
+
+    psettm->tm_sec = atoi(pcurptr);
+
+    memcpy(ptm,psettm,sizeof(*psettm));
+    if (psettm) {
+        free(psettm);
+    }
+    psettm = NULL;
+    return 0;
+fail:
+    if (psettm) {
+        free(psettm);
+    }
+    psettm = NULL;
+
+    SETERRNO(ret);
+    return ret;
+}
+
+int tm_to_time(struct tm* ptm, time_t* ptime)
+{
+    int ret;
+    if (ptm == NULL || ptime == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    *ptime = mktime(ptm);
+    return 0;
+}
+
+int time_to_tm(time_t* ptime,struct tm *ptm)
+{
+    int ret;
+    errno_t err;
+    if (ptm == NULL || ptime == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    err = localtime_s(ptm,ptime);
+    if (err != 0) {
+        GETERRNO(ret);
+        SETERRNO(ret);
+        return ret;
+    }
+    return 0;
 }
 
 #pragma warning(default:4514)

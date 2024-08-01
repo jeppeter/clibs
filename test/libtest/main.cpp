@@ -300,6 +300,7 @@ int setregsz_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int existregkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int existfile_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int existdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int timetofrom_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -695,6 +696,7 @@ void close_ctrlc_handle()
 
 
 
+#include "timetest.cpp"
 #include "filetest.cpp"
 #include "proctest.cpp"
 #include "windowtest.cpp"

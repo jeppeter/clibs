@@ -519,5 +519,8 @@
     },
     "existdir<existdir_handler>##dir ... to test exist##" : {
         "$" : "+"
+    },
+    "timetofrom<timetofrom_handler>##str ... to transfer##" : {
+        "$" : "+"
     }
 }
