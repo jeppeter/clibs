@@ -116,7 +116,7 @@ void* __open_reg(HKEY hkey, const char* psubkey, REGSAM keyaccess)
     if (lret != ERROR_SUCCESS) {
         GETLRET(ret, lret);
         if (ret != -ERROR_FILE_NOT_FOUND) {
-            ERROR_INFO("can not open(%s) with access (%d) error(%d)", psubkey, keyaccess, ret);
+            ERROR_INFO("can not open([%s].%s) with access (0x%x) error(%d)",pregop->m_rootname, psubkey, keyaccess, ret);
         }
         goto fail;
     }
