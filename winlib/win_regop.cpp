@@ -2,6 +2,7 @@
 #include <win_types.h>
 #include <win_output_debug.h>
 #include <win_uniansi.h>
+#include <win_priv.h>
 #include <tchar.h>
 
 
@@ -1215,4 +1216,70 @@ int exist_reg_key(const char* pkeyname,const char* psubkey)
         return 1;
     }
     return 0;
+}
+
+int save_hive(char* file,char* keyname,char* subkey)
+{
+    HKEY hkey;
+    int ret;
+    TCHAR* tfile=NULL;
+    int tfsize=0;
+    LSTATUS lret;
+    int enblbackup = 0;
+    pregop_t pregop = NULL;
+    REGSAM regaccess = 0;
+
+    hkey = __name_to_hkey(keyname);
+    if (hkey == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    regaccess = __access_to_regsam(ACCESS_KEY_READ);
+
+    pregop = (pregop_t)__open_reg(hkey,subkey,regaccess);
+    if (pregop == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = AnsiToTchar(file,&tfile,&tfsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = enable_backup_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enblbackup = 1;
+
+
+    lret = RegSaveKey(pregop->m_reghdl,tfile,NULL);
+    if (lret != ERROR_SUCCESS) {
+        GETERRNO(ret);
+        ERROR_INFO("save [%s].[%s] => [%s] error[%d] lret[%d]",keyname,subkey,file,ret,lret);
+        goto fail;
+    }
+
+
+    if (enblbackup != 0) {
+        disable_backup_priv();
+    }
+    enblbackup = 0;
+
+    AnsiToTchar(NULL,&tfile,&tfsize);
+    __close_regop(&pregop);
+    return 0;
+fail:
+    if (enblbackup != 0) {
+        disable_backup_priv();
+    }
+    enblbackup = 0;
+    AnsiToTchar(NULL,&tfile,&tfsize);
+    __close_regop(&pregop);
+    SETERRNO(ret);
+    return ret;
 }

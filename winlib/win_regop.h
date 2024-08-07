@@ -44,6 +44,7 @@ WINLIB_API void* create_reg_key(const char* pkeyname,const char* psubkey,int acc
 WINLIB_API void close_reg_key(void** ppregop);
 WINLIB_API int set_reg_sz(void* pregop1, const char* path, char* valstr);
 WINLIB_API int exist_reg_key(const char* pkeyname,const char* psubkey);
+WINLIB_API int save_hive(char* file,char* keyname,char* subkey);
 
 #ifdef __cplusplus
 };

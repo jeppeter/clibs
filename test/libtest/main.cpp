@@ -113,6 +113,7 @@ typedef struct __args_options {
     int m_disablefile;
     int m_disabledb;
     char** m_exlogs;
+    char* m_regkey;
 } args_options_t, *pargs_options_t;
 
 #pragma comment(lib,"user32.lib")
@@ -301,6 +302,8 @@ int existregkey_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 int existfile_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int existdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int timetofrom_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int loadhive_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int savehive_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0

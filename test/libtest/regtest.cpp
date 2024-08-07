@@ -224,7 +224,7 @@ int regenumkey_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 
     for (idx = 0; parsestate->leftargs && parsestate->leftargs[idx] ; idx++) {
         path = parsestate->leftargs[idx];
-        pregop = open_hklm(path, ACCESS_KEY_READ);
+        pregop = open_reg_key(pargs->m_regkey,path, ACCESS_KEY_READ);
         if (pregop == NULL) {
             GETERRNO(ret);
             fprintf(stderr, "can not open [%s] for read [%d]\n", path, ret);
@@ -533,6 +533,243 @@ int queryregdword_handler(int argc, char* argv[], pextargs_state_t parsestate, v
     ret = 0;
 out:
     close_hklm(&preg);
+    SETERRNO(ret);
+    return ret;
+}
+
+HKEY __name2_to_hkey(const char* pkeyname)
+{
+    HKEY hkey = NULL;
+    int ret=0;
+    if (_stricmp(pkeyname, "HKEY_LOCAL_MACHINE") == 0) {
+        hkey = HKEY_LOCAL_MACHINE;
+    } else if (_stricmp(pkeyname, "HKEY_CLASSES_ROOT") == 0) {
+        hkey = HKEY_CLASSES_ROOT;
+    } else if (_stricmp(pkeyname, "HKEY_CURRENT_CONFIG") == 0) {
+        hkey = HKEY_CURRENT_CONFIG;
+    } else if (_stricmp(pkeyname, "HKEY_CURRENT_USER") == 0) {
+        hkey = HKEY_CURRENT_USER;
+    } else if (_stricmp(pkeyname, "HKEY_USERS") == 0) {
+        hkey = HKEY_USERS;
+    } else if (_stricmp(pkeyname, "HKEY_PERFORMANCE_DATA") == 0) {
+        hkey = HKEY_PERFORMANCE_DATA;
+    } else if (_stricmp(pkeyname, "HKEY_PERFORMANCE_NLSTEXT") == 0) {
+        hkey = HKEY_PERFORMANCE_NLSTEXT;
+    } else {
+        ret = -ERROR_INVALID_PARAMETER;
+        ERROR_INFO("not vali keyname [%s]", pkeyname);
+        goto fail;
+    }
+
+    return hkey;
+fail:
+    SETERRNO(ret);
+    return NULL;
+}
+
+
+int load_hive(char* file,char* keyname, char* subkey)
+{
+    TCHAR* tfile=NULL;
+    int tfsize=0;
+    TCHAR* tsub=NULL;
+    int tsubsize=0;
+    int ret;
+    LSTATUS lret;
+    int enblrestore=0;
+    int enblbackup=0;
+    int enbldbg=0;
+    HKEY hkey = NULL;
+
+    if (file == NULL || keyname == NULL || subkey == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = AnsiToTchar(file,&tfile,&tfsize);
+    if (ret <0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    hkey = __name2_to_hkey(keyname);
+    if (hkey == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    ret = AnsiToTchar(subkey,&tsub,&tsubsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = enable_restore_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enblrestore = 1;
+
+    ret = enable_backup_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enblbackup = 1;
+
+    ret = enable_debug_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enbldbg = 1;
+
+    lret = RegLoadKey(hkey,tsub,tfile);
+    if (lret != ERROR_SUCCESS) {
+        GETERRNO(ret);
+        ERROR_INFO("RegLoadKey [%s].[%s] error [%d] lret [%d]",keyname,subkey,ret,lret);
+        goto fail;
+    }
+
+
+    if (enbldbg != 0) {
+        disable_debug_priv();
+    }
+    enbldbg = 0;
+
+    if (enblbackup != 0) {
+        disable_backup_priv();
+    }
+    enblbackup = 0;
+    if (enblrestore != 0) {
+        disable_restore_priv();
+    }
+    enblrestore =  0;
+    AnsiToTchar(NULL,&tsub,&tsubsize);
+    AnsiToTchar(NULL,&tfile,&tfsize);
+
+
+    return 0;
+fail:
+    if (enbldbg != 0) {
+        disable_debug_priv();
+    }
+    enbldbg = 0;
+
+    if (enblbackup != 0) {
+        disable_backup_priv();
+    }
+    enblbackup = 0;
+    if (enblrestore != 0) {
+        disable_restore_priv();
+    }
+    enblrestore =  0;
+    AnsiToTchar(NULL,&tsub,&tsubsize);
+    AnsiToTchar(NULL,&tfile,&tfsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int loadhive_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* keyname = NULL;
+    char* subkey = NULL;
+    char* fname = NULL;
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+        switch (i) {
+        case 0:
+            fname = parsestate->leftargs[i];
+            break;
+        case 1:
+            subkey = parsestate->leftargs[i];
+            break;
+        default:
+            break;
+        }
+    }
+
+    if ( fname == NULL || subkey == NULL) {
+        fprintf(stderr, "need  fname subkey\n");
+        ret = -ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+
+    keyname = pargs->m_regkey;
+    ret = load_hive(fname,keyname,subkey);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "load [%s] [%s].[%s] error[%d]\n", fname,keyname,subkey,ret);
+        goto out;
+    }
+
+    fprintf(stdout,"load [%s] [%s].[%s] succ\n",fname,keyname,subkey);
+    while(1) {
+        SleepEx(1000,TRUE);
+    }
+
+    ret = 0;
+
+out:
+    SETERRNO(ret);
+    return ret;    
+}
+
+
+int savehive_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* keyname = NULL;
+    char* fname = NULL;
+    char* subkey = NULL;
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+        switch (i) {
+        case 1:
+            fname = parsestate->leftargs[i];
+            break;
+        case 0:
+            subkey = parsestate->leftargs[i];
+            break;
+        default:
+            break;
+        }
+    }
+
+    if ( fname == NULL || subkey == NULL) {
+        fprintf(stderr, "need  fname and subkey \n");
+        ret = -ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+
+    keyname = pargs->m_regkey;
+    ret = save_hive(fname,keyname,subkey);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "save [%s] [%s].[%s] error[%d]\n", fname,keyname,subkey,ret);
+        goto out;
+    }
+
+    fprintf(stdout,"save [%s] [%s].[%s] succ\n",fname,keyname,subkey);
+    ret = 0;
+
+out:
     SETERRNO(ret);
     return ret;
 }

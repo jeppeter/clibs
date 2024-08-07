@@ -1,5 +1,6 @@
 {
     "verbose|v<m_verbose>" : "+",
+    "regkey<m_regkey>" : "HKEY_LOCAL_MACHINE",
     "classname|c<m_classname>" : "",
     "input|i<m_input>" : null,
     "output|o<m_output>" : null,
@@ -522,5 +523,11 @@
     },
     "timetofrom<timetofrom_handler>##str ... to transfer##" : {
         "$" : "+"
+    },
+    "loadhive<loadhive_handler>##file path to load hive to regkey path from file##" : {
+        "$" : 2
+    },
+    "savehive<savehive_handler>## subkey file to dump##" : {
+        "$" : 2
     }
 }
