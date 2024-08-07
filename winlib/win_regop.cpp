@@ -1283,3 +1283,184 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int load_hive(char* file,char* keyname, char* subkey)
+{
+    TCHAR* tfile=NULL;
+    int tfsize=0;
+    TCHAR* tsub=NULL;
+    int tsubsize=0;
+    int ret;
+    LSTATUS lret;
+    int enblrestore=0;
+    int enblbackup=0;
+    int enbldbg=0;
+    HKEY hkey = NULL;
+
+    if (file == NULL || keyname == NULL || subkey == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = AnsiToTchar(file,&tfile,&tfsize);
+    if (ret <0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    hkey = __name_to_hkey(keyname);
+    if (hkey == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    ret = AnsiToTchar(subkey,&tsub,&tsubsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = enable_restore_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enblrestore = 1;
+
+    ret = enable_backup_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enblbackup = 1;
+
+    ret = enable_debug_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enbldbg = 1;
+
+    lret = RegLoadKey(hkey,tsub,tfile);
+    if (lret != ERROR_SUCCESS) {
+        GETERRNO(ret);
+        ERROR_INFO("RegLoadKey [%s] => [%s].[%s] error [%d] lret [%d]",file,keyname,subkey,ret,lret);
+        goto fail;
+    }
+
+
+    if (enbldbg != 0) {
+        disable_debug_priv();
+    }
+    enbldbg = 0;
+
+    if (enblbackup != 0) {
+        disable_backup_priv();
+    }
+    enblbackup = 0;
+    if (enblrestore != 0) {
+        disable_restore_priv();
+    }
+    enblrestore =  0;
+    AnsiToTchar(NULL,&tsub,&tsubsize);
+    AnsiToTchar(NULL,&tfile,&tfsize);
+
+
+    return 0;
+fail:
+    if (enbldbg != 0) {
+        disable_debug_priv();
+    }
+    enbldbg = 0;
+
+    if (enblbackup != 0) {
+        disable_backup_priv();
+    }
+    enblbackup = 0;
+    if (enblrestore != 0) {
+        disable_restore_priv();
+    }
+    enblrestore =  0;
+    AnsiToTchar(NULL,&tsub,&tsubsize);
+    AnsiToTchar(NULL,&tfile,&tfsize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int unload_hive(char* keyname, char* subkey)
+{
+    TCHAR* tsub =NULL;
+    int tsubsize=0;
+    int ret;
+    int enblbackup = 0;
+    int enblrestore = 0;
+    LSTATUS lret;
+    HKEY hkey = NULL;
+
+    if (keyname == NULL || subkey == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = AnsiToTchar(subkey,&tsub,&tsubsize);
+    if (ret <0 ) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    hkey = __name_to_hkey(keyname);
+    if (hkey == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+
+    ret = enable_restore_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enblrestore = 1;
+
+    ret = enable_backup_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enblbackup = 1;
+
+    lret = RegUnLoadKey(hkey,tsub);
+    if (lret != ERROR_SUCCESS) {
+        GETERRNO(ret);
+        ERROR_INFO("Unload [%s].[%s] error[%d] lret[%d]",keyname,subkey,ret,lret);
+        goto fail;
+    }
+
+    if (enblbackup != 0) {
+        disable_backup_priv();
+    }
+    enblbackup = 0;
+    if (enblrestore != 0) {
+        disable_restore_priv();
+    }
+    enblrestore =  0;
+    AnsiToTchar(NULL,&tsub,&tsubsize);
+
+    return 0;
+fail:
+    if (enblbackup != 0) {
+        disable_backup_priv();
+    }
+    enblbackup = 0;
+    if (enblrestore != 0) {
+        disable_restore_priv();
+    }
+    enblrestore =  0;
+    AnsiToTchar(NULL,&tsub,&tsubsize);
+    SETERRNO(ret);
+    return ret;
+}

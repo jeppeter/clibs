@@ -304,6 +304,7 @@ int existdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int timetofrom_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int loadhive_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int savehive_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int unloadhive_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0

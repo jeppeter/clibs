@@ -529,5 +529,8 @@
     },
     "savehive<savehive_handler>## subkey file to dump##" : {
         "$" : 2
+    },
+    "unloadhive<unloadhive_handler>##subkey to unload##" : {
+        "$" : 1
     }
 }

@@ -568,110 +568,6 @@ fail:
 }
 
 
-int load_hive(char* file,char* keyname, char* subkey)
-{
-    TCHAR* tfile=NULL;
-    int tfsize=0;
-    TCHAR* tsub=NULL;
-    int tsubsize=0;
-    int ret;
-    LSTATUS lret;
-    int enblrestore=0;
-    int enblbackup=0;
-    int enbldbg=0;
-    HKEY hkey = NULL;
-
-    if (file == NULL || keyname == NULL || subkey == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;
-    }
-
-    ret = AnsiToTchar(file,&tfile,&tfsize);
-    if (ret <0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    hkey = __name2_to_hkey(keyname);
-    if (hkey == NULL) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-
-    ret = AnsiToTchar(subkey,&tsub,&tsubsize);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = enable_restore_priv();
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-    enblrestore = 1;
-
-    ret = enable_backup_priv();
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-    enblbackup = 1;
-
-    ret = enable_debug_priv();
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-    enbldbg = 1;
-
-    lret = RegLoadKey(hkey,tsub,tfile);
-    if (lret != ERROR_SUCCESS) {
-        GETERRNO(ret);
-        ERROR_INFO("RegLoadKey [%s].[%s] error [%d] lret [%d]",keyname,subkey,ret,lret);
-        goto fail;
-    }
-
-
-    if (enbldbg != 0) {
-        disable_debug_priv();
-    }
-    enbldbg = 0;
-
-    if (enblbackup != 0) {
-        disable_backup_priv();
-    }
-    enblbackup = 0;
-    if (enblrestore != 0) {
-        disable_restore_priv();
-    }
-    enblrestore =  0;
-    AnsiToTchar(NULL,&tsub,&tsubsize);
-    AnsiToTchar(NULL,&tfile,&tfsize);
-
-
-    return 0;
-fail:
-    if (enbldbg != 0) {
-        disable_debug_priv();
-    }
-    enbldbg = 0;
-
-    if (enblbackup != 0) {
-        disable_backup_priv();
-    }
-    enblbackup = 0;
-    if (enblrestore != 0) {
-        disable_restore_priv();
-    }
-    enblrestore =  0;
-    AnsiToTchar(NULL,&tsub,&tsubsize);
-    AnsiToTchar(NULL,&tfile,&tfsize);
-    SETERRNO(ret);
-    return ret;
-}
 
 int loadhive_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -714,9 +610,6 @@ int loadhive_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     }
 
     fprintf(stdout,"load [%s] [%s].[%s] succ\n",fname,keyname,subkey);
-    while(1) {
-        SleepEx(1000,TRUE);
-    }
 
     ret = 0;
 
@@ -767,6 +660,50 @@ int savehive_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     }
 
     fprintf(stdout,"save [%s] [%s].[%s] succ\n",fname,keyname,subkey);
+    ret = 0;
+
+out:
+    SETERRNO(ret);
+    return ret;
+}
+
+int unloadhive_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* keyname = NULL;
+    char* subkey = NULL;
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int i;
+
+    argc = argc;
+    argv = argv;
+
+    init_log_level(pargs);
+    for (i = 0; parsestate->leftargs && parsestate->leftargs[i]; i++) {
+        switch (i) {
+        case 0:
+            subkey = parsestate->leftargs[i];
+            break;
+        default:
+            break;
+        }
+    }
+
+    if ( subkey == NULL) {
+        fprintf(stderr, "need  subkey \n");
+        ret = -ERROR_INVALID_PARAMETER;
+        goto out;
+    }
+
+    keyname = pargs->m_regkey;
+    ret = unload_hive(keyname,subkey);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "unload [%s].[%s] error[%d]\n", keyname,subkey,ret);
+        goto out;
+    }
+
+    fprintf(stdout,"unload [%s].[%s] succ\n",keyname,subkey);
     ret = 0;
 
 out:
