@@ -8,6 +8,7 @@ int regbinget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     void* pdata = NULL;
     int datasize = 0;
     int nret;
+    char* root;
     pargs_options_t pargs = (pargs_options_t) popt;
 
     argc = argc;
@@ -28,8 +29,9 @@ int regbinget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
     path = parsestate->leftargs[0];
     property = parsestate->leftargs[1];
+    root = pargs->m_regkey;
 
-    pregop = open_hklm(path, ACCESS_KEY_READ);
+    pregop = open_reg_key(root,path, ACCESS_KEY_READ);
     if (pregop == NULL) {
         GETERRNO(ret);
         fprintf(stderr, "can not open [%s] error[%d]", path, ret);
@@ -50,7 +52,7 @@ int regbinget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
 out:
     query_hklm_binary(NULL, NULL, &pdata, &datasize);
-    close_hklm(&pregop);
+    close_reg_key(&pregop);
     SETERRNO(ret);
     return ret;
 }
@@ -69,6 +71,7 @@ int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     int offset = 0;
     int idx;
     pargs_options_t pargs = (pargs_options_t) popt;
+    char* root=NULL;
 
     argc = argc;
     argv = argv;
@@ -89,8 +92,9 @@ int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
     path = parsestate->leftargs[0];
     property = parsestate->leftargs[1];
+    root = pargs->m_regkey;
 
-    pregop = open_hklm(path, ACCESS_KEY_READ | ACCESS_KEY_WRITE);
+    pregop = open_reg_key(root,path, ACCESS_KEY_READ | ACCESS_KEY_WRITE);
     if (pregop == NULL) {
         GETERRNO(ret);
         fprintf(stderr, "can not open [%s] error[%d]", path, ret);
@@ -151,7 +155,7 @@ out:
     }
     ptmpdata = NULL;
     query_hklm_binary(NULL, NULL, (void**)&pdata, &datasize);
-    close_hklm(&pregop);
+    close_reg_key(&pregop);
     SETERRNO(ret);
     return ret;
 }
@@ -166,6 +170,7 @@ int setregstr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     void* pregop = NULL;
     int idx = 0;
     int cnt = 0;
+    char* root=NULL;
 
     argc = argc;
     argv = argv;
@@ -183,8 +188,9 @@ int setregstr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     path = parsestate->leftargs[0];
     key = parsestate->leftargs[1];
     val = parsestate->leftargs[2];
+    root = pargs->m_regkey;
 
-    pregop = open_hklm(path, ACCESS_KEY_ALL);
+    pregop = open_reg_key(root,path, ACCESS_KEY_ALL);
     if (pregop == NULL) {
         GETERRNO(ret);
         fprintf(stderr, "can not open [%s] for write [%d]\n", path, ret);
@@ -201,7 +207,7 @@ int setregstr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     fprintf(stdout, "write [%s].[%s] value [%s] succ\n", path, key, val);
     ret = 0;
 out:
-    close_hklm(&pregop);
+    close_reg_key(&pregop);
     SETERRNO(ret);
     return ret;
 }
