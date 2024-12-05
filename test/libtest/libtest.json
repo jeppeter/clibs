@@ -532,5 +532,8 @@
     },
     "unloadhive<unloadhive_handler>##subkey to unload##" : {
         "$" : 1
+    },
+    "getprocmem<getprocmem_handler>##pids ... to get memory##" : {
+        "$" : "+"
     }
 }

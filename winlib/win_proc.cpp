@@ -5897,6 +5897,71 @@ fail:
 	return ret;
 }
 
+int get_proc_memory(int pid, uint64_t *pmem)
+{
+	DWORD getpid = (DWORD) pid;
+	HANDLE hproc=NULL;
+	PROCESS_MEMORY_COUNTERS *pmc=NULL;
+	BOOL bret;
+	int ret;
+	if (pid < 0) {
+		getpid = GetCurrentProcessId();
+	}
+
+	if (pmem == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		goto fail;
+	}
+
+	hproc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ,FALSE,getpid);
+	if (hproc == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("open [%d] proc error [%d]", pid,ret);
+		goto fail;
+	}
+
+	pmc = (PROCESS_MEMORY_COUNTERS*) malloc(sizeof(*pmc));
+	if (pmc == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(pmc,0,sizeof(*pmc));
+
+	pmc->cb = sizeof(*pmc);
+
+	bret = GetProcessMemoryInfo(hproc,pmc,sizeof(*pmc));
+	if (!bret) {
+		GETERRNO(ret);
+		ERROR_INFO("get [%d] ProcessMemory error [%d]",pid,ret);
+		goto fail;
+	}
+
+	*pmem = (uint64_t)pmc->WorkingSetSize;
+
+	if (pmc) {
+		free(pmc);
+	}
+	pmc = NULL;
+
+	if (hproc != NULL) {
+		CloseHandle(hproc);
+	}
+	hproc = NULL;
+
+	return 0;
+fail:
+	if (pmc) {
+		free(pmc);
+	}
+	pmc = NULL;
+
+	if (hproc != NULL) {
+		CloseHandle(hproc);
+	}
+	hproc = NULL;
+	SETERRNO(ret);
+	return ret;
+}
 
 #if _MSC_VER >= 1910
 #pragma warning(pop)

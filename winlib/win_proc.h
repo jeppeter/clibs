@@ -101,6 +101,7 @@ WINLIB_API int proc_dacl_set(FILE* fp,int pid,char* maskstr,char* modestr, char*
 WINLIB_API void stop_protect_monitor(void** ppmon);
 WINLIB_API void* start_protect_monitor(char* curcmdline, char* peercmdline, int peerpid, int mode, int waitmills, int interval);
 WINLIB_API int send_ctrlc(int pid);
+WINLIB_API int get_proc_memory(int pid, uint64_t *pmem);
 
 
 #ifdef __cplusplus
