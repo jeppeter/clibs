@@ -1,7 +1,7 @@
 /*
  * This is free and unencumbered software released into the public domain.
  */
-
+#include <stddef.h>
 #include "jvalue.h"
 #include "jstring.h"
 #include "util.h"
