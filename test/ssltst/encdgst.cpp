@@ -141,6 +141,7 @@ int cipherenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         fprintf(stderr, "final [%s] error [%d]\n", ciphername,ret);
         goto out;
     }
+    outlen += curlen;
 
     if (outfile != NULL) {
         ret = write_file_whole(outfile,outdata,outlen);
@@ -193,7 +194,7 @@ int cipherdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     const EVP_CIPHER* evp=NULL;
     EVP_CIPHER_CTX *ctx=NULL;
     int curlen = 0;
-    int ret;
+    int ret,iret;
     OSSL_PROVIDER *prov=NULL;
 
     init_log_verbose(pargs);
@@ -284,17 +285,40 @@ int cipherdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
     origlen = ret;
 
+    if (origsize > origlen) {
+        memset(origdata+origlen,0, (origsize - origlen));
+    } else {
+        char* ptmp = NULL;
+        origsize = origlen + 16;
+        ptmp = (char*)malloc(origsize);
+        if (ptmp == NULL) {
+            GETERRNO(ret);
+            goto out;
+        }
+        memset(ptmp,0,origsize);
+        if (origlen > 0) {
+            memcpy(ptmp,origdata,origlen);
+        }
+        if(origdata) {
+            free(origdata);
+        }
+        origdata = ptmp;
+        ptmp = NULL;
+
+    }
+
     outsize = origlen + (1<<20);
     outdata = (char*)malloc(outsize);
     if (outdata == NULL) {
         GETERRNO(ret);
         goto out;
     }
+    memset(outdata,0,outsize);
 
-    ret = EVP_DecryptInit_ex(ctx,evp,NULL,(const unsigned char*)keydata,(const unsigned char*)initdata);
-    if (ret == 0) {
+    iret = EVP_DecryptInit_ex(ctx,evp,NULL,(const unsigned char*)keydata,(const unsigned char*)initdata);
+    if (iret <= 0) {
         GETERRNO(ret);
-        fprintf(stderr, "init [%s] error [%d]\n", ciphername, ret);
+        fprintf(stderr, "init [%s] error [%d] %d\n", ciphername, ret, iret);
         goto out;
     }
 
@@ -307,12 +331,13 @@ int cipherdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
     outlen = curlen;
     curlen = (outsize - outlen);
-    ret = EVP_DecryptFinal_ex(ctx,(unsigned char*)(outdata + outlen), &curlen);
-    if (ret <= 0) {
+    iret = EVP_DecryptFinal_ex(ctx,(unsigned char*)(outdata + outlen), &curlen);
+    if (iret <= 0) {
         GETERRNO(ret);
-        fprintf(stderr, "final [%s] error [%d]\n", ciphername,ret);
+        fprintf(stderr, "final [%s] error [%d] %d\n", ciphername,ret,iret);
         goto out;
     }
+    outlen += curlen;
 
     if (outfile != NULL) {
         ret = write_file_whole(outfile,outdata,outlen);
