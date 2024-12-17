@@ -136,6 +136,7 @@ int bnlshift_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int bnusub_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bnmodsqrt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int asn1bitdataflagleftenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int cipherenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
@@ -353,6 +354,7 @@ fail:
 #include "randtest.cpp"
 #include "ossldump.cpp"
 #include "ecdump.cpp"
+#include "tstcipher.cpp"
 
 int main(int argc, char* argv[])
 {

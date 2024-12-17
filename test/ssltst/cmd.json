@@ -317,5 +317,8 @@
     },
     "asn1bitdataflagleftenc<asn1bitdataflagleftenc_handler>##hex ... to set hex##" : {
         "$" : "+"
+    },
+    "cipherenc<cipherenc_handler>##ciphername keyfile initdatafile origdatafile  [outdatafile]##" : {
+        "$" : "+"
     }
 }
