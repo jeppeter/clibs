@@ -5,6 +5,8 @@
     "ecpriv<m_ecpriv>" : null,
     "ecparam<m_ecparam>" : null,
     "ecpub<m_ecpub>" : null,
+    "providerpath<m_providerpath>": null,
+    "provider<m_provider>" : [],
     "convform<m_convform>##for ec key export format default compressed :selected compressed uncompressed hybrid##" : null,
     "peauth<peauth_handler>##pefile ... to parse pe authenticode ##" : {
         "$" : "+"
@@ -319,6 +321,9 @@
         "$" : "+"
     },
     "cipherenc<cipherenc_handler>##ciphername keyfile initdatafile origdatafile  [outdatafile]##" : {
+        "$" : "+"
+    },
+    "cipherdec<cipherdec_handler>##ciphername keyfile initdatafile encdatafile [outdatafile]##" : {
         "$" : "+"
     }
 }

@@ -4,6 +4,7 @@
 #include <ux_output_debug.h>
 #include <ux_fileop.h>
 #include <ux_strop.h>
+#include <ux_time_op.h>
 #include <jvalue.h>
 
 
@@ -11,8 +12,11 @@
 #include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 #include <openssl/x509v3.h>
+#include <openssl/provider.h>
 
 #include <stdlib.h>
+#include <sys/types.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <gcrypt.h>
@@ -25,6 +29,8 @@ typedef struct __args_options {
     char* m_ecparam;
     char* m_ecpub;
     char* m_convform;
+    char* m_providerpath;
+    char** m_provider;
     int m_verbose;
 } args_options_t, *pargs_options_t;
 
@@ -354,7 +360,7 @@ fail:
 #include "randtest.cpp"
 #include "ossldump.cpp"
 #include "ecdump.cpp"
-#include "tstcipher.cpp"
+#include "encdgst.cpp"
 
 int main(int argc, char* argv[])
 {
