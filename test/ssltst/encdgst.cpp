@@ -139,8 +139,7 @@ int cipherenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     ret = EVP_EncryptFinal_ex(ctx,(unsigned char*)(outdata + outlen), &curlen);
     if (ret <= 0) {
         GETERRNO(ret);
-        fprintf(stderr, "[%s:%d]final [%s] error [%d]\n",__FILE__,__LINE__, ciphername,ret);
-        DEBUG_INFO("final [%s] error [%d]", ciphername,ret);
+        fprintf(stderr, "final [%s] error [%d]\n", ciphername,ret);
         goto out;
     }
     outlen += curlen;
@@ -159,10 +158,6 @@ int cipherenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     ret = 0;
 
 out:
-    DEBUG_INFO("pid %d\n", getpid());
-    while(1) {
-        sched_out(1000);
-    }
     if (outdata) {
         free(outdata);
     }
