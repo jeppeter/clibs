@@ -1100,20 +1100,6 @@ try_bool:
 		itype = V_ASN1_NULL;
 try_null:
 		ret = ASN1_TYPE_set1(pat, itype, NULL);
-	} else if (strcmp(stype, "object") == 0) {
-		itype = V_ASN1_OBJECT;
-try_object:
-		ret = set_asn1_object(&pnobj, "value", ptype);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		} else if (ret == 0) {
-			ret = -EINVAL;
-			ERROR_INFO("[%s].[value] get error", key);
-			goto fail;
-		}
-
-		ret =  ASN1_TYPE_set1(pat, itype, pnobj);
 	} else {
 		/*now to copy the value*/
 		ret = parse_number((char*)stype, &num, &pendptr);
@@ -1123,9 +1109,6 @@ try_object:
 			goto fail;
 		}
 		itype = (int)num;
-		if (itype == V_ASN1_OBJECT) {
-			goto try_object;
-		}
 		if (itype == V_ASN1_NULL) {
 			goto try_null;
 		}
