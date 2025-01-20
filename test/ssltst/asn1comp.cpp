@@ -9,6 +9,7 @@ int set_asn1_bmpstr(ASN1_BMPSTRING **ppbmpstr, const char* key, jvalue* pj)
 	char* inbuf=NULL;
 	size_t inlen=0;
 	char*outbuf=NULL;
+	char* pout=NULL;
 	size_t outlen=0;
 	size_t outsize=0;
 	iconv_t cd = (iconv_t)-1;
@@ -50,7 +51,8 @@ int set_asn1_bmpstr(ASN1_BMPSTRING **ppbmpstr, const char* key, jvalue* pj)
 	inbuf = (char*)pstr;
 	inlen = (size_t)rlen;
 	outlen = outsize;
-	ret = iconv(cd,&inbuf,&inlen,&outbuf,&outlen);
+	pout = outbuf;
+	ret = iconv(cd,&inbuf,&inlen,&pout,&outlen);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
