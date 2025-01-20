@@ -2544,7 +2544,11 @@ do{                                                                             
 		pstr = d2i_##typev(NULL, &pin, blen);                                                     \
 		if (pstr == NULL) {                                                                       \
 			GETERRNO(ret);                                                                        \
-			ERROR_BUFFER_FMT(pbin,blen,"[%s] not valid %s [%d]",binfile,#typev,ret);              \
+			const char* errfile=NULL,*errfunc=NULL,*errdata=NULL;                                 \
+			int errline=0,errflags=0;                                                             \
+			ERR_peek_error_all(&errfile,&errline,&errfunc,&errdata,&errflags);                    \
+			ERROR_BUFFER_FMT(pbin,blen,"[%s] not valid [%s:%d] %s [%d:0x%x][%d]",binfile,         \
+				errfile,errline,#typev,errflags,errflags,ret);                                    \
 			goto out;                                                                             \
 		}                                                                                         \
                                                                                                   \

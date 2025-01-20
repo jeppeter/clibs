@@ -13,6 +13,7 @@
 #include <openssl/asn1t.h>
 #include <openssl/x509v3.h>
 #include <openssl/provider.h>
+#include <openssl/err.h>
 
 #include <stdlib.h>
 #include <sys/types.h>
