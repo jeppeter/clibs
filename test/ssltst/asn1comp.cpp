@@ -6,6 +6,12 @@ int set_asn1_bmpstr(ASN1_BMPSTRING **ppbmpstr, const char* key, jvalue* pj)
 	int ret;
 	int rlen;
 	ASN1_BMPSTRING* pbmpstr = NULL;
+	char* inbuf=NULL;
+	size_t inlen=0;
+	char*outbuf=NULL;
+	size_t outlen=0;
+	size_t outsize=0;
+	iconv_t cd = (iconv_t)-1;
 
 	error = 0;
 	pstr = jobject_get_string(pj, key, &error);
@@ -25,15 +31,60 @@ int set_asn1_bmpstr(ASN1_BMPSTRING **ppbmpstr, const char* key, jvalue* pj)
 		*ppbmpstr = pbmpstr;
 	}
 	rlen = strlen(pstr);
-	ret = ASN1_OCTET_STRING_set(pbmpstr, (unsigned char*)pstr, rlen);
+
+	/*from UTF-8 to UTF-16BE*/
+	cd = iconv_open("UTF-16BE","UTF-8");
+	if (cd == (iconv_t) -1) {
+		GETERRNO(ret);
+		ERROR_INFO("iconv_open error[%d]",ret);
+		goto fail;
+	}
+
+	outsize = (rlen << 1) + 2;
+	outbuf = (char*)malloc(outsize);
+	if (outbuf == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(outbuf,0,outsize);
+	inbuf = (char*)pstr;
+	inlen = (size_t)rlen;
+	outlen = outsize;
+	ret = iconv(cd,&inbuf,&inlen,&outbuf,&outlen);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+	ret = ASN1_OCTET_STRING_set(pbmpstr, (unsigned char*)outbuf, (outsize - outlen));
 	if (ret <= 0) {
 		GETERRNO(ret);
 		ERROR_INFO( "set [%s] error[%d]", key, ret);
 		goto fail;
 	}
 
+	if (outbuf) {
+		free(outbuf);
+	}
+	outbuf = NULL;
+
+	if (cd != (iconv_t)-1) {
+		iconv_close(cd);
+	}
+	cd = (iconv_t)-1;
+
+
 	return 1;
 fail:
+	if (outbuf) {
+		free(outbuf);
+	}
+	outbuf = NULL;
+	if (cd != (iconv_t)-1) {
+		iconv_close(cd);
+	}
+	cd = (iconv_t)-1;
 	SETERRNO(ret);
 	return ret;
 }
@@ -1623,9 +1674,18 @@ fail:
 int get_asn1_bmpstr(ASN1_BMPSTRING** ppbmpstr, const char* key, jvalue* pj)
 {
 	int ret;
-	const char* pout = NULL;
+	const char* pcc = NULL;
 	int setted = 0;
 	ASN1_BMPSTRING* pbmpstr = NULL;
+	iconv_t cd=(iconv_t)-1;
+	char* outbuf=NULL,*pout=NULL;
+	char* pin=NULL;
+	size_t outsize=0;
+	size_t outlen=0;
+	size_t insize=0;
+	size_t inlen=0;
+	unsigned short* pwc=NULL;
+
 	if (ppbmpstr == NULL || *ppbmpstr == NULL) {
 		DEBUG_INFO("no [%s] get", key);
 		return 0;
@@ -1634,9 +1694,40 @@ int get_asn1_bmpstr(ASN1_BMPSTRING** ppbmpstr, const char* key, jvalue* pj)
 	pbmpstr = *ppbmpstr;
 
 
-	pout = (const char*)ASN1_STRING_get0_data(pbmpstr);
-	if (pout != NULL) {
-		ret = jobject_put_string(pj, key, pout);
+	pcc = (const char*)ASN1_STRING_get0_data(pbmpstr);
+	if (pcc != NULL) {
+		cd = iconv_open("UTF-8","UTF-16BE");
+		if (cd == (iconv_t)-1) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		pwc = (unsigned short*)pcc;
+		insize =0;
+		while (pwc[insize] != 0) {
+			insize += 1;
+		}
+		outsize = insize + 1;
+		insize *= 2;
+		inlen = insize;
+		outbuf = (char*)malloc(outsize);
+		if (outbuf == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		memset(outbuf,0,outsize);
+		pin = (char*)pcc;
+		inlen = insize;
+		pout = outbuf;
+		outlen = outsize;
+
+		ret = iconv(cd,&pin,&inlen,&pout,&outlen);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+
+		ret = jobject_put_string(pj, key, outbuf);
 		if (ret != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("can not put [%s] [%s] error[%d]", key, pout, ret);
@@ -1645,8 +1736,27 @@ int get_asn1_bmpstr(ASN1_BMPSTRING** ppbmpstr, const char* key, jvalue* pj)
 		setted = 1;
 	}
 
+	if (outbuf) {
+		free(outbuf);
+	}
+	outbuf = NULL;
+
+	if (cd != (iconv_t)-1) {
+		iconv_close(cd);
+	}
+	cd = (iconv_t)-1;
+
 	return setted;
 fail:
+	if (outbuf) {
+		free(outbuf);
+	}
+	outbuf = NULL;
+
+	if (cd != (iconv_t)-1) {
+		iconv_close(cd);
+	}
+	cd = (iconv_t)-1;
 	SETERRNO(ret);
 	return ret;
 }

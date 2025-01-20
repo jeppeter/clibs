@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <gcrypt.h>
+#include <iconv.h>
 
 
 typedef struct __args_options {
