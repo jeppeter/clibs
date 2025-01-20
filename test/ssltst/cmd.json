@@ -325,5 +325,12 @@
     },
     "cipherdec<cipherdec_handler>##ciphername keyfile initdatafile encdatafile [outdatafile]##" : {
         "$" : "+"
+    },
+    "bmpstrenc<bmpstrenc_handler>##str to encode ASN1_BMPSTRING##" : {
+        "$" : 1
+    },
+    "bmpstrdec<bmpstrdec_handler>##str to decode ASN1_BMPSTRING##" : {
+        "$" : 1
     }
+
 }

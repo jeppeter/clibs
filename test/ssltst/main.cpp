@@ -144,6 +144,8 @@ int bnmodsqrt_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int asn1bitdataflagleftenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int cipherenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int cipherdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int bmpstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int bmpstrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

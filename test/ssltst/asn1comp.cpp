@@ -2544,7 +2544,7 @@ do{                                                                             
 		pstr = d2i_##typev(NULL, &pin, blen);                                                     \
 		if (pstr == NULL) {                                                                       \
 			GETERRNO(ret);                                                                        \
-			ERROR_INFO("[%s] not valid %s", binfile,#typev);                                      \
+			ERROR_BUFFER_FMT(pbin,blen,"[%s] not valid %s [%d]",binfile,#typev,ret);              \
 			goto out;                                                                             \
 		}                                                                                         \
                                                                                                   \

@@ -2266,6 +2266,16 @@ int encode_X509_NAME(jvalue* pj, X509_NAME* pobj)
 	jvalue* chldpj = NULL;
 	X509_NAME_ENTRY* pentry=NULL;
 	int error;
+	char* jsons= NULL;
+	unsigned int jsonsize=0;
+
+	jsons = jvalue_write_pretty(pj,&jsonsize);
+	if (jsons != NULL) {
+		DEBUG_INFO("jsons\n%s",jsons);
+		free(jsons);
+	} else {
+		DEBUG_INFO("no jsons");
+	}
 
 	size = jarray_size(pj);
 	for(i=0;i<size;i++) {
@@ -2420,6 +2430,7 @@ int encode_GENERAL_NAME(jvalue* pj, GENERAL_NAME* pobj)
 		error = 0;
 		chldpj = (jvalue*)jobject_get_array(pj,"directoryname",&error);
 		if (chldpj != NULL) {
+			DEBUG_INFO("directoryname [%p]",chldpj);
 			if (pobj->d.directoryName == NULL) {
 				pobj->d.directoryName = X509_NAME_new();
 				if (pobj->d.directoryName == NULL) {
@@ -3126,6 +3137,42 @@ out:
 	return ret;
 }
 
+int encode_ASN1_BMPSTRING(jvalue* pj, ASN1_BMPSTRING* pobj)
+{
+	int ret;
+
+	DEBUG_INFO("ASN1_BMPSTRING");
+	ret = set_asn1_bmpstr(&pobj, "value", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_ASN1_BMPSTRING(ASN1_BMPSTRING* pobj, jvalue* pj)
+{
+	int ret = 0;
+
+	DEBUG_INFO("ASN1_BMPSTRING");
+	ret = get_asn1_bmpstr(&pobj, "value", pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
 int generalnameenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_ENCODE_HANDLER(GENERAL_NAME);
@@ -3432,4 +3479,13 @@ out:
 	p7len = 0;
 	SETERRNO(ret);
 	return ret;
+}
+
+int bmpstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(ASN1_BMPSTRING);
+}
+int bmpstrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(ASN1_BMPSTRING);
 }
