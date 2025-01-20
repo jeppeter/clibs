@@ -2473,7 +2473,11 @@ do{                                                                             
 	ret = i2d_##typev(pstr, &pin);                                                                \
 	if (ret <= 0) {                                                                               \
 		GETERRNO(ret);                                                                            \
-		ERROR_INFO("can not i2d %s [%d]",#typev, ret);                                            \
+		const char* errfile=NULL,*errfunc=NULL,*errdata=NULL;                                     \
+		int errline=0,errflags=0;                                                                 \
+		ERR_peek_error_all(&errfile,&errline,&errfunc,&errdata,&errflags);                        \
+		ERROR_INFO("can not i2d %s [%d] [%s:%d] errflags 0x%x:%d",#typev, ret,                    \
+			errfile,errline,errflags,errflags);                                                   \
 		goto out;                                                                                 \
 	}                                                                                             \
                                                                                                   \
