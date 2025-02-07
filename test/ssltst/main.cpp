@@ -364,6 +364,7 @@ fail:
 #include "aes.cpp"
 #include "randtest.cpp"
 #include "ossldump.cpp"
+#include "pkcs12.cpp"
 #include "ecdump.cpp"
 #include "encdgst.cpp"
 
