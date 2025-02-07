@@ -1,0 +1,18 @@
+{
+    "type" : "1.2.840.113549.1.12.10.1.1",
+    "#type" : "keyBag",
+    "keybag" : {
+        "version" : 1,
+        "keyalg" : {
+            "algorithm" : "1.2.840.11"
+        },
+        "key" : "vvs",
+        "attributes" : [{
+            "object" : "2.2.3",
+            "set" : [{
+                "type" : "4",
+                "data" : [7,3]
+            }]
+        }]
+    }
+}
