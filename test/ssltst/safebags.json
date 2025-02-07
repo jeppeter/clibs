@@ -1,5 +1,11 @@
 {
-    "type" : "1.2.840.113549.1.12.10.1.1",
+    "#keybagtype" : "1.2.840.113549.1.12.10.1.1",
+    "#shkeybagtype" : "1.2.840.113549.1.12.10.1.2",
+    "#safecontentstype" : "1.2.840.113549.1.12.10.1.6",
+    "#certbagtype" : "1.2.840.113549.1.12.10.1.3",
+    "#crlbagtype" : "1.2.840.113549.1.12.10.1.4",
+    "#secretbagtype" : "1.2.840.113549.1.12.10.1.5",
+    "type" : "2.1.11",
     "#type" : "keyBag",
     "keybag" : {
         "version" : 1,
@@ -14,5 +20,75 @@
                 "data" : [7,3]
             }]
         }]
+    },
+    "shkeybag" : {
+        "algor" : {
+            "algorithm" : "1.3.7723",
+            "parameter" : {
+                "type" : "04",
+                "data" : [33,22]
+            }
+        },
+        "digest" : "ccff"
+    },
+    "safes" : [{
+        "type" : "1.2.840.113549.1.12.10.1.1",
+        "keybag" : {
+            "version" : 1,
+            "keyalg" : {
+                "algorithm" : "1.2.840.11"
+            },
+            "key" : "vvs",
+            "attributes" : [{
+                "object" : "2.2.3",
+                "set" : [{
+                    "type" : "4",
+                    "data" : [7,3]
+                }]
+            }]
+        }
+    }],
+    "certbag":{
+        "#x509certtype" : "1.2.840.113549.1.9.22.1",
+        "#sdicerttype" : "1.2.840.113549.1.9.22.2",
+        "#x509crltype" : "1.2.840.113549.1.9.23.1",
+        "type" : "1.3.4",
+        "x509cert" : "x509 cert",
+        "sdsicert" : "sdi cert",
+        "x509crl" : "x509 crl",
+        "other" : {
+            "type" : "4",
+            "data" : [77,33]
+        }
+    },
+    "crlbag":{
+        "#x509certtype" : "1.2.840.113549.1.9.22.1",
+        "#sdicerttype" : "1.2.840.113549.1.9.22.2",
+        "#x509crltype" : "1.2.840.113549.1.9.23.1",
+        "type" : "1.3.4",
+        "x509cert" : "x509 cert",
+        "sdsicert" : "sdi cert",
+        "x509crl" : "x509 crl",
+        "other" : {
+            "type" : "4",
+            "data" : [77,33]
+        }
+    },
+    "secretbag":{
+        "#x509certtype" : "1.2.840.113549.1.9.22.1",
+        "#sdicerttype" : "1.2.840.113549.1.9.22.2",
+        "#x509crltype" : "1.2.840.113549.1.9.23.1",
+        "type" : "1.3.4",
+        "x509cert" : "x509 cert",
+        "sdsicert" : "sdi cert",
+        "x509crl" : "x509 crl",
+        "other" : {
+            "type" : "4",
+            "data" : [77,33]
+        }
+    },
+    "other" : {
+        "type" : "4",
+        "data" : [77,11]
     }
 }
