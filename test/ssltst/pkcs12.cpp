@@ -134,7 +134,9 @@ IMPLEMENT_ASN1_FUNCTIONS(PKCS12_SAFEBAG_EXP)
 
 DEFINE_STACK_OF(PKCS12_SAFEBAG_EXP)
 
-#define KEY_BAG_OID                          "keybag"
+// 1.2.840.113549.1.12.10.1.1
+//#define KEY_BAG_OID                          "keybag"
+#define KEY_BAG_OID                          "1.2.840.113549.1.12.10.1.1"
 #define SHROUDED_KEY_BAG_OID                 "shroudedkeybag"
 #define SAFE_CONTENT_BAG_OID                 "safecontentbag"
 #define CERT_BAG_OID                         "certbag"
@@ -179,7 +181,7 @@ int encode_X509_ATTRIBUTE_EXP(jvalue* pj,X509_ATTRIBUTE_EXP* pobj)
 				jvalue_destroy(npj);
 			}
 			npj = NULL;
-			if (chldpj->type != JARRAY) {
+			if (chldpj->type != JOBJECT) {
 				ret = -EINVAL;
 				ERROR_INFO("set.[%d] not array type",i);
 				goto fail;
@@ -190,7 +192,7 @@ int encode_X509_ATTRIBUTE_EXP(jvalue* pj,X509_ATTRIBUTE_EXP* pobj)
 				goto fail;
 			}
 
-			ret = jobject_put_array(npj,"set",chldpj);
+			ret = jobject_put_object(npj,"set",chldpj);
 			if (ret != 0) {
 				GETERRNO(ret);
 				goto fail;
@@ -239,12 +241,14 @@ int encode_PKCS8_PRIV_KEY_INFO_EXP(jvalue* pj,PKCS8_PRIV_KEY_INFO_EXP* pobj)
 	ret = set_asn1_integer(&(pobj->version),"version",pj);
 	if (ret <= 0) {
 		GETERRNO(ret);
+		ERROR_INFO("no version get");
 		goto fail;
 	}
 
 	chldpj = jobject_get(pj,"keyalg");
 	if (chldpj == NULL) {
 		ret = -EINVAL;
+		ERROR_INFO("no keyalg");
 		goto fail;
 	}
 

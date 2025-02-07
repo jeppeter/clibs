@@ -148,6 +148,7 @@ int cipherenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int cipherdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bmpstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int bmpstrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int safebagenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

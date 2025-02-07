@@ -331,6 +331,9 @@
     },
     "bmpstrdec<bmpstrdec_handler>##str to decode ASN1_BMPSTRING##" : {
         "$" : 1
+    },
+    "safebagenc<safebagenc_handler>##jsonfile to encode PKCS12_SAFEBAG##" : {
+        "$" : 1
     }
 
 }
