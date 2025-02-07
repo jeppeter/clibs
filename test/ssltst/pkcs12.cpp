@@ -15,7 +15,7 @@ ASN1_SEQUENCE(X509_ATTRIBUTE_EXP) = {
 
 IMPLEMENT_ASN1_FUNCTIONS(X509_ATTRIBUTE_EXP)
 //IMPLEMENT_ASN1_DUP_FUNCTION(X509_ATTRIBUTE_EXP)
-
+DEFINE_STACK_OF(X509_ATTRIBUTE_EXP)
 
 
 
@@ -32,8 +32,6 @@ ASN1_SEQUENCE(X509_SIG_EXP) = {
 } ASN1_SEQUENCE_END(X509_SIG_EXP)
 
 IMPLEMENT_ASN1_FUNCTIONS(X509_SIG_EXP)
-
-DEFINE_STACK_OF(X509_ATTRIBUTE_EXP)
 
 struct pkcs8_priv_key_info_exp_st {
     ASN1_INTEGER *version;
@@ -146,13 +144,98 @@ DEFINE_STACK_OF(PKCS12_SAFEBAG_EXP)
 
 int encode_X509_ATTRIBUTE_EXP(jvalue* pj,X509_ATTRIBUTE_EXP* pobj)
 {
+	int ret;
+	const jvalue* chldarr= NULL;
+	jvalue* npj =NULL;	
+	ASN1_TYPE* curset=NULL;
+	unsigned int arrsize,i;
+	int err;
+	jvalue* chldpj=NULL;
+	ret = set_asn1_object(&(pobj->object),"object",pj);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	chldarr = (const jvalue*)jobject_get_array(pj,"set",&err);
+	if (chldarr != NULL) {
+		if (pobj->set == NULL) {
+			pobj->set = sk_ASN1_TYPE_new_null();
+			if (pobj->set == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+
+		arrsize = jarray_size(chldarr);
+		for(i=0;i<arrsize;i++) {
+			chldpj = jarray_get(chldarr,i,&err);
+			if (chldpj == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			if (npj != NULL) {
+				jvalue_destroy(npj);
+			}
+			npj = NULL;
+			if (chldpj->type != JARRAY) {
+				ret = -EINVAL;
+				ERROR_INFO("set.[%d] not array type",i);
+				goto fail;
+			}
+			npj = jobject_create();
+			if (npj == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			ret = jobject_put_array(npj,"set",chldpj);
+			if (ret != 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			ASSERT_IF(curset == NULL);
+			ret = set_asn1_any(&curset,"set",npj);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			sk_ASN1_TYPE_push(pobj->set,curset);
+			curset = NULL;
+		}
+	}
+
+	if (npj != NULL) {
+		jvalue_destroy(npj);
+	}
+	npj = NULL;
+
 	return 0;
+fail:
+	if (curset) {
+		ASN1_TYPE_free(curset);
+	}
+	curset = NULL;
+
+	if (npj != NULL) {
+		jvalue_destroy(npj);
+	}
+	npj = NULL;
+
+	SETERRNO(ret);
+	return ret;
 }
 
 int encode_PKCS8_PRIV_KEY_INFO_EXP(jvalue* pj,PKCS8_PRIV_KEY_INFO_EXP* pobj)
 {
 	int ret;
 	jvalue* chldpj= NULL;
+	const jvalue* chldarr = NULL;
+	X509_ATTRIBUTE_EXP* attrib=NULL;
+	int err;
+	unsigned int arrsize,i;
 	ret = set_asn1_integer(&(pobj->version),"version",pj);
 	if (ret <= 0) {
 		GETERRNO(ret);
@@ -185,11 +268,53 @@ int encode_PKCS8_PRIV_KEY_INFO_EXP(jvalue* pj,PKCS8_PRIV_KEY_INFO_EXP* pobj)
 		goto fail;
 	}
 
+	chldarr = (const jvalue*)jobject_get_array(pj,"attributes",&err);
+	if (chldarr != NULL) {
+		if (pobj->attributes == NULL) {
+			pobj->attributes = sk_X509_ATTRIBUTE_EXP_new_null();
+			if (pobj->attributes == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+
+		arrsize = jarray_size(chldarr);
+		for(i=0;i<arrsize;i++) {
+			chldpj = jarray_get(chldarr,i,&err);
+			if (chldpj == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("can not get attributes.[%d] ",i);
+				goto fail;
+			}
+
+			ASSERT_IF(attrib == NULL);
+			attrib = X509_ATTRIBUTE_EXP_new();
+			if (attrib == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			ret = encode_X509_ATTRIBUTE_EXP(chldpj,attrib);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			sk_X509_ATTRIBUTE_EXP_push(pobj->attributes,attrib);
+			attrib = NULL;
+		}
+	}
+
+
 
 
 
 	return 0;
 fail:
+	if(attrib != NULL) {
+		X509_ATTRIBUTE_EXP_free(attrib);
+	}
+	attrib = NULL;
+
 	SETERRNO(ret);
 	return ret;
 }
