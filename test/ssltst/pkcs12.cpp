@@ -526,51 +526,13 @@ int encode_PKCS12_SAFEBAG_EXP(jvalue* pj, PKCS12_SAFEBAG_EXP* pobj)
 			sk_PKCS12_SAFEBAG_EXP_push(pobj->value.safes,safebag);
 			safebag = NULL;
 		}
-	} else if (strcmp(otype,CERT_BAG_OID) == 0 || strcmp(otype,CERT_BAG_STR) == 0) {
-		chldpj = jobject_get(pj,"certbag");
+	} else if (strcmp(otype,CERT_BAG_OID) == 0 || strcmp(otype,CERT_BAG_STR) == 0 ||
+		strcmp(otype,CLR_BAG_OID) == 0 || strcmp(otype,CRL_BAG_STR) == 0 ||
+		strcmp(otype,SECRET_BAG_OID) == 0 || strcmp(otype,SECRET_BAG_STR) == 0) {
+		chldpj = jobject_get(pj,"bag");
 		if (chldpj == NULL) {
 			ret = -EINVAL;
 			ERROR_INFO("no certbag found");
-			goto fail;
-		}
-
-		if (pobj->value.bag == NULL) {
-			pobj->value.bag = PKCS12_BAGS_EXP_new();
-			if (pobj->value.safes == NULL) {
-				ret = -ENOMEM;
-				goto fail;
-			}
-		}
-		ret = encode_PKCS12_BAGS_EXP(chldpj,pobj->value.bag);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-	} else if (strcmp(otype,CLR_BAG_OID) == 0 || strcmp(otype,CRL_BAG_STR) == 0) {
-		chldpj = jobject_get(pj,"crlbag");
-		if (chldpj == NULL) {
-			ret = -EINVAL;
-			ERROR_INFO("no crlbag found");
-			goto fail;
-		}
-
-		if (pobj->value.bag == NULL) {
-			pobj->value.bag = PKCS12_BAGS_EXP_new();
-			if (pobj->value.safes == NULL) {
-				ret = -ENOMEM;
-				goto fail;
-			}
-		}
-		ret = encode_PKCS12_BAGS_EXP(chldpj,pobj->value.bag);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-	} else if (strcmp(otype,SECRET_BAG_OID) == 0 || strcmp(otype,SECRET_BAG_STR) == 0) {
-		chldpj = jobject_get(pj,"secretbag");
-		if (chldpj == NULL) {
-			ret = -EINVAL;
-			ERROR_INFO("no secretbag found");
 			goto fail;
 		}
 
@@ -978,40 +940,16 @@ int decode_PKCS12_SAFEBAG_EXP(PKCS12_SAFEBAG_EXP* pobj, jvalue* pj)
 			goto fail;
 		}
 		chldarr = NULL;
-	} else if (strcmp(otype,CERT_BAG_OID) == 0 || strcmp(otype,CERT_BAG_STR) == 0) {
+	} else if (strcmp(otype,CERT_BAG_OID) == 0 || strcmp(otype,CERT_BAG_STR) == 0 ||
+		strcmp(otype,CLR_BAG_OID) == 0 || strcmp(otype, CRL_BAG_STR) == 0 ||
+		strcmp(otype,SECRET_BAG_OID) == 0 || strcmp(otype,SECRET_BAG_STR) == 0) {
 		chldpj = jobject_create();
 		ret = decode_PKCS12_BAGS_EXP(pobj->value.bag,chldpj);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
-		ret = jobject_put_object(pj,"certbag",chldpj);
-		if (ret != 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-		chldpj = NULL;
-	} else if (strcmp(otype,CLR_BAG_OID) == 0 || strcmp(otype, CRL_BAG_STR) == 0) {
-		chldpj = jobject_create();
-		ret = decode_PKCS12_BAGS_EXP(pobj->value.bag,chldpj);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-		ret = jobject_put_object(pj,"crlbag",chldpj);
-		if (ret != 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-		chldpj = NULL;
-	} else if (strcmp(otype,SECRET_BAG_OID) == 0 || strcmp(otype,SECRET_BAG_STR) == 0) {
-		chldpj = jobject_create();
-		ret = decode_PKCS12_BAGS_EXP(pobj->value.bag,chldpj);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		}
-		ret = jobject_put_object(pj,"secretbag",chldpj);
+		ret = jobject_put_object(pj,"bag",chldpj);
 		if (ret != 0) {
 			GETERRNO(ret);
 			goto fail;
