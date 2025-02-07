@@ -141,7 +141,8 @@ DEFINE_STACK_OF(PKCS12_SAFEBAG_EXP)
 // 1.2.840.113549.1.12.10.1.2
 #define SHROUDED_KEY_BAG_OID                 "1.2.840.113549.1.12.10.1.2"
 #define SHROUDED_KEY_BAG_STR                 "pkcs8ShroudedKeyBag"
-#define SAFE_CONTENT_BAG_OID                 "safecontentbag"
+#define SAFE_CONTENT_BAG_OID                 "1.2.840.113549.1.12.10.1.6"
+#define SAFE_CONTENT_BAG_STR                 "safeContentsBag"
 #define CERT_BAG_OID                         "certbag"
 #define CLR_BAG_OID                          "crlbag"
 #define SECRET_BAG_OID                       "secretbag"
@@ -410,7 +411,7 @@ int encode_PKCS12_SAFEBAG_EXP(jvalue* pj, PKCS12_SAFEBAG_EXP* pobj)
 			GETERRNO(ret);
 			goto fail;
 		}
-	} else if (strcmp(otype,SHROUDED_KEY_BAG_OID) == 0) {
+	} else if (strcmp(otype,SHROUDED_KEY_BAG_OID) == 0 || strcmp(otype,SHROUDED_KEY_BAG_STR) == 0) {
 		chldpj = jobject_get(pj,"shkeybag");
 		if (chldpj == NULL) {
 			ret = -EINVAL;
@@ -785,6 +786,8 @@ int decode_PKCS12_SAFEBAG_EXP(PKCS12_SAFEBAG_EXP* pobj, jvalue* pj)
 	const char* otype=NULL;
 	int err;
 	jvalue* chldpj=NULL;
+	jvalue* chldarr = NULL;
+	unsigned int arrsize,i;
 
 	ret = get_asn1_object(&pobj->type,"type",pj);
 	if (ret <= 0) {
@@ -826,7 +829,47 @@ int decode_PKCS12_SAFEBAG_EXP(PKCS12_SAFEBAG_EXP* pobj, jvalue* pj)
 			goto fail;
 		}
 		chldpj = NULL;
-	} else if (strcmp(otype,SAFE_CONTENT_BAG_OID) == 0) {
+	} else if (strcmp(otype,SAFE_CONTENT_BAG_OID) == 0 || strcmp(otype,SAFE_CONTENT_BAG_STR) == 0) {
+		chldarr = jarray_create();
+		if (chldarr == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		arrsize = sk_PKCS12_SAFEBAG_EXP_num(pobj->value.safes);
+		for(i=0;i<arrsize;i++) {
+			PKCS12_SAFEBAG_EXP*curobj=NULL;
+			curobj = sk_PKCS12_SAFEBAG_EXP_value(pobj->value.safes,i);
+			if (curobj == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("get [%d] error",i);
+				goto fail;
+			}
+			ASSERT_IF(chldpj == NULL);
+			chldpj = jobject_create();
+			if (chldpj == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			ret = decode_PKCS12_SAFEBAG_EXP(curobj,chldpj);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			ret = jarray_put_object(chldarr,chldpj);
+			if (ret != 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			chldpj =NULL;
+		}
+		ret = jobject_put_array(pj,"safes",chldarr);
+		if (ret != 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		chldarr = NULL;
 	} else if (strcmp(otype,CERT_BAG_OID) == 0 ) {
 	} else if (strcmp(otype,CLR_BAG_OID) == 0 ) {
 	} else if (strcmp(otype,SECRET_BAG_OID) == 0 ) {
@@ -843,6 +886,10 @@ int decode_PKCS12_SAFEBAG_EXP(PKCS12_SAFEBAG_EXP* pobj, jvalue* pj)
 
 	return 0;
 fail:
+	if (chldarr != NULL) {
+		jarray_destroy((jarray*)chldarr);
+	}
+	chldarr = NULL;
 	if (chldpj != NULL) {
 		jvalue_destroy(chldpj);
 	}
