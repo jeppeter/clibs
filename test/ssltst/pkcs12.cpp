@@ -137,6 +137,7 @@ DEFINE_STACK_OF(PKCS12_SAFEBAG_EXP)
 // 1.2.840.113549.1.12.10.1.1
 //#define KEY_BAG_OID                          "keybag"
 #define KEY_BAG_OID                          "1.2.840.113549.1.12.10.1.1"
+#define KEY_BAG_STR                          "keyBag"
 #define SHROUDED_KEY_BAG_OID                 "shroudedkeybag"
 #define SAFE_CONTENT_BAG_OID                 "safecontentbag"
 #define CERT_BAG_OID                         "certbag"
@@ -160,7 +161,9 @@ int encode_X509_ATTRIBUTE_EXP(jvalue* pj,X509_ATTRIBUTE_EXP* pobj)
 	}
 
 	chldarr = (const jvalue*)jobject_get_array(pj,"set",&err);
+	DEBUG_INFO("chldarr in X509_ATTRIBUTE_EXP %p",chldarr);
 	if (chldarr != NULL) {
+		DEBUG_INFO("chldarr %p",chldarr);
 		if (pobj->set == NULL) {
 			pobj->set = sk_ASN1_TYPE_new_null();
 			if (pobj->set == NULL) {
@@ -273,6 +276,7 @@ int encode_PKCS8_PRIV_KEY_INFO_EXP(jvalue* pj,PKCS8_PRIV_KEY_INFO_EXP* pobj)
 	}
 
 	chldarr = (const jvalue*)jobject_get_array(pj,"attributes",&err);
+	DEBUG_INFO("attributes %p",chldarr);
 	if (chldarr != NULL) {
 		if (pobj->attributes == NULL) {
 			pobj->attributes = sk_X509_ATTRIBUTE_EXP_new_null();
@@ -304,6 +308,7 @@ int encode_PKCS8_PRIV_KEY_INFO_EXP(jvalue* pj,PKCS8_PRIV_KEY_INFO_EXP* pobj)
 			}
 
 			sk_X509_ATTRIBUTE_EXP_push(pobj->attributes,attrib);
+			DEBUG_INFO("attributes %d",sk_X509_ATTRIBUTE_EXP_num(pobj->attributes));
 			attrib = NULL;
 		}
 	}
@@ -359,7 +364,7 @@ int encode_PKCS12_SAFEBAG_EXP(jvalue* pj, PKCS12_SAFEBAG_EXP* pobj)
 		goto fail;
 	}
 	DEBUG_INFO("otype [%s]",otype);
-	if (strcmp(otype,KEY_BAG_OID) == 0) {
+	if (strcmp(otype,KEY_BAG_OID) == 0 || strcmp(otype,KEY_BAG_STR) == 0) {
 		chldpj = jobject_get(pj,"keybag");
 		if (chldpj == NULL) {
 			ret = -EINVAL;
@@ -519,4 +524,258 @@ fail:
 int safebagenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_ENCODE_HANDLER(PKCS12_SAFEBAG_EXP);
+}
+
+int decode_X509_ATTRIBUTE_EXP(X509_ATTRIBUTE_EXP* pobj,jvalue* pj)
+{
+	int ret;
+	jvalue* chldarr = NULL;
+	jvalue* chldpj = NULL;
+	jvalue* clonepj = NULL;
+	unsigned int arrsize,i;
+	int err;
+	ret = get_asn1_object(&(pobj->object),"object",pj);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (pobj->set != NULL) {
+		arrsize = sk_ASN1_TYPE_num(pobj->set);
+		chldarr = jarray_create();
+		if (chldarr == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		for(i=0;i<arrsize;i++) {
+			ASN1_TYPE* curset = NULL;
+			jvalue* sc=NULL;
+			curset = sk_ASN1_TYPE_value(pobj->set,i);
+			if (curset == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("set [%d] error",i);
+				goto fail;
+			}
+			ASSERT_IF(chldpj == NULL);
+			chldpj = jobject_create();
+			if (chldpj == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			ret = get_asn1_any(&curset,"set",chldpj);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			sc = (jvalue*)jobject_get_object(chldpj,"set",&err);
+			if (sc == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			clonepj = jvalue_clone(sc);
+			if (clonepj == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			ret=  jarray_put_object(chldarr,clonepj);
+			if (ret != 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			clonepj = NULL;
+			if (chldpj) {
+				jvalue_destroy(chldpj);
+			}
+			chldpj = NULL;
+		}
+		ret = jobject_put_array(pj,"set",chldarr);
+		if (ret != 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		chldarr = NULL;
+	}
+
+
+	return 0;
+fail:
+	if (clonepj) {
+		jvalue_destroy(clonepj);
+	}
+	clonepj = NULL;
+	if (chldpj) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	if (chldarr) {
+		jarray_destroy((jarray*)chldarr);
+	}
+	chldarr = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_PKCS8_PRIV_KEY_INFO_EXP(PKCS8_PRIV_KEY_INFO_EXP* pobj,jvalue* pj)
+{
+	int ret;
+	jvalue* chldarr = NULL;
+	jvalue* chldpj = NULL;
+	unsigned int arrsize=0;
+	unsigned int i;
+	ret = get_asn1_integer(&(pobj->version),"version",pj);
+	if (ret <= 0 ) {
+		ret = -EINVAL;
+		ERROR_INFO("no version ");
+		goto fail;
+	}
+
+	chldpj = jobject_create();
+	if (chldpj == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = decode_X509_ALGOR(pobj->pkeyalg,chldpj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = jobject_put_object(pj,"keyalg",chldpj);
+	if (ret != 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	chldpj = NULL;
+
+	ret = get_asn1_octstr(&(pobj->pkey),"key",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (pobj->attributes != NULL) {
+		chldarr = jarray_create();
+		if (chldarr == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		arrsize = sk_X509_ATTRIBUTE_EXP_num(pobj->attributes);
+		for(i=0;i<arrsize;i++) {
+			X509_ATTRIBUTE_EXP*curset=NULL;
+			curset = sk_X509_ATTRIBUTE_EXP_value(pobj->attributes,i);
+			if (curset == NULL) {
+				ret = -EINVAL;
+				ERROR_INFO("can not get attributes [%d]",i);
+				goto fail;
+			}
+			chldpj = jobject_create();
+			if (chldpj == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			ret = decode_X509_ATTRIBUTE_EXP(curset,chldpj);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			ret = jarray_put_object(chldarr,chldpj);
+			if (ret != 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			chldpj = NULL;
+		}
+
+		jobject_put_array(pj,"attributes",chldarr);
+		chldarr = NULL;
+	}
+
+
+
+	return 0;
+fail:
+	if (chldpj) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+
+	if (chldarr) {
+		jarray_destroy((jarray*)chldarr);
+	}
+	chldarr = NULL;
+
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int decode_PKCS12_SAFEBAG_EXP(PKCS12_SAFEBAG_EXP* pobj, jvalue* pj)
+{
+	int ret;
+	const char* otype=NULL;
+	int err;
+	jvalue* chldpj=NULL;
+
+	ret = get_asn1_object(&pobj->type,"type",pj);
+	if (ret <= 0) {
+		GETERRNO(ret);
+		ERROR_INFO("no type ");
+		goto fail;
+	}
+
+	otype = jobject_get_string(pj,"type",&err);
+	if (otype == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	DEBUG_INFO("otype [%s]",otype);
+	if (strcmp(otype,KEY_BAG_OID) == 0 || strcmp(otype,KEY_BAG_STR) == 0) {
+		chldpj = jobject_create();
+		ret = decode_PKCS8_PRIV_KEY_INFO_EXP(pobj->value.keybag,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		ret = jobject_put_object(pj,"keybag",chldpj);
+		if (ret != 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		chldpj = NULL;
+	} else if (strcmp(otype,SHROUDED_KEY_BAG_OID) == 0) {
+	} else if (strcmp(otype,SAFE_CONTENT_BAG_OID) == 0) {
+	} else if (strcmp(otype,CERT_BAG_OID) == 0 ) {
+	} else if (strcmp(otype,CLR_BAG_OID) == 0 ) {
+	} else if (strcmp(otype,SECRET_BAG_OID) == 0 ) {
+	} else {
+		ret = -EINVAL;
+		ERROR_INFO("not support type [%s]",otype);
+		goto fail;
+	}
+
+	if (chldpj != NULL) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+
+	return 0;
+fail:
+	if (chldpj != NULL) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+
+
+int safebagdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(PKCS12_SAFEBAG_EXP);
 }

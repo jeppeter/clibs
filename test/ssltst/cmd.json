@@ -334,6 +334,9 @@
     },
     "safebagenc<safebagenc_handler>##jsonfile to encode PKCS12_SAFEBAG##" : {
         "$" : 1
+    },
+    "safebagdec<safebagdec_handler>##binfile ... to decode PKCS12_SAFEBAG##" : {
+        "$" : "+"
     }
 
 }

@@ -1162,6 +1162,7 @@ try_null:
 			goto fail;
 		}
 		itype = (int)num;
+		DEBUG_INFO("itype %d",itype);
 		if (itype == V_ASN1_NULL) {
 			goto try_null;
 		}
