@@ -1119,7 +1119,7 @@ int set_asn1_any(ASN1_TYPE** ppany , const char* key, const jvalue* pj)
 		goto fail;
 	}
 
-	stype = jobject_get_string(ptype, "type", &error);
+	stype = jobject_get_string(ptype, "tag", &error);
 	if (stype == NULL) {
 		ret = -EINVAL;
 		ERROR_INFO("[%s] no type has", key);
@@ -2279,7 +2279,7 @@ int get_asn1_any(ASN1_TYPE** ppany, const char* key, jvalue* pj)
 		goto fail;
 	}
 	if (typ == V_ASN1_OBJECT) {
-		ret = jobject_put_string(pinsert, "type", "object");
+		ret = jobject_put_string(pinsert, "tag", "object");
 		if (ret != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("put [%s] type object error[%d]", key, ret);
@@ -2302,14 +2302,14 @@ int get_asn1_any(ASN1_TYPE** ppany, const char* key, jvalue* pj)
 		}
 
 	} else if (typ == V_ASN1_NULL) {
-		ret = jobject_put_string(pinsert, "type", "null");
+		ret = jobject_put_string(pinsert, "tag", "null");
 		if (ret != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("put [%s] type null error[%d]", key, ret);
 			goto fail;
 		}
 	} else if (typ == V_ASN1_BOOLEAN) {
-		ret = jobject_put_string(pinsert, "type", "bool");
+		ret = jobject_put_string(pinsert, "tag", "bool");
 		if (ret != 0) {
 			GETERRNO(ret);
 			ERROR_INFO("put [%s] type null error[%d]", key, ret);
@@ -2343,7 +2343,7 @@ put_data:
 			GETERRNO(ret);
 			goto fail;
 		}
-		ret = jobject_put_string(pinsert, "type", typestr);
+		ret = jobject_put_string(pinsert, "tag", typestr);
 		if (ret != 0) {
 			GETERRNO(ret);
 			goto fail;
