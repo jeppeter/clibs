@@ -337,6 +337,12 @@
     },
     "safebagdec<safebagdec_handler>##binfile ... to decode PKCS12_SAFEBAG##" : {
         "$" : "+"
+    },
+    "x509auxenc<x509auxenc_handler>##jsonfile to encode PKCS12_SAFEBAG##" : {
+        "$" : 1
+    },
+    "x509auxdec<x509auxdec_handler>##binfile ... to decode PKCS12_SAFEBAG##" : {
+        "$" : "+"
     }
 
 }

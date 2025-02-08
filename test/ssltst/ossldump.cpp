@@ -2645,49 +2645,6 @@ fail:
 	return ret;
 }
 
-int encode_X509_ALGOR(jvalue* pj,X509_ALGOR*pobj)
-{
-	int ret;
-	ret = set_asn1_object(&(pobj->algorithm),"algorithm",pj);
-	if (ret <= 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	ret = set_asn1_any(&(pobj->parameter),"parameter",pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	return 1;
-fail:
-	SETERRNO(ret);
-	return ret;
-}
-
-
-int decode_X509_ALGOR(X509_ALGOR*pobj, jvalue* pj)
-{
-	int ret;
-	ret = get_asn1_object(&(pobj->algorithm),"algorithm",pj);
-	if (ret <= 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	ret = get_asn1_any(&(pobj->parameter),"parameter",pj);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	return 1;
-fail:
-	SETERRNO(ret);
-	return ret;
-}
-
 int encode_SpcAsn1Code(jvalue* pj, SpcAsn1Code* pobj)
 {
 	int ret;

@@ -150,6 +150,8 @@ int bmpstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int bmpstrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int safebagenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int safebagdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int x509auxenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int x509auxdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };
@@ -365,6 +367,7 @@ fail:
 #include "pkcs7.cpp"
 #include "aes.cpp"
 #include "randtest.cpp"
+#include "x509.cpp"
 #include "ossldump.cpp"
 #include "pkcs12.cpp"
 #include "ecdump.cpp"
