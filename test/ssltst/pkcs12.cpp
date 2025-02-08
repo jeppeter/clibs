@@ -389,7 +389,7 @@ int encode_PKCS12_BAGS_EXP(jvalue* pj,PKCS12_BAGS_EXP* pobj)
 
 	DEBUG_INFO("otype [%s]", otype);
 	if (strcmp(otype,X509_CERTIFICATE_OID) == 0 || strcmp(otype,X509_CERTIFICATE_STR) ==0) {
-		ret = set_asn1_octstr(&pobj->value.x509cert,"x509cert",pj);
+		ret = set_asn1_octdata(&pobj->value.x509cert,"x509cert",pj);
 		if (ret <= 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -401,7 +401,7 @@ int encode_PKCS12_BAGS_EXP(jvalue* pj,PKCS12_BAGS_EXP* pobj)
 			goto fail;
 		}
 	} else if (strcmp(otype,X509_CRL_OID) == 0 || strcmp(otype,X509_CRL_STR) == 0) {
-		ret = set_asn1_octstr(&pobj->value.x509crl,"x509crl",pj);
+		ret = set_asn1_octdata(&pobj->value.x509crl,"x509crl",pj);
 		if (ret <= 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -819,7 +819,7 @@ int decode_PKCS12_BAGS_EXP(PKCS12_BAGS_EXP* pobj,jvalue* pj)
 
 	DEBUG_INFO("otype [%s]", otype);
 	if (strcmp(otype,X509_CERTIFICATE_OID) == 0 || strcmp(otype,X509_CERTIFICATE_STR) == 0) {
-		ret = get_asn1_octstr(&pobj->value.x509cert,"x509cert",pj);
+		ret = get_asn1_octdata(&pobj->value.x509cert,"x509cert",pj);
 		if (ret <= 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -831,7 +831,7 @@ int decode_PKCS12_BAGS_EXP(PKCS12_BAGS_EXP* pobj,jvalue* pj)
 			goto fail;
 		}
 	} else if (strcmp(otype,X509_CRL_OID) == 0 || strcmp(otype,X509_CRL_STR) == 0) {
-		ret = get_asn1_octstr(&pobj->value.x509crl,"x509crl",pj);
+		ret = get_asn1_octdata(&pobj->value.x509crl,"x509crl",pj);
 		if (ret <= 0) {
 			GETERRNO(ret);
 			goto fail;
