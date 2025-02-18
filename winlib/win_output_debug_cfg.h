@@ -30,6 +30,13 @@
 #include <vector>
 #pragma warning(pop)
 
+#ifdef _MSC_VER
+#if _MSC_VER >= 1929
+#pragma warning(push)
+#pragma warning(disable:5267)
+#endif
+#endif
+
 class WINLIB_API OutfileCfg
 {
 public:
@@ -62,6 +69,13 @@ public:
 private:
 	std::vector<OutfileCfg*> *m_cfgs;
 };
+
+#ifdef _MSC_VER
+#if _MSC_VER >= 1929
+#pragma warning(pop)
+#endif
+#endif
+
 
 #ifdef __cplusplus
 extern "C" {
