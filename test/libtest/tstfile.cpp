@@ -1238,3 +1238,66 @@ int existdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 	ret = 0;
 	return 0;
 }
+
+int basename_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	const char* fname=NULL;
+	int i;
+	int ret;
+	pargs_options_t pargs=(pargs_options_t)popt;
+	char* pbase=NULL;
+	int basesize=0;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	init_log_level(pargs);
+
+	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+		fname = parsestate->leftargs[i];
+		ret = get_basename(fname,&pbase,&basesize);
+		if (ret < 0){
+			GETERRNO(ret);
+			goto out;
+		}
+		
+		fprintf(stdout,"[%s] basename %s\n",fname, pbase);
+	}
+
+	ret = 0;	
+out:
+	get_basename(NULL,&pbase,&basesize);
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int dirname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	const char* fname=NULL;
+	int i;
+	int ret;
+	pargs_options_t pargs=(pargs_options_t)popt;
+	char* pbase=NULL;
+	int basesize=0;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	init_log_level(pargs);
+
+	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+		fname = parsestate->leftargs[i];
+		ret = get_dirname(fname,&pbase,&basesize);
+		if (ret < 0){
+			GETERRNO(ret);
+			goto out;
+		}
+		
+		fprintf(stdout,"[%s] dirname %s\n",fname, pbase);
+	}
+
+	ret = 0;	
+out:
+	get_dirname(NULL,&pbase,&basesize);
+	SETERRNO(ret);
+	return ret;
+}

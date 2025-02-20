@@ -1712,6 +1712,7 @@ int __get_f_split(const char* fname,char** ppdrv,int* pdrvsize,char** ppdir,int 
     int retfsize = *pfsize;
     char* pext = *ppext;
     int retesize = *pextsize;
+    int ret;
 
     if (fname == NULL) {
         if (*ppdrv) {
@@ -1728,7 +1729,7 @@ int __get_f_split(const char* fname,char** ppdrv,int* pdrvsize,char** ppdir,int 
 
         if (*ppfname) {
             free(*ppfname);
-            *ppfname = NULl;
+            *ppfname = NULL;
         }
         *pfsize = 0;
 
@@ -1762,47 +1763,47 @@ try_again:
     }
     pdrv = NULL;
 
-    pdrv = malloc(retdrvsize);
+    pdrv = (char*)malloc((size_t)retdrvsize);
     if (pdrv == NULL) {
         GETERRNO(ret);
         goto fail;
     }
-    memset(pdrv,0,retdrvsize);
+    memset(pdrv,0,(size_t)retdrvsize);
 
     if (pdir != NULL && pdir != *ppdir) {
         free(pdir);
     }
     pdir = NULL;
-    pdir = malloc(retdsize);
+    pdir = (char*)malloc((size_t)retdsize);
     if (pdir == NULL) {
         GETERRNO(ret);
         goto fail;
     }
-    memset(pdir,0,retdsize);
+    memset(pdir,0,(size_t)retdsize);
 
     if (pfname != NULL && pfname != *ppfname) {
         free(pfname);
     }
     pfname = NULL;
-    pfname = malloc(fsize);
+    pfname = (char*)malloc((size_t)retfsize);
     if (pfname == NULL) {
         GETERRNO(ret);
         goto fail;
     }
-    memset(pfname,0,retfsize);
+    memset(pfname,0,(size_t)retfsize);
 
     if (pext != NULL && pext != *ppext) {
         free(pext);
     }
     pext = NULL;
-    pext = malloc(retesize);
+    pext = (char*)malloc((size_t)retesize);
     if (pext == NULL) {
         GETERRNO(ret);
         goto fail;
     }
-    memset(pext,0,retesize);
+    memset(pext,0,(size_t)retesize);
 
-    errval = _splitpath_s(fname,pdrv,retdrvsize,pdir,retdsize,pfname,retfsize,pext,retesize);
+    errval = _splitpath_s(fname,pdrv,(size_t)retdrvsize,pdir,(size_t)retdsize,pfname,(size_t)retfsize,pext,(size_t)retesize);
     if (errval != 0) {
         if (errval == ERANGE) {
             retdrvsize <<= 1;
@@ -1874,6 +1875,86 @@ int get_basename(const char* fname,char** ppbase,int *psize)
     char* pext=NULL;
     int esize=0;
     int retlen;
+    char* ccstr=NULL;
+    int ccsize=0;
+
+    if (fname == NULL) {
+        if (ppbase != NULL && *ppbase != NULL) {
+            free(*ppbase);
+            *ppbase = NULL;
+        }
+        if (psize) {
+            *psize = 0;    
+        }
+        
+        return 0;
+    }
+
+    if (ppbase == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    pbase =*ppbase;
+    retsize = *psize;
+
+    ret = __get_f_split(fname,&pdrv,&drvsize,&pdir,&dsize,&pfname,&fsize,&pext,&esize);
+    if (ret <0){
+        GETERRNO(ret);
+        goto fail;
+    }
+    DEBUG_INFO("pfname [%s] pext[%s]",pfname,pext);
+    ret = snprintf_safe(&ccstr,&ccsize,"%s%s",pfname,pext);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    retlen = ret;
+    if (retsize <= retlen || pbase == NULL) {
+        retsize = retlen + 1;
+        pbase = (char*)malloc((size_t)retsize);
+        if (pbase == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    memset(pbase,0,(size_t)retsize);
+    memcpy(pbase,ccstr,(size_t)retlen);
+    __get_f_split(NULL,&pdrv,&drvsize,&pdir,&dsize,&pfname,&fsize,&pext,&esize);
+    snprintf_safe(&ccstr,&ccsize,NULL);
+
+    if (*ppbase && *ppbase != pbase) {
+        free(*ppbase);
+    }
+    *ppbase = pbase;
+    *psize= retsize;
+
+    return retlen;
+fail:
+    __get_f_split(NULL,&pdrv,&drvsize,&pdir,&dsize,&pfname,&fsize,&pext,&esize);
+    snprintf_safe(&ccstr,&ccsize,NULL);
+    SETERRNO(ret);
+    return ret;
+}
+
+int get_dirname(const char* fname,char** ppbase,int *psize)
+{
+    int ret;
+    int retsize=0;
+    char* pbase=NULL;
+    char* pdrv=NULL;
+    int drvsize=0;
+    char* pdir=NULL;
+    int dsize=0;
+    char* pfname=NULL;
+    int fsize=0;
+    char* pext=NULL;
+    int esize=0;
+    int retlen;
+    char* ccstr=NULL;
+    int ccsize=0;
+    char* pcur=NULL;
 
     if (fname == NULL) {
         if (ppbase != NULL && *ppbase != NULL) {
@@ -1901,17 +1982,36 @@ int get_basename(const char* fname,char** ppbase,int *psize)
         goto fail;
     }
 
-    retlen = strlen(pfname);
+    DEBUG_INFO("pdrv [%s] pdir [%s]",pdrv,pdir);
+    ret = snprintf_safe(&ccstr,&ccsize,"%s%s",pdrv,pdir);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = ret;
     if (retsize <= retlen || pbase == NULL) {
         retsize = retlen + 1;
-        pbase = malloc(retsize);
+        pbase = (char*)malloc((size_t)retsize);
         if (pbase == NULL) {
             GETERRNO(ret);
             goto fail;
         }
     }
-    memset(pbase,0,retsize);
-    memcpy(pbase,pfname,retlen);
+    memset(pbase,0,(size_t)retsize);
+    memcpy(pbase,ccstr,(size_t)retlen);
+    pcur = pbase;
+    while(*pcur != '\0') {
+        pcur ++;
+    }
+    pcur -= 1;
+    while(*pcur == '\\' && pcur != pbase) {
+        /*to make slash omit*/
+        *pcur = '\0';
+        pcur -= 1;
+        retlen -= 1;
+    }
+
+    snprintf_safe(&ccstr,&ccsize,NULL);
     __get_f_split(NULL,&pdrv,&drvsize,&pdir,&dsize,&pfname,&fsize,&pext,&esize);
 
     if (*ppbase && *ppbase != pbase) {
@@ -1921,6 +2021,7 @@ int get_basename(const char* fname,char** ppbase,int *psize)
     *psize= retsize;
     return retlen;
 fail:
+    snprintf_safe(&ccstr,&ccsize,NULL);
     __get_f_split(NULL,&pdrv,&drvsize,&pdir,&dsize,&pfname,&fsize,&pext,&esize);
     SETERRNO(ret);
     return ret;

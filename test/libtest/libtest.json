@@ -535,5 +535,11 @@
     },
     "getprocmem<getprocmem_handler>##pids ... to get memory##" : {
         "$" : "+"
+    },
+    "basename<basename_handler>##file ... to display basename##" : {
+        "$" : "+"
+    },
+    "dirname<dirname_handler>##file ... to display basename##" : {
+        "$" : "+"
     }
 }
