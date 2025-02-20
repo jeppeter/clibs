@@ -1699,8 +1699,231 @@ fail:
     AnsiToTchar(NULL,&tdname,&tdsize);
     SETERRNO(ret);
     return 0;
+}
 
+int __get_f_split(const char* fname,char** ppdrv,int* pdrvsize,char** ppdir,int *pdsize,char** ppfname,int* pfsize,char** ppext,int *pextsize)
+{
+    errno_t errval;
+    char* pdrv=*ppdrv;
+    int retdrvsize = *pdrvsize;
+    char* pdir=*ppdir;
+    int retdsize = *pdsize;
+    char* pfname = *ppfname;
+    int retfsize = *pfsize;
+    char* pext = *ppext;
+    int retesize = *pextsize;
 
+    if (fname == NULL) {
+        if (*ppdrv) {
+            free(*ppdrv);
+            *ppdrv = NULL;
+        }
+        *pdrvsize = 0;
+
+        if (*ppdir) {
+            free(*ppdir);
+            *ppdir = NULL;
+        }
+        *pdsize = 0;
+
+        if (*ppfname) {
+            free(*ppfname);
+            *ppfname = NULl;
+        }
+        *pfsize = 0;
+
+        if (*ppext) {
+            free(*ppext);
+            *ppext = NULL;
+        }
+        *pextsize = 0;
+
+        return 0;
+    }
+
+    if (retdrvsize == 0) {
+        retdrvsize = 4;
+    }
+    if (retdsize == 0) {
+        retdsize = 4;
+    }
+
+    if (retfsize == 0) {
+        retfsize = 4;
+    }
+
+    if (retesize == 0) {
+        retesize = 4;
+    }
+
+try_again:
+    if (pdrv != NULL && pdrv != *ppdrv) {
+        free(pdrv);
+    }
+    pdrv = NULL;
+
+    pdrv = malloc(retdrvsize);
+    if (pdrv == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(pdrv,0,retdrvsize);
+
+    if (pdir != NULL && pdir != *ppdir) {
+        free(pdir);
+    }
+    pdir = NULL;
+    pdir = malloc(retdsize);
+    if (pdir == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(pdir,0,retdsize);
+
+    if (pfname != NULL && pfname != *ppfname) {
+        free(pfname);
+    }
+    pfname = NULL;
+    pfname = malloc(fsize);
+    if (pfname == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(pfname,0,retfsize);
+
+    if (pext != NULL && pext != *ppext) {
+        free(pext);
+    }
+    pext = NULL;
+    pext = malloc(retesize);
+    if (pext == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(pext,0,retesize);
+
+    errval = _splitpath_s(fname,pdrv,retdrvsize,pdir,retdsize,pfname,retfsize,pext,retesize);
+    if (errval != 0) {
+        if (errval == ERANGE) {
+            retdrvsize <<= 1;
+            retdsize <<= 1;
+            retfsize <<= 1;
+            retesize <<= 1;
+            goto try_again;
+        }
+        GETERRNO(ret);
+        ERROR_INFO("_splitpath_s(%s) error[%d]",fname,errval);
+        goto fail;
+    }
+
+    if (pdrv != *ppdrv && *ppdrv != NULL) {
+        free(*ppdrv);
+    }
+    *ppdrv = pdrv;
+    *pdrvsize = retdrvsize;
+    if (pdir != *ppdir && *ppdir != NULL) {
+        free(*ppdir);
+    }
+    *ppdir = pdir;
+    *pdsize = retdsize;
+    if (pfname != *ppfname && *ppfname!= NULL) {
+        free(*ppfname);
+    }
+    *ppfname = pfname;
+    *pfsize = retfsize;
+    if (pext != *ppext && *ppext != NULL) {
+        free(*ppext);
+    }
+    *ppext = pext;
+    *pextsize = retesize;
+    return 0;
+fail:
+    if (pdrv != NULL && pdrv != *ppdrv) {
+        free(pdrv);
+    }
+    pdrv = NULL;
+    if (pdir != NULL && pdir != *ppdir) {
+        free(pdir);
+    }
+    pdir = NULL;
+
+    if (pfname != NULL && pfname != *ppfname) {
+        free(pfname);
+    }
+    pfname = NULL;
+
+    if (pext != NULL && pext != *ppext) {
+        free(pext);
+    }
+    pext = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int get_basename(const char* fname,char** ppbase,int *psize)
+{
+    int ret;
+    int retsize=0;
+    char* pbase=NULL;
+    char* pdrv=NULL;
+    int drvsize=0;
+    char* pdir=NULL;
+    int dsize=0;
+    char* pfname=NULL;
+    int fsize=0;
+    char* pext=NULL;
+    int esize=0;
+    int retlen;
+
+    if (fname == NULL) {
+        if (ppbase != NULL && *ppbase != NULL) {
+            free(*ppbase);
+            *ppbase = NULL;
+        }
+        if (psize) {
+            *psize = 0;    
+        }
+        
+        return 0;
+    }
+
+    if (ppbase == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+    pbase =*ppbase;
+    retsize = *psize;
+
+    ret = __get_f_split(fname,&pdrv,&drvsize,&pdir,&dsize,&pfname,&fsize,&pext,&esize);
+    if (ret <0){
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    retlen = strlen(pfname);
+    if (retsize <= retlen || pbase == NULL) {
+        retsize = retlen + 1;
+        pbase = malloc(retsize);
+        if (pbase == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+    memset(pbase,0,retsize);
+    memcpy(pbase,pfname,retlen);
+    __get_f_split(NULL,&pdrv,&drvsize,&pdir,&dsize,&pfname,&fsize,&pext,&esize);
+
+    if (*ppbase && *ppbase != pbase) {
+        free(*ppbase);
+    }
+    *ppbase = pbase;
+    *psize= retsize;
+    return retlen;
+fail:
+    __get_f_split(NULL,&pdrv,&drvsize,&pdir,&dsize,&pfname,&fsize,&pext,&esize);
+    SETERRNO(ret);
+    return ret;
 }
 
 

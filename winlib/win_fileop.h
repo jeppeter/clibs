@@ -71,6 +71,9 @@ WINLIB_API int exist_file(const char* fname);
 WINLIB_API int exist_dir(const char* dname);
 
 
+WINLIB_API int get_basename(const char* fname,char** ppbase,int *psize);
+WINLIB_API int get_dirname(const char* fname,char** ppbase,int *psize);
+
 #ifdef __cplusplus
 };
 #endif
