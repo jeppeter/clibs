@@ -591,3 +591,84 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int cmp_name(const void* a, const void* b)
+{
+    char** ann = (char**)a;
+    char** bnn = (char**)b;
+    int ret;
+    char* an = *ann;
+    char* bn = *bnn;
+    
+    ret = strcmp(an,bn);
+    DEBUG_INFO("an[%s] bn[%s] ret %d",an,bn,ret);
+    return ret;
+}
+
+int listdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int recursive = 0;
+    char* pdir=NULL;
+    pargs_options_t pargs = (pargs_options_t)popt;
+    char** ppfiles=NULL;
+    int fsize=0;
+    int flen=0;
+    char** ppdirs=NULL;
+    int dsize=0;
+    int dlen =0;
+    int i;
+    int ret;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    init_log_level(pargs);
+
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        pdir = parsestate->leftargs[0];
+        if (parsestate->leftargs[1]) {
+            recursive = 1;
+        }
+    }
+
+    if (pdir == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "need dir\n");
+        goto out;
+    }
+
+    ret = get_dir_items(pdir,&ppfiles,&fsize,&flen,&ppdirs,&dsize,&dlen,recursive);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    qsort(ppfiles,(size_t)flen,sizeof(*ppfiles),cmp_name);
+    qsort(ppdirs,(size_t)dlen,sizeof(*ppdirs),cmp_name);
+    DEBUG_INFO("sizeof(*ppfiles) %d size %d", sizeof(*ppfiles),flen);
+    DEBUG_INFO("sizeof(*ppdirs) %d size %d", sizeof(*ppdirs),dlen);
+
+    fprintf(stdout,"%s files",pdir);
+    for(i=0;i<flen;i++) {
+        if ((i%5) == 0) {
+            fprintf(stdout,"\n    ");
+        }
+        fprintf(stdout," %s",ppfiles[i]);
+    }
+    fprintf(stdout,"\n");
+
+    fprintf(stdout,"%s dirs",pdir);
+    for(i=0;i<dlen;i++) {
+        if ((i%5) == 0) {
+            fprintf(stdout,"\n    ");
+        }
+        fprintf(stdout," %s",ppdirs[i]);
+    }
+    fprintf(stdout,"\n");
+
+    ret = 0;
+out:
+    get_dir_items(NULL,&ppfiles,&fsize,&flen,&ppdirs,&dsize,&dlen,0);
+    SETERRNO(ret);
+    return ret;
+}

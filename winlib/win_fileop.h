@@ -57,6 +57,7 @@ WINLIB_API HANDLE get_file_handle(void* pfile);
 ******************************************/
 typedef int (*enum_callback_t)(char* basedir,char* curdir,char *curpat,void* arg);
 WINLIB_API int enumerate_directory(char* basedir,enum_callback_t callback,void* arg);
+WINLIB_API int get_dir_items(char* basedir,char*** pppfiles,int *pfsize,int *pflen, char*** pppdirs,int *pdsize,int *pdlen,int recursive);
 
 
 WINLIB_API void* create_file_ov(HANDLE hd,char* fname);

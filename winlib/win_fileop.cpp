@@ -1468,6 +1468,307 @@ int enumerate_directory(char* basedir,enum_callback_t callback,void* arg)
     return __enumerate_dir_inner(basedir,basedir,0,callback,arg);
 }
 
+typedef struct {
+    int m_recursive;
+    int m_reserv1;
+    char** m_ppfiles;
+    int m_filesize;
+    int m_filelen;
+    char** m_ppdirs;
+    int m_dirsize;
+    int m_dirlen;
+} dir_item_t, *pdir_item_t;
+
+void __release_dir_item(pdir_item_t* ppitem)
+{
+    if (ppitem && *ppitem) {
+        pdir_item_t pitem = *ppitem;
+        int i;
+        for(i=0;i<pitem->m_filelen;i++) {
+            if (pitem->m_ppfiles[i]) {
+                free(pitem->m_ppfiles[i]);
+            }
+            pitem->m_ppfiles[i] = NULL;
+        }
+        free(pitem->m_ppfiles);
+        pitem->m_ppfiles = NULL;
+        pitem->m_filesize = 0;
+
+        for(i=0;i<pitem->m_dirlen;i++) {
+            if (pitem->m_ppdirs[i]) {
+                free(pitem->m_ppdirs[i]);
+            }
+            pitem->m_ppdirs[i] = NULL;
+        }
+        free(pitem->m_ppdirs);
+        pitem->m_ppdirs = NULL;
+        pitem->m_dirsize = 0;
+        pitem->m_dirlen = 0;
+        free(pitem);
+        *ppitem = NULL;
+    }
+    return;
+}
+
+pdir_item_t __alloc_dir_item(int recursive)
+{
+    pdir_item_t pret=NULL;
+    int ret;
+    pret = (pdir_item_t)malloc(sizeof(*pret));
+    if (pret == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(pret,0,sizeof(*pret));
+    pret->m_recursive = recursive;
+    return pret;
+fail:
+    __release_dir_item(&pret);
+    SETERRNO(ret);
+    return NULL;
+}
+
+int __get_dir_item(char* basedir,char* curdir,char *curpat,void* arg)
+{
+    pdir_item_t pitem = (pdir_item_t) arg;
+    char** pptmp=NULL;
+    int newsize=0;
+    char* wholename = NULL;
+    int wholesize =0;
+    int ret;
+    char* extractpat = NULL;
+    int slen;
+    char* insertname=NULL;
+    int insertsize=0;
+
+    if (strcmp(basedir,curdir) != 0 && pitem->m_recursive == 0) {
+        /*that is not dir*/
+        return 1;
+    }
+
+    DEBUG_INFO("basedir [%s] curdir [%s] curpat [%s]",basedir,curdir,curpat);
+
+    ret = snprintf_safe(&wholename,&wholesize,"%s\\%s",curdir,curpat);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (strcmp(basedir,curdir) == 0) {
+        ret = snprintf_safe(&insertname,&insertsize,"%s",curpat);    
+    } else {
+        slen = (int)strlen(basedir);
+        extractpat = curdir;
+        extractpat += slen;
+        while(*extractpat == '\\' && *extractpat != '\0') {
+            extractpat += 1;
+        }
+
+        if (strlen(extractpat) > 0) {
+            ret = snprintf_safe(&insertname,&insertsize,"%s\\%s",extractpat,curpat);
+        } else {
+            ret = snprintf_safe(&insertname,&insertsize,"%s",curpat);
+        }
+    }
+
+    
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    if (exist_dir(wholename)) {
+
+        /*that is file*/
+        if (pitem->m_dirlen >= (pitem->m_dirsize -1)) {
+            /*we expand 32 items*/
+            newsize = pitem->m_dirlen + 32;
+            pptmp = (char**)malloc(sizeof(*pptmp)*newsize);
+            if (pptmp == NULL) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            memset(pptmp,0,sizeof(*pptmp)*newsize);
+            if (pitem->m_dirlen > 0) {
+                memcpy(pptmp,pitem->m_ppdirs,sizeof(*pptmp) *pitem->m_dirlen);
+            }
+
+            if (pitem->m_ppdirs) {
+                free(pitem->m_ppdirs);
+            }
+            pitem->m_ppdirs = pptmp;
+            pptmp = NULL;
+            pitem->m_dirsize = newsize;
+        }
+        pitem->m_ppdirs[pitem->m_dirlen] = _strdup(insertname);
+        if (pitem->m_ppdirs[pitem->m_dirlen] == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        pitem->m_dirlen += 1;
+    } else {
+        /*that is file*/
+        if (pitem->m_filelen >= (pitem->m_filesize -1)) {
+            /*we expand 32 items*/
+            newsize = pitem->m_filelen + 32;
+            pptmp = (char**)malloc(sizeof(*pptmp)*newsize);
+            if (pptmp == NULL) {
+                GETERRNO(ret);
+                goto fail;
+            }
+            memset(pptmp,0,sizeof(*pptmp)*newsize);
+            if (pitem->m_filelen > 0) {
+                memcpy(pptmp,pitem->m_ppfiles,sizeof(*pptmp) *pitem->m_filelen);
+            }
+
+            if (pitem->m_ppfiles) {
+                free(pitem->m_ppfiles);
+            }
+            pitem->m_ppfiles = pptmp;
+            pptmp = NULL;
+            pitem->m_filesize = newsize;
+        }
+        pitem->m_ppfiles[pitem->m_filelen] = _strdup(insertname);
+        if (pitem->m_ppfiles[pitem->m_filelen] == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        pitem->m_filelen += 1;
+    }
+
+    snprintf_safe(&insertname,&insertsize,NULL);
+    snprintf_safe(&wholename,&wholesize,NULL);
+    return 1;
+fail:
+    if (pptmp) {
+        free(pptmp);
+    }
+    pptmp = NULL;
+    snprintf_safe(&insertname,&insertsize,NULL);
+    snprintf_safe(&wholename,&wholesize,NULL);
+    SETERRNO(ret);
+    return ret;
+}
+
+int get_dir_items(char* basedir,char*** pppfiles,int *pfsize,int *pflen, char*** pppdirs,int *pdsize,int *pdlen,int recursive)
+{
+    int ret;
+    int retlen = 0;
+    int cnt;
+    char** ppcur;
+    int cursize =0;
+    int i;
+    if (basedir == NULL) {
+        if (pfsize != NULL && pppfiles != NULL && *pppfiles != NULL) {
+            ppcur = *pppfiles;
+            cursize = *pfsize;
+            for(i=0;i<cursize;i++) {
+                if (ppcur[i]) {
+                    free(ppcur[i]);
+                }
+                ppcur[i] = NULL;
+            }
+            free(ppcur);
+            *pppfiles = NULL;
+            *pfsize = 0;
+            *pflen = 0;
+        }
+
+        if (pppdirs && *pppdirs != NULL && pdsize) {
+            ppcur = *pppdirs;
+            cursize = *pdsize;
+            for(i=0;i<cursize;i++) {
+                if (ppcur[i]) {
+                    free(ppcur[i]);
+                }
+                ppcur[i] = NULL;
+            }
+            free(ppcur);
+            *pppdirs = NULL;
+            *pdlen = 0;
+            *pdsize = 0;
+        }
+        return 0;
+    }
+    if (pppfiles == NULL || pfsize == NULL || pppdirs == NULL || pdsize == NULL || pflen == NULL || pdlen == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        goto fail;
+    }
+
+    /*now free all the functions*/
+
+    if (pfsize != NULL && pppfiles != NULL && *pppfiles != NULL) {
+        ppcur = *pppfiles;
+        cursize = *pfsize;
+        for(i=0;i<cursize;i++) {
+            if (ppcur[i]) {
+                free(ppcur[i]);
+            }
+            ppcur[i] = NULL;
+        }
+        free(ppcur);
+        *pppfiles = NULL;
+        *pfsize = 0;
+        *pflen = 0;
+    }
+
+    if (pppdirs && *pppdirs != NULL && pdsize) {
+        ppcur = *pppdirs;
+        cursize = *pdsize;
+        for(i=0;i<cursize;i++) {
+            if (ppcur[i]) {
+                free(ppcur[i]);
+            }
+            ppcur[i] = NULL;
+        }
+        free(ppcur);
+        *pppdirs = NULL;
+        *pdsize = 0;
+        *pdlen = 0;
+    }
+
+
+    pdir_item_t pitem= __alloc_dir_item(recursive);
+    if (pitem == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    ret = __enumerate_dir_inner(basedir,basedir,0,__get_dir_item,pitem);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    /*to copy the values*/
+    cnt = pitem->m_filelen;
+    retlen += cnt;
+    if (cnt > 0) {
+        *pppfiles = pitem->m_ppfiles;
+        *pfsize = pitem->m_filesize;
+        *pflen = pitem->m_filelen;
+        pitem->m_ppfiles = NULL;
+        pitem->m_filelen = 0;
+        pitem->m_filesize = 0;
+    }
+
+    cnt = pitem->m_dirlen;
+    retlen += cnt;
+    if (cnt > 0) {
+        *pppdirs = pitem->m_ppdirs;
+        *pdsize = pitem->m_dirsize;
+        *pdlen = pitem->m_dirlen;
+        pitem->m_ppdirs = NULL;
+        pitem->m_dirsize = 0;
+        pitem->m_dirlen = 0;
+    }
+
+    __release_dir_item(&pitem);
+    return retlen;
+fail:
+    __release_dir_item(&pitem);
+    SETERRNO(ret);
+    return ret;
+}
+
 #define   FILE_OV_MAGIC      0x77021123
 
 typedef struct __file_ov {

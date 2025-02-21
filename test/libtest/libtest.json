@@ -541,5 +541,8 @@
     },
     "dirname<dirname_handler>##file ... to display basename##" : {
         "$" : "+"
+    },
+    "listdir<listdir_handler>##dir [recursvie] to list dir##" : {
+        "$" : "+"
     }
 }
