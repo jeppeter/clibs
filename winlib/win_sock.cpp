@@ -78,6 +78,8 @@ typedef struct __sock_data_priv {
 	HANDLE m_rdevt;
 	OVERLAPPED m_rdov;
 	uint8_t* m_prdbuf;
+	int m_closeerr;
+	int m_reserv2;
 } sock_data_priv_t, *psock_data_priv_t;
 
 
@@ -170,6 +172,7 @@ void __free_socket(psock_data_priv_t* pptcp)
 		psock1->m_rdevt = NULL;
 		memset(&(psock1->m_rdov), 0, sizeof(psock1->m_rdov));
 		psock1->m_prdbuf = NULL;
+		psock1->m_closeerr = 0;
 		psock1->m_rdleft = 0;
 
 		if (psock1->m_inwr) {
@@ -256,6 +259,7 @@ psock_data_priv_t __alloc_sock_priv(int typeval, char* ipaddr, int port)
 	psock->m_accsock = INVALID_SOCKET;
 	psock->m_type = typeval;
 	psock->m_magic = SOCKET_DATA_MAGIC;
+	psock->m_closeerr = 0;
 	if (typeval == SOCKET_CLIENT_TYPE) {
 		psock->m_peeraddr = _strdup(ipaddr);
 		if (psock->m_peeraddr == NULL) {
@@ -276,7 +280,7 @@ psock_data_priv_t __alloc_sock_priv(int typeval, char* ipaddr, int port)
 	}
 
 	return psock;
-	fail:
+fail:
 	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
@@ -548,10 +552,10 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 		}
 	}
 
-	succ:
+succ:
 	DEBUG_INFO("connect_tcp_socket inconn %d", psock->m_inconn);
 	return psock;
-	fail:
+fail:
 	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
@@ -602,7 +606,7 @@ int complete_tcp_connect(void* ptcp)
 	}
 	return ret;
 
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -645,7 +649,7 @@ int __inner_accept(psock_data_priv_t psock)
 	}
 
 	return psock->m_inacc;
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -749,7 +753,7 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 	}
 
 	return psock;
-	fail:
+fail:
 	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
@@ -798,6 +802,12 @@ int complete_tcp_accept(void* ptcp)
 	fail:
 	SETERRNO(ret);
 	return ret;
+}
+
+int sock_peer_is_closed(void* ptcp)
+{
+	psock_data_priv_t psock = (psock_data_priv_t)ptcp;
+	return psock->m_closeerr;
 }
 
 void* accept_tcp_socket(void* ptcp)
@@ -898,6 +908,8 @@ int __inner_start_read(psock_data_priv_t psock)
 		//DEBUG_INFO("dret %ld", dret);
 		if (dret == 0) {
 			ret = -WSAESHUTDOWN;
+			/*to make the close error*/
+			psock->m_closeerr = 1;
 			goto fail;
 		}
 		psock->m_rdleft -= dret;
@@ -915,7 +927,7 @@ int __inner_start_read(psock_data_priv_t psock)
 		//DEBUG_INFO("rdleft %d", psock->m_rdleft);
 		return 0;
 	}
-	fail:
+fail:
 	ERROR_INFO("read [%s:%d] => [%s:%d] left [%d] error[%d]", psock->m_peeraddr,
 		psock->m_peerport, psock->m_selfaddr, psock->m_selfport, psock->m_rdleft, ret);
 	SETERRNO(ret);
@@ -1218,6 +1230,8 @@ fail:
 
 void* bind_udp_socket(char* ipaddr, int port)
 {
+	ipaddr = ipaddr;
+	port =port;
 	return NULL;
 }
 

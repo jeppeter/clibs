@@ -24,6 +24,7 @@ WINLIB_API int complete_tcp_accept(void* ptcp);
 WINLIB_API void* bind_tcp_socket(char* ipaddr,int port,int backlog);
 WINLIB_API void* accept_tcp_socket(void* ptcp);
 WINLIB_API int read_tcp_socket(void* ptcp, uint8_t* pbuf,int bufsize);
+WINLIB_API int sock_peer_is_closed(void* ptcp);
 WINLIB_API int write_tcp_socket(void* ptcp, uint8_t* pbuf,int bufsize);
 WINLIB_API HANDLE get_tcp_connect_handle(void* ptcp);
 WINLIB_API HANDLE get_tcp_accept_handle(void* ptcp);
