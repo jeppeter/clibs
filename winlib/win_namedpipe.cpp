@@ -401,10 +401,12 @@ int read_namedpipe(void* pnp1, char* buffer, int bufsize)
             if (ret == -ERROR_IO_PENDING) {
                 pnp->m_rdpending = 1;
                 pnp->m_rdleft = leftlen;
+                DEBUG_INFO("m_rdpending [%d]",leftlen);
                 break;
             } else if (ret == -ERROR_MORE_DATA) {
                 retlen += leftlen;
                 leftlen = 0;
+                DEBUG_INFO("read need ERROR_MORE_DATA");
                 break;
             }
             ERROR_INFO("read [%s] buffer error[%d]", pnp->m_name, ret);
@@ -418,9 +420,11 @@ int read_namedpipe(void* pnp1, char* buffer, int bufsize)
 
         leftlen -= cbread;
         retlen += cbread;
+        DEBUG_BUFFER_FMT(ptr,cbread,"read [%d] [%s]",cbread,pnp->m_name);
         ptr += cbread;
     }
 
+    DEBUG_BUFFER_FMT(buffer,retlen,"read whole");
     return retlen;
 fail:
     SETERRNO(ret);
@@ -579,13 +583,14 @@ int complete_namedpipe_connpending(void* pnp1)
 
     bret = GetOverlappedResult(pnp->m_hpipe, &(pnp->m_connov),&cbret,FALSE);
     if (!bret) {
-    	GETERRNO(ret);
-    	if (ret != !-ERROR_IO_PENDING) {
-    		ERROR_INFO("get [%s] bind ov error[%d]", pnp->m_name, ret);
-    		goto fail;
-    	}
+        GETERRNO(ret);
+        if (ret != !-ERROR_IO_PENDING) {
+            ERROR_INFO("get [%s] bind ov error[%d]", pnp->m_name, ret);
+            goto fail;
+        }
     } else {
-    	completed = 1;
+        DEBUG_INFO("cbret %ld",cbret);
+        completed = 1;
         pnp->m_connpending = 0;
     }
 

@@ -2397,6 +2397,7 @@ write_again:
                 writelen = (int)(filelen[curidx] + sizeof(uint32_t));
                 memcpy(&(pwritebuf[0]), &writelen, sizeof(uint32_t));
                 memcpy(&(pwritebuf[sizeof(uint32_t)]), filecon[curidx], (size_t)filelen[curidx]);
+                DEBUG_BUFFER_FMT(pwritebuf,writelen,"write [%d] file",curidx);
                 ret = write_namedpipe(pnp, pwritebuf, writelen);
                 if (ret < 0) {
                     GETERRNO(ret);
