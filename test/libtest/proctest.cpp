@@ -1777,6 +1777,187 @@ out:
 int npsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     char* pipename = NULL;
+    void* pnp=NULL;
+    pipe_comm* pcomm = NULL;
+    pargs_options_t pargs = (pargs_options_t)popt;
+    HANDLE waithds[MAX_WAIT_NUM];
+    DWORD waitnum = 0;
+    jvalue* pj=NULL;
+    char* pjstr =NULL;
+    unsigned int jsize=0;
+    int ret;
+    DWORD dret;
+    HANDLE curhd;
+
+    init_log_level(pargs);
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(parsestate);
+
+    pipename = pargs->m_pipename;
+
+    st_ExitEvt = set_ctrlc_handle();
+    if (st_ExitEvt == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+try_again:
+    close_namedpipe(&pnp);
+    if (pcomm) {
+        delete pcomm;
+    }
+    pcomm = NULL;
+
+    if (pjstr) {
+        free(pjstr);
+    }
+    pjstr = NULL;
+    jsize = 0;
+    if (pj) {
+        jvalue_destroy(pj);
+    }
+    pj = NULL;
+
+
+    pnp = bind_namedpipe(pipename);
+    if (pnp == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("bind [%s] error[%d]", pipename, ret);
+        goto out;
+    }
+
+
+    DEBUG_INFO("bind [%s]", pipename);
+
+    if (get_namedpipe_connstate(pnp) > 0) {
+        while (1) {
+            waitnum = 0;
+            waithds[waitnum] = st_ExitEvt;
+            waitnum ++;
+            waithds[waitnum] = get_namedpipe_connevt(pnp);
+            waitnum ++;
+
+            dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, INFINITE, FALSE);
+            if ((dret < (WAIT_OBJECT_0 + waitnum))) {
+                curhd = waithds[(dret - WAIT_OBJECT_0)];
+                if (curhd == st_ExitEvt) {
+                    ret = 0;
+                    goto out;
+                } else if (curhd == get_namedpipe_connevt(pnp)) {
+                    ret = complete_namedpipe_connpending(pnp);
+                    if (ret < 0) {
+                        GETERRNO(ret);
+                        ERROR_INFO("wait connect[%s] error[%d]", pipename, ret);
+                        goto try_again;
+                    }
+                    if (ret > 0) {
+                        break;
+                    }
+                }
+            } else {
+                ERROR_INFO("wait connect[%s] error[%d]", pipename, dret);
+                goto try_again;
+            }
+        }
+    }
+
+    DEBUG_INFO("client connect[%s]", pipename);
+
+    pcomm = new pipe_comm(pnp,pipename);
+    /*we not used it*/
+    pnp = NULL;
+    ret = pcomm->init();
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO("init %s error %d",pipename,ret);
+        goto try_again;
+    }
+
+    while(1) {
+        waitnum = 0;
+        waithds[waitnum] = st_ExitEvt;
+        waitnum += 1;
+    set_read:
+        if (pcomm->is_read_mode()) {
+            waithds[waitnum] = pcomm->get_read_evt();
+            waitnum += 1;
+        } else {
+        read_again:
+            ASSERT_IF(pj == NULL);
+            ret = pcomm->read_json(&pj);
+            if (ret <0) {
+                GETERRNO(ret);
+                ERROR_INFO("read_json [%s] error[%d]",pipename,ret);
+                goto try_again;
+            } else if (ret > 0) {
+                ASSERT_IF(pjstr == NULL);
+                pjstr = jvalue_write_pretty(pj,&jsize);
+                if (pjstr == NULL) {
+                    GETERRNO(ret);
+                    goto out;
+                }
+                DEBUG_INFO("read\n%s",pjstr);
+                free(pjstr);
+                pjstr = NULL;
+                jsize = 0;
+
+                ret = pcomm->write_json(pj);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    goto try_again;
+                }
+                jvalue_destroy(pj);
+                pj = NULL;
+                goto read_again;
+            }
+            goto set_read;
+        }
+
+        dret = WaitForMultipleObjectsEx(waitnum,waithds,FALSE,10000,TRUE);
+        if (dret < (WAIT_OBJECT_0 + waitnum)) {
+            curhd = waithds[(dret - WAIT_OBJECT_0)];
+            if (curhd == st_ExitEvt) {
+                ERROR_INFO("break");
+                break;
+            } else if (curhd == pcomm->get_read_evt()) {
+                ret = pcomm->complete_read();
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    ERROR_INFO("complete_read error %d",ret);
+                    goto try_again;
+                }
+            }
+        } else if (dret != WAIT_TIMEOUT) {
+            ERROR_INFO("dret %d",dret);
+            goto try_again;
+        }
+    }
+
+    ret = 0;
+out:
+    if (pj) {
+        jvalue_destroy(pj);
+    }
+    pj = NULL;
+
+    if (pjstr) {
+        free(pjstr);
+    }
+    pjstr = NULL;
+    if (pcomm) {
+        delete pcomm;
+    }
+    pcomm = NULL;
+    close_namedpipe(&pnp);
+    SETERRNO(ret);
+    return ret;
+}
+
+int npsvr2_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char* pipename = NULL;
     int ret;
     int argcnt = 0;
     char** filecon = NULL;
@@ -2262,6 +2443,183 @@ out:
 }
 
 int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    void* pnp=NULL;
+    pipe_comm* pcomm = NULL;
+    jvalue* pj=NULL;
+    jvalue* inpj =NULL;
+    char* pipename = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int curidx =0;
+    int argcnt = 0;
+    int readcnt = 0;
+    HANDLE waithds[3];
+    DWORD waitnum;
+    char* fname;
+    char* pbuf=NULL;
+    int buflen=0,bufsize=0;
+    int ret;
+    char* pjstr=NULL;
+    unsigned int jsize=0;
+    DWORD dret;
+    HANDLE curhd;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    pipename = pargs->m_pipename;
+
+    while(1) {
+        if (parsestate->leftargs == NULL || parsestate->leftargs[argcnt] == NULL) {
+            break;
+        }
+        argcnt += 1;
+    }
+
+    pnp = connect_namedpipe_timeout(pipename,pargs->m_timeout);
+    if (pnp == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    pcomm = new pipe_comm(pnp,pipename);
+    pnp = NULL;
+    ret=  pcomm->init();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    st_ExitEvt = set_ctrlc_handle();
+    if (st_ExitEvt == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    while(1) {
+        waitnum = 0;
+        waithds[waitnum] = st_ExitEvt;
+        waitnum += 1;
+    set_read:
+        if (pcomm->is_read_mode()) {
+            waithds[waitnum] = pcomm->get_read_evt();
+            waitnum += 1;
+        } else {
+        read_again:
+            ASSERT_IF(inpj == NULL);
+            ret = pcomm->read_json(&inpj);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto out;
+            } else if (ret > 0) {
+                ASSERT_IF(pjstr == NULL);
+                pjstr = jvalue_write_pretty(inpj,&jsize);
+                if (pjstr == NULL) {
+                    GETERRNO(ret);
+                    goto out;
+                }
+                DEBUG_INFO("read\n%s",pjstr);
+                free(pjstr);
+                pjstr = NULL;
+                jvalue_destroy(inpj);
+                inpj = NULL;
+                readcnt += 1;
+                if (readcnt == argcnt) {
+                    DEBUG_INFO("all over");
+                    break;
+                }
+                goto read_again;
+            }
+            goto set_read;
+        }
+
+        if (pcomm->is_write_mode()) {
+            waithds[waitnum] = pcomm->get_write_evt();
+            waitnum += 1;
+        } else {
+            while (curidx < argcnt) {
+                fname = parsestate->leftargs[curidx];
+                ret = read_file_whole(fname,&pbuf,&bufsize);
+                if (ret <0){
+                    GETERRNO(ret);
+                    goto out;
+                }
+                buflen = ret; 
+                if (buflen < bufsize) {
+                    pbuf[buflen] = '\0';
+                }
+                pj = jvalue_read(pbuf,&jsize);
+                if (pj == NULL) {
+                    GETERRNO(ret);
+                    goto out;
+                }
+
+                ret = pcomm->write_json(pj);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    goto out;
+                }
+                jvalue_destroy(pj);
+                pj = NULL;
+                curidx += 1;
+            }
+        }
+
+        dret = WaitForMultipleObjectsEx(waitnum,waithds,FALSE,10000,TRUE);
+        if (dret < (WAIT_OBJECT_0 + waitnum)) {
+            curhd = waithds[(dret - WAIT_OBJECT_0)];
+            if (curhd == st_ExitEvt) {
+                DEBUG_INFO("break");
+                break;
+            } else if (curhd == pcomm->get_read_evt()) {
+                ret = pcomm->complete_read();
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    goto out;
+                }
+            } else if (curhd == pcomm->get_write_evt()) {
+                ret = pcomm->complete_write();
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    goto out;
+                }
+            }
+        } else if (dret != WAIT_TIMEOUT) {
+            GETERRNO(ret);
+            ERROR_INFO("dret %d",dret);
+            goto out;
+        }
+    }
+
+
+
+    ret = 0;
+out:
+    read_file_whole(NULL,&pbuf,&bufsize);
+    buflen = 0;
+    if(pj) {
+        jvalue_destroy(pj);
+    }
+    pj = NULL;
+    if (inpj) {
+        jvalue_destroy(inpj);
+    }
+    inpj = NULL;
+    if(pjstr){
+        free(pjstr);
+    }
+    pjstr = NULL;
+    close_namedpipe(&pnp);
+    if (pcomm) {
+        delete pcomm;
+        pcomm = NULL;
+    }
+    SETERRNO(ret);
+    return ret;
+}
+
+int npcli2_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int ret;
     void* pnp = NULL;

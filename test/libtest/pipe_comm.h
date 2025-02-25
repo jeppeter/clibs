@@ -2,8 +2,24 @@
 #ifndef __PIPE_COMM_H_C7ABCD762C503EBB441C3363BED9EC7D__
 #define __PIPE_COMM_H_C7ABCD762C503EBB441C3363BED9EC7D__
 
+
 #include <jvalue.h>
+
+#ifdef  _MSC_VER
+#if  _MSC_VER >= 1929
+#pragma warning(push)
+#pragma warning(disable:4577)
+#endif
+#endif /* _MSC_VER*/
+
 #include <vector>
+
+#ifdef  _MSC_VER
+#if  _MSC_VER >= 1929
+#pragma warning(pop)
+#endif
+#endif /* _MSC_VER*/
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,11 +46,22 @@ public:
 
 private:
 	void __uninit();
-	uint32_t __get_json_size();
+	int __get_json_size();
 	int __inner_read();
 	int __inner_write();
 private:
 	void* m_pipe;
+	char* m_pipename;
+	char* m_prdbuf;
+	int m_rdlen;
+	int m_needlen;
+	int m_rdsize;
+	int m_inited;
+	std::vector<char*> *m_pbufs;
+	std::vector<int> *m_pbuflens;
+	char* m_pwrbuf;
+	int m_wrlen;
+	int m_reserv1;
 };
 
 #endif /* __PIPE_COMM_H_C7ABCD762C503EBB441C3363BED9EC7D__ */

@@ -81,6 +81,7 @@
 #include <aclapi.h>
 
 #include "vssetup.h"
+#include "pipe_comm.h"
 
 #pragma warning(pop)
 
