@@ -19,6 +19,8 @@ typedef struct __named_pipe {
     int m_wrpending;
     int m_wrleft;
     int m_reserv1;
+    uint8_t* m_prdptr;
+    uint8_t* m_pwrptr;
     char* m_name;
     HANDLE m_hpipe;
     HANDLE m_connevt;
@@ -118,6 +120,9 @@ void __free_namedpipe(pnamed_pipe_t *ppnp)
             pnp->m_name = NULL;
         }
 
+        pnp->m_prdptr = NULL;
+        pnp->m_pwrptr = NULL;
+
         free(pnp);
         pnp = NULL;
         *ppnp = NULL;
@@ -171,6 +176,9 @@ pnamed_pipe_t __alloc_namedpipe(char* name, int servermode,int timeout)
         ERROR_INFO("can not create [%s].wrevt error[%d]", pnp->m_name, ret);
     }
     pnp->m_wrov.hEvent = pnp->m_wrevt;
+
+    pnp->m_prdptr = NULL;
+    pnp->m_pwrptr = NULL;
 
 
     if (servermode) {
@@ -374,10 +382,7 @@ int read_namedpipe(void* pnp1, char* buffer, int bufsize)
 {
     pnamed_pipe_t pnp = (pnamed_pipe_t)pnp1;
     int ret;
-    int retlen = 0;
     BOOL bret;
-    char* ptr = NULL;
-    int leftlen = 0;
     DWORD cbread;
 
     if (pnp == NULL || pnp->m_magic != NAMED_PIPE_MAGIC) {
@@ -392,20 +397,19 @@ int read_namedpipe(void* pnp1, char* buffer, int bufsize)
     }
 
 
-    leftlen = bufsize;
-    ptr = buffer;
-    while (leftlen > 0)  {
-        bret = ReadFile(pnp->m_hpipe, ptr, (DWORD)leftlen, &cbread, &(pnp->m_rdov));
+    pnp->m_rdleft = bufsize;
+    pnp->m_prdptr = (uint8_t*)buffer;
+    while (pnp->m_rdleft > 0)  {
+        bret = ReadFile(pnp->m_hpipe, pnp->m_prdptr, (DWORD)pnp->m_rdleft, &cbread, &(pnp->m_rdov));
         if (!bret) {
             GETERRNO(ret);
             if (ret == -ERROR_IO_PENDING) {
                 pnp->m_rdpending = 1;
-                pnp->m_rdleft = leftlen;
-                DEBUG_INFO("m_rdpending [%d]",leftlen);
+                DEBUG_INFO("m_rdpending [%d]",pnp->m_rdleft);
                 break;
             } else if (ret == -ERROR_MORE_DATA) {
-                retlen += leftlen;
-                leftlen = 0;
+                pnp->m_rdleft = 0;
+                pnp->m_prdptr = NULL;
                 DEBUG_INFO("read need ERROR_MORE_DATA");
                 break;
             }
@@ -418,14 +422,16 @@ int read_namedpipe(void* pnp1, char* buffer, int bufsize)
             goto fail;
         }
 
-        leftlen -= cbread;
-        retlen += cbread;
-        DEBUG_BUFFER_FMT(ptr,cbread,"read [%d] [%s]",cbread,pnp->m_name);
-        ptr += cbread;
+        pnp->m_rdleft -= cbread;
+        DEBUG_BUFFER_FMT(pnp->m_prdptr,cbread,"read [%d] [%s]",cbread,pnp->m_name);
+        pnp->m_prdptr += cbread;
     }
 
-    DEBUG_BUFFER_FMT(buffer,retlen,"read whole");
-    return retlen;
+    if (pnp->m_rdleft == 0) {
+        pnp->m_prdptr = NULL;
+    }
+
+    return pnp->m_rdleft == 0 ? 1 : 0;
 fail:
     SETERRNO(ret);
     return ret;
@@ -435,10 +441,7 @@ int write_namedpipe(void* pnp1, char* buffer, int bufsize)
 {
     pnamed_pipe_t pnp = (pnamed_pipe_t)pnp1;
     int ret;
-    int retlen = 0;
     BOOL bret;
-    char* ptr = NULL;
-    int leftlen = 0;
     DWORD cbwrite;
 
     if (pnp == NULL || pnp->m_magic != NAMED_PIPE_MAGIC) {
@@ -453,27 +456,30 @@ int write_namedpipe(void* pnp1, char* buffer, int bufsize)
     }
 
 
-    leftlen = bufsize;
-    ptr = buffer;
-    while (leftlen > 0)  {
-        bret = WriteFile(pnp->m_hpipe, ptr, (DWORD)leftlen, &cbwrite, &(pnp->m_wrov));
+    pnp->m_wrleft = bufsize;
+    pnp->m_pwrptr = (uint8_t*)buffer;
+    while (pnp->m_wrleft > 0)  {
+        bret = WriteFile(pnp->m_hpipe, pnp->m_pwrptr, (DWORD)pnp->m_wrleft, &cbwrite, &(pnp->m_wrov));
         if (!bret) {
             GETERRNO(ret);
             if (ret == -ERROR_IO_PENDING) {
                 pnp->m_wrpending = 1;
-                pnp->m_wrleft = leftlen;
+                DEBUG_INFO("wrpending %d",pnp->m_wrleft);
                 break;
             }
             ERROR_INFO("read [%s] buffer error[%d]", pnp->m_name, ret);
             goto fail;
         }
 
-        leftlen -= cbwrite;
-        retlen += cbwrite;
-        ptr += cbwrite;
+        pnp->m_wrleft -= cbwrite;
+        pnp->m_pwrptr += cbwrite;
     }
 
-    return retlen;
+    if (pnp->m_wrleft == 0) {
+        pnp->m_pwrptr = NULL;
+    }
+
+    return pnp->m_wrleft == 0 ? 1 : 0;
 fail:
     SETERRNO(ret);
     return ret;

@@ -1961,11 +1961,13 @@ read_again:
             if (ret < 0) {
                 ERROR_INFO("read [%s] error[%d]", pipename, ret);
                 goto try_again;
+            } else if (ret > 0) {
+                rcvlen = needlen;    
             }
-            rcvlen += ret;
+            
             if (get_namedpipe_rdstate(pnp) == 0) {
+                ASSERT_IF(rcvlen == needlen);
                 if (needlen == sizeof(uint32_t)) {
-                    rcvlen = needlen;
                     memcpy(&wholelen, &(preadbuf[0]), sizeof(uint32_t));
                     needlen = wholelen;
                     if (needlen > rcvsize) {
@@ -1994,13 +1996,11 @@ read_again:
                         GETERRNO(ret);
                         ERROR_INFO("read [%s] error[%d]", pipename, ret);
                         goto try_again;
-                    }
-
-                    rcvlen += ret;
-                    if (get_namedpipe_rdstate(pnp) == 0) {
+                    } else if (ret > 0) {
                         rcvlen = needlen;
                         goto reply_read;
                     }
+
                     ASSERT_IF(waitnum < MAX_WAIT_NUM);
                     waithds[waitnum] = get_namedpipe_rdevt(pnp);
                     waitnum ++;
@@ -2042,8 +2042,7 @@ reply_read:
                         if (ret < 0) {
                             fprintf(stderr, "can not write [%s] error[%d]\n", pipename, ret);
                             goto try_again;
-                        }
-                        if (get_namedpipe_wrstate(pnp) == 0) {
+                        } else if (ret > 0) {                            
                             free(pcurwrite);
                             pcurwrite = NULL;
                             curwritelen = 0;
@@ -2087,14 +2086,12 @@ write_again:
                     GETERRNO(ret);
                     fprintf(stderr, "write [%s] error[%d]\n", pipename, ret);
                     goto try_again;
-                }
-                if (get_namedpipe_wrstate(pnp) == 0) {
+                } else if (ret > 0) {
                     goto write_again;
-                } else {
-                    ASSERT_IF(waitnum < MAX_WAIT_NUM);
-                    waithds[waitnum] = get_namedpipe_wrevt(pnp);
-                    waitnum ++;
                 }
+                ASSERT_IF(waitnum < MAX_WAIT_NUM);
+                waithds[waitnum] = get_namedpipe_wrevt(pnp);
+                waitnum ++;
             }
         } else {
             ASSERT_IF(waitnum < MAX_WAIT_NUM);
@@ -2113,9 +2110,7 @@ write_again:
                     GETERRNO(ret);
                     ERROR_INFO("can not complete [%s]", pipename);
                     goto try_again;
-                }
-
-                if (ret > 0) {
+                } else if (ret > 0) {
                     if (needlen == sizeof(uint32_t)) {
                         rcvlen = needlen;
                         memcpy(&needlen, preadbuf, sizeof(uint32_t));
