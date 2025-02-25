@@ -73,6 +73,9 @@ void pipe_comm::__uninit()
 
 pipe_comm::~pipe_comm()
 {
+	if (this->m_pipe !=NULL && this->m_pipename ) {
+		DEBUG_INFO("close [%s]", this->m_pipename);
+	}
 	close_namedpipe(&(this->m_pipe));
 	if (this->m_inited != 0) {
 		this->__uninit();

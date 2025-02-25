@@ -1777,8 +1777,7 @@ out:
 int npsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     char* pipename = NULL;
-    void* pnp=NULL;
-    pipe_comm* pcomm = NULL;
+    pipe_svr_comm* pcomm = NULL;
     pargs_options_t pargs = (pargs_options_t)popt;
     HANDLE waithds[MAX_WAIT_NUM];
     DWORD waitnum = 0;
@@ -1804,8 +1803,8 @@ int npsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     }
 
 try_again:
-    close_namedpipe(&pnp);
     if (pcomm) {
+        DEBUG_INFO("delete pcomm");
         delete pcomm;
     }
     pcomm = NULL;
@@ -1820,99 +1819,68 @@ try_again:
     }
     pj = NULL;
 
-
-    pnp = bind_namedpipe(pipename);
-    if (pnp == NULL) {
+    pcomm = new pipe_svr_comm(pipename);
+    ret = pcomm->init();
+    if (ret < 0) {
         GETERRNO(ret);
-        ERROR_INFO("bind [%s] error[%d]", pipename, ret);
         goto out;
     }
 
 
     DEBUG_INFO("bind [%s]", pipename);
 
-    if (get_namedpipe_connstate(pnp) > 0) {
-        while (1) {
-            waitnum = 0;
-            waithds[waitnum] = st_ExitEvt;
-            waitnum ++;
-            waithds[waitnum] = get_namedpipe_connevt(pnp);
-            waitnum ++;
-
-            dret = WaitForMultipleObjectsEx(waitnum, waithds, FALSE, INFINITE, FALSE);
-            if ((dret < (WAIT_OBJECT_0 + waitnum))) {
-                curhd = waithds[(dret - WAIT_OBJECT_0)];
-                if (curhd == st_ExitEvt) {
-                    ret = 0;
-                    goto out;
-                } else if (curhd == get_namedpipe_connevt(pnp)) {
-                    ret = complete_namedpipe_connpending(pnp);
-                    if (ret < 0) {
-                        GETERRNO(ret);
-                        ERROR_INFO("wait connect[%s] error[%d]", pipename, ret);
-                        goto try_again;
-                    }
-                    if (ret > 0) {
-                        break;
-                    }
-                }
-            } else {
-                ERROR_INFO("wait connect[%s] error[%d]", pipename, dret);
-                goto try_again;
-            }
-        }
-    }
 
     DEBUG_INFO("client connect[%s]", pipename);
 
-    pcomm = new pipe_comm(pnp,pipename);
-    /*we not used it*/
-    pnp = NULL;
-    ret = pcomm->init();
-    if (ret < 0) {
-        GETERRNO(ret);
-        ERROR_INFO("init %s error %d",pipename,ret);
-        goto try_again;
-    }
 
     while(1) {
         waitnum = 0;
         waithds[waitnum] = st_ExitEvt;
         waitnum += 1;
-    set_read:
-        if (pcomm->is_read_mode()) {
-            waithds[waitnum] = pcomm->get_read_evt();
+        if (pcomm->is_accept_mode()) {
+            waithds[waitnum] = pcomm->get_accept_evt();
             waitnum += 1;
         } else {
-        read_again:
-            ASSERT_IF(pj == NULL);
-            ret = pcomm->read_json(&pj);
-            if (ret <0) {
-                GETERRNO(ret);
-                ERROR_INFO("read_json [%s] error[%d]",pipename,ret);
-                goto try_again;
-            } else if (ret > 0) {
-                ASSERT_IF(pjstr == NULL);
-                pjstr = jvalue_write_pretty(pj,&jsize);
-                if (pjstr == NULL) {
+        set_read:
+            if (pcomm->is_read_mode()) {
+                waithds[waitnum] = pcomm->get_read_evt();
+                waitnum += 1;
+            } else {
+            read_again:
+                ASSERT_IF(pj == NULL);
+                ret = pcomm->read_json(&pj);
+                if (ret <0) {
                     GETERRNO(ret);
-                    goto out;
-                }
-                DEBUG_INFO("read\n%s",pjstr);
-                free(pjstr);
-                pjstr = NULL;
-                jsize = 0;
-
-                ret = pcomm->write_json(pj);
-                if (ret < 0) {
-                    GETERRNO(ret);
+                    ERROR_INFO("read_json [%s] error[%d]",pipename,ret);
                     goto try_again;
+                } else if (ret > 0) {
+                    ASSERT_IF(pjstr == NULL);
+                    pjstr = jvalue_write_pretty(pj,&jsize);
+                    if (pjstr == NULL) {
+                        GETERRNO(ret);
+                        goto out;
+                    }
+                    DEBUG_INFO("read\n%s",pjstr);
+                    free(pjstr);
+                    pjstr = NULL;
+                    jsize = 0;
+
+                    ret = pcomm->write_json(pj);
+                    if (ret < 0) {
+                        GETERRNO(ret);
+                        goto try_again;
+                    }
+                    jvalue_destroy(pj);
+                    pj = NULL;
+                    goto read_again;
                 }
-                jvalue_destroy(pj);
-                pj = NULL;
-                goto read_again;
+                goto set_read;
             }
-            goto set_read;
+
+            if (pcomm->is_write_mode()) {
+                waithds[waitnum] = pcomm->get_write_evt();
+                waitnum += 1;
+            }
         }
 
         dret = WaitForMultipleObjectsEx(waitnum,waithds,FALSE,10000,TRUE);
@@ -1928,6 +1896,22 @@ try_again:
                     ERROR_INFO("complete_read error %d",ret);
                     goto try_again;
                 }
+            } else if (curhd == pcomm->get_accept_evt()) {
+                ret = pcomm->complete_accept();
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    ERROR_INFO("complete_accept error %d",ret);
+                    goto try_again;
+                } else if (ret > 0) {
+                    DEBUG_INFO("accept [%s]", pipename);
+                }
+            } else if (curhd == pcomm->get_write_evt()) {
+                ret = pcomm->complete_write();
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    ERROR_INFO("complete_write error %d",ret);
+                    goto try_again;
+                }                
             }
         } else if (dret != WAIT_TIMEOUT) {
             ERROR_INFO("dret %d",dret);
@@ -1950,7 +1934,6 @@ out:
         delete pcomm;
     }
     pcomm = NULL;
-    close_namedpipe(&pnp);
     SETERRNO(ret);
     return ret;
 }

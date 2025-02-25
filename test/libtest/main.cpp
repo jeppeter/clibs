@@ -82,6 +82,7 @@
 
 #include "vssetup.h"
 #include "pipe_comm.h"
+#include "pipe_svr_comm.h"
 
 #pragma warning(pop)
 
