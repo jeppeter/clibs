@@ -2427,8 +2427,7 @@ out:
 
 int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    void* pnp=NULL;
-    pipe_comm* pcomm = NULL;
+    pipe_cli_comm* pcomm = NULL;
     jvalue* pj=NULL;
     jvalue* inpj =NULL;
     char* pipename = NULL;
@@ -2460,14 +2459,7 @@ int npcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
         argcnt += 1;
     }
 
-    pnp = connect_namedpipe_timeout(pipename,pargs->m_timeout);
-    if (pnp == NULL) {
-        GETERRNO(ret);
-        goto out;
-    }
-
-    pcomm = new pipe_comm(pnp,pipename);
-    pnp = NULL;
+    pcomm = new pipe_cli_comm(pipename,0);
     ret=  pcomm->init();
     if (ret < 0) {
         GETERRNO(ret);
@@ -2593,7 +2585,6 @@ out:
         free(pjstr);
     }
     pjstr = NULL;
-    close_namedpipe(&pnp);
     if (pcomm) {
         delete pcomm;
         pcomm = NULL;
