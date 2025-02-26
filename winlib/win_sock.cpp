@@ -346,7 +346,9 @@ int __get_peer_name(psock_data_priv_t psock)
 	ret = getpeername(psock->m_sock, &nameaddr, &namelen);
 	if (ret != 0) {
 		WSA_GETERRNO(ret);
-		ERROR_INFO("get peername [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
+		if(ret != -WSAENOTCONN && ret != -WSAESHUTDOWN) {
+			ERROR_INFO("get peername [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);	
+		}		
 		goto fail;
 	}
 
@@ -581,7 +583,8 @@ HANDLE get_tcp_connect_handle(void* ptcp)
 
 int complete_tcp_connect(void* ptcp)
 {
-	int ret = 1;
+	int completed = 1;
+	int ret;
 	psock_data_priv_t psock = (psock_data_priv_t)ptcp;
 	DWORD dret;
 	BOOL bret;
@@ -610,7 +613,7 @@ int complete_tcp_connect(void* ptcp)
 		}
 		DEBUG_INFO(" local [%s:%d] connect [%s:%d]",  psock->m_selfaddr, psock->m_selfport, psock->m_peeraddr, psock->m_peerport);
 	}
-	return ret;
+	return completed;
 
 fail:
 	SETERRNO(ret);

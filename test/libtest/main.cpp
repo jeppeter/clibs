@@ -86,6 +86,8 @@
 #include "pipe_cli_comm.h"
 
 #include "sock_comm.h"
+#include "sock_svr_comm.h"
+#include "sock_cli_comm.h"
 
 #pragma warning(pop)
 
@@ -314,6 +316,8 @@ int getprocmem_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int basename_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int dirname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int listdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int socksvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int sockcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0

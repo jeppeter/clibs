@@ -255,11 +255,13 @@ int sock_comm::read_json(jvalue** ppj)
 	unsigned int jsonsize=0;
 	if (ppj == NULL || *ppj != NULL) {
 		ret  =-ERROR_INVALID_PARAMETER;
+		ERROR_INFO(" ");
 		SETERRNO(ret);
 		return ret;
 	}
 	if (this->m_inited == 0) {
 		ret = -ERROR_NOT_READY;
+		ERROR_INFO(" ");
 		SETERRNO(ret);
 		return ret;
 	}
@@ -267,9 +269,11 @@ int sock_comm::read_json(jvalue** ppj)
 		ret = this->complete_read();
 		if (ret < 0) {
 			GETERRNO(ret);
+			DEBUG_INFO(" ");
 			SETERRNO(ret);
 			return ret;
 		} else if (ret == 0) {
+			DEBUG_INFO("ret = 0");			
 			return 0;
 		}
 		ASSERT_IF(this->m_rdlen >= PROTO_HDR_SIZE);
@@ -280,6 +284,7 @@ int sock_comm::read_json(jvalue** ppj)
 			ret=  this->__inner_read();
 			if (ret < 0) {
 				GETERRNO(ret);
+				DEBUG_INFO(" ");
 				SETERRNO(ret);
 				return ret;				
 			} else if (ret == 0) {
@@ -291,6 +296,7 @@ int sock_comm::read_json(jvalue** ppj)
 		ret = this->__inner_read();
 		if (ret < 0) {
 			GETERRNO(ret);
+			DEBUG_INFO(" ");
 			SETERRNO(ret);
 			return ret;				
 		} else if (ret == 0) {

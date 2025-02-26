@@ -544,5 +544,12 @@
     },
     "listdir<listdir_handler>##dir [recursvie] to list dir##" : {
         "$" : "+"
+    },
+    "socksvr<socksvr_handler>##port to listen on the port##" : {
+        "$" : 1
+    },
+    "sockcli<sockcli_handler>##port files ... to write 127.0.0.1 files##" : {
+        "$" : "+"
     }
+
 }
