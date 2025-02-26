@@ -785,7 +785,7 @@ int __get_security_descriptor_from_string_2(char* sddl, PSECURITY_DESCRIPTOR* pp
 
     AnsiToTchar(NULL, &ptsddl, &tsddlsize);
     return (int)GetSecurityDescriptorLength(*ppdp);
-    fail:
+fail:
     AnsiToTchar(NULL, &ptsddl, &tsddlsize);
     SETERRNO(ret);
     return ret;
@@ -817,7 +817,7 @@ static int __get_dacl_from_descriptor(PSECURITY_DESCRIPTOR psdp, PACL* ppacl)
     }
 
     return retval;
-    fail:
+fail:
     SETERRNO(ret);
     return NULL;
 }
@@ -912,7 +912,7 @@ static int __get_sid_name(PSID psid, char** ppstr, int *pstrsize)
     TcharToAnsi(NULL, &pname, &namesize);
     TcharToAnsi(NULL, &pdomain, &domainsize);
     return retlen;
-    fail:
+fail:
     if (ptuser) {
         free(ptuser);
     }
@@ -1144,7 +1144,7 @@ static PEXPLICIT_ACCESS __alloc_explicit_access_array_2(int size)
     }
 
     return pnewacc;
-    fail:
+fail:
     __free_explicit_access_array_2(&pnewacc, &sz);
     SETERRNO(ret);
     return NULL;
@@ -1193,7 +1193,7 @@ static int __copy_sid_2(PSID osid, PSID* ppnsid)
         goto fail;
     }
     return sidsize;
-    fail:
+fail:
     if (*ppnsid) {
         LocalFree(*ppnsid);
         *ppnsid = NULL;
@@ -1494,7 +1494,7 @@ static int __get_explicit_access_2(PACL acl, PEXPLICIT_ACCESS *ppaccess, int *ps
     __debug_access_2(*ppaccess, accnum);
     return accnum;
 
-    fail:
+fail:
     if (pretaccess && pretaccess != *ppaccess) {
         __free_explicit_access_array_2(&pretaccess, &retsize);
     } else if (pretaccess != NULL) {

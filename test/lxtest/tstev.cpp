@@ -1450,7 +1450,7 @@ pchatcli_t __alloc_chatcli(const char* ip, int port,void* pev, int readfd,int ex
     pcli->m_insertexit = 1;
 
     return pcli;
-    fail:
+fail:
     __free_chatcli(&pcli);
     SETERRNO(ret);
     return NULL;

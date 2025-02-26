@@ -266,6 +266,160 @@ int tstclisockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 	char* ip = NULL;
 	int port = 0;
 	DWORD dret;
+	pargs_options_t pargs = (pargs_options_t)popt;
+	char* pbuf = NULL;
+	int bufsize = 0;
+	int buflen = 0;
+	char* fname = NULL;
+	uint64_t cticks, sticks;
+	int leftmills;
+	sock_comm* pcomm = NULL;
+	jvalue* pj=NULL;
+	unsigned int jsize=0;
+	HANDLE waithds[3];
+	DWORD waitnum = 0;
+	HANDLE curhd;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+
+	init_log_level(pargs);
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		ip = parsestate->leftargs[0];
+		if (parsestate->leftargs[1]) {
+			port = atoi(parsestate->leftargs[1]);
+			if (parsestate->leftargs[2]) {
+				fname = parsestate->leftargs[2];
+			}
+		}
+	}
+
+	if (ip == NULL || port <= 0 || fname == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		fprintf(stderr, "can not accept ip port or fname\n");
+		goto out;
+	}
+	DEBUG_INFO("will read [%s]", fname);
+
+	ret = read_file_whole(fname, &pbuf, &bufsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not read [%s] error[%d]\n", fname, ret);
+		goto out;
+	}
+	buflen = ret;
+	DEBUG_INFO("after read [%s] [%d]", fname, buflen);
+
+	ret = init_socket();
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not init socket [%d]\n", ret);
+		goto out;
+	}
+
+	psock = connect_tcp_socket(ip, port, NULL, 0, 1);
+	if (psock == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "connect [%s:%d] error[%d]\n", ip, port, ret );
+		goto out;
+	}
+
+	pcomm = new sock_comm(psock);
+	psock = NULL;
+	ret = pcomm->init();
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	pj = jvalue_read(pbuf,&jsize);
+	if (pj == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+
+	st_ExitEvt = set_ctrlc_handle();
+	if (st_ExitEvt == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	ret = pcomm->write_json(pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	if (ret == 0) {
+		sticks = get_current_ticks();
+wait_again:
+		memset(waithds,0,sizeof(waithds));
+		waitnum = 0;
+		waithds[waitnum] = st_ExitEvt;
+		waitnum += 1;
+		waithds[waitnum] = pcomm->get_write_evt();
+		waitnum += 1;
+
+
+
+		cticks = get_current_ticks();
+		leftmills = need_wait_times(sticks, cticks, pargs->m_timeout);
+		if (leftmills < 0) {
+			GETERRNO(ret);
+			fprintf(stderr, "wait time out [%d]\n", ret);
+			goto out;
+		}
+
+		dret = WaitForMultipleObjectsEx(waitnum,waithds,FALSE,(DWORD)leftmills,TRUE);
+		if (dret <(WAIT_OBJECT_0 + waitnum)) {
+			curhd = waithds[(dret - WAIT_OBJECT_0)];
+			if (curhd == st_ExitEvt) {
+				ret = 0;
+				DEBUG_INFO("break");
+				goto out;
+			} else if (curhd == pcomm->get_write_evt()) {
+				ret = pcomm->complete_write();
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto out;
+				} else if (ret > 0) {
+					ret = 0;
+					ERROR_INFO("write ok[%s]",fname);
+					goto out;
+				}
+			}
+		}
+		goto wait_again;
+	}
+
+	fprintf(stdout, "write [%s] succ\n", fname);
+	ret = 0;
+out:
+	free_socket(&psock);
+	if (pcomm) {
+		delete pcomm;
+	}
+	pcomm = NULL;
+	if (pj) {
+		jvalue_destroy(pj);
+	}
+	pj =NULL;
+	fini_socket();
+	read_file_whole(NULL, &pbuf, &bufsize);
+	buflen = 0;
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int tstclisockwr2_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int ret;
+	void* psock = NULL;
+	char* ip = NULL;
+	int port = 0;
+	DWORD dret;
 	HANDLE hread = NULL;
 	pargs_options_t pargs = (pargs_options_t)popt;
 	char* pbuf = NULL;
@@ -375,6 +529,171 @@ out:
 }
 
 int tstsvrsockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	void* psock = NULL, *paccsock = NULL;
+	int port = 0;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	int ret;
+	char* ip = "0.0.0.0";
+	int backlog = 5;
+	HANDLE hd;
+	DWORD dret;
+	uint64_t sticks, cticks;
+	int leftmills;
+	jvalue* pj=NULL;
+	sock_comm* pcomm=NULL;
+	char* pjstr=NULL;
+	unsigned int jsize=0;
+	HANDLE waithds[3];
+	DWORD waitnum=0;
+	HANDLE curhd;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+
+	init_log_level(pargs);
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		port = atoi(parsestate->leftargs[0]);
+		if (parsestate->leftargs[1]) {
+			ip = parsestate->leftargs[1];
+		}
+	}
+
+	if (port <= 0 || port >= (1 << 16)) {
+		ret = -ERROR_INVALID_PARAMETER;
+		fprintf(stderr, "[port] %d not valid\n", port);
+		goto out;
+	}
+
+	ret = init_socket();
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "init socket error[%d]\n", ret);
+		goto out;
+	}
+
+	psock = bind_tcp_socket(ip, port, backlog);
+	if (psock == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not bind [%s:%d] backlog[%d] error[%d]\n", ip, port, backlog, ret);
+		goto out;
+	}
+	DEBUG_INFO("list on [%s:%d]",ip,port);
+
+	hd = get_tcp_accept_handle(psock);
+	if (hd != NULL) {
+		dret = WaitForSingleObject(hd, INFINITE);
+		if (dret != WAIT_OBJECT_0) {
+			GETERRNO(ret);
+			fprintf(stderr, "wait [%s:%d] time [%d] error [%d] [%ld]\n", ip, port , pargs->m_timeout, ret, dret);
+			goto out;
+		}
+	}
+
+	ret = complete_tcp_accept(psock);
+	if (ret < 0) {
+		GETERRNO(ret);
+		fprintf(stderr, "complete accept [%s:%d] error[%d]\n", ip, port , ret);
+		goto out;
+	}
+
+	paccsock = accept_tcp_socket(psock);
+	if (paccsock == NULL) {
+		GETERRNO(ret);
+		fprintf(stderr, "can not accept [%s:%d] error[%d]", ip, port, ret);
+		goto out;
+	}
+
+	pcomm = new sock_comm(paccsock);
+	paccsock = NULL;
+	ret = pcomm->init();
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+
+	sticks = get_current_ticks();
+	while (1) {
+		cticks = get_current_ticks();
+		leftmills = need_wait_times(sticks, cticks, pargs->m_timeout);
+		if (leftmills < 0) {
+			ret = -ERROR_INVALID_PARAMETER;
+			fprintf(stderr, "timed out\n" );
+			goto out;
+		}
+
+		memset(waithds,0,sizeof(waithds));
+		waitnum = 0;
+		waithds[waitnum] = st_ExitEvt;
+		waitnum += 1;
+
+	set_read:
+		if (pcomm->is_read_mode()) {
+			waithds[waitnum] = pcomm->get_read_evt();
+			waitnum += 1;
+		} else {
+			ret = pcomm->read_json(&pj);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto out;
+			} else if( ret > 0) {
+				pjstr = jvalue_write_pretty(pj,&jsize);
+				if (pjstr == NULL) {
+					GETERRNO(ret);
+					goto out;
+				}
+				DEBUG_INFO("read\n%s",pjstr);
+				free(pjstr);
+				pjstr = NULL;
+				jsize = 0;
+				jvalue_destroy(pj);
+				pj = NULL;
+				goto out;
+			}
+			goto set_read;
+		}
+
+		dret = WaitForMultipleObjectsEx(waitnum,waithds, FALSE,(DWORD)leftmills,TRUE);
+		if (dret < (WAIT_OBJECT_0 + waitnum)) {
+			curhd = waithds[(dret - WAIT_OBJECT_0)];
+			if (curhd == st_ExitEvt) {
+				DEBUG_INFO("break");
+				ret = 0;
+				goto out;
+			} else if (curhd == pcomm->get_read_evt()) {
+				ret = pcomm->complete_read();
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto out;
+				}
+			}
+		}
+	}
+
+	ret = 0;
+out:
+	if (pj) {
+		jvalue_destroy(pj);
+	}
+	pj = NULL;
+	if (pjstr) {
+		free(pjstr);
+	}
+	pjstr = NULL;
+	if (pcomm) {
+		delete pcomm;
+	}
+	pcomm = NULL;
+	free_socket(&paccsock);
+	free_socket(&psock);
+	fini_socket();
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int tstsvrsockrd2_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	void* psock = NULL, *paccsock = NULL;
 	int port = 0;

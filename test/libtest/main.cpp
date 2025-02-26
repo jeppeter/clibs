@@ -85,6 +85,8 @@
 #include "pipe_svr_comm.h"
 #include "pipe_cli_comm.h"
 
+#include "sock_comm.h"
+
 #pragma warning(pop)
 
 #if _MSC_VER >= 1910

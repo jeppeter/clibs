@@ -423,8 +423,8 @@ int __get_code(pextargs_state_t parsestate, char** ppcode, int* psize)
     *ppcode = pcode;
     *psize = retsize;
     return cnt;
-    out:
-    fail:
+out:
+fail:
     if (pcode && pcode != *ppcode) {
         free(pcode);
     }
@@ -802,7 +802,7 @@ static int format_pipe_data(jvalue* pj, char** ppsndbuf, int* psndsize)
     jentries_destroy(&entries);
 
     return sndlen;
-    fail:
+fail:
     if (pretbuf && pretbuf != *ppsndbuf) {
         free(pretbuf);
     }

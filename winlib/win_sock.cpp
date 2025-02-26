@@ -80,6 +80,11 @@ typedef struct __sock_data_priv {
 	uint8_t* m_prdbuf;
 	int m_closeerr;
 	int m_reserv2;
+
+	int m_peernamed;
+	int m_socknamed;
+	char m_peername[256];
+	char m_sockname[256];
 } sock_data_priv_t, *psock_data_priv_t;
 
 
@@ -228,7 +233,8 @@ void __free_socket(psock_data_priv_t* pptcp)
 		psock1->m_oordlen = 0;
 		psock1->m_oordsize = 0;
 		psock1->m_ooaccrd = 0;
-
+		psock1->m_peernamed = 0;
+		psock1->m_socknamed = 0;
 
 
 		free(psock1);
@@ -324,7 +330,7 @@ int __get_self_name(psock_data_priv_t psock)
 	psock->m_selfport = ntohs(name->sin_port);
 
 	return 0;
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -364,7 +370,7 @@ int __get_peer_name(psock_data_priv_t psock)
 	inet_ntop(AF_INET, &(name->sin_addr), psock->m_peeraddr, INET_ADDRSTRLEN);
 	psock->m_peerport = ntohs(name->sin_port);
 	return 0;
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -398,7 +404,7 @@ int __inner_make_read_write(psock_data_priv_t psock)
 	}
 
 	return 0;
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -873,7 +879,7 @@ void* accept_tcp_socket(void* ptcp)
 	}
 
 	return psock;
-	fail:
+fail:
 	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
@@ -1048,7 +1054,7 @@ int complete_tcp_write(void* ptcp)
 	}
 
 	return ret;
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -1233,6 +1239,56 @@ void* bind_udp_socket(char* ipaddr, int port)
 	ipaddr = ipaddr;
 	port =port;
 	return NULL;
+}
+
+char* tcp_sock_peername(void* ptcp1)
+{
+	psock_data_priv_t ptcp = (psock_data_priv_t) ptcp1;
+	int ret;
+	if (ptcp->m_peernamed) {
+		goto out;
+	}
+	ret = __get_peer_name(ptcp);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ret = snprintf(ptcp->m_peername,sizeof(ptcp->m_peername)-1,"%s:%d",ptcp->m_peeraddr,ptcp->m_peerport);
+	if (ret >= (sizeof(ptcp->m_peername)-1)) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ptcp->m_peernamed  = 1;
+out:
+	return ptcp->m_peername;
+fail:
+	SETERRNO(ret);
+	return "unknown peer";
+}
+
+char* tcp_sock_sockname(void* ptcp1)
+{
+	psock_data_priv_t ptcp = (psock_data_priv_t) ptcp1;
+	int ret;
+	if (ptcp->m_socknamed) {
+		goto out;
+	}
+	ret = __get_self_name(ptcp);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ret = snprintf(ptcp->m_sockname,sizeof(ptcp->m_sockname)-1,"%s:%d",ptcp->m_selfaddr,ptcp->m_selfport);
+	if (ret >= (sizeof(ptcp->m_sockname)-1)) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ptcp->m_socknamed  = 1;
+out:
+	return ptcp->m_sockname;
+fail:
+	SETERRNO(ret);
+	return "unknown sock";
 }
 
 
