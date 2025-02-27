@@ -67,6 +67,8 @@
 #pragma warning(push)
 #pragma warning(disable:4530)
 #include <vector>
+#include <algorithm>
+#include <memory>
 #pragma warning(pop)
 
 #pragma warning(push)
@@ -318,6 +320,7 @@ int dirname_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int listdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int socksvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sockcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int cppcon_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -739,6 +742,7 @@ void close_ctrlc_handle()
 #include "tstwin.cpp"
 #include "tstreg.cpp"
 #include "tstuser.cpp"
+#include "cppcon.cpp"
 
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
