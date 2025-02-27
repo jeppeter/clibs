@@ -45,7 +45,6 @@ int cppcon_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 	DEBUG_BUFFER_FMT(pcc,sizeof(*pcc)*10,"new swap");
 
 	ret = 0;
-out:
 	SETERRNO(ret);
 	return ret;
 }

@@ -3579,3 +3579,52 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+DWORD exit_thread(void* arg)
+{
+    int num = (int) (addr_t)arg;
+    int i;
+    for(i=0;i<num;i++) {
+        DEBUG_INFO("[%d] thread",i);
+        sleep_mill(1000);
+    }
+    exit(0);
+    //return 0;
+
+}
+
+int threxit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    int num = 10;
+    int i;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    HANDLE hthr=NULL;
+    DWORD tid;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        num = atoi(parsestate->leftargs[0]);
+    }
+
+    hthr = CreateThread(NULL,0,exit_thread,(void*)(addr_t)num,0,&tid);
+    if (hthr == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    i = 0;
+    while(1) {
+        sleep_mill(1000);
+        DEBUG_INFO("[%d] main",i);
+        i += 1;
+    }
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}

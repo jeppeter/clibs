@@ -321,6 +321,7 @@ int listdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int socksvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sockcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int cppcon_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int threxit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0

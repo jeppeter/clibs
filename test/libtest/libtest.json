@@ -553,6 +553,9 @@
     },
     "cppcon<cppcon_handler>##to test cpp container##" : {
         "$" : 0
+    },
+    "threxit<threxit_handler>##[seconds] to wait exit exit from thread default 10##" : {
+        "$" : "?"
     }
 
 }
