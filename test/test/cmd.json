@@ -1,8 +1,8 @@
 {
     "verbose|v<m_verbose>" : "+",
-    "filemode|f<m_isfile>" : 0,
-    "dirmode|d<m_isdir>" : 0,
-    "existmode|e<m_isexist>" : 0,
+    "filemode|f<m_isfile>" : false,
+    "dirmode|d<m_isdir>" : false,
+    "existmode|e<m_isexist>" : false,
     "$" : "*"
 
 }
