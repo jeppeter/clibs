@@ -1787,12 +1787,24 @@ int npsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
     int ret;
     DWORD dret;
     HANDLE curhd;
+    HANDLE hproc = NULL;
+    int cpid = -1;
+    char* exename=NULL;
+    int exesize=0;
 
     init_log_level(pargs);
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
     REFERENCE_ARG(parsestate);
+
+    ret = get_executable_wholepath(0,&exename,&exesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+
 
     pipename = pargs->m_pipename;
 
@@ -1826,11 +1838,18 @@ try_again:
         goto out;
     }
 
+    if (cpid < 0) {
+        ret  = start_cmd_detach(PROC_NO_WINDOW,exename,"threxit","10000",NULL);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        cpid = ret;
+    }
+
 
     DEBUG_INFO("bind [%s]", pipename);
 
-
-    DEBUG_INFO("client connect[%s]", pipename);
 
 
     while(1) {
@@ -1934,6 +1953,15 @@ out:
         delete pcomm;
     }
     pcomm = NULL;
+    if (hproc != NULL) {
+        CloseHandle(hproc);
+        hproc = NULL;
+    }
+    if (cpid >= 0) {
+        kill_process(cpid);
+    }
+    cpid = -1;
+    get_executable_wholepath(1,&exename,&exesize);
     SETERRNO(ret);
     return ret;
 }

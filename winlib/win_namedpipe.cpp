@@ -54,7 +54,7 @@ void __free_namedpipe(pnamed_pipe_t *ppnp)
             bret = CancelIoEx(pnp->m_hpipe, &(pnp->m_rdov));
             if (!bret) {
                 GETERRNO(ret);
-                ERROR_INFO("can not cancel pending [%s] read", pnp->m_name);
+                ERROR_INFO("can not cancel pending [%s] read %d", pnp->m_name,ret);
             }
             pnp->m_rdpending = 0;
             pnp->m_rdleft = 0;
@@ -186,7 +186,8 @@ pnamed_pipe_t __alloc_namedpipe(char* name, int servermode,int timeout)
         SetSecurityDescriptorDacl(&sd, TRUE, (PACL) NULL, FALSE);
         sa.nLength = (DWORD) sizeof(SECURITY_ATTRIBUTES);
         sa.lpSecurityDescriptor = (LPVOID) &sd;
-        sa.bInheritHandle = TRUE;
+        /*not inheritable*/
+        sa.bInheritHandle = FALSE;
 
         pnp->m_servermode = 1;
         pnp->m_hpipe = CreateNamedPipe(ptname, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED,
