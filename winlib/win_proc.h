@@ -28,6 +28,7 @@ extern "C" {
 #define  PROC_STDOUT_NULL           0x10
 #define  PROC_STDERR_NULL           0x20
 #define  PROC_NO_WINDOW             0x100
+#define  PROC_CMD_NO_QUOTE          0x200
 
 
 #define  PROC_APP_MODE           1

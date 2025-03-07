@@ -725,18 +725,28 @@ typedef struct __proc_handle {
 } proc_handle_t, *pproc_handle_t;
 
 
-int __get_command_lines(char** ppcmdline, int *psize, char* prog[])
+int __get_command_lines(int createflag,char** ppcmdline, int *psize, char* prog[])
 {
 	int i;
 	char* qstr = NULL;
 	int qsize = 0;
 	int ret;
+	int quoted = 1;
+
+	if ((createflag & PROC_CMD_NO_QUOTE)) {
+		quoted = 0;
+	}
 	if (prog == NULL || prog[0] == NULL) {
 		snprintf_safe(ppcmdline, psize, NULL);
 		return 0;
 	}
 
-	ret = quote_string(&qstr, &qsize, "%s", prog[0]);
+	if (quoted) {
+		ret = quote_string(&qstr, &qsize, "%s", prog[0]);	
+	} else {
+		ret = snprintf_safe(&qstr, &qsize, "%s", prog[0]);
+	}
+	
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -750,7 +760,12 @@ int __get_command_lines(char** ppcmdline, int *psize, char* prog[])
 	}
 
 	for (i = 1; prog[i] != NULL; i++) {
-		ret = quote_string(&qstr, &qsize, "%s", prog[i]);
+		if (quoted) {
+			ret = quote_string(&qstr, &qsize, "%s", prog[i]);	
+		} else {
+			ret = snprintf_safe(&qstr, &qsize, "%s", prog[i]);
+		}
+		
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -763,11 +778,21 @@ int __get_command_lines(char** ppcmdline, int *psize, char* prog[])
 		}
 	}
 	DEBUG_INFO("cmdline [%s]", *ppcmdline);
-	quote_string(&qstr, &qsize, NULL);
+	if (quoted) {
+		quote_string(&qstr, &qsize, NULL);	
+	} else {
+		snprintf_safe(&qstr, &qsize, NULL);
+	}
+
+	
 	return ret;
 
 fail:
-	quote_string(&qstr, &qsize, NULL);
+	if (quoted) {
+		quote_string(&qstr, &qsize, NULL);	
+	} else {
+		snprintf_safe(&qstr, &qsize, NULL);
+	}
 	SETERRNO(ret);
 	return ret;
 }
@@ -1508,7 +1533,7 @@ void* start_cmdv(int createflag, char* prog[])
 		goto fail;
 	}
 
-	ret = __get_command_lines(&pcmdline, &cmdlinesize, prog);
+	ret = __get_command_lines(createflag,&pcmdline, &cmdlinesize, prog);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1520,11 +1545,11 @@ void* start_cmdv(int createflag, char* prog[])
 		goto fail;
 	}
 
-	__get_command_lines(&pcmdline, &cmdlinesize, NULL);
+	__get_command_lines(0,&pcmdline, &cmdlinesize, NULL);
 	return (void*) pproc;
 fail:
 	__free_proc_handle(&pproc);
-	__get_command_lines(&pcmdline, &cmdlinesize, NULL);
+	__get_command_lines(0,&pcmdline, &cmdlinesize, NULL);
 	SETERRNO(ret);
 	return NULL;
 }
@@ -1643,7 +1668,7 @@ void* wts_start_cmdv(int createflag, char* prog[])
 		goto fail;
 	}
 
-	ret = __get_command_lines(&pcmdline, &cmdlinesize, prog);
+	ret = __get_command_lines(createflag,&pcmdline, &cmdlinesize, prog);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -1655,11 +1680,11 @@ void* wts_start_cmdv(int createflag, char* prog[])
 		goto fail;
 	}
 
-	__get_command_lines(&pcmdline, &cmdlinesize, NULL);
+	__get_command_lines(0,&pcmdline, &cmdlinesize, NULL);
 	return (void*) pproc;
 fail:
 	__free_proc_handle(&pproc);
-	__get_command_lines(&pcmdline, &cmdlinesize, NULL);
+	__get_command_lines(0,&pcmdline, &cmdlinesize, NULL);
 	SETERRNO(ret);
 	return NULL;
 }
@@ -3716,7 +3741,7 @@ int start_cmdv_session_detach(DWORD session, char* prog[])
 		goto fail;
 	}
 
-	ret = __get_command_lines(&cmdlines, &cmdsize, prog);
+	ret = __get_command_lines(0,&cmdlines, &cmdsize, prog);
 
 	/*now we find the session*/
 	for (i = 0; i < cnt; i++) {
@@ -3733,13 +3758,13 @@ int start_cmdv_session_detach(DWORD session, char* prog[])
 		goto fail;
 	}
 
-	__get_command_lines(&cmdlines, &cmdsize, NULL);
+	__get_command_lines(0,&cmdlines, &cmdsize, NULL);
 	get_pids_by_name(NULL, &ppids, &size);
 
 	return retpid;
 
 fail:
-	__get_command_lines(&cmdlines, &cmdsize, NULL);
+	__get_command_lines(0,&cmdlines, &cmdsize, NULL);
 	get_pids_by_name(NULL, &ppids, &size);
 	SETERRNO(ret);
 	return ret;
