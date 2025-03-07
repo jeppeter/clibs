@@ -214,7 +214,8 @@ int __map_memory_name(pmap_buffer_t pmap, int flag, uint64_t size)
             SetSecurityDescriptorDacl(&sd, TRUE, (PACL) NULL, FALSE);
             sa.nLength = (DWORD) sizeof(SECURITY_ATTRIBUTES);
             sa.lpSecurityDescriptor = (LPVOID) &sd;
-            sa.bInheritHandle = TRUE;
+            /*not used for child*/
+            sa.bInheritHandle = FALSE;
             DEBUG_INFO("creat for everyone [%s]", pmap->m_name);
             pmap->m_maphd = CreateFileMapping(INVALID_HANDLE_VALUE, &sa, prot, 0, (DWORD)size, ptname);
         } else {
