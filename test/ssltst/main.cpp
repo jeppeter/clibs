@@ -396,6 +396,12 @@ int main(int argc, char* argv[])
         goto out;
     }
 
+    if (pextstate->subcommand == NULL || strlen(pextstate->subcommand) == 0) {
+        ret = -EINVAL;
+        fprintf(stderr, "no subcommand set\n");
+        goto out;
+    }
+
     ret = 0;
 out:
     free_extargs_state(&pextstate);
