@@ -461,6 +461,242 @@ ASN1_SEQUENCE(TimeStampReq) = {
 
 IMPLEMENT_ASN1_FUNCTIONS(TimeStampReq)
 
+int encode_MessageImprint(jvalue* pj, MessageImprint* pobj);
+
+int encode_TimeStampReq(jvalue* pj,TimeStampReq* preq)
+{
+	int ret;
+	jvalue* chldpj=NULL,*curobj=NULL;
+	unsigned int arrsize;
+	unsigned int i;
+	UX509_EXTENSION* pcurext=NULL;
+
+
+	ret = set_asn1_integer(&(preq->version),"version",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	chldpj = jobject_get(pj,"messageimprint");
+	if (chldpj != NULL) {
+		if (preq->messageImprint) {
+			MessageImprint_free(preq->messageImprint);
+		}
+		preq->messageImprint = NULL;
+		preq->messageImprint = MessageImprint_new();
+		if (preq->messageImprint == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = encode_MessageImprint(chldpj,preq->messageImprint);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	ret = set_asn1_object(&(preq->reqPolicy),"reqpolicy",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_integer(&(preq->nonce),"nonce",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_bool(preq->certReq,"certreq",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret=  0;
+	chldpj =(jvalue*) jobject_get_array(pj,"extensions",&ret);
+	if (ret != 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (chldpj != NULL) {
+		arrsize = jarray_size(chldpj);
+		if (preq->extensions) {
+			sk_UX509_EXTENSION_free(preq->extensions);
+			preq->extensions = NULL;
+		}
+
+		preq->extensions = sk_UX509_EXTENSIONS_new_null();
+		if (preq->extensions == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		for(i=0;i<arrsize;i++) {
+			curobj = jarray_get(chldpj,i);
+			if (curobj == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			ASSERT_IF(pcurext == NULL);
+			pcurext = UX509_EXTENSION_new();
+			if (pcurext == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			ret= encode_UX509_EXTENSION(curobj,pcurext);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			sk_UX509_EXTENSION_push(preq->extensions,pcurext);
+			pcurext = NULL;
+		}
+	}
+
+	return 1;
+fail:	
+	if (pcurext) {
+		UX509_EXTENSION_free(pcurext);
+	}
+	pcurext = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_TimeStampReq(TimeStampReq* preq,jvalue* pj)
+{
+	int ret;
+	jvalue* chldpj = NULL;
+	jvalue* arrpj=NULL;
+	jvalue *oldpj=NULL;
+	UX509_EXTENSION* pcurext=NULL;
+
+	ret = get_asn1_integer(&(preq->version),"version",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (preq->messageImprint != NULL) {
+		chldpj = jobject_create();
+		if (chldpj == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = decode_MessageImprint(preq->messageImprint,chldpj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = 0;
+		oldpj = jobject_put(pj,"messageimprint",chldpj,&ret);
+		if (ret != 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		chldpj = NULL;
+
+		if (oldpj) {
+			jvalue_destroy(oldpj);
+		}
+		oldpj = NULL;
+	}
+
+	ret = get_asn1_object(&(preq->reqPolicy),"reqpolicy",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_integer(&(preq->nonce),"nonce",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_bool(preq->certReq,"certreq",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (preq->extensions) {
+		arrsize = sk_UX509_EXTENSION_num(preq->extensions);
+		arrpj = jarray_create();
+		if (arrpj == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		for(i=0;i<arrsize;i++) {
+			pcurext = sk_UX509_EXTENSION_value(preq->extensions,i);
+			if (pcurext == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			ASSERT_IF(chldpj == NULL);
+			chldpj = jobject_create();
+			if (chldpj == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			ret = decode_UX509_EXTENSION(pcurext,chldpj);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			ret = jarray_put(arrpj,chldpj);
+			if (ret != 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			chldpj = NULL;
+		}
+
+		ret = 0;
+		oldpj = jobject_put(pj,"extensions",arrpj,&ret);
+		if (ret != 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		arrpj = NULL;
+		if (oldpj != NULL) {
+			jvalue_destroy(oldpj);
+		}
+		oldpj = NULL;
+	}
+
+	return 1;
+fail:
+	if (chldpj) {
+		jvalue_destroy(chldpj);
+	}
+	chldpj = NULL;
+	if (oldpj) {
+		jvalue_destroy(oldpj);
+	}
+	oldpj = NULL;
+
+	if (arrpj) {
+		jvalue_destroy(arrpj);
+	}
+	arrpj = NULL;
+
+	SETERRNO(ret);
+	return ret;
+}
+
 #endif /* ENABLE_CURL */
 
 typedef struct {
@@ -3587,3 +3823,12 @@ int x509extdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 {
 	EXPAND_DECODE_HANDLER(UX509_EXTENSION);
 }
+
+int tsreqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(TimeStampReq);
+}
+int tsreqdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(TimeStampReq);
+}	
