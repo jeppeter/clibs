@@ -307,6 +307,137 @@ ASN1_SEQUENCE(TimeStampResp) = {
 
 IMPLEMENT_ASN1_FUNCTIONS(TimeStampResp)
 
+struct UX509_extension_st {
+    ASN1_OBJECT *object;
+    ASN1_BOOLEAN critical;
+    ASN1_OCTET_STRING value;
+};
+
+typedef struct UX509_extension_st UX509_EXTENSION;
+
+typedef STACK_OF(UX509_EXTENSION) UX509_EXTENSIONS;
+
+ASN1_SEQUENCE(UX509_EXTENSION) = {
+        ASN1_SIMPLE(UX509_EXTENSION, object, ASN1_OBJECT),
+        ASN1_OPT(UX509_EXTENSION, critical, ASN1_BOOLEAN),
+        ASN1_EMBED(UX509_EXTENSION, value, ASN1_OCTET_STRING)
+} ASN1_SEQUENCE_END(UX509_EXTENSION)
+
+ASN1_ITEM_TEMPLATE(UX509_EXTENSIONS) =
+        ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, Extension, UX509_EXTENSION)
+ASN1_ITEM_TEMPLATE_END(UX509_EXTENSIONS)
+
+IMPLEMENT_ASN1_FUNCTIONS(UX509_EXTENSION)
+IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(UX509_EXTENSIONS, UX509_EXTENSIONS, UX509_EXTENSIONS)
+//IMPLEMENT_ASN1_DUP_FUNCTION(UX509_EXTENSION)
+
+int encode_UX509_EXTENSION(jvalue* pj, UX509_EXTENSION*pext)
+{
+	int ret;
+	ASN1_OCTET_STRING* pdupstr=NULL;
+	const unsigned char* pdata=NULL;
+	int datalen=0;
+
+
+	ret=  set_asn1_object(&(pext->object),"object",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = set_asn1_bool(&(pext->critical),"critical",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (pext->critical) {
+		DEBUG_INFO("crital true");
+	} else {
+		DEBUG_INFO("crital false");
+	}
+
+
+	ret = set_asn1_octstr(&pdupstr,"value",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (pdupstr != NULL) {
+		pdata = ASN1_STRING_get0_data(pdupstr);
+		datalen = ASN1_STRING_length(pdupstr);
+		ret = ASN1_STRING_set(&(pext->value),pdata,datalen);
+		if (ret <= 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	if (pdupstr) {
+		ASN1_OCTET_STRING_free(pdupstr);
+	}
+	pdupstr = NULL;
+
+	return 1;
+fail:
+	if (pdupstr) {
+		ASN1_OCTET_STRING_free(pdupstr);
+	}
+	pdupstr = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int decode_UX509_EXTENSION(UX509_EXTENSION* pext, jvalue* pj)
+{
+	int ret;
+	ASN1_OCTET_STRING* pdupstr=NULL;
+	const unsigned char* pdata=NULL;
+	int datalen=0;
+
+
+	ret=  get_asn1_object(&(pext->object),"object",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = get_asn1_bool(&(pext->critical),"critical",pj);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	pdata = ASN1_STRING_get0_data(&(pext->value));
+	datalen = ASN1_STRING_length(&(pext->value));
+	if (pdata != NULL && datalen > 0) {
+		pdupstr = ASN1_OCTET_STRING_dup(&(pext->value));
+		ret = get_asn1_octstr(&pdupstr,"value",pj);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	if (pdupstr) {
+		ASN1_OCTET_STRING_free(pdupstr);
+	}
+	pdupstr = NULL;
+
+
+
+
+	return 1;
+fail:
+	if (pdupstr) {
+		ASN1_OCTET_STRING_free(pdupstr);
+	}
+	pdupstr = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
 
 typedef struct {
 	ASN1_INTEGER *version;
@@ -314,7 +445,7 @@ typedef struct {
 	ASN1_OBJECT *reqPolicy;
 	ASN1_INTEGER *nonce;
 	ASN1_BOOLEAN *certReq;
-	STACK_OF(X509_EXTENSION) *extensions;
+	STACK_OF(UX509_EXTENSION) *extensions;
 } TimeStampReq;
 
 DECLARE_ASN1_FUNCTIONS(TimeStampReq)
@@ -325,7 +456,7 @@ ASN1_SEQUENCE(TimeStampReq) = {
 	ASN1_OPT   (TimeStampReq, reqPolicy, ASN1_OBJECT),
 	ASN1_OPT   (TimeStampReq, nonce, ASN1_INTEGER),
 	ASN1_SIMPLE(TimeStampReq, certReq, ASN1_BOOLEAN),
-	ASN1_IMP_SEQUENCE_OF_OPT(TimeStampReq, extensions, X509_EXTENSION, 0)
+	ASN1_IMP_SEQUENCE_OF_OPT(TimeStampReq, extensions, UX509_EXTENSION, 0)
 } ASN1_SEQUENCE_END(TimeStampReq)
 
 IMPLEMENT_ASN1_FUNCTIONS(TimeStampReq)
@@ -3445,4 +3576,14 @@ int bmpstrenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int bmpstrdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	EXPAND_DECODE_HANDLER(ASN1_BMPSTRING);
+}
+
+
+int x509extenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_ENCODE_HANDLER(UX509_EXTENSION);
+}
+int x509extdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	EXPAND_DECODE_HANDLER(UX509_EXTENSION);
 }

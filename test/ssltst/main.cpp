@@ -152,6 +152,8 @@ int safebagenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int safebagdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int x509auxenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int x509auxdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int x509extenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int x509extdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

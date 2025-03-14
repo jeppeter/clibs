@@ -1,4 +1,20 @@
 
+int set_asn1_bool(ASN1_BOOLEAN* pbool,const char* key, jvalue* pj)
+{
+	int ret;
+	int val;
+
+	ret = 0;
+	val = jobject_get_bool(pj,key,&ret);
+	if (ret != 0) {
+		return 0;
+	}
+	DEBUG_INFO("[%s].val %d",key,val);
+
+	*pbool = (ASN1_BOOLEAN)val;
+	return 1;
+}
+
 int set_asn1_bmpstr(ASN1_BMPSTRING **ppbmpstr, const char* key, jvalue* pj)
 {
 	const char* pstr = NULL;
@@ -1672,6 +1688,24 @@ fail:
 	arrobj = NULL;
 	SETERRNO(ret);
 	return ret;	
+}
+
+int get_asn1_bool(ASN1_BOOLEAN* pbool,const char* key,jvalue* pj)
+{
+	int ret;
+	int val;
+
+	val = *pbool;
+	ret = jobject_put_bool(pj,key,val);
+	if (ret != 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
 }
 
 int get_asn1_bmpstr(ASN1_BMPSTRING** ppbmpstr, const char* key, jvalue* pj)

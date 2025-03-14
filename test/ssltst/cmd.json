@@ -343,6 +343,12 @@
     },
     "x509auxdec<x509auxdec_handler>##binfile ... to decode PKCS12_SAFEBAG##" : {
         "$" : "+"
+    },
+    "x509extenc<x509extenc_handler>##jsonfile to encode TimeStampReq##" : {
+        "$" : 1
+    },
+    "x509extdec<x509extdec_handler>##binfile ... to decode TimeStampReq##" : {
+        "$" : "+"
     }
 
 }
