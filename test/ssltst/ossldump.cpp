@@ -327,6 +327,8 @@ ASN1_ITEM_TEMPLATE(UX509_EXTENSIONS) =
         ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, Extension, UX509_EXTENSION)
 ASN1_ITEM_TEMPLATE_END(UX509_EXTENSIONS)
 
+DEFINE_STACK_OF(UX509_EXTENSION)
+
 IMPLEMENT_ASN1_FUNCTIONS(UX509_EXTENSION)
 IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(UX509_EXTENSIONS, UX509_EXTENSIONS, UX509_EXTENSIONS)
 //IMPLEMENT_ASN1_DUP_FUNCTION(UX509_EXTENSION)
@@ -462,6 +464,7 @@ ASN1_SEQUENCE(TimeStampReq) = {
 IMPLEMENT_ASN1_FUNCTIONS(TimeStampReq)
 
 int encode_MessageImprint(jvalue* pj, MessageImprint* pobj);
+int decode_MessageImprint(MessageImprint* pobj, jvalue* pj);
 
 int encode_TimeStampReq(jvalue* pj,TimeStampReq* preq)
 {
@@ -529,14 +532,14 @@ int encode_TimeStampReq(jvalue* pj,TimeStampReq* preq)
 			preq->extensions = NULL;
 		}
 
-		preq->extensions = sk_UX509_EXTENSIONS_new_null();
+		preq->extensions = sk_UX509_EXTENSION_new_null();
 		if (preq->extensions == NULL) {
 			GETERRNO(ret);
 			goto fail;
 		}
 
 		for(i=0;i<arrsize;i++) {
-			curobj = jarray_get(chldpj,i);
+			curobj = jarray_get(chldpj,i,&ret);
 			if (curobj == NULL) {
 				GETERRNO(ret);
 				goto fail;
@@ -576,6 +579,8 @@ int decode_TimeStampReq(TimeStampReq* preq,jvalue* pj)
 	jvalue* arrpj=NULL;
 	jvalue *oldpj=NULL;
 	UX509_EXTENSION* pcurext=NULL;
+	unsigned int arrsize;
+	unsigned int i;
 
 	ret = get_asn1_integer(&(preq->version),"version",pj);
 	if (ret < 0) {

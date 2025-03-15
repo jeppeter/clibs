@@ -1,0 +1,21 @@
+{
+	"version" : 1,
+	"messageimprint" : {
+		"digestalgorithm" : {
+			"algorithm" : "1.3.65",
+			"parameters" : {
+				"tag" : "0x4",
+				"data" : [2,3,5]
+			}
+		},
+		"digest" : "ddrr"
+	},
+	"reqpolicy" : "2.11.11",
+	"nonce" : 5,
+	"certreq" : true,
+	"extensions" : [{
+		"object" : "2.11.33",
+		"critical" : false,
+		"value" : "222"
+	}]
+}
