@@ -339,6 +339,7 @@ int encode_UX509_EXTENSION(jvalue* pj, UX509_EXTENSION*pext)
 	ASN1_OCTET_STRING* pdupstr=NULL;
 	const unsigned char* pdata=NULL;
 	int datalen=0;
+	ASN1_BOOLEAN* pbval;
 
 
 	ret=  set_asn1_object(&(pext->object),"object",pj);
@@ -347,7 +348,8 @@ int encode_UX509_EXTENSION(jvalue* pj, UX509_EXTENSION*pext)
 		goto fail;
 	}
 
-	ret = set_asn1_bool(&(pext->critical),"critical",pj);
+	pbval = &(pext->critical);
+	ret = set_asn1_bool(&pbval,"critical",pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -397,6 +399,7 @@ int decode_UX509_EXTENSION(UX509_EXTENSION* pext, jvalue* pj)
 	ASN1_OCTET_STRING* pdupstr=NULL;
 	const unsigned char* pdata=NULL;
 	int datalen=0;
+	ASN1_BOOLEAN* pbval;
 
 
 	ret=  get_asn1_object(&(pext->object),"object",pj);
@@ -405,7 +408,9 @@ int decode_UX509_EXTENSION(UX509_EXTENSION* pext, jvalue* pj)
 		goto fail;
 	}
 
-	ret = get_asn1_bool(&(pext->critical),"critical",pj);
+	pbval = &(pext->critical);
+
+	ret = get_asn1_bool(&pbval,"critical",pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -512,11 +517,13 @@ int encode_TimeStampReq(jvalue* pj,TimeStampReq* preq)
 		goto fail;
 	}
 
-	ret = set_asn1_bool(preq->certReq,"certreq",pj);
+
+	ret = set_asn1_bool(&(preq->certReq),"certreq",pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
+	DEBUG_INFO("certreq set");
 
 	ret=  0;
 	chldpj =(jvalue*) jobject_get_array(pj,"extensions",&ret);
@@ -627,7 +634,7 @@ int decode_TimeStampReq(TimeStampReq* preq,jvalue* pj)
 		goto fail;
 	}
 
-	ret = get_asn1_bool(preq->certReq,"certreq",pj);
+	ret = get_asn1_bool(&(preq->certReq),"certreq",pj);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;

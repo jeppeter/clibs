@@ -1,18 +1,39 @@
 
-int set_asn1_bool(ASN1_BOOLEAN* pbool,const char* key, jvalue* pj)
+int set_asn1_bool(ASN1_BOOLEAN** ppbool,const char* key, jvalue* pj)
 {
 	int ret;
 	int val;
+	ASN1_BOOLEAN* pbval;
 
 	ret = 0;
 	val = jobject_get_bool(pj,key,&ret);
 	if (ret != 0) {
 		return 0;
 	}
-	DEBUG_INFO("[%s].val %d",key,val);
+	DEBUG_INFO("[%s].val %d ppbool %p",key,val,ppbool);
 
-	*pbool = (ASN1_BOOLEAN)val;
+	if (ppbool == NULL ) {
+		ret = -EINVAL;
+		goto fail;
+	}
+	DEBUG_INFO("nn ppbool %p",*ppbool);
+	if (*ppbool == NULL || *ppbool == (void*)0xffffffff) {
+		*ppbool = (ASN1_BOOLEAN*)malloc(sizeof(**ppbool));
+		DEBUG_INFO("*ppbool %p",*ppbool);
+		if (*ppbool == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	DEBUG_INFO("*ppbool %p", *ppbool);
+	pbval = *ppbool;
+
+	*pbval = (ASN1_BOOLEAN)val;
 	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
 }
 
 int set_asn1_bmpstr(ASN1_BMPSTRING **ppbmpstr, const char* key, jvalue* pj)
@@ -1690,12 +1711,16 @@ fail:
 	return ret;	
 }
 
-int get_asn1_bool(ASN1_BOOLEAN* pbool,const char* key,jvalue* pj)
+int get_asn1_bool(ASN1_BOOLEAN** ppbool,const char* key,jvalue* pj)
 {
 	int ret;
 	int val;
 
-	val = *pbool;
+	if(ppbool == NULL || *ppbool == NULL) {
+		return 0;
+	}
+
+	val = *(*ppbool);
 	ret = jobject_put_bool(pj,key,val);
 	if (ret != 0) {
 		GETERRNO(ret);
