@@ -1714,13 +1714,19 @@ fail:
 int get_asn1_bool(ASN1_BOOLEAN** ppbool,const char* key,jvalue* pj)
 {
 	int ret;
-	int val;
+	int val = 0;
 
-	if(ppbool == NULL || *ppbool == NULL) {
+	DEBUG_INFO("ppbool %p" ,ppbool);
+	if (ppbool != NULL) {
+		DEBUG_INFO("*ppbool %p" ,*ppbool)
+;	}
+	if(ppbool == NULL || *ppbool == NULL || *ppbool == (void*)0xffffffff) {
 		return 0;
 	}
 
-	val = *(*ppbool);
+	if (*ppbool != 0) {
+		val = 1;
+	}
 	ret = jobject_put_bool(pj,key,val);
 	if (ret != 0) {
 		GETERRNO(ret);

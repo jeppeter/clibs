@@ -634,6 +634,8 @@ int decode_TimeStampReq(TimeStampReq* preq,jvalue* pj)
 		goto fail;
 	}
 
+	DEBUG_INFO(" ");
+
 	ret = get_asn1_bool(&(preq->certReq),"certreq",pj);
 	if (ret < 0) {
 		GETERRNO(ret);
