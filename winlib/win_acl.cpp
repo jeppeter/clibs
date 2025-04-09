@@ -2244,7 +2244,7 @@ try_again:
                     }
                     memset(psid, 0 , (size_t)sidsize);
                     memcpy(psid, plsid, (size_t)cplen - 1);
-                    sidlen = cplen - 1;
+                    sidlen = (DWORD)(cplen - 1);
                     break;
                 }
             } 
