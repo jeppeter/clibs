@@ -397,10 +397,8 @@ int __get_code(pextargs_state_t parsestate, char** ppcode, int* psize)
         }
     }
 
-    if (retsize <= cnt || pcode == NULL) {
-        if (retsize <= cnt) {
-            retsize = cnt + 1;
-        }
+    if (retsize <= (cnt + (int)sizeof(wchar_t)) || pcode == NULL) {
+        retsize = cnt + (int) sizeof(wchar_t);
         pcode = (char*)malloc((size_t)retsize);
         if (pcode == NULL) {
             GETERRNO(ret);
@@ -942,6 +940,7 @@ int unitoutf8_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         goto out;
     }
     buflen = ret;
+
     puni = (wchar_t*)pbuf;
 
     ret = UnicodeToUtf8(puni, &putf8, &utf8size);
@@ -1270,4 +1269,82 @@ int jsonget_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     read_file_whole(NULL,&jsons,&jsonsize);
     SETERRNO(ret);
     return ret;
+}
+
+
+int unitoansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* ansistr=NULL;
+    int ansisize=0;
+    char* puni=NULL;
+    int unisize=0;
+    int unilen;
+
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+
+
+    ret = __get_code(parsestate,&puni,&unisize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    unilen = ret;
+
+    ret=  UnicodeToAnsi((wchar_t*)puni,&ansistr,&ansisize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    debug_buffer(stdout,puni,unilen,"unicode buffer");
+    fprintf(stdout,"%s\n",ansistr);
+
+    ret = 0;
+out:
+    UnicodeToAnsi(NULL,&ansistr,&ansisize);
+    __get_code(NULL,&puni,&unisize);
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int ansitouni_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* ansistr=NULL;
+    wchar_t* puni=NULL;
+    int unisize=0;
+    int unilen=0;
+    int i;
+
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+
+
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        ansistr = parsestate->leftargs[i];
+        ret = AnsiToUnicode(ansistr,&puni,&unisize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        unilen = ret;
+        debug_buffer(stdout,(char*)puni,(int)sizeof(wchar_t)* unilen,"ansi [%s]",ansistr);
+    }
+    ret = 0;
+out:
+    AnsiToUnicode(NULL,&puni,&unisize);
+    SETERRNO(ret);
+    return ret;
+
 }

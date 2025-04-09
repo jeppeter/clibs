@@ -565,6 +565,12 @@
     },
     "decbase64<decbase64_handler>##infile outfile to read to decode output##" : {
         "$" : 2
+    },
+    "unitoansi<unitoansi_handler>##code ... to print in ansi##" : {
+        "$" : "+"
+    },
+    "ansitouni<ansitouni_handler>##ansistr ... to print unicode##" : {
+        "$" : "+"
     }
 
 }
