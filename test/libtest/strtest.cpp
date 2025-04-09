@@ -559,7 +559,7 @@ int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     inlen = ret;
 
     outsize = 32;
-    try_again:
+try_again:
     if (outbuf) {
         free(outbuf);
     }
@@ -605,7 +605,7 @@ int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     fprintf(stdout, "encode [%s] => [%s] succ\n", input, output );
     ret = 0;
 
-    out:
+out:
     base64_splite_line(NULL, 0, 0, &expandline, &expandsize);
     read_file_whole(NULL, &inbuf, &insize);
     if (outbuf) {
@@ -693,7 +693,7 @@ int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     fprintf(stdout, "decode [%s] => [%s] succ\n", input, output );
     ret = 0;
 
-    out:
+out:
     base64_compact_line(NULL, 0, &compactbuf, &compactsize);
     read_file_whole(NULL, &inbuf, &insize);
     if (outbuf) {
