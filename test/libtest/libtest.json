@@ -556,6 +556,9 @@
     },
     "threxit<threxit_handler>##[seconds] to wait exit exit from thread default 10##" : {
         "$" : "?"
+    },
+    "chdir<chdir_handler>##dirs ... to change directory##" : {
+        "$" : "+"
     }
 
 }

@@ -41,6 +41,9 @@ WINLIB_API int win_arch_type();
 WINLIB_API int init_nt_envop_funcs(void);
 WINLIB_API void fini_nt_envop_funcs(void);
 
+WINLIB_API int get_current_dir(int freed,char** ppcur,int *psize);
+WINLIB_API int set_current_dir(char* pdir);
+
 #ifdef __cplusplus
 };
 #endif

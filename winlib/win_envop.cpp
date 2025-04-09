@@ -746,6 +746,7 @@ void fini_nt_envop_funcs(void)
 }
 
 
+
 NTSTATUS
 NTAPI
 NtSetSecurityObjectFake(
@@ -775,4 +776,150 @@ NtQuerySecurityObjectFake(
         return NTSTATUS_FLT_NOT_INITIALIZED;
     }
     return NtQuerySecurityObject_orig(Handle,SecurityInformation,SecurityDescriptor,Length,LengthNeeded);
+}
+
+
+int get_current_dir(int freed,char** ppcur,int *psize)
+{
+    int ret;
+    char* pretdir=NULL;
+    int retsize=0;
+    int retlen=0;
+    TCHAR* pbuf=NULL;
+    int bufsize=0;
+    DWORD dret;
+    char* ptmp=NULL;
+    int tmpsize=0;
+
+
+    if (freed) {
+        if (ppcur && *ppcur) {
+            free(*ppcur);
+            *ppcur = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (ppcur == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretdir = *ppcur;
+    retsize = *psize;
+
+    bufsize = 4;
+try_again:
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+
+    pbuf = (TCHAR*)malloc(bufsize*sizeof(TCHAR));
+    if (pbuf == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    memset(pbuf,0,sizeof(TCHAR)*bufsize);
+
+    dret = GetCurrentDirectory((DWORD)bufsize,pbuf);
+    DEBUG_INFO("dret %d", dret);
+    if (dret == 0) {
+        GETERRNO(ret);
+        ERROR_INFO("GetCurrentDirectory error %d",ret);
+        goto fail;
+    }
+
+    if (dret >= (DWORD)bufsize) {
+        bufsize = (int)dret + 1;
+        goto try_again;
+    }
+
+    ret = TcharToAnsi(pbuf,&ptmp,&tmpsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    retlen = ret;
+    if (retlen >= retsize) {
+        retsize = retlen + 1;
+        pretdir = (char*)malloc((size_t)retsize);
+        if (pretdir == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    memset(pretdir, 0, (size_t)retsize);
+    memcpy(pretdir,ptmp, (size_t)retlen);
+
+    if (*ppcur && *ppcur != pretdir) {
+        free(*ppcur);
+    }
+    *ppcur = pretdir;
+    *psize = retsize;
+
+    TcharToAnsi(NULL,&ptmp,&tmpsize);
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+    bufsize = 0;
+    return retlen;
+fail:
+    TcharToAnsi(NULL,&ptmp,&tmpsize);
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+    bufsize = 0;
+
+    if (pretdir && pretdir != *ppcur) {
+        free(pretdir);
+    }
+    pretdir = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int set_current_dir(char* pdir)
+{
+    TCHAR* ptdir=NULL;
+    int tsize=0;
+    int ret;
+    BOOL bret;
+
+
+    if (pdir == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = AnsiToTchar(pdir,&ptdir,&tsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    bret = SetCurrentDirectory(ptdir);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("SetCurrentDirectory [%s] error[%d]",pdir,ret);
+        goto fail;
+    }
+
+    AnsiToTchar(NULL,&ptdir,&tsize);
+    return 0;
+fail:
+    AnsiToTchar(NULL,&ptdir,&tsize);
+    SETERRNO(ret);
+    return ret;
 }

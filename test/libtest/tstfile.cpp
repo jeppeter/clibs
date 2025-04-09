@@ -1301,3 +1301,54 @@ out:
 	SETERRNO(ret);
 	return ret;
 }
+
+int chdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	char* curdir=NULL;
+	int cursize=0;
+	char* dir=NULL;
+	int i;
+	int ret;
+	pargs_options_t pargs=(pargs_options_t)popt;
+	int setdir=0;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	init_log_level(pargs);
+
+	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+		dir=  parsestate->leftargs[i];
+		ret = get_current_dir(0,&curdir,&cursize);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+		printf("curdir [%s]\n", curdir);
+
+		ret = set_current_dir(dir);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+		setdir = 1;
+		printf("chdir [%s]\n", dir);
+
+		ret=  set_current_dir(curdir);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto out;
+		}
+		printf("chdir back [%s]\n", curdir);
+		setdir = 0;
+	}
+
+	ret = 0;	
+out:
+	if (setdir) {
+		set_current_dir(curdir);
+	}
+	setdir = 0;
+	get_current_dir(1,&curdir,&cursize);
+	SETERRNO(ret);
+	return ret;	
+}
