@@ -592,7 +592,7 @@ try_again:
 
     expandlen = ret;
 
-    fprintf(stdout, "inlen [%d]outlen [%d]\n", inlen, expandlen);
+    //fprintf(stdout, "inlen [%d]outlen [%d]\n", inlen, expandlen);
     ret = write_file_whole(output, expandline, expandlen);
     if (ret < 0) {
         GETERRNO(ret);

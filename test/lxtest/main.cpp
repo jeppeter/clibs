@@ -34,6 +34,7 @@
 #include <assert.h>
 
 #include <crypt_md5.h>
+#include <base64_code.h>
 
 typedef struct __args_options {
     int m_verbose;

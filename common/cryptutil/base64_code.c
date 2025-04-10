@@ -1,5 +1,12 @@
 #include <base64_code.h>
 #include <cmn_err.h>
+#if defined(__GNUC__)
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#endif
+
+
 
 
 #if defined(_WIN32) || defined(_WIN64)
@@ -73,7 +80,7 @@ int encode_base64(unsigned char* pbuffer, int insize, char* pencbuf, int outsize
     unsigned char* out = (unsigned char*)pencbuf;
 
     if (outsize < b64e_size((unsigned int)insize)) {
-        ret = -ERROR_INSUFFICIENT_BUFFER;
+        ret = -CMN_NOBUFS;
         SETERRNO(ret);
         return ret;
     }
@@ -172,10 +179,11 @@ int base64_splite_line(char* pencbuf, int inlen, int linelen, char**ppencline, i
     }
 
     if (ppencline == NULL || poutsize == NULL || linelen == 0) {
-        ret = -ERROR_INVALID_PARAMETER;
+        ret = -CMN_EINVAL;
         SETERRNO(ret);
         return ret;
     }
+
 
     if (inlen > linelen) {
         retlen = inlen + (inlen / linelen) + 2;
@@ -206,8 +214,8 @@ int base64_splite_line(char* pencbuf, int inlen, int linelen, char**ppencline, i
             pretline[outlen] = '\n';
             outlen ++;
         }
-        if(outlen < retsize) {
-            ret = -CMN_EINVAL;
+        if(outlen >= retsize) {
+            ret = -CMN_NOBUFS;
             goto fail;
         }
     }
@@ -253,7 +261,7 @@ int base64_compact_line(char* pencbuf, int enclen, char** ppencnoline, int* pout
     }
 
     if (ppencnoline == NULL || poutsize == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
+        ret = -CMN_EINVAL;
         SETERRNO(ret);
         return ret;
     }

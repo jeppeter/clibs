@@ -203,7 +203,7 @@ int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     int expandsize = 0;
     int expandlen = 0;
 
-    init_log_level(pargs);
+    init_log_verbose(pargs);
     argc = argc;
     argv = argv;
     input = parsestate->leftargs[0];
@@ -233,17 +233,24 @@ try_again:
     ret = encode_base64((unsigned char*)inbuf, inlen, outbuf, outsize);
     if (ret < 0) {
         GETERRNO(ret);
-        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+        if (ret == -CMN_NOBUFS) {
             outsize <<= 1;
             goto try_again;
         }
         fprintf(stderr, "can not encode base\n");
-        debug_buffer(stderr, inbuf, insize,NULL);
+        print_buffer(stderr, (unsigned char*)inbuf, insize,NULL);
         fprintf(stderr, "error [%d]\n", ret);
         goto out;
     }
 
+
     outlen = ret;
+
+    if (outlen >= (outsize - 2)) {
+        outsize <<= 1;
+        goto try_again;
+    }
+
     ret = base64_splite_line(outbuf, outlen, 76, &expandline, &expandsize);
     if (ret < 0) {
         GETERRNO(ret);
@@ -253,7 +260,7 @@ try_again:
 
     expandlen = ret;
 
-    fprintf(stdout, "inlen [%d]outlen [%d]\n", inlen, expandlen);
+    //fprintf(stdout, "inlen [%d]outlen [%d]\n", inlen, expandlen);
     ret = write_file_whole(output, expandline, expandlen);
     if (ret < 0) {
         GETERRNO(ret);
@@ -289,7 +296,7 @@ int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     char* compactbuf = NULL;
     int compactlen = 0, compactsize = 0;
 
-    init_log_level(pargs);
+    init_log_verbose(pargs);
     argc = argc;
     argv = argv;
     input = parsestate->leftargs[0];
@@ -330,12 +337,12 @@ int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     ret = decode_base64(compactbuf, compactlen, (unsigned char*)outbuf, outsize);
     if (ret < 0) {
         GETERRNO(ret);
-        if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+        if (ret == -CMN_NOBUFS) {
             outsize <<= 1;
             goto try_again;
         }
         fprintf(stderr, "can not decode base\n");
-        debug_buffer(stderr, inbuf, insize,NULL);
+        print_buffer(stderr, (unsigned char*)inbuf, insize,NULL);
         fprintf(stderr, "error [%d]\n", ret);
         goto out;
     }
