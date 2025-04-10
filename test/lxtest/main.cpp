@@ -88,6 +88,8 @@ int evchatsvr_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int evchatcli_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sockaddrinfmt_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int noechopass_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \

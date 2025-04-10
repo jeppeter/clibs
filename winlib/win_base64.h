@@ -11,10 +11,6 @@
 extern "C" {
 #endif /* __cplusplus*/
 
-WINLIB_API int encode_base64(unsigned char* pbuffer,int insize, char* pencbuf,int outsize);
-WINLIB_API int decode_base64(char* pencbuf, int insize,unsigned char* pbuffer, int outsize);
-WINLIB_API int base64_splite_line(char* pencbuf,int inlen,int linelen,char**ppencline,int *poutsize);
-WINLIB_API int base64_compact_line(char* pencbuf,int inlen,char** ppencnoline, int* poutsize);
 
 #ifdef __cplusplus
 };

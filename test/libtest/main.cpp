@@ -36,7 +36,7 @@
 #include <win_priv.h>
 #include <win_com.h>
 #include <win_dbg.h>
-#include <win_base64.h>
+#include <base64_code.h>
 #include <win_user.h>
 #include <win_namedpipe.h>
 #include <win_prn.h>

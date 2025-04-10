@@ -125,6 +125,12 @@
     },
     "noechopass<noechopass_handler>##to start noecho password##" : {
         "$" : 0
+    },
+    "encbase64<encbase64_handler>##infile outfile to read from raw from input to output##" : {
+        "$" : 2
+    },
+    "decbase64<decbase64_handler>##infile outfile to read to decode output##" : {
+        "$" : 2
     }
 
 }

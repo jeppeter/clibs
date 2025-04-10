@@ -14,6 +14,7 @@
 #undef __WINLIB_INNER_INCLUDE__
 
 #define  CMN_EINVAL            ERROR_INVALID_PARAMETER
+#define  CMN_NOBUFS            ERROR_INSUFFICIENT_BUFFER
 
 #elif defined(__GNUC__)
 /* this is for the unix gcc*/
@@ -28,6 +29,7 @@
 #undef __UX_INNER_DEFINED__
 
 #define  CMN_EINVAL            EINVAL
+#define  CMN_NOBUFS            ENOBUFS
 
 #else
 #error "not supported comilers"

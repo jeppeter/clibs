@@ -1,9 +1,12 @@
-#include <win_base64.h>
-#include <win_err.h>
+#include <base64_code.h>
+#include <cmn_err.h>
 
+
+#if defined(_WIN32) || defined(_WIN64)
 #if _MSC_VER >= 1910
 #pragma warning(push)
 #pragma warning(disable:5045)
+#endif
 #endif
 
 unsigned char b64_chr[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -121,7 +124,7 @@ int decode_base64(char* pencbuf, int insize, unsigned char* pbuffer, int outsize
     int ret;
     unsigned char* out = pbuffer;
     if (outsize < b64d_size((unsigned int)insize)) {
-        ret = -ERROR_INSUFFICIENT_BUFFER;
+        ret = -CMN_NOBUFS;
         SETERRNO(ret);
         return ret;
     }
@@ -187,7 +190,6 @@ int base64_splite_line(char* pencbuf, int inlen, int linelen, char**ppencline, i
         if (retsize < retlen) {
             retsize = retlen;
         }
-        DEBUG_INFO("retsize [%d]", retsize);
         pretline = (char*)malloc((size_t)retsize);
         if (pretline == NULL) {
             GETERRNO(ret);
@@ -201,11 +203,13 @@ int base64_splite_line(char* pencbuf, int inlen, int linelen, char**ppencline, i
     	pretline[outlen] = pencbuf[i];
     	outlen ++;
         if ((i % linelen) == (linelen - 1)) {
-        	DEBUG_INFO("i [%d]", i);
             pretline[outlen] = '\n';
             outlen ++;
         }
-        ASSERT_IF(outlen < retsize);
+        if(outlen < retsize) {
+            ret = -CMN_EINVAL;
+            goto fail;
+        }
     }
 
     pretline[outlen] = '\0';
@@ -287,6 +291,8 @@ fail:
     return ret;
 }
 
+#if defined(_WIN32) || defined(_WIN64)
 #if _MSC_VER >= 1910
 #pragma warning(pop)
+#endif
 #endif
