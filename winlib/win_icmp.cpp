@@ -520,6 +520,8 @@ fail:
 int __filter_icmp_header(PICMP_SOCK_t psock,uint64_t* pval)
 {
 	ICMP_HDR* picmphdr= NULL;
+	IPV4_HDR* piphdr=NULL;
+	struct sockaddr_in* paddr;
 	uint64_t* pbuf;
 
 	if (psock->m_icmptype == AF_INET) {
@@ -527,6 +529,12 @@ int __filter_icmp_header(PICMP_SOCK_t psock,uint64_t* pval)
 			return 0;
 		}
 		picmphdr = (ICMP_HDR*) (psock->m_rcvbuf + sizeof(IPV4_HDR));
+		piphdr = (IPV4_HDR*) (psock->m_rcvbuf);
+		paddr = (struct sockaddr_in*) &psock->m_sndaddr;
+		if (piphdr->ip_srcaddr != paddr->sin_addr.s_addr) {
+			return 0;
+		}
+
 		if (picmphdr->icmp_type == ICMPV4_ECHO_REPLY_TYPE && picmphdr->icmp_code == ICMPV4_ECHO_REPLY_CODE) {
 			pbuf = (uint64_t*) (psock->m_rcvbuf + sizeof(IPV4_HDR) + sizeof(ICMP_HDR));
 			if (*pbuf == psock->m_sndticks && psock->m_indent == ntohs(picmphdr->icmp_id) && psock->m_seq == picmphdr->icmp_sequence) {
@@ -558,6 +566,7 @@ int recv_icmp_response(void* psock1,uint64_t* pval)
 
 	if (psock->m_inrcv != 0) {
 		/*that not used one*/
+		DEBUG_INFO("inrcv != 0");
 		return 0;
 	}
 

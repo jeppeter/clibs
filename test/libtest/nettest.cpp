@@ -226,6 +226,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     int curtimeout = 0;
     int waitnext=0;
     uint64_t* pexpires = NULL;
+    uint64_t* pnextrestart = NULL;
     uint64_t cticks;
 
 
@@ -301,6 +302,14 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     }
     memset(pexpires, 0, sizeof(*pexpires) * socklen);
 
+    pnextrestart = (uint64_t*) malloc(sizeof(*pnextrestart) * socklen);
+    if (pnextrestart == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memset(pnextrestart, 0, sizeof(*pnextrestart) * socklen);
+
+
 
     for(i=0;i<socklen;i++) {
         ipsocks[i] = init_icmp_sock(AF_INET);
@@ -310,12 +319,21 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             goto out;
         }
         ret = send_icmp_request(ipsocks[i], parsestate->leftargs[i]);
+        pexpires[i] = get_current_ticks();
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "send [%s] error %d\n", parsestate->leftargs[i], ret);
             goto out;
+        } else if (ret > 0) {
+            ret = recv_icmp_response(ipsocks[i],&curval);
+            if (ret > 0) {
+                pexpires[i] = 0;
+                pnextrestart[i] = get_current_ticks();
+                DEBUG_INFO("[%s] ttl %lld", parsestate->leftargs[i] ,curval);
+                printf("[%s:%d] %s ttl %lld\n", __FILE__,__LINE__,parsestate->leftargs[i], curval);
+            }
         }
-        pexpires[i] = get_current_ticks();
+        
     }
 
     while(1) {
@@ -328,22 +346,56 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             if (ptimes[i] < pargs->m_times || pargs->m_times ==0) {
                 added = 0;
                 cticks = get_current_ticks();
-                ret = need_wait_times(pexpires[i],cticks,timeout);
-                if (ret < 0) {
-                    /**/
-                    fprintf(stdout,"[%s] timeout\n",parsestate->leftargs[i]);
-                    free_icmp_sock(&ipsocks[i]);
-                    ipsocks[i] = init_icmp_sock(AF_INET);
-                    if (ipsocks[i] == NULL) {
-                        GETERRNO(ret);
-                        goto out;
-                    }
-                    ret = send_icmp_request(ipsocks[i], parsestate->leftargs[i]);
+                if (pexpires[i] != 0) {
+                    ret = need_wait_times(pexpires[i],cticks,timeout);
                     if (ret < 0) {
-                        GETERRNO(ret);
-                        goto out;
+                        /**/
+                        fprintf(stdout,"[%s:%d] [%s] timeout\n",__FILE__,__LINE__,parsestate->leftargs[i]);
+                        DEBUG_INFO("[%s] timeout", parsestate->leftargs[i]);
+                        ptimes[i] += 1;
+                        free_icmp_sock(&ipsocks[i]);
+                        ipsocks[i] = init_icmp_sock(AF_INET);
+                        if (ipsocks[i] == NULL) {
+                            GETERRNO(ret);
+                            goto out;
+                        }
+                        ret = send_icmp_request(ipsocks[i], parsestate->leftargs[i]);
+                        pexpires[i] = get_current_ticks();
+                        if (ret < 0) {
+                            GETERRNO(ret);
+                            goto out;
+                        } else if (ret > 0) {
+                            ret = recv_icmp_response(ipsocks[i], &curval);
+                            if (ret > 0) {
+                                ptimes[i] += 1;
+                                pexpires[i] = 0;
+                                pnextrestart[i] = get_current_ticks();
+                                DEBUG_INFO("[%s] ttl %lld", parsestate->leftargs[i] ,curval);
+                                printf("[%s:%d] %s ttl %lld\n", __FILE__,__LINE__,parsestate->leftargs[i], curval);
+                            }
+                        }
+                        
+                    }                    
+                } else {
+                    ret = need_wait_times(pnextrestart[i],cticks,1000);
+                    if (ret < 0) {
+                        DEBUG_INFO("start [%s]",parsestate->leftargs[i]);
+                        ret = send_icmp_request(ipsocks[i],parsestate->leftargs[i]);
+                        pexpires[i] = get_current_ticks();
+                        if (ret < 0) {
+                            GETERRNO(ret);
+                            goto out;
+                        } else if (ret > 0) {                            
+                            ret = recv_icmp_response(ipsocks[i], &curval);
+                            if (ret > 0) {
+                                ptimes[i] += 1;
+                                pexpires[i] = 0;
+                                pnextrestart[i] = get_current_ticks();
+                                DEBUG_INFO("[%s] ttl %lld", parsestate->leftargs[i] ,curval);
+                                printf("[%s:%d] %s ttl %lld\n", __FILE__,__LINE__,parsestate->leftargs[i], curval);
+                            }
+                        }                        
                     }
-                    pexpires[i] = get_current_ticks();
                 }
 
                 if (icmp_is_write_mode(ipsocks[i]) != 0) {
@@ -356,24 +408,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
                 }
 
                 if (added == 0) {
-                    while(1) {
-                        /*to read the complete */
-                        ret = recv_icmp_response(ipsocks[i],&curval);
-                        if (ret < 0) {
-                            GETERRNO(ret);
-                            ERROR_INFO("get [%s] response error %d", parsestate->leftargs[i], ret);
-                            goto out;
-                        } else if (ret > 0) {
-                            fprintf(stdout,"%s ttl %lld\n", parsestate->leftargs[i], curval);
-                            nextones[i] = 1;
-                            curtimeout = 1000;
-                            break;
-                        } else {
-                            hdls[waitnum] = get_icmp_read_evt(ipsocks[i]);
-                            waitnum += 1;
-                            break;
-                        }
-                    }
+                    nextones[i] = 1;
                 }
             }
         }
@@ -410,8 +445,11 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
                                     GETERRNO(ret);
                                     goto out;
                                 } else if (ret > 0) {
-                                    DEBUG_INFO("%s ttl %lld\n", parsestate->leftargs[i], curval);
+                                    printf("[%s:%d] %s ttl %lld\n",__FILE__,__LINE__, parsestate->leftargs[i], curval);
+                                    DEBUG_INFO("%s ttl %lld", parsestate->leftargs[i], curval);
                                     ptimes[i] += 1;
+                                    pexpires[i] = 0;
+                                    pnextrestart[i] = get_current_ticks();
                                 }
                             }
                             break;
@@ -429,50 +467,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
                 }
             }
         } else if (dret == WAIT_TIMEOUT) {
-            if (waitnext == 0) {
-                for(i=0;i<socklen;i++) {
-                    if (ptimes[i] < pargs->m_times || pargs->m_times == 0) {
-                        ptimes[i] += 1;
-                        printf("%s exceed\n",parsestate->leftargs[i]);
-                        /*to restart the send and used*/
-                        free_icmp_sock(&(ipsocks[i]));
-                        ipsocks[i] = init_icmp_sock(AF_INET);
-                        if (ipsocks[i] == NULL) {
-                            GETERRNO(ret);
-                            ERROR_INFO(" ");
-                            goto out;
-                        }
-                        ret = send_icmp_request(ipsocks[i], parsestate->leftargs[i]);
-                        if (ret < 0) {
-                            GETERRNO(ret);
-                            ERROR_INFO(" ");
-                            goto out;
-                        }
-                        pexpires[i] = get_current_ticks();
-                    }
-                }                
-            } else {
-                for(i=0;i<socklen;i++) {
-                    if (nextones[i] != 0) {
-                        ret = send_icmp_request(ipsocks[i],parsestate->leftargs[i]); 
-                        if (ret < 0) {
-                            GETERRNO(ret);
-                            ERROR_INFO(" ");
-                            goto out;
-                        } else if (ret > 0) {
-                            pexpires[i] = get_current_ticks();
-                            ret = recv_icmp_response(ipsocks[i],&curval);
-                            if (ret < 0) {
-                                GETERRNO(ret);
-                                goto out;
-                            } else if (ret > 0) {
-                                DEBUG_INFO("%s ttl %lld\n", parsestate->leftargs[i], curval);
-                                ptimes[i] += 1;
-                            }
-                        }
-                    }
-                }
-            }
+            continue;
         }
     }
 
@@ -508,6 +503,11 @@ out:
         free(pexpires);
     }
     pexpires = NULL;
+
+    if (pnextrestart) {
+        free(pnextrestart);
+    }
+    pnextrestart = NULL;
 
     fini_socket();
     SETERRNO(ret);
