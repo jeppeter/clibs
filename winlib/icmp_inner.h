@@ -2,6 +2,14 @@
 #ifndef __ICMP_INNER_H_D33C4094FCB3AAF0353E665E9927873D__
 #define __ICMP_INNER_H_D33C4094FCB3AAF0353E665E9927873D__
 
+#pragma warning(push)
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#pragma warning(pop)
+
 #ifdef __cplusplus
 extern "C" {
 #endif /* __cplusplus*/
@@ -23,7 +31,7 @@ typedef struct ip_hdr
     unsigned short ip_checksum;      // IP checksum
     unsigned int   ip_srcaddr;       // Source address
     unsigned int   ip_destaddr;      // Source address
-} IPV4_HDR, *PIPV4_HDR, FAR * LPIPV4_HDR;
+} IPV4_HDR, *PIPV4_HDR;
 
 // IPv4 option header
 typedef struct ipv4_option_hdr
@@ -32,7 +40,7 @@ typedef struct ipv4_option_hdr
     unsigned char   opt_len;            // length of the option header
     unsigned char   opt_ptr;            // offset into options
     unsigned long   opt_addr[9];        // list of IPv4 addresses
-} IPV4_OPTION_HDR, *PIPV4_OPTION_HDR, FAR *LPIPV4_OPTION_HDR;
+} IPV4_OPTION_HDR, *PIPV4_OPTION_HDR;
 
 // ICMP header
 typedef struct icmp_hdr
@@ -42,7 +50,7 @@ typedef struct icmp_hdr
     unsigned short  icmp_checksum;
     unsigned short  icmp_id;
     unsigned short  icmp_sequence;
-} ICMP_HDR, *PICMP_HDR, FAR *LPICMP_HDR;
+} ICMP_HDR, *PICMP_HDR;
 
 // IPv6 protocol header
 typedef struct ipv6_hdr

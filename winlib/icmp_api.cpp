@@ -3,16 +3,30 @@
 #include <win_err.h>
 #include <win_output_debug.h>
 
+#pragma warning(push)
+#if _MSC_VER >= 1929
+#pragma warning(disable:5045)
+#endif
+
+
 #define  ICMP_HDR_MAGIC   0x779292a
 
 typedef struct __icmp_sock {
 	uint32_t m_magic;
 	int m_icmptype;	
 	SOCKET m_sock;
+	struct sockaddr m_sndaddr;
+	int m_saddrlen;
+	struct sockaddr m_rcvaddr;
+	int m_raddrlen;
 	WSAOVERLAPPED m_sndov;
 	WSAOVERLAPPED m_rcvov;
 	int m_insnd;
 	int m_inrcv;
+	int m_rcvlen;
+	int m_rcvcomplete;
+	int m_sndlen;
+	int m_sndsize;
 	uint64_t m_ticks;
 	int m_indent;
 	int m_seq;
@@ -55,8 +69,9 @@ PICMP_SOCK_t __alloc_sock(int type)
 {
 	PICMP_SOCK_t psock = NULL;
 	int proto = IPPROTO_ICMP;
+	int ret;
 
-	psock= malloc(sizeof(*psock));
+	psock= (PICMP_SOCK_t)malloc(sizeof(*psock));
 	if (psock == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -110,15 +125,17 @@ fail:
 	return NULL;
 }
 
-int __get_sock_addr(const char* ip, const char* port,int sockfamily,struct sockaddr* paddr,addrlen_t addrlen)
+int __get_sock_addr(const char* ip, const char* port,int sockfamily,struct sockaddr* paddr,DWORD addrlen)
 {
 	struct addrinfo hints;
 	struct addrinfo* pres=NULL;
 	int retlen=0;
+	int ret;
+
 	memset(&hints,0,sizeof(hints));
 	hints.ai_flags = (ip == NULL ? AI_PASSIVE : 0);
 	hints.ai_family = sockfamily;
-	hints.ai_type = SOCK_RAW;
+	hints.ai_socktype = SOCK_RAW;
 	hints.ai_protocol = 0;
 
 	ret = getaddrinfo(ip,port,&hints,&pres);
@@ -135,13 +152,13 @@ int __get_sock_addr(const char* ip, const char* port,int sockfamily,struct socka
 		goto fail;
 	}
 
-	retlen = pres->ai_addrlen;
+	retlen = (int)pres->ai_addrlen;
 
-	if (retlen > addrlen) {
+	if (retlen > (int)addrlen) {
 		ret = -ERROR_INSUFFICIENT_BUFFER;
 		goto fail;
 	}
-	memcpy(sockaddr,pres->ai_addr,retlen);
+	memcpy(paddr,pres->ai_addr,(size_t)retlen);
 	freeaddrinfo(pres);
 	return retlen;
 fail:
@@ -157,7 +174,7 @@ int __bind_icmp_sock(PICMP_SOCK_t psock)
 {
 	int ret;
 	struct sockaddr saddr;
-	addrlen_t addrlen;
+	int addrlen;
 
 	ret = __get_sock_addr(NULL,"0",psock->m_icmptype,&saddr,sizeof(saddr));
 	if (ret < 0) {
@@ -258,6 +275,7 @@ int __format_icmp_request(PICMP_SOCK_t psock,uint64_t val,int indent, int seq,ui
 	ICMPV6_HDR* picmp6hdr;
 	ICMPV6_ECHO_REQUEST* p6echo;
 	uint8_t* pcur;
+	int ret;
 
 	int maxsize = 0;
 	if (psock->m_icmptype == AF_INET) {
@@ -279,8 +297,8 @@ int __format_icmp_request(PICMP_SOCK_t psock,uint64_t val,int indent, int seq,ui
 		picmphdr->icmp_type = ICMPV4_ECHO_REQUEST_TYPE;
 		picmphdr->icmp_code = ICMPV4_ECHO_REQUEST_CODE;
 		picmphdr->icmp_checksum = 0;
-		picmphdr->icmp_id = htons(indent);
-		picmphdr->icmp_sequence = seq;
+		picmphdr->icmp_id = htons((unsigned short)indent);
+		picmphdr->icmp_sequence = (unsigned short)seq;
 		pcur = pbuf + sizeof(*picmphdr);
 		memcpy(pcur,&val,sizeof(uint64_t));
 		picmphdr->icmp_checksum = htons(__icmp_checksum(pbuf,maxsize));
@@ -291,8 +309,8 @@ int __format_icmp_request(PICMP_SOCK_t psock,uint64_t val,int indent, int seq,ui
 		picmp6hdr->icmp6_code = ICMPV6_ECHO_REQUEST_CODE;
 		picmp6hdr->icmp6_checksum = 0;
 		p6echo = (ICMPV6_ECHO_REQUEST*) (pbuf + sizeof(*picmp6hdr));
-		p6echo->icmp6_echo_id = htons(indent);
-		p6echo->icmp6_echo_sequence = seq;
+		p6echo->icmp6_echo_id = htons((unsigned short)indent);
+		p6echo->icmp6_echo_sequence = (unsigned short)seq;
 		pcur = pbuf + sizeof(*picmp6hdr) + sizeof(*p6echo);
 		memcpy(pcur,&val,sizeof(uint64_t));
 		picmp6hdr->icmp6_checksum = htons(__icmp_checksum(pbuf,maxsize));
@@ -310,6 +328,8 @@ int send_icmp_request(void* psock1,const char* ip,uint64_t val)
 	PICMP_SOCK_t psock = (PICMP_SOCK_t)psock1;
 	int ret;
 	WSABUF sndbuf;
+	DWORD bytessend;
+	DWORD flags = 0;
 	if (psock == NULL || psock->m_magic != ICMP_HDR_MAGIC) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
@@ -322,6 +342,13 @@ int send_icmp_request(void* psock1,const char* ip,uint64_t val)
 		return ret;
 	}
 
+	ret = __get_sock_addr(ip,"0",psock->m_icmptype,&(psock->m_sndaddr),sizeof(psock->m_sndaddr));
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	psock->m_saddrlen = ret;
+
 	psock->m_indent += 1;
 	psock->m_seq += 1;
 	ret = __format_icmp_request(psock,val,psock->m_indent, psock->m_seq,psock->m_sndbuf,sizeof(psock->m_sndbuf));
@@ -330,10 +357,214 @@ int send_icmp_request(void* psock1,const char* ip,uint64_t val)
 		goto fail;
 	}
 
-	sndsize = ret;
-	sndbuf.len = sndsize;
-	sndbuf.buf = psock->m_sndbuf;
-	ret = WSASendTo(psock->m_sock,&sndbuf,)
+	psock->m_sndsize = ret;
+	psock->m_sndlen = 0;
+	sndbuf.len = (ULONG)psock->m_sndsize;
+	sndbuf.buf = (CHAR*)psock->m_sndbuf;
+	ret = WSASendTo(psock->m_sock,&sndbuf,1,&bytessend,flags,&(psock->m_sndaddr),psock->m_saddrlen,&(psock->m_sndov),NULL);
+	if (ret == SOCKET_ERROR) {
+		if (WSAGetLastError() != WSA_IO_PENDING ) {
+			ret = WSAGetLastError();
+			if (ret > 0) {
+				ret = -ret;
+			}
+			ERROR_INFO("to send buffer error %d", ret);
+			goto fail;
+		}
+		psock->m_insnd = 1;
+		psock->m_sndlen += bytessend;
+	} else {
+		psock->m_sndlen += bytessend;
+	}
 
-
+	return psock->m_insnd ? 0 : 1;
+fail:
+	SETERRNO(ret);
+	return ret;
 }
+
+int icmp_is_read_mode(void* psock1)
+{
+	PICMP_SOCK_t psock = (PICMP_SOCK_t) psock1;
+	int ret= 0;
+	if (psock && psock->m_magic == ICMP_HDR_MAGIC && psock->m_inrcv) {
+		ret = 1;
+	}
+	return ret;
+}
+
+
+int icmp_is_write_mode(void* psock1)
+{
+	PICMP_SOCK_t psock = (PICMP_SOCK_t) psock1;
+	int ret= 0;
+	if (psock && psock->m_magic == ICMP_HDR_MAGIC && psock->m_insnd) {
+		ret = 1;
+	}
+	return ret;
+}
+
+
+HANDLE get_icmp_read_evt(void* psock1)
+{
+	PICMP_SOCK_t psock = (PICMP_SOCK_t) psock1;
+	HANDLE hret = NULL;
+	if (psock && psock->m_magic == ICMP_HDR_MAGIC && psock->m_inrcv) {
+		hret = psock->m_rcvov.hEvent;
+	}
+	return hret;
+}
+
+HANDLE get_icmp_write_evt(void* psock1)
+{
+	PICMP_SOCK_t psock = (PICMP_SOCK_t) psock1;
+	HANDLE hret = NULL;
+	if (psock && psock->m_magic == ICMP_HDR_MAGIC && psock->m_insnd) {
+		hret = psock->m_sndov.hEvent;
+	}
+	return hret;
+}
+
+int icmp_complete_read(void* psock1)
+{
+	PICMP_SOCK_t psock = (PICMP_SOCK_t) psock1;
+	int ret;
+	BOOL bret;
+	DWORD dret;
+	DWORD flags=0;
+	if (psock == NULL || psock->m_magic != ICMP_HDR_MAGIC) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (psock->m_inrcv == 0) {
+		ret = -ERROR_NOT_READY;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	dret = 0;
+	flags = 0;
+	bret = WSAGetOverlappedResult(psock->m_sock,&(psock->m_rcvov),&dret,FALSE,&flags);
+	if (!bret) {
+		GETERRNO(ret);
+		if (ret != -WSA_IO_INCOMPLETE) {
+			goto fail;
+		}
+		DEBUG_INFO("WSA_IO_INCOMPLETE dret %ld", dret);
+		psock->m_rcvlen += dret;
+	} else {
+		psock->m_inrcv = 0;
+		psock->m_rcvlen += dret;	
+		psock->m_rcvcomplete = 1;
+	}
+	
+	return psock->m_inrcv ? 0 : 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int icmp_complete_write(void* psock1)
+{
+	PICMP_SOCK_t psock = (PICMP_SOCK_t) psock1;
+	int ret;
+	BOOL bret;
+	DWORD dret;
+	DWORD flags=0;
+	if (psock == NULL || psock->m_magic != ICMP_HDR_MAGIC) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (psock->m_insnd == 0) {
+		ret = -ERROR_NOT_READY;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	dret = 0;
+	flags = 0;
+	bret = WSAGetOverlappedResult(psock->m_sock,&(psock->m_sndov),&dret,FALSE,&flags);
+	if (!bret) {
+		GETERRNO(ret);
+		if (ret != -WSA_IO_INCOMPLETE) {
+			goto fail;
+		}
+		psock->m_sndlen += dret;
+	} else {
+		psock->m_insnd = 0;
+		psock->m_sndlen += dret;	
+	}
+	
+	return psock->m_insnd ? 0 : 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int recv_icmp_response(void* psock1,uint64_t* pval)
+{
+	PICMP_SOCK_t psock = (PICMP_SOCK_t)psock1;
+	int ret;
+	int completed = 0;
+	uint8_t* pbuf;
+	WSABUF data;
+	DWORD bytercv=0;
+	DWORD flags=0;
+	if (psock == NULL || psock->m_magic != ICMP_HDR_MAGIC || pval == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (psock->m_inrcv != 0) {
+		ret = -ERROR_BUSY;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (psock->m_rcvcomplete != 0) {
+	get_complete_read:		
+		if (psock->m_icmptype == AF_INET) {
+			pbuf = (uint8_t*) psock->m_rcvbuf + sizeof(ICMP_HDR);
+			memcpy(pval,pbuf,sizeof(*pval));
+		} else if (psock->m_icmptype == AF_INET6) {
+			pbuf = (uint8_t*) psock->m_rcvbuf + sizeof(ICMPV6_HDR) + sizeof(ICMPV6_ECHO_REQUEST);
+			memcpy(pval,pbuf,sizeof(*pval));
+		} else {
+			ret = -ERROR_INVALID_PARAMETER;
+			goto fail;
+		}
+		psock->m_rcvcomplete = 0;
+		completed = 1;
+	} else {
+		memcpy(&(psock->m_rcvaddr),&(psock->m_sndaddr),(size_t)psock->m_saddrlen);
+		psock->m_raddrlen = psock->m_saddrlen;
+		data.len = sizeof(psock->m_rcvbuf);
+		data.buf = (CHAR*)psock->m_rcvbuf;
+		ret = WSARecvFrom(psock->m_sock,&data,1,&bytercv,&flags,&psock->m_rcvaddr,&psock->m_raddrlen,&psock->m_rcvov,NULL);
+		if (ret == SOCKET_ERROR) {
+			ret = WSAGetLastError();
+			if (ret != WSA_IO_PENDING) {
+				if (ret > 0) {
+					ret = -ret;
+				}
+				ERROR_INFO("receive error %d", ret);
+				goto fail;
+			}
+			psock->m_inrcv = 1;
+		} else {
+			goto get_complete_read;
+		}
+	}
+
+	return psock->m_inrcv ? 0 : 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+#pragma warning(pop)
