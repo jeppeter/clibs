@@ -1,7 +1,8 @@
 #include <icmp_inner.h>
-#include <icmp_api.h>
+#include <win_icmp.h>
 #include <win_err.h>
 #include <win_output_debug.h>
+#include <win_time.h>
 
 #pragma warning(push)
 #if _MSC_VER >= 1929
@@ -24,15 +25,17 @@ typedef struct __icmp_sock {
 	WSAOVERLAPPED m_rcvov;
 	int m_insnd;
 	int m_inrcv;
+	int m_sndcnt;
 	int m_rcvlen;
 	int m_rcvcomplete;
 	int m_sndlen;
 	int m_sndsize;
-	uint64_t m_ticks;
 	int m_indent;
 	int m_seq;
-	uint8_t m_sndbuf[256];
-	uint8_t m_rcvbuf[256];
+	int m_reserve1;
+	uint64_t m_ticks;
+	uint8_t m_sndbuf[2048];
+	uint8_t m_rcvbuf[2048];
 } ICMP_SOCK_t,*PICMP_SOCK_t;
 
 void __free_icmp_sock(PICMP_SOCK_t* ppsock)
@@ -353,6 +356,7 @@ int send_icmp_request(void* psock1,const char* ip)
 	psock->m_indent += 1;
 	psock->m_seq += 1;
 	psock->m_sndticks = get_current_ticks();
+	DEBUG_INFO("m_sndticks 0x%llx %lld",psock->m_sndticks, psock->m_sndticks);
 	ret = __format_icmp_request(psock,psock->m_sndticks,psock->m_indent, psock->m_seq,psock->m_sndbuf,sizeof(psock->m_sndbuf));
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -363,6 +367,7 @@ int send_icmp_request(void* psock1,const char* ip)
 	psock->m_sndlen = 0;
 	sndbuf.len = (ULONG)psock->m_sndsize;
 	sndbuf.buf = (CHAR*)psock->m_sndbuf;
+	psock->m_rcvcomplete = 0;
 	ret = WSASendTo(psock->m_sock,&sndbuf,1,&bytessend,flags,&(psock->m_sndaddr),psock->m_saddrlen,&(psock->m_sndov),NULL);
 	if (ret == SOCKET_ERROR) {
 		if (WSAGetLastError() != WSA_IO_PENDING ) {
@@ -377,6 +382,8 @@ int send_icmp_request(void* psock1,const char* ip)
 		psock->m_sndlen += bytessend;
 	} else {
 		psock->m_sndlen += bytessend;
+		psock->m_sndcnt += 1;
+		DEBUG_BUFFER_FMT(psock->m_sndbuf,psock->m_sndlen,"sndbuf");
 	}
 
 	return psock->m_insnd ? 0 : 1;
@@ -458,7 +465,8 @@ int icmp_complete_read(void* psock1)
 		psock->m_rcvlen += dret;
 	} else {
 		psock->m_inrcv = 0;
-		psock->m_rcvlen += dret;	
+		psock->m_rcvlen += dret;
+		DEBUG_BUFFER_FMT(psock->m_rcvbuf,psock->m_rcvlen,"rcvbuf");
 		psock->m_rcvcomplete = 1;
 	}
 	
@@ -499,6 +507,8 @@ int icmp_complete_write(void* psock1)
 	} else {
 		psock->m_insnd = 0;
 		psock->m_sndlen += dret;	
+		psock->m_sndcnt += 1;
+		DEBUG_BUFFER_FMT(psock->m_sndbuf,psock->m_sndlen,"sndbuf");
 	}
 	
 	return psock->m_insnd ? 0 : 1;
@@ -507,16 +517,39 @@ fail:
 	return ret;
 }
 
+int __filter_icmp_header(PICMP_SOCK_t psock,uint64_t* pval)
+{
+	ICMP_HDR* picmphdr= NULL;
+	uint64_t* pbuf;
+
+	if (psock->m_icmptype == AF_INET) {
+		if (psock->m_rcvlen < (sizeof(IPV4_HDR) + 16)) {
+			return 0;
+		}
+		picmphdr = (ICMP_HDR*) (psock->m_rcvbuf + sizeof(IPV4_HDR));
+		if (picmphdr->icmp_type == ICMPV4_ECHO_REPLY_TYPE && picmphdr->icmp_code == ICMPV4_ECHO_REPLY_CODE) {
+			pbuf = (uint64_t*) (psock->m_rcvbuf + sizeof(IPV4_HDR) + sizeof(ICMP_HDR));
+			if (*pbuf == psock->m_sndticks && psock->m_indent == ntohs(picmphdr->icmp_id) && psock->m_seq == picmphdr->icmp_sequence) {
+				DEBUG_BUFFER_FMT(psock->m_rcvbuf,psock->m_rcvlen, "rcvlen");
+				*pval = *pbuf;
+				return 1;
+			}
+		}
+	}
+	DEBUG_BUFFER_FMT(psock->m_rcvbuf,psock->m_rcvlen,"not valid rcvlen");
+	return 0;
+
+}
+
 int recv_icmp_response(void* psock1,uint64_t* pval)
 {
 	PICMP_SOCK_t psock = (PICMP_SOCK_t)psock1;
 	int ret;
 	int completed = 0;
-	uint8_t* pbuf;
 	WSABUF data;
 	DWORD bytercv=0;
 	DWORD flags=0;
-	uint64_t retval;
+	uint64_t curticks;
 	if (psock == NULL || psock->m_magic != ICMP_HDR_MAGIC || pval == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
@@ -524,27 +557,23 @@ int recv_icmp_response(void* psock1,uint64_t* pval)
 	}
 
 	if (psock->m_inrcv != 0) {
-		ret = -ERROR_BUSY;
-		SETERRNO(ret);
-		return ret;
+		/*that not used one*/
+		return 0;
 	}
 
 	if (psock->m_rcvcomplete != 0) {
 	get_complete_read:		
-		if (psock->m_icmptype == AF_INET) {
-			pbuf = (uint8_t*) psock->m_rcvbuf + sizeof(ICMP_HDR);
-			memcpy(&retval,pbuf,sizeof(retval));
-		} else if (psock->m_icmptype == AF_INET6) {
-			pbuf = (uint8_t*) psock->m_rcvbuf + sizeof(ICMPV6_HDR) + sizeof(ICMPV6_ECHO_REQUEST);
-			memcpy(&retval,pbuf,sizeof(retval));
-		} else {
-			ret = -ERROR_INVALID_PARAMETER;
-			goto fail;
+		ret = __filter_icmp_header(psock,pval);
+		if (ret == 0) {
+			goto read_again;
 		}
-		psock->m_rcvcomplete = 0;
-		*pval = retval - psock->m_sndticks;
+		curticks = get_current_ticks();
+		DEBUG_INFO("curticks %lld 0x%llx retval %lld 0x%llx", curticks,curticks, psock->m_sndticks,psock->m_sndticks);
+		*pval = curticks - psock->m_sndticks;
+		psock->m_inrcv = 0;
 		completed = 1;
 	} else {
+	read_again:
 		memcpy(&(psock->m_rcvaddr),&(psock->m_sndaddr),(size_t)psock->m_saddrlen);
 		psock->m_raddrlen = psock->m_saddrlen;
 		data.len = sizeof(psock->m_rcvbuf);
@@ -560,7 +589,9 @@ int recv_icmp_response(void* psock1,uint64_t* pval)
 				goto fail;
 			}
 			psock->m_inrcv = 1;
+			DEBUG_INFO("inrcv = 1");
 		} else {
+			psock->m_rcvlen = (int)bytercv;
 			goto get_complete_read;
 		}
 	}
@@ -569,6 +600,17 @@ int recv_icmp_response(void* psock1,uint64_t* pval)
 fail:
 	SETERRNO(ret);
 	return ret;
+}
+
+int icmp_send_cnt(void* psock1)
+{
+	PICMP_SOCK_t psock = (PICMP_SOCK_t)psock1;
+	int retcnt = -1;
+	if (psock!=NULL && psock->m_magic == ICMP_HDR_MAGIC) {
+		retcnt = psock->m_sndcnt;
+	}
+	return retcnt;
+
 }
 
 #pragma warning(pop)

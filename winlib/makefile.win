@@ -67,7 +67,7 @@ LIB_SOURCE = win_serial.cpp win_output_debug.cpp win_uniansi.cpp win_args.cpp wi
     win_regop.cpp win_ver.cpp win_acl.cpp win_priv.cpp win_dbg.cpp win_com.cpp \
     win_evt.cpp win_thread.cpp win_map.cpp win_libev.cpp win_user.cpp \
     win_namedpipe.cpp win_memop.cpp win_prn.cpp win_gui.cpp win_sock.cpp win_hdl.cpp \
-    win_usb.cpp win_hwinfo.cpp icmp_api.cpp
+    win_usb.cpp win_hwinfo.cpp win_icmp.cpp
 LIB_OBJECTS = $(LIB_SOURCE:.cpp=.obj)
 OBJECTS = $(LIB_OBJECTS)
 
