@@ -17,7 +17,7 @@ extern "C" {
 
 WINLIB_API void* init_icmp_sock(int type);
 WINLIB_API void free_icmp_sock(void** ppsock);
-WINLIB_API int send_icmp_request(void* psock,const char* ip,uint64_t val);
+WINLIB_API int send_icmp_request(void* psock,const char* ip);
 WINLIB_API int icmp_complete_read(void* psock);
 WINLIB_API int icmp_complete_write(void* psock);
 WINLIB_API HANDLE get_icmp_read_evt(void* psock);

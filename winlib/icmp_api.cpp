@@ -19,6 +19,7 @@ typedef struct __icmp_sock {
 	int m_saddrlen;
 	struct sockaddr m_rcvaddr;
 	int m_raddrlen;
+	uint64_t m_sndticks;
 	WSAOVERLAPPED m_sndov;
 	WSAOVERLAPPED m_rcvov;
 	int m_insnd;
@@ -323,7 +324,7 @@ fail:
 }
 
 
-int send_icmp_request(void* psock1,const char* ip,uint64_t val)
+int send_icmp_request(void* psock1,const char* ip)
 {
 	PICMP_SOCK_t psock = (PICMP_SOCK_t)psock1;
 	int ret;
@@ -351,7 +352,8 @@ int send_icmp_request(void* psock1,const char* ip,uint64_t val)
 
 	psock->m_indent += 1;
 	psock->m_seq += 1;
-	ret = __format_icmp_request(psock,val,psock->m_indent, psock->m_seq,psock->m_sndbuf,sizeof(psock->m_sndbuf));
+	psock->m_sndticks = get_current_ticks();
+	ret = __format_icmp_request(psock,psock->m_sndticks,psock->m_indent, psock->m_seq,psock->m_sndbuf,sizeof(psock->m_sndbuf));
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -514,6 +516,7 @@ int recv_icmp_response(void* psock1,uint64_t* pval)
 	WSABUF data;
 	DWORD bytercv=0;
 	DWORD flags=0;
+	uint64_t retval;
 	if (psock == NULL || psock->m_magic != ICMP_HDR_MAGIC || pval == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
@@ -530,15 +533,16 @@ int recv_icmp_response(void* psock1,uint64_t* pval)
 	get_complete_read:		
 		if (psock->m_icmptype == AF_INET) {
 			pbuf = (uint8_t*) psock->m_rcvbuf + sizeof(ICMP_HDR);
-			memcpy(pval,pbuf,sizeof(*pval));
+			memcpy(&retval,pbuf,sizeof(retval));
 		} else if (psock->m_icmptype == AF_INET6) {
 			pbuf = (uint8_t*) psock->m_rcvbuf + sizeof(ICMPV6_HDR) + sizeof(ICMPV6_ECHO_REQUEST);
-			memcpy(pval,pbuf,sizeof(*pval));
+			memcpy(&retval,pbuf,sizeof(retval));
 		} else {
 			ret = -ERROR_INVALID_PARAMETER;
 			goto fail;
 		}
 		psock->m_rcvcomplete = 0;
+		*pval = retval - psock->m_sndticks;
 		completed = 1;
 	} else {
 		memcpy(&(psock->m_rcvaddr),&(psock->m_sndaddr),(size_t)psock->m_saddrlen);

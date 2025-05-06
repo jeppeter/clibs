@@ -204,3 +204,210 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    pargs_options_t pargs = (pargs_options_t)popt;
+    void** ipsocks = NULL;
+    int socklen=0;
+    int i;
+    HANDLE *hdls=NULL;
+    HANDLE exithd=NULL;
+    int maxhdl=0;
+    DWORD waitnum;
+    int *ptimes=NULL;
+    int timeout= pargs->m_timeout;
+    HANDLE curhd;
+    uint64_t curval;
+    DWORD dret;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    init_log_level(pargs);
+    ret = init_socket();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "cannot init_socket [%d]\n", ret);
+        goto out;
+    }
+
+    if (timeout == 0) {
+        timeout = 5000;
+    }
+
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        socklen += 1;
+    }
+
+    if (socklen == 0) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "at least one ip\n");
+        goto out;
+    }
+
+    exithd = set_ctrlc_handle();
+    if (exithd == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ipsocks = (void**)malloc(sizeof(*ipsocks) * socklen);
+    if (ipsocks == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memset(ipsocks, 0, sizeof(*ipsocks) * socklen);
+
+    maxhdl = socklen * 2 + 1;
+    hdls = (HANDLE*)malloc(sizeof(*hdls) * maxhdl);
+    if(hdls == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memset(hdls,0,sizeof(*hdls) *maxhdl);
+
+    ptimes = (int*)malloc(sizeof(*ptimes) * socklen);
+    if (ptimes == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memset(ptimes, 0, sizeof(*ptimes) * socklen);
+
+    for(i=0;i<socklen;i++) {
+        ipsocks[i] = init_icmp_sock(AF_INET);
+        if (ipsocks[i] == NULL) {
+            GETERRNO(ret);
+            fprintf(stderr, "init %d error %d\n",i, ret);
+            goto out;
+        }
+        ret = send_icmp_request(ipsocks[i], parsestate->leftargs[i]);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+    while(1) {
+        waitnum = 0;
+        hdls[waitnum] = exithd;
+        waitnum += 1;
+        for(i=0;i<socklen;i++) {
+            if (ptimes[i] < pargs->m_times || pargs->m_times ==0) {
+                if (icmp_is_write_mode(ipsocks[i]) != 0) {
+                    hdls[waitnum] = get_icmp_write_evt(ipsocks[i]);
+                    waitnum += 1;
+                }
+                if (icmp_is_read_mode(ipsocks[i]) != 0) {
+                    hdls[waitnum] = get_icmp_read_evt(ipsocks[i]);
+                    waitnum += 1;
+                }
+            }
+        }
+
+        if (waitnum == 1) {
+            /*this is over so break*/
+            break;
+        }
+
+        dret = WaitForMultipleObjectsEx(waitnum,hdls,FALSE,(DWORD)timeout,FALSE);
+        if (dret < (WAIT_OBJECT_0 + waitnum)) {
+            curhd = hdls[dret - WAIT_OBJECT_0];
+            if (curhd == exithd) {
+                break;
+            } else {
+                for(i=0;i<socklen;i++) {
+                    if (ptimes[i] < pargs->m_times || pargs->m_times ==0) {
+                        if (get_icmp_write_evt(ipsocks[i]) == curhd) {
+                            ret=  icmp_complete_write(ipsocks[i]);
+                            if (ret > 0) {
+                            get_response:
+                                ret = recv_icmp_response(ipsocks[i],&curval);
+                                if (ret < 0) {
+                                    GETERRNO(ret);
+                                    goto out;
+                                } else if (ret > 0) {
+                                    fprintf(stdout,"%s ttl %lld\n", parsestate->leftargs[i], curval);
+                                    ptimes[i] += 1;
+                                    ret = send_icmp_request(ipsocks[i], parsestate->leftargs[i]);
+                                    if (ret < 0) {
+                                        GETERRNO(ret);
+                                        goto out;
+                                    }
+                                }
+                            }
+                            break;
+                        } else if (get_icmp_read_evt(ipsocks[i]) == curhd) {
+                            ret = icmp_complete_read(ipsocks[i]);
+                            if (ret < 0) {
+                                GETERRNO(ret);
+                                goto out;
+                            } else if (ret > 0) {
+                                goto get_response;
+                            }
+                            break;
+                        }
+                    }                    
+                }
+            }
+        } else if (dret == WAIT_TIMEOUT) {
+            for(i=0;i<socklen;i++) {
+                if (ptimes[i] < pargs->m_times || pargs->m_times == 0) {
+                    ptimes[i] += 1;
+                    printf("%s exceed",parsestate->leftargs[i]);
+                    if (icmp_is_write_mode(ipsocks[i]) == 0) {
+                        /*to write over*/
+                        ret = send_icmp_request(ipsocks[i],parsestate->leftargs[i]);
+                        if (ret < 0){
+                            GETERRNO(ret);
+                            goto out;
+                        } else if (ret > 0) {
+                            ret = recv_icmp_response(ipsocks[i],&curval);
+                            if (ret < 0) {
+                                GETERRNO(ret);
+                                goto out;
+                            } else if (ret > 0) {
+                                fprintf(stdout,"%s ttl %lld\n", parsestate->leftargs[i], curval);
+                                ptimes[i] += 1;
+                                ret = send_icmp_request(ipsocks[i], parsestate->leftargs[i]);
+                                if (ret < 0) {
+                                    GETERRNO(ret);
+                                    goto out;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+
+    ret = 0;
+out:
+    if (socklen > 0) {
+        for(i=0;i<socklen;i++) {
+            if (ipsocks[i]) {
+                free_icmp_sock(&ipsocks[i]);
+            }
+        }
+    }
+    if (ipsocks) {
+        free(ipsocks);
+    }
+    ipsocks = NULL;
+
+    if (hdls) {
+        free(hdls);
+    }
+    hdls = NULL;
+    if (ptimes) {
+        free(ptimes);
+    }
+    ptimes = NULL;
+
+    fini_socket();
+    SETERRNO(ret);
+    return ret;
+}

@@ -50,6 +50,7 @@
 #include <win_hwinfo.h>
 #include <win_usb.h>
 #include <win_libev.h>
+#include <icmp_api.h>
 
 
 #include <jvalue.h>
@@ -123,6 +124,8 @@ typedef struct __args_options {
     int m_disabledb;
     char** m_exlogs;
     char* m_regkey;
+    int m_times;
+    int m_reserv1;
 } args_options_t, *pargs_options_t;
 
 #pragma comment(lib,"user32.lib")
@@ -325,6 +328,7 @@ int threxit_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int chdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ansitouni_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int unitoansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
