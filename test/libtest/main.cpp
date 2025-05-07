@@ -91,6 +91,8 @@
 #include "sock_comm.h"
 #include "sock_svr_comm.h"
 #include "sock_cli_comm.h"
+#include "pingcap.h"
+#include "pingtotal.h"
 
 #pragma warning(pop)
 
