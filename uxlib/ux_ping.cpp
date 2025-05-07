@@ -470,7 +470,7 @@ int get_ping_evt(void* psock1)
 {
 	pping_sock_t psock = (pping_sock_t) psock1;
 	int sock = -1;
-	if (psock && psock->m_magic == PING_HDR_MAGIC && psock->m_sock >= 0) {
+	if (psock && psock->m_magic == PING_HDR_MAGIC && psock->m_sock >= 0 && (this->m_inrcv != 0 || this->m_insnd != 0)) {
 		sock = psock->m_sock;
 	}
 	return sock;

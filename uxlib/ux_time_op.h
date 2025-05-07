@@ -9,6 +9,7 @@ extern "C" {
 
 uint64_t get_cur_ticks();
 int time_left(uint64_t startticks,uint32_t expiremills);
+int need_wait_times(uint64_t startticks, uint64_t curticks,int expiremills);
 int sched_out(int mills);
 
 #ifdef __cplusplus

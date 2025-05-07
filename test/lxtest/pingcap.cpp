@@ -1,22 +1,16 @@
 
-#pragma warning(push)
-#pragma warning(disable:4668)
-#pragma warning(disable:4820)
-
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
-#pragma warning(pop)
 
 #include "pingcap.h"
-#include <win_output_debug.h>
-#include <win_err.h>
-#include <win_time.h>
+#include <ux_ping.h>
+#include <ux_output_debug.h>
+#include <ux_err.h>
+#include <ux_time_op.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
-#pragma warning(push)
-#pragma warning(disable:4530)
-#pragma warning(disable:4577)
-#pragma warning(disable:5045)
 
 #define UNREACHABLE_VALUE  0xffffffffffffffff
 
@@ -25,7 +19,7 @@ PingCap::PingCap(const char* ip,int timeout,int nextout,int times)
 {
 	this->m_verbose = 0;
 	this->m_sock = NULL;
-	this->m_ip = _strdup(ip);
+	this->m_ip = strdup(ip);
 	this->m_pingtype = AF_INET;
 	this->m_expire = 0;
 	this->m_nextstart = 0;
@@ -48,7 +42,7 @@ PingCap::~PingCap()
 void PingCap::_print_result(const char* file, int line,uint64_t val)
 {
 	if (this->m_verbose > 0) {
-		printf("[%s:%d] %s ttl %lld\n",file,line,this->m_ip, val);
+		printf("[%s:%d] %s ttl %ld\n",file,line,this->m_ip, val);
 	}
 	return;
 }
@@ -83,7 +77,7 @@ int PingCap::__start_alloc()
 		goto fail;
 	}
 	ret = send_ping_request(this->m_sock,this->m_ip);
-	this->m_expire = get_current_ticks();
+	this->m_expire = get_cur_ticks();
 	if (ret < 0) {
 		GETERRNO(ret);
 		DEBUG_INFO("error [%d]", this->m_ip);
@@ -98,7 +92,7 @@ int PingCap::__start_alloc()
 			this->_print_result(__FILE__,__LINE__,val);
 			this->m_pingval->push_back(val);
 			this->m_expire = 0;
-			this->m_nextstart = get_current_ticks();
+			this->m_nextstart = get_cur_ticks();
 		}
 	}
 	return 0;
@@ -154,7 +148,7 @@ int PingCap::start()
 {
 	int ret;
 	if (this->m_ip == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
+		ret = -EINVAL;
 		goto fail;
 	}
 
@@ -197,7 +191,7 @@ int PingCap::get_mode()
 	}
 
 	if (this->m_expire == 0 && this->m_nextstart != 0) {
-		cticks = get_current_ticks();
+		cticks = get_cur_ticks();
 		ret = need_wait_times(this->m_nextstart,cticks,this->m_nexttime);
 		if (ret < 0) {
 			DEBUG_INFO("[%s] START_MODE", this->m_ip);
@@ -209,7 +203,7 @@ int PingCap::get_mode()
 	}
 
 	if (this->m_expire != 0) {
-		cticks = get_current_ticks();
+		cticks = get_cur_ticks();
 		ret = need_wait_times(this->m_expire,cticks,this->m_timeout);
 		if (ret < 0) {
 			DEBUG_INFO("[%s] EXPIRE_MODE", this->m_ip);
@@ -228,35 +222,25 @@ int PingCap::get_mode()
 	return retval;
 }
 
-HANDLE PingCap::get_read_evt()
+int PingCap::get_sock_evt()
 {
-	HANDLE hret=NULL;
+	int retv = -1;
 	if (this->m_sock) {
-		hret = get_ping_read_evt(this->m_sock);
+		retv = get_ping_evt(this->m_sock);
 	}
-	return hret;
-}
-
-HANDLE PingCap::get_write_evt()
-{
-	HANDLE hret=NULL;
-	if (this->m_sock) {
-		hret = get_ping_write_evt(this->m_sock);
-	}
-	DEBUG_INFO("[%s] hret %p", this->m_ip, hret);
-	return hret;
+	return retv;
 }
 
 int PingCap::send_ping()
 {
 	int ret;
 	if (this->m_sock == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
+		ret = -EINVAL;
 		SETERRNO(ret);
 		return ret;
 	}
 	ret = send_ping_request(this->m_sock,this->m_ip);
-	this->m_expire = get_current_ticks();
+	this->m_expire = get_cur_ticks();
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -272,7 +256,7 @@ int PingCap::read_ping(uint64_t& val)
 	uint64_t cval;
 	int ret;
 	if (this->m_sock == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
+		ret = -EINVAL;
 		SETERRNO(ret);
 		return ret;
 	}
@@ -389,7 +373,7 @@ int PingCap::complete_read_evt()
 	uint64_t cval;
 
 	if (this->m_sock == NULL){
-		ret = -ERROR_INVALID_PARAMETER;
+		ret = -EINVAL;
 		goto fail;
 	}
 
@@ -405,7 +389,7 @@ int PingCap::complete_read_evt()
 			goto fail;
 		} else if (ret > 0) {
 			this->m_expire = 0;
-			this->m_nextstart = get_current_ticks();
+			this->m_nextstart = get_cur_ticks();
 			this->_print_result(__FILE__,__LINE__,cval);
 			ASSERT_IF(this->m_pingval != NULL);
 			this->m_pingval->push_back(cval);
@@ -424,7 +408,7 @@ int PingCap::complete_write_evt()
 	uint64_t cval;
 
 	if (this->m_sock == NULL){
-		ret = -ERROR_INVALID_PARAMETER;
+		ret = -EINVAL;
 		goto fail;
 	}
 
@@ -432,9 +416,7 @@ int PingCap::complete_write_evt()
 	if (ret < 0) {
 		GETERRNO(ret);
 		DEBUG_INFO(" ");
-		if (ret != -WSAENETUNREACH && ret != -WSAENETRESET) {
-			goto fail;
-		}
+		goto fail;
 
 		/*this is unreachable , so reset*/
 		cval = UNREACHABLE_VALUE;
@@ -442,7 +424,7 @@ int PingCap::complete_write_evt()
 		this->_print_result(__FILE__,__LINE__,cval);
 		/*this is for next restart*/
 		this->m_expire = 0;
-		this->m_nextstart = get_current_ticks();
+		this->m_nextstart = get_cur_ticks();
 		retv= 1;
 	} else if (ret > 0) {
 		retv = 1;
@@ -453,7 +435,7 @@ int PingCap::complete_write_evt()
 			goto fail;
 		} else if (ret > 0) {
 			this->m_expire = 0;
-			this->m_nextstart = get_current_ticks();
+			this->m_nextstart = get_cur_ticks();
 			this->_print_result(__FILE__,__LINE__,cval);
 			ASSERT_IF(this->m_pingval != NULL);
 			this->m_pingval->push_back(cval);
@@ -470,7 +452,7 @@ int PingCap::get_expire()
 	int retval = 0x7fffffff;
 	int ret;
 	uint64_t cticks;
-	cticks = get_current_ticks();
+	cticks = get_cur_ticks();
 	if (this->m_expire != 0) {
 		ret = need_wait_times(this->m_expire,cticks,this->m_timeout);
 		if (ret < 0) {
@@ -487,7 +469,7 @@ int PingCap::get_next_expire()
 	int retval = 0x7fffffff;
 	int ret;
 	uint64_t cticks;
-	cticks = get_current_ticks();
+	cticks = get_cur_ticks();
 	if (this->m_expire == 0) {
 		ret = need_wait_times(this->m_nextstart,cticks,this->m_timeout);
 		if (ret < 0) {
@@ -506,4 +488,3 @@ int PingCap::set_verbose(int verbose)
 	return oldval;
 }
 
-#pragma warning(pop)
