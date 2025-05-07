@@ -102,8 +102,10 @@ pping_sock_t __alloc_ping_sock(int type)
 	psock->m_insnd = 0;
 
 	if (type == AF_INET) {
+		DEBUG_INFO("type AF_INET proto IPPROTO_ICMP");
 		proto = IPPROTO_ICMP;
 	} else if (type == AF_INET6) {
+		DEBUG_INFO("type AF_INET6 proto IPPROTO_ICMPV6");
 		proto = IPPROTO_ICMPV6;
 	} else {
 		ret = -EINVAL;
@@ -470,7 +472,7 @@ int get_ping_evt(void* psock1)
 {
 	pping_sock_t psock = (pping_sock_t) psock1;
 	int sock = -1;
-	if (psock && psock->m_magic == PING_HDR_MAGIC && psock->m_sock >= 0 && (this->m_inrcv != 0 || this->m_insnd != 0)) {
+	if (psock && psock->m_magic == PING_HDR_MAGIC && psock->m_sock >= 0 && (psock->m_inrcv != 0 || psock->m_insnd != 0)) {
 		sock = psock->m_sock;
 	}
 	return sock;

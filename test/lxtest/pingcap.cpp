@@ -9,7 +9,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netdb.h>
+#include <arpa/inet.h>
 
 
 #define UNREACHABLE_VALUE  0xffffffffffffffff
@@ -103,45 +103,45 @@ fail:
 
 int PingCap::_get_ping_type()
 {
-	struct addrinfo hints;
-	struct addrinfo* pres=NULL;
+	uint8_t* pmem=NULL;
 	int ret;
+	int socktype = AF_INET;
+	int memsize = sizeof(struct in6_addr);
 
-	memset(&hints,0,sizeof(hints));
-	hints.ai_flags = 0;
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_RAW;
-	hints.ai_protocol = 0;
-
-
-	DEBUG_INFO(" ");
-	ret = getaddrinfo(this->m_ip,"0",&hints,&pres);
-	if (ret != 0) {
-		if (ret > 0) {
-			ret = -ret;
-		}
-		ERROR_INFO("get [%s] addrinfo error %d", this->m_ip,ret);
-		goto fail;
-	}
-
-	if (pres == NULL) {
+	pmem = (uint8_t*) malloc(memsize);
+	if (pmem == NULL) {
 		GETERRNO(ret);
-		ERROR_INFO("get [%s] null", this->m_ip);
 		goto fail;
 	}
+	memset(pmem,0,memsize);
 
-	DEBUG_INFO(" ");
-	this->m_pingtype = pres->ai_addr->sa_family;
-	if (pres != NULL) {
-		freeaddrinfo(pres);	
+	ret = inet_pton(socktype,this->m_ip,pmem);
+	DEBUG_INFO("ret %d", ret);
+	if (ret <= 0) {
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		socktype = AF_INET6;
+		ret = inet_pton(socktype,this->m_ip, pmem);
+		if (ret <=0) {
+			GETERRNO(ret);
+			goto fail;
+		}
 	}
-	pres = NULL;
+
+
+	this->m_pingtype = socktype;
+	if (pmem) {
+		free(pmem);
+	}
+	pmem = NULL;
 	return 1;
 fail:
-	if (pres != NULL) {
-		freeaddrinfo(pres);	
+	if (pmem) {
+		free(pmem);
 	}
-	pres = NULL;
+	pmem = NULL;
 	SETERRNO(ret);
 	return ret;
 }
