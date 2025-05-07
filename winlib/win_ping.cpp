@@ -1,5 +1,5 @@
 #include <icmp_inner.h>
-#include <win_icmp.h>
+#include <win_ping.h>
 #include <win_err.h>
 #include <win_output_debug.h>
 #include <win_time.h>
@@ -10,11 +10,11 @@
 #endif
 
 
-#define  ICMP_HDR_MAGIC   0x779292a
+#define  PING_HDR_MAGIC   0x779292a
 
-typedef struct __icmp_sock {
+typedef struct __ping_sock {
 	uint32_t m_magic;
-	int m_icmptype;	
+	int m_pingtype;	
 	SOCKET m_sock;
 	struct sockaddr m_sndaddr;
 	int m_saddrlen;
@@ -36,15 +36,15 @@ typedef struct __icmp_sock {
 	uint64_t m_ticks;
 	uint8_t m_sndbuf[2048];
 	uint8_t m_rcvbuf[2048];
-} ICMP_SOCK_t,*PICMP_SOCK_t;
+} PING_SOCK_t,*PPING_SOCK_t;
 
-void __free_icmp_sock(PICMP_SOCK_t* ppsock)
+void __free_ping_sock(PPING_SOCK_t* ppsock)
 {
 	if (ppsock && *ppsock) {
-		PICMP_SOCK_t psock = *ppsock;
+		PPING_SOCK_t psock = *ppsock;
 
-		if (psock->m_magic != ICMP_HDR_MAGIC) {
-			ERROR_INFO("not magic 0x%x != 0x%x",psock->m_magic,ICMP_HDR_MAGIC);
+		if (psock->m_magic != PING_HDR_MAGIC) {
+			ERROR_INFO("not magic 0x%x != 0x%x",psock->m_magic,PING_HDR_MAGIC);
 		}
 
 
@@ -69,22 +69,22 @@ void __free_icmp_sock(PICMP_SOCK_t* ppsock)
 }
 
 
-PICMP_SOCK_t __alloc_sock(int type)
+PPING_SOCK_t __alloc_ping_sock(int type)
 {
-	PICMP_SOCK_t psock = NULL;
+	PPING_SOCK_t psock = NULL;
 	int proto = IPPROTO_ICMP;
 	int ret;
 
-	psock= (PICMP_SOCK_t)malloc(sizeof(*psock));
+	psock= (PPING_SOCK_t)malloc(sizeof(*psock));
 	if (psock == NULL) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
 	memset(psock, 0, sizeof(*psock));
-	psock->m_magic = ICMP_HDR_MAGIC;
+	psock->m_magic = PING_HDR_MAGIC;
 	psock->m_sock = INVALID_SOCKET;
-	psock->m_icmptype = type;
+	psock->m_pingtype = type;
 	psock->m_indent = 0;
 	psock->m_seq = 0;
 	psock->m_inrcv = 0;
@@ -124,7 +124,7 @@ PICMP_SOCK_t __alloc_sock(int type)
 
 	return psock;
 fail:
-	__free_icmp_sock(&psock);
+	__free_ping_sock(&psock);
 	SETERRNO(ret);
 	return NULL;
 }
@@ -174,13 +174,13 @@ fail:
 	return ret;
 }
 
-int __bind_icmp_sock(PICMP_SOCK_t psock)
+int __bind_ping_sock(PPING_SOCK_t psock)
 {
 	int ret;
 	struct sockaddr saddr;
 	int addrlen;
 
-	ret = __get_sock_addr(NULL,"0",psock->m_icmptype,&saddr,sizeof(saddr));
+	ret = __get_sock_addr(NULL,"0",psock->m_pingtype,&saddr,sizeof(saddr));
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -201,18 +201,18 @@ fail:
 	return ret;
 }
 
-void* init_icmp_sock(int type)
+void* init_ping_sock(int type)
 {
-	PICMP_SOCK_t psock = NULL;
+	PPING_SOCK_t psock = NULL;
 	int ret;
 
-	psock = __alloc_sock(type);
+	psock = __alloc_ping_sock(type);
 	if (psock == NULL) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	ret = __bind_icmp_sock(psock);
+	ret = __bind_ping_sock(psock);
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -220,21 +220,21 @@ void* init_icmp_sock(int type)
 
 	return psock;
 fail:
-	__free_icmp_sock(&psock);
+	__free_ping_sock(&psock);
 	SETERRNO(ret);
 	return NULL;
 }
 
 
-void free_icmp_sock(void** ppsock1)
+void free_ping_sock(void** ppsock1)
 {
-	PICMP_SOCK_t* ppsock = (PICMP_SOCK_t*) ppsock1;
-	__free_icmp_sock(ppsock);
+	PPING_SOCK_t* ppsock = (PPING_SOCK_t*) ppsock1;
+	__free_ping_sock(ppsock);
 	return;
 }
 
 
-unsigned short __icmp_checksum(uint8_t* pbuf, int bufsize)
+unsigned short __ping_checksum(uint8_t* pbuf, int bufsize)
 {
 	unsigned int chksum=0;
 	unsigned int carray = 0;
@@ -273,7 +273,7 @@ unsigned short __icmp_checksum(uint8_t* pbuf, int bufsize)
 	return (chksum & 0xffff);
 }
 
-int __format_icmp_request(PICMP_SOCK_t psock,uint64_t val,int indent, int seq,uint8_t* pbuf,int bufsize)
+int __format_ping_request(PPING_SOCK_t psock,uint64_t val,int indent, int seq,uint8_t* pbuf,int bufsize)
 {
 	ICMP_HDR* picmphdr;
 	ICMPV6_HDR* picmp6hdr;
@@ -282,9 +282,9 @@ int __format_icmp_request(PICMP_SOCK_t psock,uint64_t val,int indent, int seq,ui
 	int ret;
 
 	int maxsize = 0;
-	if (psock->m_icmptype == AF_INET) {
+	if (psock->m_pingtype == AF_INET) {
 		maxsize = sizeof(ICMP_HDR) + sizeof(uint64_t);
-	} else if (psock->m_icmptype == AF_INET6) {
+	} else if (psock->m_pingtype == AF_INET6) {
 		maxsize = sizeof(ICMPV6_HDR) + sizeof(ICMPV6_ECHO_REQUEST) + sizeof(uint64_t);
 	} else {
 		ret = -ERROR_INVALID_PARAMETER;
@@ -296,7 +296,7 @@ int __format_icmp_request(PICMP_SOCK_t psock,uint64_t val,int indent, int seq,ui
 		goto fail;
 	}
 
-	if (psock->m_icmptype == AF_INET) {
+	if (psock->m_pingtype == AF_INET) {
 		picmphdr = (ICMP_HDR*) pbuf;
 		picmphdr->icmp_type = ICMPV4_ECHO_REQUEST_TYPE;
 		picmphdr->icmp_code = ICMPV4_ECHO_REQUEST_CODE;
@@ -305,9 +305,9 @@ int __format_icmp_request(PICMP_SOCK_t psock,uint64_t val,int indent, int seq,ui
 		picmphdr->icmp_sequence = (unsigned short)seq;
 		pcur = pbuf + sizeof(*picmphdr);
 		memcpy(pcur,&val,sizeof(uint64_t));
-		picmphdr->icmp_checksum = htons(__icmp_checksum(pbuf,maxsize));
+		picmphdr->icmp_checksum = htons(__ping_checksum(pbuf,maxsize));
 
-	} else if (psock->m_icmptype == AF_INET6) {
+	} else if (psock->m_pingtype == AF_INET6) {
 		picmp6hdr = (ICMPV6_HDR*) pbuf;
 		picmp6hdr->icmp6_type = ICMPV6_ECHO_REQUEST_TYPE;
 		picmp6hdr->icmp6_code = ICMPV6_ECHO_REQUEST_CODE;
@@ -317,7 +317,7 @@ int __format_icmp_request(PICMP_SOCK_t psock,uint64_t val,int indent, int seq,ui
 		p6echo->icmp6_echo_sequence = (unsigned short)seq;
 		pcur = pbuf + sizeof(*picmp6hdr) + sizeof(*p6echo);
 		memcpy(pcur,&val,sizeof(uint64_t));
-		picmp6hdr->icmp6_checksum = htons(__icmp_checksum(pbuf,maxsize));
+		picmp6hdr->icmp6_checksum = htons(__ping_checksum(pbuf,maxsize));
 	}
 
 	return maxsize;
@@ -327,14 +327,14 @@ fail:
 }
 
 
-int send_icmp_request(void* psock1,const char* ip)
+int send_ping_request(void* psock1,const char* ip)
 {
-	PICMP_SOCK_t psock = (PICMP_SOCK_t)psock1;
+	PPING_SOCK_t psock = (PPING_SOCK_t)psock1;
 	int ret;
 	WSABUF sndbuf;
 	DWORD bytessend;
 	DWORD flags = 0;
-	if (psock == NULL || psock->m_magic != ICMP_HDR_MAGIC) {
+	if (psock == NULL || psock->m_magic != PING_HDR_MAGIC) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
 		return ret;
@@ -346,7 +346,7 @@ int send_icmp_request(void* psock1,const char* ip)
 		return ret;
 	}
 
-	ret = __get_sock_addr(ip,"0",psock->m_icmptype,&(psock->m_sndaddr),sizeof(psock->m_sndaddr));
+	ret = __get_sock_addr(ip,"0",psock->m_pingtype,&(psock->m_sndaddr),sizeof(psock->m_sndaddr));
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -357,7 +357,7 @@ int send_icmp_request(void* psock1,const char* ip)
 	psock->m_seq += 1;
 	psock->m_sndticks = get_current_ticks();
 	DEBUG_INFO("m_sndticks 0x%llx %lld",psock->m_sndticks, psock->m_sndticks);
-	ret = __format_icmp_request(psock,psock->m_sndticks,psock->m_indent, psock->m_seq,psock->m_sndbuf,sizeof(psock->m_sndbuf));
+	ret = __format_ping_request(psock,psock->m_sndticks,psock->m_indent, psock->m_seq,psock->m_sndbuf,sizeof(psock->m_sndbuf));
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -392,56 +392,56 @@ fail:
 	return ret;
 }
 
-int icmp_is_read_mode(void* psock1)
+int ping_is_read_mode(void* psock1)
 {
-	PICMP_SOCK_t psock = (PICMP_SOCK_t) psock1;
+	PPING_SOCK_t psock = (PPING_SOCK_t) psock1;
 	int ret= 0;
-	if (psock && psock->m_magic == ICMP_HDR_MAGIC && psock->m_inrcv) {
+	if (psock && psock->m_magic == PING_HDR_MAGIC && psock->m_inrcv) {
 		ret = 1;
 	}
 	return ret;
 }
 
 
-int icmp_is_write_mode(void* psock1)
+int ping_is_write_mode(void* psock1)
 {
-	PICMP_SOCK_t psock = (PICMP_SOCK_t) psock1;
+	PPING_SOCK_t psock = (PPING_SOCK_t) psock1;
 	int ret= 0;
-	if (psock && psock->m_magic == ICMP_HDR_MAGIC && psock->m_insnd) {
+	if (psock && psock->m_magic == PING_HDR_MAGIC && psock->m_insnd) {
 		ret = 1;
 	}
 	return ret;
 }
 
 
-HANDLE get_icmp_read_evt(void* psock1)
+HANDLE get_ping_read_evt(void* psock1)
 {
-	PICMP_SOCK_t psock = (PICMP_SOCK_t) psock1;
+	PPING_SOCK_t psock = (PPING_SOCK_t) psock1;
 	HANDLE hret = NULL;
-	if (psock && psock->m_magic == ICMP_HDR_MAGIC && psock->m_inrcv) {
+	if (psock && psock->m_magic == PING_HDR_MAGIC && psock->m_inrcv) {
 		hret = psock->m_rcvov.hEvent;
 	}
 	return hret;
 }
 
-HANDLE get_icmp_write_evt(void* psock1)
+HANDLE get_ping_write_evt(void* psock1)
 {
-	PICMP_SOCK_t psock = (PICMP_SOCK_t) psock1;
+	PPING_SOCK_t psock = (PPING_SOCK_t) psock1;
 	HANDLE hret = NULL;
-	if (psock && psock->m_magic == ICMP_HDR_MAGIC && psock->m_insnd) {
+	if (psock && psock->m_magic == PING_HDR_MAGIC && psock->m_insnd) {
 		hret = psock->m_sndov.hEvent;
 	}
 	return hret;
 }
 
-int icmp_complete_read(void* psock1)
+int ping_complete_read(void* psock1)
 {
-	PICMP_SOCK_t psock = (PICMP_SOCK_t) psock1;
+	PPING_SOCK_t psock = (PPING_SOCK_t) psock1;
 	int ret;
 	BOOL bret;
 	DWORD dret;
 	DWORD flags=0;
-	if (psock == NULL || psock->m_magic != ICMP_HDR_MAGIC) {
+	if (psock == NULL || psock->m_magic != PING_HDR_MAGIC) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
 		return ret;
@@ -476,14 +476,14 @@ fail:
 	return ret;
 }
 
-int icmp_complete_write(void* psock1)
+int ping_complete_write(void* psock1)
 {
-	PICMP_SOCK_t psock = (PICMP_SOCK_t) psock1;
+	PPING_SOCK_t psock = (PPING_SOCK_t) psock1;
 	int ret;
 	BOOL bret;
 	DWORD dret;
 	DWORD flags=0;
-	if (psock == NULL || psock->m_magic != ICMP_HDR_MAGIC) {
+	if (psock == NULL || psock->m_magic != PING_HDR_MAGIC) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
 		return ret;
@@ -517,14 +517,14 @@ fail:
 	return ret;
 }
 
-int __filter_icmp_header(PICMP_SOCK_t psock,uint64_t* pval)
+int __filter_ping_header(PPING_SOCK_t psock,uint64_t* pval)
 {
 	ICMP_HDR* picmphdr= NULL;
 	IPV4_HDR* piphdr=NULL;
 	struct sockaddr_in* paddr;
 	uint64_t* pbuf;
 
-	if (psock->m_icmptype == AF_INET) {
+	if (psock->m_pingtype == AF_INET) {
 		if (psock->m_rcvlen < (sizeof(IPV4_HDR) + 16)) {
 			return 0;
 		}
@@ -549,16 +549,16 @@ int __filter_icmp_header(PICMP_SOCK_t psock,uint64_t* pval)
 
 }
 
-int recv_icmp_response(void* psock1,uint64_t* pval)
+int recv_ping_response(void* psock1,uint64_t* pval)
 {
-	PICMP_SOCK_t psock = (PICMP_SOCK_t)psock1;
+	PPING_SOCK_t psock = (PPING_SOCK_t)psock1;
 	int ret;
 	int completed = 0;
 	WSABUF data;
 	DWORD bytercv=0;
 	DWORD flags=0;
 	uint64_t curticks;
-	if (psock == NULL || psock->m_magic != ICMP_HDR_MAGIC || pval == NULL) {
+	if (psock == NULL || psock->m_magic != PING_HDR_MAGIC || pval == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
 		return ret;
@@ -572,7 +572,7 @@ int recv_icmp_response(void* psock1,uint64_t* pval)
 
 	if (psock->m_rcvcomplete != 0) {
 	get_complete_read:		
-		ret = __filter_icmp_header(psock,pval);
+		ret = __filter_ping_header(psock,pval);
 		if (ret == 0) {
 			goto read_again;
 		}
@@ -611,11 +611,11 @@ fail:
 	return ret;
 }
 
-int icmp_send_cnt(void* psock1)
+int ping_send_cnt(void* psock1)
 {
-	PICMP_SOCK_t psock = (PICMP_SOCK_t)psock1;
+	PPING_SOCK_t psock = (PPING_SOCK_t)psock1;
 	int retcnt = -1;
-	if (psock!=NULL && psock->m_magic == ICMP_HDR_MAGIC) {
+	if (psock!=NULL && psock->m_magic == PING_HDR_MAGIC) {
 		retcnt = psock->m_sndcnt;
 	}
 	return retcnt;

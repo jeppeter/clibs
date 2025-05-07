@@ -50,7 +50,7 @@
 #include <win_hwinfo.h>
 #include <win_usb.h>
 #include <win_libev.h>
-#include <win_icmp.h>
+#include <win_ping.h>
 
 
 #include <jvalue.h>

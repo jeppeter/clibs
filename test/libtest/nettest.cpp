@@ -312,20 +312,20 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
 
     for(i=0;i<socklen;i++) {
-        ipsocks[i] = init_icmp_sock(AF_INET);
+        ipsocks[i] = init_ping_sock(AF_INET);
         if (ipsocks[i] == NULL) {
             GETERRNO(ret);
             fprintf(stderr, "init %d error %d\n",i, ret);
             goto out;
         }
-        ret = send_icmp_request(ipsocks[i], parsestate->leftargs[i]);
+        ret = send_ping_request(ipsocks[i], parsestate->leftargs[i]);
         pexpires[i] = get_current_ticks();
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr, "send [%s] error %d\n", parsestate->leftargs[i], ret);
             goto out;
         } else if (ret > 0) {
-            ret = recv_icmp_response(ipsocks[i],&curval);
+            ret = recv_ping_response(ipsocks[i],&curval);
             if (ret > 0) {
                 pexpires[i] = 0;
                 pnextrestart[i] = get_current_ticks();
@@ -353,19 +353,19 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
                         fprintf(stdout,"[%s:%d] [%s] timeout\n",__FILE__,__LINE__,parsestate->leftargs[i]);
                         DEBUG_INFO("[%s] timeout", parsestate->leftargs[i]);
                         ptimes[i] += 1;
-                        free_icmp_sock(&ipsocks[i]);
-                        ipsocks[i] = init_icmp_sock(AF_INET);
+                        free_ping_sock(&ipsocks[i]);
+                        ipsocks[i] = init_ping_sock(AF_INET);
                         if (ipsocks[i] == NULL) {
                             GETERRNO(ret);
                             goto out;
                         }
-                        ret = send_icmp_request(ipsocks[i], parsestate->leftargs[i]);
+                        ret = send_ping_request(ipsocks[i], parsestate->leftargs[i]);
                         pexpires[i] = get_current_ticks();
                         if (ret < 0) {
                             GETERRNO(ret);
                             goto out;
                         } else if (ret > 0) {
-                            ret = recv_icmp_response(ipsocks[i], &curval);
+                            ret = recv_ping_response(ipsocks[i], &curval);
                             if (ret > 0) {
                                 ptimes[i] += 1;
                                 pexpires[i] = 0;
@@ -380,13 +380,13 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
                     ret = need_wait_times(pnextrestart[i],cticks,1000);
                     if (ret < 0) {
                         DEBUG_INFO("start [%s]",parsestate->leftargs[i]);
-                        ret = send_icmp_request(ipsocks[i],parsestate->leftargs[i]);
+                        ret = send_ping_request(ipsocks[i],parsestate->leftargs[i]);
                         pexpires[i] = get_current_ticks();
                         if (ret < 0) {
                             GETERRNO(ret);
                             goto out;
                         } else if (ret > 0) {                            
-                            ret = recv_icmp_response(ipsocks[i], &curval);
+                            ret = recv_ping_response(ipsocks[i], &curval);
                             if (ret > 0) {
                                 ptimes[i] += 1;
                                 pexpires[i] = 0;
@@ -398,12 +398,12 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
                     }
                 }
 
-                if (icmp_is_write_mode(ipsocks[i]) != 0) {
-                    hdls[waitnum] = get_icmp_write_evt(ipsocks[i]);
+                if (ping_is_write_mode(ipsocks[i]) != 0) {
+                    hdls[waitnum] = get_ping_write_evt(ipsocks[i]);
                     waitnum += 1;
                 }
-                if (icmp_is_read_mode(ipsocks[i]) != 0) {
-                    hdls[waitnum] = get_icmp_read_evt(ipsocks[i]);
+                if (ping_is_read_mode(ipsocks[i]) != 0) {
+                    hdls[waitnum] = get_ping_read_evt(ipsocks[i]);
                     waitnum += 1;
                 }
 
@@ -436,11 +436,11 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             } else {
                 for(i=0;i<socklen;i++) {
                     if (ptimes[i] < pargs->m_times || pargs->m_times ==0) {
-                        if (get_icmp_write_evt(ipsocks[i]) == curhd) {
-                            ret=  icmp_complete_write(ipsocks[i]);
+                        if (get_ping_write_evt(ipsocks[i]) == curhd) {
+                            ret=  ping_complete_write(ipsocks[i]);
                             if (ret > 0) {
                             get_response:
-                                ret = recv_icmp_response(ipsocks[i],&curval);
+                                ret = recv_ping_response(ipsocks[i],&curval);
                                 if (ret < 0) {
                                     GETERRNO(ret);
                                     goto out;
@@ -453,8 +453,8 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
                                 }
                             }
                             break;
-                        } else if (get_icmp_read_evt(ipsocks[i]) == curhd) {
-                            ret = icmp_complete_read(ipsocks[i]);
+                        } else if (get_ping_read_evt(ipsocks[i]) == curhd) {
+                            ret = ping_complete_read(ipsocks[i]);
                             if (ret < 0) {
                                 GETERRNO(ret);
                                 goto out;
@@ -477,7 +477,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 out:
     if (socklen > 0) {
         for(i=0;i<socklen;i++) {
-            free_icmp_sock(&ipsocks[i]);
+            free_ping_sock(&ipsocks[i]);
         }
     }
     if (ipsocks) {
