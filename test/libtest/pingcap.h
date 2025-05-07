@@ -14,6 +14,7 @@
 #define   NONE_MODE         0
 #define   READ_MODE         1
 #define   WRITE_MODE        2
+#define   EXPIRE_MODE       4
 #define   NEXT_MODE         8
 #define   START_MODE        16
 #define   COMPLETE_MODE     0x8000000
@@ -25,7 +26,7 @@ public:
 	virtual ~PingCap();
 	int set_verbose(int verbose);
 	int start();
-	int restart();
+	int restart(int timeout);
 	int get_mode();
 	HANDLE get_read_evt();
 	HANDLE get_write_evt();

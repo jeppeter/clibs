@@ -212,8 +212,8 @@ int PingCap::get_mode()
 		cticks = get_current_ticks();
 		ret = need_wait_times(this->m_expire,cticks,this->m_timeout);
 		if (ret < 0) {
-			DEBUG_INFO("[%s] START_MODE", this->m_ip);
-			return START_MODE;
+			DEBUG_INFO("[%s] EXPIRE_MODE", this->m_ip);
+			return EXPIRE_MODE;
 		}
 		retval = NONE_MODE;
 		if (ping_is_read_mode(this->m_sock) != 0) {
@@ -351,7 +351,7 @@ double PingCap::get_succ_ratio()
 	return ratio;	
 }
 
-int PingCap::restart()
+int PingCap::restart(int timeout)
 {
 	int ret;
 	if (this->m_pingtype == 0) {
@@ -364,6 +364,11 @@ int PingCap::restart()
 
 	if (this->m_sock) {
 		free_ping_sock(&this->m_sock);
+	}
+	if (timeout != 0) {
+		/*this means expired*/
+		this->_print_result(__FILE__,__LINE__,UNREACHABLE_VALUE);
+		this->m_pingval->push_back(UNREACHABLE_VALUE);
 	}
 
 	ret = this->__start_alloc();

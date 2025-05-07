@@ -171,6 +171,7 @@ int PingTotal::loop(HANDLE exithd)
 	int timeval;
 	DWORD dret;
 	HANDLE curhd;
+	int timeout=0;
 	maxsize = 1;
 	if (this->m_vec) {
 		maxsize += (int)(this->m_vec->size() * 2);
@@ -191,10 +192,14 @@ int PingTotal::loop(HANDLE exithd)
 
 		for(i=0;i < this->m_vec->size();i ++) {
 			pv = this->m_vec->at(i);
-	get_next_mode:			
+	get_next_mode:
+			timeout = 0;
 			mode = pv->get_mode();
-			if ((mode & START_MODE) != 0) {
-				ret = pv->restart();
+			if ((mode & START_MODE) != 0 || (mode & EXPIRE_MODE) != 0) {
+				if ((mode & EXPIRE_MODE) != 0) {
+					timeout = 1;
+				}
+				ret = pv->restart(timeout);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
