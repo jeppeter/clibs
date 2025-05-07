@@ -14,6 +14,7 @@ public:
 	int add_host(const char* ip);
 	int get_mean(int idx, char** ppipstr,uint64_t* pval);
 	int loop(HANDLE exithd);
+	int get_succ_ratio(int idx, char** ppipstr,double* pratio);
 private:
 	int __min2(int a, int b);
 private:	

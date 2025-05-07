@@ -16,11 +16,12 @@ typedef struct __ping_sock {
 	uint32_t m_magic;
 	int m_pingtype;	
 	SOCKET m_sock;
-	struct sockaddr m_sndaddr;
+	struct sockaddr *m_sndaddr;
+	struct sockaddr *m_rcvaddr;
 	int m_saddrlen;
-	struct sockaddr m_rcvaddr;
 	int m_raddrlen;
 	uint64_t m_sndticks;
+	char* m_ipname;
 	WSAOVERLAPPED m_sndov;
 	WSAOVERLAPPED m_rcvov;
 	int m_insnd;
@@ -63,11 +64,36 @@ void __free_ping_sock(PPING_SOCK_t* ppsock)
 		}
 		psock->m_rcvov.hEvent = NULL;
 
+		if (psock->m_sndaddr) {
+			free(psock->m_sndaddr);
+		}
+		psock->m_sndaddr = NULL;
+		psock->m_saddrlen = 0;
+
+		if (psock->m_rcvaddr) {
+			free(psock->m_rcvaddr);
+		}
+		psock->m_rcvaddr = NULL;
+		psock->m_raddrlen = 0;
+
+		if (psock->m_ipname) {
+			free(psock->m_ipname);
+		}
+		psock->m_ipname = NULL;
+
 		free(psock);
 		*ppsock = NULL;
 	}
 }
 
+
+char* __get_ip_name(PPING_SOCK_t psock)
+{
+	if (psock == NULL || psock->m_ipname == NULL) {
+		return "NULL";
+	}
+	return psock->m_ipname;
+}
 
 PPING_SOCK_t __alloc_ping_sock(int type)
 {
@@ -177,26 +203,51 @@ fail:
 int __bind_ping_sock(PPING_SOCK_t psock)
 {
 	int ret;
-	struct sockaddr saddr;
+	struct sockaddr* saddr=NULL;
 	int addrlen;
 
-	ret = __get_sock_addr(NULL,"0",psock->m_pingtype,&saddr,sizeof(saddr));
+	addrlen = (int)sizeof(*saddr);
+get_again:
+	if (saddr) {
+		free(saddr);
+	}
+	saddr = NULL;
+	saddr = (struct sockaddr*) malloc((size_t)addrlen);
+	if (saddr == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ret = __get_sock_addr(NULL,"0",psock->m_pingtype,saddr,(DWORD)addrlen);
 	if (ret < 0) {
 		GETERRNO(ret);
+		if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+			addrlen <<= 1;
+			goto get_again;
+		}
+		DEBUG_INFO(" ");
 		goto fail;
 	}
 	addrlen = ret;
 
 
-	ret = bind(psock->m_sock,&saddr,addrlen);
+	ret = bind(psock->m_sock,saddr,addrlen);
 	if (ret != 0) {
 		GETERRNO(ret);
 		ERROR_INFO("bind  error [%d]", ret);
 		goto fail;
 	}
 
+	if (saddr) {
+		free(saddr);
+	}
+	saddr = NULL;
+
 	return 0;
 fail:
+	if (saddr) {
+		free(saddr);
+	}
+	saddr = NULL;
 	SETERRNO(ret);
 	return ret;
 }
@@ -209,12 +260,14 @@ void* init_ping_sock(int type)
 	psock = __alloc_ping_sock(type);
 	if (psock == NULL) {
 		GETERRNO(ret);
+		ERROR_INFO("ret %d", ret);
 		goto fail;
 	}
 
 	ret = __bind_ping_sock(psock);
 	if (ret < 0) {
 		GETERRNO(ret);
+		ERROR_INFO("ret %d", ret);
 		goto fail;
 	}
 
@@ -346,9 +399,43 @@ int send_ping_request(void* psock1,const char* ip)
 		return ret;
 	}
 
-	ret = __get_sock_addr(ip,"0",psock->m_pingtype,&(psock->m_sndaddr),sizeof(psock->m_sndaddr));
+	if (psock->m_ipname) {
+		free(psock->m_ipname);
+	}
+	psock->m_ipname = NULL;
+	psock->m_ipname = _strdup(ip);
+	if (psock->m_ipname == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+	if (psock->m_saddrlen == 0) {
+		psock->m_saddrlen = sizeof(*psock->m_sndaddr);
+	}
+
+get_saddr_again:
+	if (psock->m_sndaddr) {
+		free(psock->m_sndaddr);
+	}
+	psock->m_sndaddr = NULL;
+	psock->m_sndaddr = (struct sockaddr*) malloc((size_t)psock->m_saddrlen);
+	if (psock->m_sndaddr == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	ret = __get_sock_addr(ip,"0",psock->m_pingtype,psock->m_sndaddr,(DWORD)psock->m_saddrlen);
 	if (ret < 0) {
 		GETERRNO(ret);
+		if (ret == -ERROR_INSUFFICIENT_BUFFER) {
+			if (psock->m_saddrlen == 0) {
+				psock->m_saddrlen = 4;
+			} else {
+				psock->m_saddrlen <<= 1;	
+			}
+			
+			goto get_saddr_again;
+		}
 		goto fail;
 	}
 	psock->m_saddrlen = ret;
@@ -356,10 +443,11 @@ int send_ping_request(void* psock1,const char* ip)
 	psock->m_indent += 1;
 	psock->m_seq += 1;
 	psock->m_sndticks = get_current_ticks();
-	DEBUG_INFO("m_sndticks 0x%llx %lld",psock->m_sndticks, psock->m_sndticks);
+	DEBUG_INFO("[%s]m_sndticks 0x%llx %lld",__get_ip_name(psock),psock->m_sndticks, psock->m_sndticks);
 	ret = __format_ping_request(psock,psock->m_sndticks,psock->m_indent, psock->m_seq,psock->m_sndbuf,sizeof(psock->m_sndbuf));
 	if (ret < 0) {
 		GETERRNO(ret);
+		DEBUG_INFO("ret %d", ret);
 		goto fail;
 	}
 
@@ -368,7 +456,7 @@ int send_ping_request(void* psock1,const char* ip)
 	sndbuf.len = (ULONG)psock->m_sndsize;
 	sndbuf.buf = (CHAR*)psock->m_sndbuf;
 	psock->m_rcvcomplete = 0;
-	ret = WSASendTo(psock->m_sock,&sndbuf,1,&bytessend,flags,&(psock->m_sndaddr),psock->m_saddrlen,&(psock->m_sndov),NULL);
+	ret = WSASendTo(psock->m_sock,&sndbuf,1,&bytessend,flags,psock->m_sndaddr,psock->m_saddrlen,&(psock->m_sndov),NULL);
 	if (ret == SOCKET_ERROR) {
 		if (WSAGetLastError() != WSA_IO_PENDING ) {
 			ret = WSAGetLastError();
@@ -380,6 +468,7 @@ int send_ping_request(void* psock1,const char* ip)
 		}
 		psock->m_insnd = 1;
 		psock->m_sndlen += bytessend;
+		DEBUG_INFO("inrcv == 1 [%s]", __get_ip_name(psock));
 	} else {
 		psock->m_sndlen += bytessend;
 		psock->m_sndcnt += 1;
@@ -499,8 +588,12 @@ int ping_complete_write(void* psock1)
 	flags = 0;
 	bret = WSAGetOverlappedResult(psock->m_sock,&(psock->m_sndov),&dret,FALSE,&flags);
 	if (!bret) {
-		GETERRNO(ret);
+		ret = WSAGetLastError();
+		if (ret > 0) {
+			ret = -ret;
+		}
 		if (ret != -WSA_IO_INCOMPLETE) {
+			DEBUG_INFO("ret %d", ret);
 			goto fail;
 		}
 		psock->m_sndlen += dret;
@@ -521,6 +614,8 @@ int __filter_ping_header(PPING_SOCK_t psock,uint64_t* pval)
 {
 	ICMP_HDR* picmphdr= NULL;
 	IPV4_HDR* piphdr=NULL;
+	ICMPV6_HDR* picmp6hdr = NULL;
+	ICMPV6_ECHO_REQUEST *p6req= NULL;
 	struct sockaddr_in* paddr;
 	uint64_t* pbuf;
 
@@ -530,7 +625,7 @@ int __filter_ping_header(PPING_SOCK_t psock,uint64_t* pval)
 		}
 		picmphdr = (ICMP_HDR*) (psock->m_rcvbuf + sizeof(IPV4_HDR));
 		piphdr = (IPV4_HDR*) (psock->m_rcvbuf);
-		paddr = (struct sockaddr_in*) &psock->m_sndaddr;
+		paddr = (struct sockaddr_in*) psock->m_sndaddr;
 		if (piphdr->ip_srcaddr != paddr->sin_addr.s_addr) {
 			return 0;
 		}
@@ -543,6 +638,24 @@ int __filter_ping_header(PPING_SOCK_t psock,uint64_t* pval)
 				return 1;
 			}
 		}
+	} else if (psock->m_pingtype == AF_INET6) {
+		if (psock->m_rcvlen < (sizeof(ICMPV6_HDR) + sizeof(ICMPV6_ECHO_REQUEST) + sizeof(uint64_t))) {
+			return 0;
+		}
+
+		picmp6hdr = (ICMPV6_HDR*) (psock->m_rcvbuf);
+		if (picmp6hdr->icmp6_type == ICMPV6_ECHO_REPLY_TYPE && picmp6hdr->icmp6_code == ICMPV6_ECHO_REPLY_CODE) {
+			p6req = (ICMPV6_ECHO_REQUEST*)(psock->m_rcvbuf + sizeof(ICMPV6_HDR));
+			if (psock->m_indent == ntohs(p6req->icmp6_echo_id) && psock->m_seq == p6req->icmp6_echo_sequence) {
+				pbuf = (uint64_t*)(psock->m_rcvbuf + sizeof(ICMPV6_HDR) + sizeof(ICMPV6_ECHO_REQUEST));
+				if ( *pbuf == psock->m_sndticks) {
+					DEBUG_BUFFER_FMT(psock->m_rcvbuf,psock->m_rcvlen,"rcvlen");
+					*pval = *pbuf;
+					return 1;					
+				}
+			}
+		}
+
 	}
 	DEBUG_BUFFER_FMT(psock->m_rcvbuf,psock->m_rcvlen,"not valid rcvlen");
 	return 0;
@@ -583,11 +696,22 @@ int recv_ping_response(void* psock1,uint64_t* pval)
 		completed = 1;
 	} else {
 	read_again:
-		memcpy(&(psock->m_rcvaddr),&(psock->m_sndaddr),(size_t)psock->m_saddrlen);
+		if (psock->m_rcvaddr == NULL || psock->m_raddrlen < psock->m_saddrlen) {
+			if (psock->m_rcvaddr != NULL) {
+				free(psock->m_rcvaddr);
+			}
+			psock->m_rcvaddr = NULL;
+			psock->m_rcvaddr = (struct sockaddr*) malloc((size_t)psock->m_saddrlen);
+			if (psock->m_rcvaddr == NULL) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+		memcpy(psock->m_rcvaddr,psock->m_sndaddr,(size_t)psock->m_saddrlen);
 		psock->m_raddrlen = psock->m_saddrlen;
 		data.len = sizeof(psock->m_rcvbuf);
 		data.buf = (CHAR*)psock->m_rcvbuf;
-		ret = WSARecvFrom(psock->m_sock,&data,1,&bytercv,&flags,&psock->m_rcvaddr,&psock->m_raddrlen,&psock->m_rcvov,NULL);
+		ret = WSARecvFrom(psock->m_sock,&data,1,&bytercv,&flags,psock->m_rcvaddr,&psock->m_raddrlen,&psock->m_rcvov,NULL);
 		if (ret == SOCKET_ERROR) {
 			ret = WSAGetLastError();
 			if (ret != WSA_IO_PENDING) {

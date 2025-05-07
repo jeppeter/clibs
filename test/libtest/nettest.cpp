@@ -526,6 +526,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     char* ipstr =NULL;
     uint64_t cval = 0;
     HANDLE exithd= NULL;
+    double ratio = 0.0;
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
@@ -577,7 +578,15 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         if (ret == 0) {
             break;
         }
-        printf("%s mean %lld\n",ipstr,cval);
+
+        ratio = 0.0;
+        ret = ptotal->get_succ_ratio(idx,&ipstr,&ratio);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+
+        printf("%s mean %lld %f\n",ipstr,cval, ratio);
         idx += 1;
     }
     ret = 0;

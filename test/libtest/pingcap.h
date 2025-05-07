@@ -37,6 +37,7 @@ public:
 	int read_ping(uint64_t& pval);
 	int get_result(int idx,uint64_t& val);
 	int get_mean_result(uint64_t& val);
+	double get_succ_ratio();
 private:
 	void _print_result(const char* file, int line,uint64_t val);
 	int _get_ping_type();

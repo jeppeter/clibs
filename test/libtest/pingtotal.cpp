@@ -235,10 +235,12 @@ int PingTotal::loop(HANDLE exithd)
 			}
 		}
 
+		DEBUG_INFO("waitnum %d maxtime %d", waitnum, maxtime);
 		dret = WaitForMultipleObjectsEx(waitnum,hdls,FALSE,(DWORD)maxtime,FALSE);
 		if (dret < (WAIT_OBJECT_0 + waitnum)) {
 			curhd = hdls[(dret - WAIT_OBJECT_0)];
 			if (curhd == exithd) {
+				DEBUG_INFO(" ");
 				break;
 			} else {
 				if (this->m_vec) {
@@ -248,12 +250,14 @@ int PingTotal::loop(HANDLE exithd)
 							ret = pv->complete_read_evt();
 							if (ret < 0) {
 								GETERRNO(ret);
+								DEBUG_INFO(" ");
 								goto fail;
 							} 
 						} else if (pv->get_write_evt() == curhd) {
 							ret = pv->complete_write_evt();
 							if (ret < 0) {
 								GETERRNO(ret);
+								DEBUG_INFO(" ");
 								goto fail;
 							}
 						}
@@ -284,5 +288,51 @@ fail:
 	return ret;
 }
 
+int PingTotal::get_succ_ratio(int idx, char** ppipstr,double* pratio)
+{
+	int ret;
+	double rd;
+	PingCap* pv=NULL;
+	char* newstr=NULL;
+	if (idx < 0) {
+		if (ppipstr && *ppipstr) {
+			free(*ppipstr);
+			*ppipstr = NULL;
+		}
+		if (pratio) {
+			*pratio = 0.0;
+		}
+		return 0;
+	}
+
+	if (ppipstr == NULL || pratio == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (this->m_ipvec == NULL || (int)this->m_ipvec->size() <= idx) {
+		return 0;
+	}
+	pv = this->m_vec->at((uint64_t)idx);
+	newstr = this->m_ipvec->at((uint64_t)idx);
+	rd = pv->get_succ_ratio();
+
+	if (ppipstr && *ppipstr) {
+		free(*ppipstr);
+		*ppipstr = NULL;
+	}
+
+	*ppipstr = _strdup(newstr);
+	if (*ppipstr == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	*pratio = rd;
+	return 1;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
 
 #pragma warning(pop)
