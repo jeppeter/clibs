@@ -36,6 +36,8 @@
 #include <crypt_md5.h>
 #include <base64_code.h>
 
+#include "pingtotal.h"
+
 typedef struct __args_options {
     int m_verbose;
     int m_timeout;

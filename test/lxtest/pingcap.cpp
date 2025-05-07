@@ -117,7 +117,9 @@ int PingCap::_get_ping_type()
 	DEBUG_INFO(" ");
 	ret = getaddrinfo(this->m_ip,"0",&hints,&pres);
 	if (ret != 0) {
-		GETERRNO(ret);
+		if (ret > 0) {
+			ret = -ret;
+		}
 		ERROR_INFO("get [%s] addrinfo error %d", this->m_ip,ret);
 		goto fail;
 	}

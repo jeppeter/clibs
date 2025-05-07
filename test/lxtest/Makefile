@@ -8,7 +8,7 @@ endif
 include ../../baseop.mak
 
 
-LXTEST_SRCS= main.cpp pingcap.cpp
+LXTEST_SRCS= main.cpp pingcap.cpp pingtotal.cpp
 LXTEST_OFILES=$(patsubst %.cpp,%.o,${LXTEST_SRCS})
 
 INCLUDE_CFLAGS= -I${TOPDIR}/uxlib -I${TOPDIR}/common -I${TOPDIR}/common/jsonlib -I${TOPDIR}/common/extargslib -I${TOPDIR}/common/cryptutil
@@ -71,7 +71,7 @@ endif
 
 main.o:main.cpp
 
-main.cpp:args_options.cpp tstdebug.cpp tstproc.cpp tstdev.cpp tstregex.cpp tststr.cpp tstfile.cpp tstsock.cpp tstev.cpp
+main.cpp:args_options.cpp tstdebug.cpp tstproc.cpp tstdev.cpp tstregex.cpp tststr.cpp tstfile.cpp tstsock.cpp tstev.cpp tstnet.cpp
 	$(call call_exec,touch main.cpp,"TOUCH   main.cpp")
 
 args_options.cpp:args_options.cpp.tmpl ${TOPDIR}/common/extargslib
