@@ -34,7 +34,6 @@ typedef struct __ping_sock {
 	int m_indent;
 	int m_seq;
 	int m_reserve1;
-	uint64_t m_ticks;
 	uint8_t m_sndbuf[2048];
 	uint8_t m_rcvbuf[2048];
 } PING_SOCK_t,*PPING_SOCK_t;

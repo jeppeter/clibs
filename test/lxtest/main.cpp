@@ -47,6 +47,7 @@ typedef struct __args_options {
     int m_bauderate;
     int m_xonxoff;
     int m_csbits;
+    int m_times;
 } args_options_t, *pargs_options_t;
 
 int debug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
@@ -91,6 +92,7 @@ int sockaddrinfmt_handler(int argc, char* argv[], pextargs_state_t parsestate, v
 int noechopass_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
@@ -246,6 +248,7 @@ void fini_sighandler(void)
 #include "tstfile.cpp"
 #include "tstsock.cpp"
 #include "tstev.cpp"
+#include "tstnet.cpp"
 
 
 int main(int argc, char* argv[])
