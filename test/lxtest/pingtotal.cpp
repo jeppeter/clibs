@@ -116,6 +116,24 @@ PingCap* PingTotal::__find_pingcap(int fd)
 	return retv;
 }
 
+int PingTotal::__remove_pingcap(int fd)
+{
+	int ret = 0;
+
+	if (this->m_findmap) {
+		std::map<int,PingCap*>::iterator res;
+		res= this->m_findmap->find(fd);
+		if (res != this->m_findmap->end()) {
+			/*we remove it*/
+			this->m_findmap->erase(res);
+			ret=1;
+		}
+
+	}
+
+	return ret;
+}
+
 int PingTotal::__insert_pingcap(int fd,PingCap* pv)
 {
 	if (this->m_findmap == NULL) {
@@ -307,8 +325,6 @@ int PingTotal::loop(int exithd)
 		nextones = 0;
 		waitnum = 1;
 
-
-
 		for(i=0;i < (int)this->m_vec->size();i ++) {
 			pv = this->m_vec->at(i);
 			/*we remove the fd for it will not set*/
@@ -324,6 +340,11 @@ int PingTotal::loop(int exithd)
 				if ((mode & EXPIRE_MODE) != 0) {
 					timeout = 1;
 				}
+				/*because we restart ,so we should remove it first and we remove the pingcap*/
+				fd = pv->get_sock_evt();
+				REMOVE_EVT(epollfd, fd);
+				this->__remove_pingcap(fd);
+
 				ret = pv->restart(timeout);
 				if (ret < 0) {
 					GETERRNO(ret);
@@ -340,8 +361,7 @@ int PingTotal::loop(int exithd)
 				waitnum += 1;
 				if (newpv == NULL) {
 					this->__insert_pingcap(fd,pv);
-				}
-				
+				}				
 			}
 
 

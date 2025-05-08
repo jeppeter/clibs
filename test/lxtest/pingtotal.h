@@ -19,6 +19,7 @@ private:
 	int __min2(int a, int b);
 	PingCap* __find_pingcap(int fd);
 	int __insert_pingcap(int fd,PingCap* pv);
+	int __remove_pingcap(int fd);
 private:	
 	std::vector<PingCap*>* m_vec;
 	std::vector<char*>* m_ipvec;
