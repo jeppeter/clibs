@@ -201,6 +201,8 @@ do{                                                                             
 	if (__ret < 0) {                                                                              \
 		GETERRNO(__ret);                                                                          \
 		DEBUG_INFO("remove [%d] error %d", fd, __ret);                                            \
+	} else {                                                                                      \
+		DEBUG_INFO("remove [%d] succ",fd);                                                        \
 	}                                                                                             \
 }while(0)
 
@@ -222,6 +224,8 @@ do{                                                                             
 		DEBUG_INFO("remove [%d] error %d", fd, __ret);                                            \
 		ret = __ret;                                                                              \
 		goto fail;                                                                                \
+	} else {                                                                                      \
+		DEBUG_INFO("add [%d] mode [0x%x] succ",fd, mode);                                         \
 	}                                                                                             \
 } while(0)
 
@@ -311,13 +315,16 @@ int PingTotal::loop(int exithd)
 			}
 		}
 
-		DEBUG_INFO("waitnum %d maxtime %d", waitnum, maxtime);
+		DEBUG_INFO("epollfd %d waitnum %d maxtime %d",epollfd, waitnum, maxtime);
 		memset(waitevt,0, sizeof(*waitevt) * maxevt);
 		ret= epoll_wait(epollfd,waitevt,maxevt,maxtime);
+		DEBUG_INFO("epoll_wait ret %d", ret);
 		if (ret > 0) {
 			retevt = ret;
 			for(i=0;i<retevt;i++) {
+				DEBUG_BUFFER_FMT(&waitevt[i],sizeof(waitevt[i]), "waitevt[%d]",i);
 				pv = this->__find_pingcap(waitevt[i].data.fd);
+				DEBUG_INFO("[%d] pv %p", waitevt[i].data.fd, pv);
 				if (pv != NULL) {
 					if ((waitevt[i].events & EPOLLIN) != 0) {
 						ret = pv->complete_read_evt();

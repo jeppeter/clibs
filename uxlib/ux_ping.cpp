@@ -12,6 +12,7 @@
 #include <netdb.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp6.h>
+#include <arpa/inet.h>
 
 #define  PING_HDR_MAGIC   0x779292a
 
@@ -137,103 +138,61 @@ fail:
 
 int __get_addr_info(const char* ip, const char* port,int sockfamily,struct sockaddr *saddr ,int addrlen)
 {
-	struct addrinfo hints;
-	struct addrinfo* pres= NULL;
-	int retlen;
+	int retlen = 0;
 	int ret;
-
-	memset(&hints,0, sizeof(hints));
-	hints.ai_flags = (ip == NULL ? AI_PASSIVE : 0);
-	hints.ai_family = sockfamily;
-	hints.ai_socktype = SOCK_RAW;
-	hints.ai_protocol = 0;
-
-	ret = getaddrinfo(ip,port,&hints,&pres);
-	if (ret != 0) {
-		if (ret > 0) {
-			ret = -ret;	
-		}
-		ERROR_INFO("getaddrinfo error [%d]", ret);		
-		goto fail;
-	}
-
-	if (pres == NULL) {
+	struct sockaddr_in *paddr;
+	struct sockaddr_in6 *p6addr;
+	if (ip == NULL) {
 		ret = -EINVAL;
 		goto fail;
 	}
 
-	retlen = (int)pres->ai_addrlen;
-	if (retlen > addrlen) {
-		ret = -ENOBUFS;
+	if (sockfamily == AF_INET) {
+		if (addrlen < (int)sizeof(*paddr)) {
+			ret = -ENOBUFS;
+			goto fail;
+		}
+		paddr = (struct sockaddr_in*) saddr;
+		memset(paddr, 0, sizeof(*paddr));
+		retlen = sizeof(*paddr);
+		paddr->sin_family = sockfamily;
+		paddr->sin_port = htons(atoi(port));
+		ret = inet_pton(sockfamily,ip,&(paddr->sin_addr));
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("can not transfer [%s] error %d", ip, ret);
+			goto fail;
+		}
+	} else if (sockfamily == AF_INET6) {
+		if (addrlen < (int)sizeof(*p6addr)) {
+			ret = -ENOBUFS;
+			goto fail;
+		}
+		p6addr = (struct sockaddr_in6*) saddr;
+		memset(p6addr, 0, sizeof(*p6addr));
+		retlen = sizeof(*p6addr);
+		p6addr->sin6_family = sockfamily;
+		p6addr->sin6_port = htons(atoi(port));
+		ret = inet_pton(sockfamily,ip, &(p6addr->sin6_addr));
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("can not transfer [%s] error %d", ip, ret);
+			goto fail;
+		}
+	} else {
+		ret = -EINVAL;
 		goto fail;
 	}
 
-	memcpy(saddr,pres->ai_addr, retlen);
-
-	if (pres) {
-		freeaddrinfo(pres);
-	}
-	pres = NULL;
-
 	return retlen;
 fail:
-	if (pres) {
-		freeaddrinfo(pres);
-	}
-	pres = NULL;
 	SETERRNO(ret);
 	return ret;
 }
 
 int __bind_local_sock(pping_sock_t psock)
 {
-	int ret;
-	struct sockaddr* saddr = NULL;
-	int addrlen = 0;
-	ASSERT_IF(psock->m_sock >= 0);
-	addrlen = sizeof(*saddr);
-get_again:
-	if (saddr) {
-		free(saddr);
-	}
-	saddr = NULL;
-	saddr = (struct sockaddr*)malloc(addrlen);
-	if (saddr == NULL) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	ret=  __get_addr_info(NULL,"0",psock->m_pingtype,saddr,addrlen);
-	if (ret < 0) {
-		GETERRNO(ret);
-		if (ret == -ENOBUFS) {
-			addrlen <<= 1;
-			goto get_again;
-		}
-		goto fail;
-	}
-	addrlen = ret;
-
-	ret = bind(psock->m_sock,saddr,addrlen);
-	if (ret < 0) {
-		GETERRNO(ret);
-		ERROR_INFO("bind error %d", ret);
-		goto fail;
-	}
-
-	if (saddr) {
-		free(saddr);
-	}
-	saddr = NULL;
-
 	return 0;
-fail:
-	if (saddr) {
-		free(saddr);
-	}
-	saddr = NULL;
-	SETERRNO(ret);
-	return ret;
 }
 
 void* init_ping_sock(int type)
@@ -419,7 +378,7 @@ get_saddr_again:
 	psock->m_indent += 1;
 	psock->m_seq += 1;
 	psock->m_sndticks = get_cur_ticks();
-	DEBUG_INFO("[%s]m_sndticks 0x%llx %lld",__get_ip_name(psock),psock->m_sndticks, psock->m_sndticks);
+	DEBUG_INFO("[%s]m_sndticks fd [%d] 0x%llx %lld",__get_ip_name(psock),psock->m_sock,psock->m_sndticks, psock->m_sndticks);
 	ret = __format_ping_request(psock,psock->m_sndticks,psock->m_indent, psock->m_seq,psock->m_sndbuf,sizeof(psock->m_sndbuf));
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -667,8 +626,11 @@ int recv_ping_response(void* psock1,uint64_t* pval)
 		ret = recvfrom(psock->m_sock,psock->m_rcvbuf,sizeof(psock->m_rcvbuf),MSG_DONTWAIT,naddr,&naddrlen);
 		if (ret < 0) {
 			GETERRNO(ret);
-			ERROR_INFO("[%s] receive error %d", __get_ip_name(psock),ret);
-			goto fail;
+			if (ret != -EAGAIN && ret != EWOULDBLOCK) {
+				ERROR_INFO("[%s] receive error %d", __get_ip_name(psock),ret);
+				goto fail;				
+			}
+			psock->m_inrcv = 1;
 		} else {
 			psock->m_inrcv = 0;
 			psock->m_rcvlen = ret;
