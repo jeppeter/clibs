@@ -6,7 +6,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     int idx;
     pargs_options_t pargs = (pargs_options_t) popt;
     int timeout= pargs->m_timeout;
-    int nexttime = 1000;
+    int nexttime = pargs->m_nexttime;
     int times = pargs->m_times;
     char* ipstr =NULL;
     uint64_t cval = 0;
@@ -27,6 +27,10 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
     if (timeout == 0) {
         timeout = 5000;
+    }
+
+    if (nexttime == 0) {
+    	nexttime = 1000;
     }
 
     DEBUG_INFO(" ");

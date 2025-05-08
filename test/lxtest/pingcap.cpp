@@ -382,12 +382,14 @@ int PingCap::complete_read_evt()
 	ret = ping_complete_read(this->m_sock);
 	if (ret < 0) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	} else if (ret > 0) {
 		retv = 1;
 		ret = recv_ping_response(this->m_sock,&cval);
 		if (ret < 0) {
 			GETERRNO(ret);
+			ERROR_INFO(" ");
 			goto fail;
 		} else if (ret > 0) {
 			this->m_expire = 0;

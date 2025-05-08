@@ -50,6 +50,7 @@ typedef struct __args_options {
     int m_xonxoff;
     int m_csbits;
     int m_times;
+    int m_nexttime;
 } args_options_t, *pargs_options_t;
 
 int debug_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);

@@ -2,6 +2,7 @@
     "verbose|v<m_verbose>" : "+",
     "timeout|t<m_timeout>" : 0,
     "times<m_times>" : 0,
+    "nexttime<m_nexttime>" : 0,
     "input|i<m_input>" : null,
     "output|o<m_output>"  : null,
     "errout|e<m_errout>" : null,

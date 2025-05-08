@@ -199,18 +199,20 @@ do{                                                                             
 	_evt.events |= EPOLLERR;                                                                      \
 	__ret = epoll_ctl(epollfd,EPOLL_CTL_DEL,fd,&_evt);                                            \
 	if (__ret < 0) {                                                                              \
-		GETERRNO(__ret);                                                                          \
-		DEBUG_INFO("remove [%d] error %d", fd, __ret);                                            \
-	} else {                                                                                      \
-		DEBUG_INFO("remove [%d] succ",fd);                                                        \
+		GETERRNO(ret);                                                                            \
+		if (ret != -ENOENT){                                                                      \
+			DEBUG_INFO("remove [%d] error %d errno %d", fd, __ret, ret);                          \
+			goto fail;                                                                            \
+		}                                                                                         \
 	}                                                                                             \
 }while(0)
 
-#define  ADD_EVT(epollfd, fd,mode)                                                                \
+#define  ADD_EVT(epollfd, fd2,mode)                                                               \
 do{                                                                                               \
 	struct epoll_event _evt;                                                                      \
 	int __ret;                                                                                    \
 	memset(&_evt,0,sizeof(_evt));                                                                 \
+	_evt.data.fd = fd2;                                                                           \
 	_evt.events = 0;                                                                              \
 	if ((mode & READ_MODE) != 0) {                                                                \
 		_evt.events |= EPOLLIN;                                                                   \
@@ -218,16 +220,55 @@ do{                                                                             
 	if ((mode & WRITE_MODE) != 0) {                                                               \
 		_evt.events |= EPOLLOUT;                                                                  \
 	}                                                                                             \
-	__ret = epoll_ctl(epollfd,EPOLL_CTL_ADD,fd,&_evt);                                            \
+	__ret = epoll_ctl(epollfd,EPOLL_CTL_ADD,fd2,&_evt);                                           \
 	if (__ret < 0) {                                                                              \
-		GETERRNO(__ret);                                                                          \
-		DEBUG_INFO("remove [%d] error %d", fd, __ret);                                            \
-		ret = __ret;                                                                              \
+		GETERRNO(ret);                                                                            \
+		DEBUG_INFO("add [%d] error %d errno %d", fd2, __ret ,ret);                                \
 		goto fail;                                                                                \
-	} else {                                                                                      \
-		DEBUG_INFO("add [%d] mode [0x%x] succ",fd, mode);                                         \
 	}                                                                                             \
 } while(0)
+
+char* __get_event(int event)
+{
+	static char envstr[256];
+	char* ptr = envstr;
+	int leftsize = sizeof(envstr);
+	int addsize = 0;
+	int ret;
+	if ((event & EPOLLIN) != 0) {
+		ret= snprintf(ptr,leftsize,"EPOLLIN");
+		leftsize -= ret;
+		ptr += ret;
+		addsize += ret;
+	}
+
+	if ((event & EPOLLOUT) != 0) {
+		if (addsize > 0) {
+			ret = snprintf(ptr,leftsize,"|");
+			leftsize -= ret;
+			ptr += ret;
+			addsize += ret;
+		}
+		ret = snprintf(ptr,leftsize,"EPOLLOUT");
+		leftsize -= ret;
+		ptr += ret;
+		addsize += ret;
+	}
+
+	if ((event & EPOLLERR) != 0) {
+		if (addsize > 0) {
+			ret = snprintf(ptr,leftsize,"|");
+			leftsize -= ret;
+			ptr += ret;
+			addsize += ret;
+		}
+		ret = snprintf(ptr,leftsize,"EPOLLERR");
+		leftsize -= ret;
+		ptr += ret;
+		addsize += ret;		
+	}
+	return envstr;
+}
 
 int PingTotal::loop(int exithd)
 {
@@ -250,6 +291,7 @@ int PingTotal::loop(int exithd)
 		GETERRNO(ret);
 		goto fail;
 	}
+	DEBUG_INFO("epollfd [%d] exithd [%d]" ,epollfd, exithd);
 
 	ADD_EVT(epollfd,exithd,READ_MODE);
 
@@ -269,9 +311,15 @@ int PingTotal::loop(int exithd)
 
 		for(i=0;i < (int)this->m_vec->size();i ++) {
 			pv = this->m_vec->at(i);
+			/*we remove the fd for it will not set*/
+			fd = pv->get_sock_evt();
+			REMOVE_EVT(epollfd, fd);
 	get_next_mode:
 			timeout = 0;
 			mode = pv->get_mode();
+			if ((mode & COMPLETE_MODE) != 0) {
+				continue;
+			}
 			if ((mode & START_MODE) != 0 || (mode & EXPIRE_MODE) != 0) {
 				if ((mode & EXPIRE_MODE) != 0) {
 					timeout = 1;
@@ -286,16 +334,12 @@ int PingTotal::loop(int exithd)
 
 			if ((mode & READ_MODE) != 0 || (mode & WRITE_MODE) != 0) {
 				fd = pv->get_sock_evt();
-				if (fd < 0) {
-					REMOVE_EVT(epollfd,fd);
-				} else {
-					REMOVE_EVT(epollfd,fd);
-					ADD_EVT(epollfd,fd,mode);
-					newpv=  this->__find_pingcap(fd);
-					waitnum += 1;
-					if (newpv == NULL) {
-						this->__insert_pingcap(fd,pv);
-					}
+				REMOVE_EVT(epollfd,fd);
+				ADD_EVT(epollfd,fd,mode);
+				newpv=  this->__find_pingcap(fd);
+				waitnum += 1;
+				if (newpv == NULL) {
+					this->__insert_pingcap(fd,pv);
 				}
 				
 			}
@@ -318,13 +362,10 @@ int PingTotal::loop(int exithd)
 		DEBUG_INFO("epollfd %d waitnum %d maxtime %d",epollfd, waitnum, maxtime);
 		memset(waitevt,0, sizeof(*waitevt) * maxevt);
 		ret= epoll_wait(epollfd,waitevt,maxevt,maxtime);
-		DEBUG_INFO("epoll_wait ret %d", ret);
 		if (ret > 0) {
 			retevt = ret;
 			for(i=0;i<retevt;i++) {
-				DEBUG_BUFFER_FMT(&waitevt[i],sizeof(waitevt[i]), "waitevt[%d]",i);
 				pv = this->__find_pingcap(waitevt[i].data.fd);
-				DEBUG_INFO("[%d] pv %p", waitevt[i].data.fd, pv);
 				if (pv != NULL) {
 					if ((waitevt[i].events & EPOLLIN) != 0) {
 						ret = pv->complete_read_evt();
