@@ -80,8 +80,16 @@ int PingCap::__start_alloc()
 	this->m_expire = get_cur_ticks();
 	if (ret < 0) {
 		GETERRNO(ret);
-		DEBUG_INFO("error [%d]", this->m_ip);
-		goto fail;
+		if (ret != -ENETUNREACH) {
+			DEBUG_INFO("error [%d]", this->m_ip);
+			goto fail;			
+		}
+		val = UNREACHABLE_VALUE;
+		this->m_pingval->push_back(val);
+		this->_print_result(__FILE__,__LINE__,val);
+		/*this is for next restart*/
+		this->m_expire = 0;
+		this->m_nextstart = get_cur_ticks();		
 	} else if (ret > 0) {
 		ret = recv_ping_response(this->m_sock,&val);
 		if (ret < 0) {
@@ -475,7 +483,7 @@ int PingCap::get_next_expire()
 	uint64_t cticks;
 	cticks = get_cur_ticks();
 	if (this->m_expire == 0) {
-		ret = need_wait_times(this->m_nextstart,cticks,this->m_timeout);
+		ret = need_wait_times(this->m_nextstart,cticks,this->m_nexttime);
 		if (ret < 0) {
 			retval = 0;
 		} else {

@@ -489,7 +489,7 @@ int PingCap::get_next_expire()
 	uint64_t cticks;
 	cticks = get_current_ticks();
 	if (this->m_expire == 0) {
-		ret = need_wait_times(this->m_nextstart,cticks,this->m_timeout);
+		ret = need_wait_times(this->m_nextstart,cticks,this->m_nexttime);
 		if (ret < 0) {
 			retval = 0;
 		} else {

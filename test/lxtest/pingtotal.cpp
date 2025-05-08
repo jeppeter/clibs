@@ -415,8 +415,6 @@ int PingTotal::loop(int exithd)
 			ERROR_INFO("epoll_wait error %d", ret);
 			goto fail;
 		}
-
-
 	}
 
 	if (epollfd >= 0) {
