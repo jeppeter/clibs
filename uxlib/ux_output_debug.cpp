@@ -41,6 +41,92 @@ void __free_log_output()
 }
 
 
+#define  MINI_FMT_SIZE           32
+
+int __inner_time_format(int freed, char** ppfmt, size_t *pfmtsize)
+{
+    char* pretfmt = NULL;
+    size_t retsize = 0;
+    int retlen = 0;
+    int ret;
+    size_t sret;
+    time_t nowt;
+    struct tm nowtime,*prettm;
+
+    __time64_t nowt;
+    if (freed) {
+        if (ppfmt && *ppfmt) {
+            free(*ppfmt);
+            *ppfmt = NULL;
+        }
+        if (pfmtsize) {
+            *pfmtsize = 0;
+        }
+        return 0;
+    }
+    if (ppfmt == NULL || pfmtsize == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    retsize = *pfmtsize;
+    pretfmt = *ppfmt;
+
+    if (pretfmt == NULL || retsize < MINI_FMT_SIZE) {
+        if (retsize < MINI_FMT_SIZE) {
+            retsize = MINI_FMT_SIZE;
+        }
+        pretfmt = (char*)malloc(retsize);
+        if (pretfmt == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    memset(pretfmt , 0, retsize);
+
+
+    nowt = time(NULL);
+    prettm = localtime_r(&nowt,&nowtime);
+    if (prettm == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+try_again:
+    sret = strftime(pretfmt, retsize - 1, "%Y-%m-%d %H:%M:%S", &nowtime);
+    if (sret == 0) {
+        retsize <<= 1;
+        if (pretfmt && pretfmt != *ppfmt) {
+            free(pretfmt);
+        }
+        pretfmt = NULL;
+        pretfmt = (char*)malloc(retsize);
+        if (pretfmt == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        goto try_again;
+    }
+    retlen = (int)sret;
+
+    if (*ppfmt && *ppfmt != pretfmt) {
+        free(*ppfmt);
+    }
+    *ppfmt = pretfmt;
+    *pfmtsize = retsize;
+    return retlen;
+fail:
+    /*no pretfmt here*/
+    if (pretfmt != NULL && pretfmt != *ppfmt) {
+        free(pretfmt);
+    }
+    pretfmt = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
 
 typedef int (output_func_t)(int level, char* outstr);
 
@@ -185,7 +271,7 @@ static int __output_format_buffer(char** ppbuf, int *pbufsize, int level, const 
     return __output_format_buffer_v(ppbuf, pbufsize, level, file, lineno, fmt, ap);
 }
 
-static int __call_out_line(int level, const char* file, int lineno, const char* fmt, va_list ap, output_func_t fn)
+static int __call_out_line(int level, const char* file, int lineno, const char* fmt, va_list ap)
 {
     char* pbuf = NULL;
     int bufsize = 0;
@@ -215,26 +301,15 @@ void debug_out_string(int level, const char* file, int lineno, const char* fmt, 
 {
     va_list ap;
 
-    if (level > st_output_loglvl || fmt == NULL) {
+    if (st_log_inited == 0 || fmt == NULL) {
         return ;
     }
 
     va_start(ap, fmt);
-    __call_out_line(level, file, lineno, fmt, ap, __syslog_output);
+    __call_out_line(level, file, lineno, fmt, ap);
     return ;
 }
 
-void console_out_string(int level, const char* file, int lineno, const char* fmt, ...)
-{
-    va_list ap;
-    if (level > st_output_loglvl || fmt == NULL) {
-        return ;
-    }
-
-    va_start(ap, fmt);
-    __call_out_line(level, file, lineno, fmt, ap, __stderr_output);
-    return ;
-}
 
 
 static void __inner_buffer_output(int level, const char* file,int lineno, unsigned char* pBuffer, int buflen, const char* fmt, va_list ap, output_func_t fn)
@@ -463,28 +538,16 @@ fail:
 void debug_buffer_fmt(int level, const char* file, int lineno, unsigned char* pBuffer, int buflen, const char* fmt, ...)
 {
     va_list ap;
-    if (level > st_output_loglvl) {
+    if (st_log_inited == 0) {
         return;
     }
     if (fmt != NULL) {
         va_start(ap, fmt);
     }
-    __inner_buffer_output(level, file, lineno, pBuffer, buflen, fmt, ap, __syslog_output);
+    __inner_buffer_output(level, file, lineno, pBuffer, buflen, fmt, ap);
     return;
 }
 
-void console_buffer_fmt(int level,const char* file,int lineno,unsigned char* pBuffer,int buflen,const char* fmt,...)
-{
-    va_list ap;
-    if (level > st_output_loglvl) {
-        return;
-    }
-    if (fmt != NULL) {
-        va_start(ap, fmt);
-    }
-    __inner_buffer_output(level, file, lineno, pBuffer, buflen, fmt, ap, __stderr_output);
-    return;
-}
 
 void backtrace_out_string(int level,int stkidx, const char* file, int lineno, const char* fmt,...)
 {
@@ -495,7 +558,7 @@ void backtrace_out_string(int level,int stkidx, const char* file, int lineno, co
     char* pbuf=NULL;
     int bufsize=0;
     int ret;
-    if (level > st_output_loglvl) {
+    if (st_log_inited == 0) {
         return;
     }
     if (fmt != NULL) {
@@ -533,8 +596,6 @@ void backtrace_out_string(int level,int stkidx, const char* file, int lineno, co
     }
 
 
-    __syslog_output(level,pbuf);
-    __stderr_output(level,pbuf);
 
 
 out:

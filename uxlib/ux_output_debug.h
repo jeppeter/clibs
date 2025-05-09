@@ -7,10 +7,10 @@
 #ifndef __UX_INNER_DEFINED__
 #define __UX_INNER_DEFINED__
 #endif
-
 #include <ux_inner.h>
-
 #undef  __UX_INNER_DEFINED__
+
+#include <ux_output_debug_cfg.h>
 
 
 #define  BASE_LOG_FATAL        0
@@ -27,12 +27,11 @@ extern "C" {
 #endif /* __cplusplus*/
 
 void debug_out_string(int level,const char* file,int lineno,const char* fmt,...);
-void console_out_string(int level,const char* file,int lineno,const char* fmt,...);
 void debug_buffer_fmt(int level,const char* file,int lineno,unsigned char* pBuffer,int buflen,const char* fmt,...);
-void console_buffer_fmt(int level,const char* file,int lineno,unsigned char* pBuffer,int buflen,const char* fmt,...);
 void backtrace_out_string(int level,int stkidx, const char* file, int lineno, const char* fmt,...);
 
 int init_log(int loglvl);
+int init_output_ex(OutputCfg* pcfgs);
 void fini_log();
 
 #ifdef __cplusplus
@@ -40,12 +39,10 @@ void fini_log();
 #endif /* __cplusplus*/
 
 #define __INNER_BACKGROUND_OUTPUT(level,...) do{debug_out_string(level,__FILE__,__LINE__,__VA_ARGS__);} while(0)
-#define __INNER_CONSOLE_OUTPUTU(level,...)   do{console_out_string(level,__FILE__,__LINE__,__VA_ARGS__);} while(0)
 
 #define __OUTPUT_INFO(lvl,...)                                      \
     do{                                                             \
         __INNER_BACKGROUND_OUTPUT(lvl,__VA_ARGS__);                 \
-        __INNER_CONSOLE_OUTPUTU(lvl,__VA_ARGS__);                   \
     }while(0)
 
 #define FATAL_INFO(...)   __OUTPUT_INFO(BASE_LOG_FATAL,__VA_ARGS__)
@@ -59,13 +56,11 @@ void fini_log();
 #define __OUTPUT_BUFFER(lvl,ptr,blen)                                                           \
     do{                                                                                         \
         debug_buffer_fmt(lvl,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);                  \
-        console_buffer_fmt(lvl,__FILE__,__LINE__,(unsigned char*)ptr,blen,NULL);                \
     }while(0)
 
 #define __OUTPUT_BUFFER_FMT(lvl,ptr,blen,...)                                                       \
     do{                                                                                             \
         debug_buffer_fmt(lvl,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);               \
-        console_buffer_fmt(lvl,__FILE__,__LINE__,(unsigned char*)ptr,blen,__VA_ARGS__);             \
     }while(0)
 
 #define  FATAL_BUFFER(ptr,blen)  __OUTPUT_BUFFER(BASE_LOG_FATAL,ptr,blen)
