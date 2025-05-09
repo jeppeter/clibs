@@ -1,3 +1,4 @@
+#define _LARGEFILE64_SOURCE
 #include <ux_output_debug.h>
 #include <ux_err.h>
 #include <ux_strop.h>
@@ -10,6 +11,10 @@
 #include <execinfo.h>
 #include <vector>
 #include <ux_output_debug_cfg.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 #include "ux_output_debug_cfg.cpp"
 #include "ux_output_debug_file.cpp"

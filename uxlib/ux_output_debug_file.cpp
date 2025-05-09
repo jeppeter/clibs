@@ -152,7 +152,7 @@ int format_out_string(int fmtflag, int addline, char** ppoutstr, int* psize, cha
 		return str_append_snprintf_safe(ppoutstr, psize, NULL);
 	}
 
-	if (fmtflag & WINLIB_OUTPUT_LOCATION) {
+	if (fmtflag & UXLIB_OUTPUT_LOCATION) {
 		ret = str_append_snprintf_safe(ppoutstr, psize, "%s", locstr);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -161,7 +161,7 @@ int format_out_string(int fmtflag, int addline, char** ppoutstr, int* psize, cha
 		cnt ++;
 	}
 
-	if (fmtflag & WINLIB_OUTPUT_TIMESTAMP) {
+	if (fmtflag & UXLIB_OUTPUT_TIMESTAMP) {
 		if (cnt > 0) {
 			ret = str_append_snprintf_safe(ppoutstr, psize, " ");
 		}
@@ -173,7 +173,7 @@ int format_out_string(int fmtflag, int addline, char** ppoutstr, int* psize, cha
 		cnt ++;
 	}
 
-	if (fmtflag & WINLIB_OUTPUT_LEVEL) {
+	if (fmtflag & UXLIB_OUTPUT_LEVEL) {
 		if (cnt > 0) {
 			ret = str_append_snprintf_safe(ppoutstr, psize, " ");
 		}
@@ -185,7 +185,7 @@ int format_out_string(int fmtflag, int addline, char** ppoutstr, int* psize, cha
 		cnt ++;
 	}
 
-	if (fmtflag & WINLIB_OUTPUT_MSG) {
+	if (fmtflag & UXLIB_OUTPUT_MSG) {
 		if (cnt > 0) {
 			ret = str_append_snprintf_safe(ppoutstr, psize, " ");
 		}
@@ -276,7 +276,7 @@ int DebugOutBuffer::write_buffer_log(int level, char* locstr, char* timestr, con
 			}
 		}
 		format_out_string(-1, 0, &outstr, &outsize, NULL, NULL, NULL, NULL);
-		if ((this->m_fmtflag & WINLIB_OUTPUT_MSG ) != 0) {
+		if ((this->m_fmtflag & UXLIB_OUTPUT_MSG ) != 0) {
 			pcurptr = (uint8_t*)pbuffer;
 			lasti = 0;
 			for (i = 0; i < buflen; i++) {
@@ -397,7 +397,7 @@ fail:
 DebugOutBuffer::DebugOutBuffer()
 {
 	this->m_level = BASE_LOG_ERROR;
-	this->m_fmtflag = WINLIB_OUTPUT_ALL_MASK;
+	this->m_fmtflag = UXLIB_OUTPUT_ALL_MASK;
 }
 
 DebugOutBuffer::~DebugOutBuffer()
@@ -425,12 +425,12 @@ int DebugOutBuffer::set_cfg(OutfileCfg* pcfg)
 	int ret;
 	this->m_level = pcfg->get_level();
 	if (this->m_level < 0) {
-		ret = -ERROR_INVALID_PARAMETER;
+		ret = -EINVAL;
 		goto fail;
 	}
 	this->m_fmtflag = pcfg->get_format();
 	if (this->m_fmtflag < 0) {
-		ret = -ERROR_INVALID_PARAMETER;
+		ret = -EINVAL;
 		goto fail;
 	}
 	return 0;
@@ -463,7 +463,7 @@ public:
 DebugOutStderr::DebugOutStderr()
 {
 	this->m_level = BASE_LOG_ERROR;
-	this->m_fmtflag = WINLIB_OUTPUT_ALL_MASK;
+	this->m_fmtflag = UXLIB_OUTPUT_ALL_MASK;
 }
 
 DebugOutStderr::~DebugOutStderr()
@@ -539,7 +539,7 @@ public:
 DebugOutBackground::DebugOutBackground()
 {
 	this->m_level = BASE_LOG_ERROR;
-	this->m_fmtflag = WINLIB_OUTPUT_ALL_MASK;
+	this->m_fmtflag = UXLIB_OUTPUT_ALL_MASK;
 }
 
 DebugOutBackground::~DebugOutBackground()
@@ -554,8 +554,7 @@ void DebugOutBackground::flush()
 int DebugOutBackground::write_buffer(char* pbuffer, int buflen)
 {
     int priority = LOG_ERR;
-    int outlen=0;
-    switch (this->level) {
+    switch (this->m_level) {
     case BASE_LOG_FATAL:
         priority = LOG_EMERG;
         break;
@@ -604,8 +603,8 @@ int DebugOutBackground::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	if (fname != NULL || (type & WINLIB_DEBUGOUT_FILE_MASK) != WINLIB_DEBUGOUT_FILE_BACKGROUND || size != 0 || maxfiles != 0) {
-		ret = -ERROR_INVALID_PARAMETER;
+	if (fname != NULL || (type & UXLIB_DEBUGOUT_FILE_MASK) != UXLIB_DEBUGOUT_FILE_BACKGROUND || size != 0 || maxfiles != 0) {
+		ret = -EINVAL;
 		goto fail;
 	}
 
@@ -715,7 +714,7 @@ DebugOutFileTrunc::DebugOutFileTrunc()
 DebugOutFileTrunc::~DebugOutFileTrunc()
 {
 	if (this->m_fd >= 0) {
-		close(this->m-fd);
+		close(this->m_fd);
 	}
 	this->m_fd = -1;
 	if (this->m_name != NULL) {
@@ -769,7 +768,6 @@ void DebugOutFileTrunc::flush()
 		char* nname = NULL;
 		int nsize = 0;
 		int ret;
-		BOOL bret;
 		/*this means we exceed the file limited size, so we should change */
 		if (this->m_fd >= 0)  {
 			close(this->m_fd);
@@ -804,8 +802,8 @@ int DebugOutFileTrunc::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	if (fname == NULL || (type & WINLIB_DEBUGOUT_FILE_MASK) != WINLIB_DEBUGOUT_FILE_TRUNC ||  maxfiles != 0) {
-		ret = -ERROR_INVALID_PARAMETER;
+	if (fname == NULL || (type & UXLIB_DEBUGOUT_FILE_MASK) != UXLIB_DEBUGOUT_FILE_TRUNC ||  maxfiles != 0) {
+		ret = -EINVAL;
 		goto fail;
 	}
 
@@ -892,12 +890,19 @@ int DebugOutFileAppend::open_file_append(char* name)
 		return ret;
 	}
 
+	loff = lseek64(this->m_fd,0,SEEK_CUR);
+	if (loff == -1) {
+		GETERRNO(ret);
+		SETERRNO(ret);
+		return ret;
+	}
+	/*
 	ret = _llseek(this->m_fd,0,0,&loff,SEEK_CUR);
 	if (ret < 0) {
 		GETERRNO(ret);
 		SETERRNO(ret);
 		return ret;
-	}
+	}*/
 	this->m_filesize = loff;
 	return 0;
 }
@@ -953,8 +958,6 @@ int DebugOutFileAppend::set_cfg(OutfileCfg* pcfg)
 	int type = 0;
 	uint64_t size = 0;
 	int ret;
-	LARGE_INTEGER fsize;
-	BOOL bret;
 
 	ret = pcfg->get_file_type(fname, type, size, maxfiles);
 	if (ret < 0) {
@@ -962,8 +965,8 @@ int DebugOutFileAppend::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	if (fname == NULL || (type & WINLIB_DEBUGOUT_FILE_MASK ) != WINLIB_DEBUGOUT_FILE_APPEND ||  maxfiles != 0) {
-		ret = -ERROR_INVALID_PARAMETER;
+	if (fname == NULL || (type & UXLIB_DEBUGOUT_FILE_MASK ) != UXLIB_DEBUGOUT_FILE_APPEND ||  maxfiles != 0) {
+		ret = -EINVAL;
 		goto fail;
 	}
 
@@ -1224,15 +1227,15 @@ int DebugOutFileRotate::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	if (fname == NULL || (type & WINLIB_DEBUGOUT_FILE_MASK ) != WINLIB_DEBUGOUT_FILE_ROTATE ) {
-		ret = -ERROR_INVALID_PARAMETER;
+	if (fname == NULL || (type & UXLIB_DEBUGOUT_FILE_MASK ) != UXLIB_DEBUGOUT_FILE_ROTATE ) {
+		ret = -EINVAL;
 		goto fail;
 	}
 
-	if (this->m_hfile != NULL) {
-		CloseHandle(this->m_hfile);
+	if (this->m_fd >= 0) {
+		close(this->m_fd);
 	}
-	this->m_hfile = NULL;
+	this->m_fd = -1;
 	if (this->m_name != NULL ) {
 		free(this->m_name);
 	}
@@ -1244,7 +1247,7 @@ int DebugOutFileRotate::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
-	this->m_name = _strdup(fname);
+	this->m_name = strdup(fname);
 	this->m_size = size;
 	if (this->m_name == NULL) {
 		GETERRNO(ret);
@@ -1260,10 +1263,10 @@ int DebugOutFileRotate::set_cfg(OutfileCfg* pcfg)
 
 	return 0;
 fail:
-	if (this->m_hfile != NULL) {
-		CloseHandle(this->m_hfile);
+	if (this->m_fd >= 0) {
+		close(this->m_fd);
 	}
-	this->m_hfile = NULL;
+	this->m_fd = -1;
 	if (this->m_name) {
 		free(this->m_name);
 	}
@@ -1306,7 +1309,7 @@ DebugOutIO* get_cfg_out(OutfileCfg* pcfg)
 		pout = new DebugOutFileRotate();
 		break;
 	default:
-		ret =  -ERROR_NOT_SUPPORTED;
+		ret =  -ENOTSUP;
 		goto fail;
 	}
 
