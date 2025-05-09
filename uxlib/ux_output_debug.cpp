@@ -17,7 +17,7 @@
 static int st_output_loglvl = BASE_LOG_DEFAULT;
 static int st_output_opened = 0;
 static int st_log_inited = 0;
-static pthread_mutex_t st_log_mutex;
+static pthread_mutex_t st_log_mutex = PTHREAD_MUTEX_INITIALIZER;
 static std::vector<DebugOutIO*> *st_log_output_ios = NULL;
 
 
@@ -546,7 +546,7 @@ int __init_basic_log_env(void)
     if (st_log_inited != 0) {
         return 0;
     }
-    pthread_mutex_init(&st_log_mutex);
+    pthread_mutex_init(&st_log_mutex,NULL);
 
     if (st_output_opened == 0) {
         openlog(NULL, LOG_PID, LOG_USER);

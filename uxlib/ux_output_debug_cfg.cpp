@@ -57,7 +57,7 @@ int OutfileCfg::set_file_type(const char* fname,int type,uint64_t size,int maxfi
 			this->m_size = size;
 			this->m_maxfiles = maxfiles;
 		} else {
-			ret = -ERROR_INVALID_PARAMETER;
+			ret = -EINVAL;
 			goto fail;
 		}
 	} else {
@@ -68,7 +68,7 @@ int OutfileCfg::set_file_type(const char* fname,int type,uint64_t size,int maxfi
 				free(this->m_fname);
 			}
 			this->m_fname = NULL;
-			this->m_fname = _strdup(fname);
+			this->m_fname = strdup(fname);
 			if (this->m_fname == NULL) {
 				GETERRNO(ret);
 				goto fail;
@@ -77,7 +77,7 @@ int OutfileCfg::set_file_type(const char* fname,int type,uint64_t size,int maxfi
 			this->m_type = type;
 			this->m_maxfiles = maxfiles;
 		} else {
-			ret = -ERROR_INVALID_PARAMETER;
+			ret = -EINVAL;
 			goto fail;
 		}
 	}
@@ -152,7 +152,7 @@ OutputCfg::~OutputCfg()
 int OutputCfg::insert_config(OutfileCfg& cfg)
 {
 	OutfileCfg* pret = cfg.clone();
-	int ret = -ERROR_INVALID_PARAMETER;
+	int ret = -EINVAL;
 	if (pret != NULL) {
 		this->m_cfgs->push_back(pret);
 		ret = 0;
