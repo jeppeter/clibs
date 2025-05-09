@@ -15,9 +15,9 @@ LIBUX_SRCS=ux_output_debug.cpp ux_strop.cpp ux_args.cpp ux_time_op.cpp ux_fileop
 LIBUX_OFILES=$(patsubst %.cpp,%.o,${LIBUX_SRCS})
 
 ifeq (${STATICLIB},)
-COMMON_LDFLAGS:=
+COMMON_LDFLAGS:= -lpthread
 else
-COMMON_LDFLAGS:=
+COMMON_LDFLAGS:= -lpthread
 endif
 
 INCLUDE_BASE_CFLAGS = -I${TOPDIR}/uxlib

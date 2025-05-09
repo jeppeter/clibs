@@ -2,33 +2,40 @@
 #include <ux_err.h>
 #include <ux_strop.h>
 
-
+#include <pthread.h>
 #include <syslog.h>
 #include <string.h>
 #include <time.h>
 #include <ctype.h>
 #include <execinfo.h>
+#include <vector>
+#include <ux_output_debug_cfg.h>
+
+#include "ux_output_debug_cfg.cpp"
+#include "ux_output_debug_file.cpp"
 
 static int st_output_loglvl = BASE_LOG_DEFAULT;
 static int st_output_opened = 0;
+static int st_log_inited = 0;
+static pthread_mutex_t st_log_mutex;
+static std::vector<DebugOutIO*> *st_log_output_ios = NULL;
 
-int init_log(int loglvl)
+
+
+void __free_log_output()
 {
-    if (st_output_opened == 0) {
-        openlog(NULL, LOG_PID, LOG_USER);
-        st_output_opened = 1;
+    if (st_log_output_ios != NULL) {
+        while(st_log_output_ios->size() > 0) {
+            DebugOutIO* pv = st_log_output_ios->at(0);
+            st_log_output_ios->erase(st_log_output_ios->begin());
+            delete pv;
+        }
+        delete st_log_output_ios;
     }
-    st_output_loglvl = loglvl;
-    return 0;
+    st_log_output_ios = NULL;
 }
 
-void fini_log(void)
-{
-    if (st_output_opened > 0) {
-        closelog();
-        st_output_opened = 0;
-    }
-}
+
 
 typedef int (output_func_t)(int level, char* outstr);
 
@@ -532,4 +539,101 @@ out:
     }
     ppfuncs = NULL;
     return ;
+}
+
+int __init_basic_log_env(void)
+{
+    if (st_log_inited != 0) {
+        return 0;
+    }
+    pthread_mutex_init(&st_log_mutex);
+
+    if (st_output_opened == 0) {
+        openlog(NULL, LOG_PID, LOG_USER);
+        st_output_opened = 1;
+    }
+
+    st_log_output_ios = new std::vector<DebugOutIO*>();
+    return 1;
+}
+
+void __fini_basic_log_env(void)
+{
+    __free_log_output();
+    pthread_mutex_destroy(&st_log_mutex);
+    if (st_output_opened > 0) {
+        closelog();
+        st_output_opened = 0;
+    }
+    return;
+}
+
+int init_log(int loglvl)
+{
+    int ret;
+    ret = __init_basic_log_env();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    st_log_inited = 1;
+
+    st_output_loglvl = loglvl;
+    return 0;
+fail:
+    __fini_basic_log_env();
+    st_log_inited = 0;
+    SETERRNO(ret);
+    return ret;
+}
+
+void fini_log(void)
+{
+    __fini_basic_log_env();
+    st_log_inited = 0;
+    return;
+}
+
+
+int init_output_ex(OutputCfg* pcfgs)
+{
+    int ret;
+    OutfileCfg* pcfg = NULL;
+    int i;
+    DebugOutIO* pout = NULL;
+    if (st_log_inited == 0) {
+        ret = __init_basic_log_env();
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        st_log_inited = 1;
+    }
+
+
+
+    pthread_mutex_lock(&st_log_mutex);
+    
+    __free_log_output();
+    ASSERT_IF(st_log_output_ios == NULL);
+    st_log_output_ios =  new std::vector<DebugOutIO*>();
+    for (i = 0;; i++) {
+        pcfg = pcfgs->get_config(i);
+        if (pcfg == NULL) {
+            break;
+        }
+        pout = get_cfg_out(pcfg);
+        if (pout == NULL) {
+            GETERRNO(ret);
+            pthread_mutex_unlock(&st_log_mutex);
+            goto fail;
+        }
+        st_log_output_ios->push_back(pout);
+    }
+
+    pthread_mutex_lock(&st_log_mutex);
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;
 }
