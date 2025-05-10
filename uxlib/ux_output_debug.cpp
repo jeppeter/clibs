@@ -25,6 +25,15 @@ static int st_log_inited = 0;
 static pthread_mutex_t st_log_mutex = PTHREAD_MUTEX_INITIALIZER;
 static std::vector<DebugOutIO*> *st_log_output_ios = NULL;
 
+int error_out(const char* fmt, ...)
+{
+    va_list ap;
+    int ret = 0;
+    va_start(ap, fmt);
+    ret += vfprintf(stderr, fmt, ap);
+    ret += fprintf(stderr, "\n");
+    return ret;
+}
 
 
 void __free_log_output()
@@ -262,37 +271,92 @@ fail:
     return ret;
 }
 
-static int __output_format_buffer(char** ppbuf, int *pbufsize, int level, const char* file, int lineno, const char* fmt, ...)
+const char* _get_loglevel_note(int loglvl)
 {
-    va_list ap;
-    if (fmt != NULL) {
-    	va_start(ap, fmt);	
-    }    
-    return __output_format_buffer_v(ppbuf, pbufsize, level, file, lineno, fmt, ap);
+    if (loglvl < BASE_LOG_ERROR) {
+        return "<FATAL>";
+    } else if (loglvl >= BASE_LOG_ERROR && loglvl < BASE_LOG_WARN) {
+        return "<ERROR>";
+    } else if (loglvl >= BASE_LOG_WARN && loglvl < BASE_LOG_INFO) {
+        return "<WARN>";
+    } else if (loglvl >= BASE_LOG_INFO && loglvl < BASE_LOG_DEBUG) {
+        return "<INFO>";
+    } else if (loglvl >= BASE_LOG_DEBUG && loglvl < BASE_LOG_TRACE) {
+        return "<DEBUG>";
+    }
+    return "<TRACE>";
 }
+
 
 static int __call_out_line(int level, const char* file, int lineno, const char* fmt, va_list ap)
 {
-    char* pbuf = NULL;
-    int bufsize = 0;
     int ret;
+    int retsize = 0;
+    char* fmttime = NULL;
+    size_t timesize = 0;
+    char* msg = NULL;
+    int msgsize = 0;
+    char* locstr = NULL;
+    int locsize = 0;
+    char* timestr = NULL;
+    int tmsize = 0;
+    uint32_t i;
+    DebugOutIO* pout = NULL;
 
-    ret = __output_format_buffer_v(&pbuf, &bufsize, level, file, lineno, fmt, ap);
+
+    ret = __inner_time_format(0, &fmttime, &timesize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    ret = fn(level, pbuf);
+    ret = str_append_vsnprintf_safe(&msg, &msgsize, fmt, ap);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
 
-    __output_format_buffer_v(&pbuf, &bufsize, level, file, lineno, NULL, ap);
-    return 0;
+    ret = str_append_snprintf_safe(&locstr, &locsize, "[%s:%d]", file, lineno);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = str_append_snprintf_safe(&timestr, &tmsize, "time(0x%llx):%s", (unsigned int)get_cur_ticks(), fmttime);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pthread_mutex_lock(&st_log_mutex);
+    for (i = 0; st_log_output_ios != NULL && i < st_log_output_ios->size(); i++) {
+        pout = st_log_output_ios->at(i);
+        ret = pout->write_log(loglvl, locstr, timestr, _get_loglevel_note(loglvl), msg);
+        if (ret < 0) {
+            GETERRNO(ret);
+            pthread_mutex_unlock(&st_log_mutex);
+            goto fail;
+        }
+
+        if (retsize < ret) {
+            retsize = ret;
+        }
+    }
+
+
+    pthread_mutex_unlock(&st_log_mutex);
+
+
+    str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
+    str_append_snprintf_safe(&locstr, &locsize, NULL);
+    str_append_snprintf_safe(&timestr, &tmsize, NULL);
+    __inner_time_format(1, &fmttime, &timesize);
+    return retsize;
 fail:
-    __output_format_buffer_v(&pbuf, &bufsize, level, file, lineno, NULL, ap);
+    str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
+    str_append_snprintf_safe(&locstr, &locsize, NULL);
+    str_append_snprintf_safe(&timestr, &tmsize, NULL);
+    __inner_time_format(1, &fmttime, &timesize);
     SETERRNO(ret);
     return ret;
 }
@@ -315,116 +379,91 @@ void debug_out_string(int level, const char* file, int lineno, const char* fmt, 
 static void __inner_buffer_output(int level, const char* file,int lineno, unsigned char* pBuffer, int buflen, const char* fmt, va_list ap, output_func_t fn)
 {
     int ret;
-    char* pbuf = NULL;
-    int bufsize = 0;
-    unsigned char* pcurptr, *plastptr;
-    int i;
+    int retsize = 0;
+    char* fmttime = NULL;
+    size_t timesize = 0;
+    char* msg = NULL;
+    int msgsize = 0;
+    char* locstr = NULL;
+    int locsize = 0;
+    char* timestr = NULL;
+    int tmsize = 0;
+    uint32_t i;
+    DebugOutIO* pout = NULL;
 
-    ret = __output_format_buffer(&pbuf, &bufsize, level, file, lineno, "buf[%p] size[%d:0x%x]", pBuffer, buflen, buflen);
+
+    ret = __inner_time_format(0, &fmttime, &timesize);
     if (ret < 0) {
         GETERRNO(ret);
-        goto out;
+        goto fail;
     }
 
+    ret = str_append_snprintf_safe(&msg, &msgsize, "buffer[0x%p] size[%d:0x%x]", pBuffer, buflen, buflen);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
     if (fmt != NULL) {
-        ret = append_vsnprintf_safe(&pbuf, &bufsize, fmt, ap);
+        ret = str_append_vsnprintf_safe(&msg, &msgsize, " ", ap);
         if (ret < 0) {
             GETERRNO(ret);
-            goto out;
+            goto fail;
+        }
+        ret = str_append_vsnprintf_safe(&msg, &msgsize, fmt, ap);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
         }
     }
 
-    ret = fn(level, pbuf);
+    ret = str_append_snprintf_safe(&locstr, &locsize, "[%s:%d]", file, lineno);
     if (ret < 0) {
         GETERRNO(ret);
-        goto out;
+        goto fail;
     }
 
-    pcurptr = pBuffer;
-    plastptr = pcurptr;
-    for (i = 0; i < buflen ; i++) {
-        if ((i % 16) == 0) {
-            if (i > 0) {
-                ret = append_snprintf_safe(&pbuf, &bufsize, "    ");
-                if (ret < 0) {
-                    GETERRNO(ret);
-                    goto out;
-                }
-                while (plastptr != pcurptr) {
-                    if (isprint(*plastptr)) {
-                        ret = append_snprintf_safe(&pbuf, &bufsize, "%c", *plastptr);
-                    } else {
-                        ret = append_snprintf_safe(&pbuf, &bufsize, ".");
-                    }
-                    if (ret < 0) {
-                        GETERRNO(ret);
-                        goto out;
-                    }
-                    plastptr ++;
-                }
+    ret = str_append_snprintf_safe(&timestr, &tmsize, "time(0x%llx):%s", (unsigned int)get_cur_ticks(), fmttime);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
-                ret = fn(level, pbuf);
-                if (ret < 0) {
-                    GETERRNO(ret);
-                    goto out;
-                }
-            }
-            ret = snprintf_safe(&pbuf, &bufsize, "0x%08x:", i);
+    pthread_mutex_lock(&st_log_mutex);
+    if (st_log_output_ios != NULL) {
+        for (i = 0; i < st_log_output_ios->size(); i++) {
+            pout = st_log_output_ios->at(i);
+            ret = pout->write_buffer_log(loglvl, locstr, timestr, _get_loglevel_note(loglvl), msg, pBuffer, buflen);
             if (ret < 0) {
                 GETERRNO(ret);
-                goto out;
+                pthread_mutex_unlock(&st_log_mutex);
+                goto fail;
+            }
+
+            if (retsize < ret) {
+                retsize = ret;
             }
         }
-        ret = append_snprintf_safe(&pbuf,&bufsize," 0x%02x",*pcurptr);
-        if (ret < 0) {
-        	GETERRNO(ret);
-        	goto out;
-        }
-        pcurptr ++;
     }
 
-    if (pcurptr != plastptr) {
-    	while((i % 16)  != 0) {
-    		ret = append_snprintf_safe(&pbuf,&bufsize,"     ");
-    		if (ret < 0) {
-    			GETERRNO(ret);
-    			goto out;
-    		}
-    		i ++;
-    	}
 
-    	ret = append_snprintf_safe(&pbuf,&bufsize,"    ");
-    	if (ret < 0) {
-    		GETERRNO(ret);
-    		goto out;
-    	}
+    pthread_mutex_unlock(&st_log_mutex);
 
-    	while(pcurptr != plastptr) {
-    		if (isprint(*plastptr)) {
-    			ret = append_snprintf_safe(&pbuf,&bufsize,"%c",*plastptr);
-    		} else {
-    			ret = append_snprintf_safe(&pbuf,&bufsize,".");
-    		}
-    		if (ret < 0) {
-    			GETERRNO(ret);
-    			goto out;
-    		}
-    		plastptr ++;
-    	}
 
-    	ret = fn(level,pbuf);
-    	if (ret < 0) {
-    		GETERRNO(ret);
-    		goto out;
-    	}    	
-    }
-
-out:
-    snprintf_safe(&pbuf, &bufsize, NULL);
-    return;
+    str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
+    str_append_snprintf_safe(&locstr, &locsize, NULL);
+    str_append_snprintf_safe(&timestr, &tmsize, NULL);
+    __inner_time_format(1, &fmttime, &timesize);
+    return retsize;
+fail:
+    str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
+    str_append_snprintf_safe(&locstr, &locsize, NULL);
+    str_append_snprintf_safe(&timestr, &tmsize, NULL);
+    __inner_time_format(1, &fmttime, &timesize);
+    SETERRNO(ret);
+    return ret;
 }
 
-static int __output_backtrace_format_v(char** ppbuf, int *pbufsize, int level, int stkidx, const char* file, int lineno, void** ppfuncs , int funclen, const char* fmt, va_list ap)
+static int __output_backtrace_format_out(int level, int stkidx, const char* file, int lineno, void** ppfuncs , int funclen, const char* fmt, va_list ap)
 {
     int retlen = 0;
     int ret;
@@ -432,77 +471,52 @@ static int __output_backtrace_format_v(char** ppbuf, int *pbufsize, int level, i
     uint64_t millsecs;
     char** ppsymbols=NULL;
     int i;
+    char* msg=NULL;
+    int msgsize=0;
+    char* pretfmt=NULL;
+    int fmtsize=0;
 
-    if (ppbuf == NULL || pbufsize == NULL) {
-        ret = -EINVAL;
-        SETERRNO(ret);
-        return ret;
+
+     ret = __inner_time_format(0, &fmttime, &timesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
     }
 
-    if (fmt == NULL) {
-        if (*ppbuf) {
-            free(*ppbuf);
+
+    ret = str_append_snprintf_safe(&locstr, &locsize, "[%s:%d]", file, lineno);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = str_append_snprintf_safe(&timestr, &tmsize, "time(0x%llx):%s", (unsigned int)get_cur_ticks(), fmttime);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+
+    ret = append_snprintf_safe(&msg,&msgsize," SYMBOLSFUNC ");
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (fmt != NULL) {
+        ret = str_append_vsnprintf_safe(&msg, &msgsize, " ", ap);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
         }
-        *ppbuf = NULL;
-        *pbufsize = 0;
-        return 0;
+        ret = str_append_vsnprintf_safe(&msg, &msgsize, fmt, ap);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
     }
 
-    switch (level) {
-    case BASE_LOG_FATAL:
-        ret = snprintf_safe(ppbuf, pbufsize, "<FATAL>");
-        break;
-    case BASE_LOG_ERROR:
-        ret = snprintf_safe(ppbuf, pbufsize, "<ERROR>");
-        break;
-    case BASE_LOG_WARN:
-        ret = snprintf_safe(ppbuf, pbufsize, "<WARN>");
-        break;
-    case BASE_LOG_INFO:
-        ret = snprintf_safe(ppbuf, pbufsize, "<INFO>");
-        break;
-    case BASE_LOG_DEBUG:
-        ret = snprintf_safe(ppbuf, pbufsize, "<DEBUG>");
-        break;
-    case BASE_LOG_TRACE:
-        ret = snprintf_safe(ppbuf, pbufsize, "<TRACE>");
-        break;
-    default:
-        ret = -EINVAL;
-        SETERRNO(ret);
-        break;
-    }
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
 
-    ret = clock_gettime(CLOCK_MONOTONIC , &ts);
-    if (ret  < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    millsecs = ts.tv_sec * 1000;
-    millsecs += (ts.tv_nsec / (1000 * 1000));
-
-    ret = append_snprintf_safe(ppbuf, pbufsize, " [%s:%d]:time(%lld:0x%llx)", file, lineno, millsecs, millsecs);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = append_snprintf_safe(ppbuf,pbufsize," SYMBOLSFUNC ");
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = append_vsnprintf_safe(ppbuf, pbufsize, fmt, ap);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
 
     ppsymbols = backtrace_symbols(ppfuncs,funclen);
     if (ppsymbols == NULL) {
@@ -511,18 +525,42 @@ static int __output_backtrace_format_v(char** ppbuf, int *pbufsize, int level, i
     }
 
     for(i=stkidx;i<funclen;i++) {
-        ret = append_snprintf_safe(ppbuf,pbufsize,"\nFUNC[%d] [%s] [%p]", i - stkidx,ppsymbols[i], ppfuncs[i]);
+        ret = append_snprintf_safe(&msg,&msgsize,"\nFUNC[%d] [%s] [%p]", i - stkidx,ppsymbols[i], ppfuncs[i]);
         if (ret < 0) {
             GETERRNO(ret);
             goto fail;
         }
     }
-    retlen = ret;
+
+
+
+
+    pthread_mutex_lock(&st_log_mutex);
+    for(i=0;st_log_output_ios!=NULL && i < st_log_output_ios->size();i++) {
+        pout = st_log_output_ios->at(i);
+        ret = pout->write_log(loglvl, locstr, timestr, _get_loglevel_note(loglvl), msg);
+        if (ret < 0) {
+            GETERRNO(ret);
+            pthread_mutex_unlock(&st_log_mutex);
+            goto fail;
+        }
+
+        if (retsize < ret) {
+            retsize = ret;
+        }
+       
+    }
+
+    pthread_mutex_unlock(&st_log_mutex);
 
     if (ppsymbols) {
         free(ppsymbols);
     }
     ppsymbols = NULL;
+
+    snprintf_safe(&msg, &msgsize,NULL);
+    __inner_time_format(1,&pretfmt,&fmtsize);
+
 
     return retlen;
 fail:
@@ -530,7 +568,8 @@ fail:
         free(ppsymbols);
     }
     ppsymbols = NULL;
-    snprintf_safe(ppbuf, pbufsize,NULL);
+    snprintf_safe(&msg, &msgsize,NULL);
+    __inner_time_format(1,&pretfmt,&fmtsize);
     SETERRNO(ret);
     return ret;
 }
@@ -555,8 +594,6 @@ void backtrace_out_string(int level,int stkidx, const char* file, int lineno, co
     void** ppfuncs = NULL;
     int funcsize=0;
     int funclen = 0;
-    char* pbuf=NULL;
-    int bufsize=0;
     int ret;
     if (st_log_inited == 0) {
         return;
@@ -589,17 +626,13 @@ void backtrace_out_string(int level,int stkidx, const char* file, int lineno, co
     }
 
 
-    ret = __output_backtrace_format_v(&pbuf,&bufsize,level,stkidx + 1,file,lineno,ppfuncs , funclen,fmt,ap);
+    ret = __output_backtrace_format_out(level,stkidx + 1,file,lineno,ppfuncs , funclen,fmt,ap);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
     }
 
-
-
-
 out:
-    __output_backtrace_format_v(&pbuf,&bufsize,level,0,NULL,0,NULL,0,NULL,ap);
     if (ppfuncs) {
         free(ppfuncs);
     }
