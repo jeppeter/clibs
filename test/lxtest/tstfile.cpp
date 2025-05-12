@@ -2061,12 +2061,12 @@ int logtst_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
 
     for (i=0;i<num;i++) {
-        FATAL_INFO("fatal info");
-        ERROR_INFO("error info");
-        WARN_INFO("warn info");
-        INFO_INFO("info info");
-        DEBUG_INFO("debug info");
-        TRACE_INFO("trace info");
+        FATAL_INFO("[%d]fatal info",i);
+        ERROR_INFO("[%d]error info",i);
+        WARN_INFO("[%d]warn info",i);
+        INFO_INFO("[%d]info info",i);
+        DEBUG_INFO("[%d]debug info",i);
+        TRACE_INFO("[%d]trace info",i);
 
         FATAL_BUFFER(pargs,sizeof(*pargs));
         ERROR_BUFFER(pargs,sizeof(*pargs));
@@ -2075,20 +2075,20 @@ int logtst_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         DEBUG_BUFFER(pargs,sizeof(*pargs));
         TRACE_BUFFER(pargs,sizeof(*pargs));
 
-        FATAL_BUFFER_FMT(pargs,sizeof(*pargs),"fatal info");
-        ERROR_BUFFER_FMT(pargs,sizeof(*pargs),"error info");
-        WARN_BUFFER_FMT(pargs,sizeof(*pargs),"warn info");
-        INFO_BUFFER_FMT(pargs,sizeof(*pargs),"info info");
-        DEBUG_BUFFER_FMT(pargs,sizeof(*pargs),"debug info");
-        TRACE_BUFFER_FMT(pargs,sizeof(*pargs),"trace info");
+        FATAL_BUFFER_FMT(pargs,sizeof(*pargs),"[%d]fatal info",i);
+        ERROR_BUFFER_FMT(pargs,sizeof(*pargs),"[%d]error info",i);
+        WARN_BUFFER_FMT(pargs,sizeof(*pargs),"[%d]warn info",i);
+        INFO_BUFFER_FMT(pargs,sizeof(*pargs),"[%d]info info",i);
+        DEBUG_BUFFER_FMT(pargs,sizeof(*pargs),"[%d]debug info",i);
+        TRACE_BUFFER_FMT(pargs,sizeof(*pargs),"[%d]trace info",i);
 
 
-        BACKTRACE_FATAL(1,"fatal backtrace");
-        BACKTRACE_ERROR(1,"error backtrace");
-        BACKTRACE_WARN(1,"warn backtrace");
-        BACKTRACE_INFO(1,"info backtrace");
-        BACKTRACE_DEBUG(1,"debug backtrace");
-        BACKTRACE_TRACE(1,"trace backtrace");
+        BACKTRACE_FATAL(1,"[%d]fatal backtrace",i);
+        BACKTRACE_ERROR(1,"[%d]error backtrace",i);
+        BACKTRACE_WARN(1,"[%d]warn backtrace",i);
+        BACKTRACE_INFO(1,"[%d]info backtrace",i);
+        BACKTRACE_DEBUG(1,"[%d]debug backtrace",i);
+        BACKTRACE_TRACE(1,"[%d]trace backtrace",i);
 
     }
 

@@ -17,6 +17,9 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
+#define  UX_OUTPUT_DEBUG(...)  do{fprintf(stderr,"[%s:%d]:",__FILE__,__LINE__),fprintf(stderr,__VA_ARGS__); fprintf(stderr,"\n"); fflush(stderr);} while(0)
+
+
 #include "ux_output_debug_cfg.cpp"
 #include "ux_output_debug_file.cpp"
 
@@ -35,7 +38,6 @@ int error_out(const char* fmt, ...)
     return ret;
 }
 
-#define  UX_OUTPUT_DEBUG(...)  do{fprintf(stderr,"[%s:%d]:",__FILE__,__LINE__),fprintf(stderr,__VA_ARGS__); fprintf(stderr,"\n"); fflush(stderr);} while(0)
 
 
 void __free_log_output()
@@ -237,6 +239,7 @@ void debug_out_string(int level, const char* file, int lineno, const char* fmt, 
     if (st_log_inited == 0 || fmt == NULL) {
         return ;
     }
+
 
     va_start(ap, fmt);
     __call_out_line(level, file, lineno, fmt, ap);

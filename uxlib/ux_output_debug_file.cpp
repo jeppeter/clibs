@@ -591,7 +591,7 @@ int DebugOutBackground::write_buffer(char* pbuffer, int buflen)
         break;
     }
 
-    syslog(priority, "%s\n", pbuffer);
+    syslog(priority, "%s", pbuffer);
     return buflen;
 }
 
@@ -660,12 +660,18 @@ int DebugOutFileTrunc::copy_to_file(char* nfile,char* ofile)
 {
 	int ret;
 	struct stat statbuf;
+
+	if (nfile == NULL || ofile == NULL) {
+		return 0;
+	}
+
 	ret = stat(nfile,&statbuf);
 	if (ret < 0) {
 		GETERRNO(ret);
 		if (ret != -ENOENT) {
 			/*this not */
 			GETERRNO(ret);
+			UX_OUTPUT_DEBUG("STATE [%s] error %d", nfile,ret);
 			SETERRNO(ret);
 			return ret;
 		}
@@ -674,6 +680,7 @@ int DebugOutFileTrunc::copy_to_file(char* nfile,char* ofile)
 		ret = unlink(nfile);
 		if (ret < 0) {
 			GETERRNO(ret);
+			UX_OUTPUT_DEBUG("unlink [%s] error %d", nfile, ret);
 			SETERRNO(ret);
 			return ret;
 		}
@@ -686,6 +693,7 @@ int DebugOutFileTrunc::copy_to_file(char* nfile,char* ofile)
 		if (ret != -ENOENT) {
 			/*this not */
 			GETERRNO(ret);
+			UX_OUTPUT_DEBUG("ofile [%s] error [%d]", ofile, ret);
 			SETERRNO(ret);
 			return ret;
 		}
@@ -695,6 +703,7 @@ int DebugOutFileTrunc::copy_to_file(char* nfile,char* ofile)
 	ret = rename(ofile,nfile);
 	if (ret < 0) {
 		GETERRNO(ret);
+		UX_OUTPUT_DEBUG("[%s] => [%s] error %d", ofile, nfile, ret);
 		SETERRNO(ret);
 		return ret;
 	}
@@ -709,12 +718,13 @@ int DebugOutFileTrunc::open_file_trunc(char* fname)
 	}
 	this->m_fd = -1;
 
-	this->m_fd = open(fname,O_CREAT|O_TRUNC);
+	this->m_fd = open(fname,O_CREAT|O_TRUNC|O_WRONLY);
 	if (this->m_fd < 0) {
 		GETERRNO(ret);
 		SETERRNO(ret);
 		return ret;
 	}
+	UX_OUTPUT_DEBUG("[%s] trunc [%d]", this->m_name, this->m_fd);
 	this->m_filesize = 0;
 	return 0;
 }
@@ -767,6 +777,7 @@ int DebugOutFileTrunc::write_buffer(char* pbuffer , int buflen)
 		ret = write(this->m_fd, pptr, (buflen-wlen));
 		if (ret < 0) {
 			GETERRNO(ret);
+			UX_OUTPUT_DEBUG("[%s].[%d] error [%d]", this->m_name, this->m_fd, ret);
 			SETERRNO(ret);
 			return ret;
 		}
@@ -775,6 +786,7 @@ int DebugOutFileTrunc::write_buffer(char* pbuffer , int buflen)
 	}
 
 	this->m_filesize += buflen;
+	//UX_OUTPUT_DEBUG("write [%s] size 0x%lx", this->m_name, this->m_filesize);
 	return buflen;
 }
 
@@ -793,6 +805,7 @@ void DebugOutFileTrunc::flush()
 		if (this->m_name != NULL) {
 			ret = str_append_snprintf_safe(&nname, &nsize, "%s.1", this->m_name);
 			if (ret >= 0)	 {
+				UX_OUTPUT_DEBUG("copy [%s] => [%s]", nname, this->m_name);
 				ret = this->copy_to_file(nname,this->m_name);
 				if (ret >= 0) {
 					ret = this->open_file_trunc(this->m_name);
@@ -882,7 +895,7 @@ int DebugOutFileAppend::open_file_append(char* name)
 {
 	int ret;
 	struct stat statbuf;
-	int flags= O_APPEND;
+	int flags= O_APPEND|O_WRONLY;
 	loff_t loff;
 	if (this->m_fd >= 0) {
 		close(this->m_fd);
@@ -896,7 +909,7 @@ int DebugOutFileAppend::open_file_append(char* name)
 			SETERRNO(ret);
 			return ret;
 		}
-		flags = O_CREAT;
+		flags = O_CREAT|O_WRONLY;
 	}
 
 	this->m_fd = open(name, flags,0644);
@@ -905,6 +918,7 @@ int DebugOutFileAppend::open_file_append(char* name)
 		SETERRNO(ret);
 		return ret;
 	}
+	UX_OUTPUT_DEBUG("[%s] append [%d]", name, this->m_fd);
 
 	loff = lseek64(this->m_fd,0,SEEK_CUR);
 	if (loff == -1) {
@@ -1008,6 +1022,7 @@ int DebugOutFileAppend::set_cfg(OutfileCfg* pcfg)
 		goto fail;
 	}
 
+
 	ret = this->open_file_append(this->m_name);
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -1108,7 +1123,7 @@ int DebugOutFileRotate::rotate_file(int appmode)
 			if (ret < 0) {
 				goto fail;
 			}
-
+			UX_OUTPUT_DEBUG("[%s] => [%s]", oname, nname);
 			ret = this->copy_to_file(nname,oname);
 			if (ret < 0) {
 				GETERRNO(ret);
@@ -1124,6 +1139,13 @@ int DebugOutFileRotate::rotate_file(int appmode)
 			goto fail;
 		}
 
+		ret = str_append_snprintf_safe(&oname, &osize, "%s", this->m_name);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		UX_OUTPUT_DEBUG("[%s] => [%s]", oname, nname);
 		ret= this->copy_to_file(nname,oname);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -1160,6 +1182,7 @@ int DebugOutFileRotate::rotate_file(int appmode)
 					goto fail;
 				}
 
+				UX_OUTPUT_DEBUG("[%s] => [%s]", oname, nname);
 				ret = this->copy_to_file(nname,oname);
 				if (ret < 0) {
 					GETERRNO(ret);

@@ -146,7 +146,7 @@ do{                                                                             
         }                                                                                         \
         vnum = (typev) num;                                                                       \
         pcurptr = pendptr;                                                                        \
-        if (*pcurptr == ';') {                                                                    \
+        if (*pcurptr == ',') {                                                                    \
             pcurptr ++;                                                                           \
         }                                                                                         \
         if (*pcurptr == '\0') {                                                                   \
@@ -195,13 +195,13 @@ int parse_type(char** pptype,int *itype)
     }
 
     ptype += slen;
-    if (*ptype != '\0' && *ptype != ';') {
+    if (*ptype != '\0' && *ptype != ',') {
         ret = -EINVAL;
         fprintf(stderr, "%s not valid\n", ptype);
         goto fail;
     }
 
-    if (*ptype == ';') {
+    if (*ptype == ',') {
         ptype += 1;
     }
     *pptype = ptype;
@@ -228,7 +228,7 @@ int parse_fmtflags(char** pptype,int *ifmtflags)
 
     curptr = *pptype;
 
-    while(*curptr != '\0' && *curptr != ';') {
+    while(*curptr != '\0' && *curptr != ',') {
         if (strncmp(curptr,"location",8) == 0) {
             cfmtflags |= UXLIB_OUTPUT_LOCATION;
             slen = 8;
@@ -257,7 +257,7 @@ int parse_fmtflags(char** pptype,int *ifmtflags)
         cfmtflags = UXLIB_OUTPUT_ALL_MASK;
     }
 
-    if (*curptr == ';') {
+    if (*curptr == ',') {
         curptr += 1;
     }
 
@@ -306,13 +306,13 @@ int parse_level(char** pptype, int *ilevel,int deflevel)
     }
 
     curptr += slen;
-    if (*curptr != ';' && *curptr != '\0') {
+    if (*curptr != ',' && *curptr != '\0') {
         ret = -EINVAL;
         fprintf(stderr, "%s not valid\n",curptr );
         goto fail;
     }
 
-    if (*curptr == ';') {
+    if (*curptr == ',') {
         curptr += 1;
     }
     *pptype = curptr;
@@ -349,18 +349,18 @@ int parse_cfgs(OutputCfg& cfgs, const char* line,int defaultlevel)
 
     pcfg = new OutfileCfg();
     LOG_DEBUG("pcurptr [%s]",pcurptr);
-    if (strncmp(pcurptr,"stderr;",7)==0 || strcmp(pcurptr,"stderr") == 0) {
+    if (strncmp(pcurptr,"stderr,",7)==0 || strcmp(pcurptr,"stderr") == 0) {
         pcurptr += 6;
-        if (*pcurptr == ';') {
+        if (*pcurptr == ',') {
             pcurptr += 1;
         }
         type = UXLIB_DEBUGOUT_FILE_STDERR;
         if (*pcurptr == '\0') {
             pcurptr = NULL;
         }
-    } else if (strncmp(line,"background;",11) == 0 || strcmp(pcurptr,"background") == 0) {
+    } else if (strncmp(line,"background,",11) == 0 || strcmp(pcurptr,"background") == 0) {
         pcurptr += 10;
-        if (*pcurptr == ';') {
+        if (*pcurptr == ',') {
             pcurptr += 1;
         }
         type = UXLIB_DEBUGOUT_FILE_BACKGROUND;
@@ -368,7 +368,7 @@ int parse_cfgs(OutputCfg& cfgs, const char* line,int defaultlevel)
             pcurptr = NULL;
         }
     }  else {
-        pcurptr = strchr((char*)line,';');
+        pcurptr = strchr((char*)line,',');
         if (pcurptr != NULL) {
             pcurptr ++;
         }
@@ -541,8 +541,10 @@ int init_log_verbose(pargs_options_t pargs)
         ret = init_log_ex(pcfgs);
         if (ret < 0) {
             GETERRNO(ret);
+            LOG_DEBUG("error %d", ret);
             goto fail;
         }
+        LOG_DEBUG("ret %d", ret);
     } else {
         ret = INIT_LOG(loglvl);
         if (ret < 0) {
