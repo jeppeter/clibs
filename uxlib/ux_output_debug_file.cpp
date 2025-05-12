@@ -534,16 +534,23 @@ public:
 	virtual int write_buffer(char* pbuffer , int buflen);
 	virtual void flush();
 	virtual int set_cfg(OutfileCfg* pcfg);
+private:
+	int m_opened;
 };
 
 DebugOutBackground::DebugOutBackground()
 {
 	this->m_level = BASE_LOG_ERROR;
 	this->m_fmtflag = UXLIB_OUTPUT_ALL_MASK;
+	this->m_opened = 0;
 }
 
 DebugOutBackground::~DebugOutBackground()
 {
+	if (this->m_opened != 0) {
+		closelog();
+		this->m_opened = 0;
+	}
 }
 
 void DebugOutBackground::flush()
@@ -554,6 +561,15 @@ void DebugOutBackground::flush()
 int DebugOutBackground::write_buffer(char* pbuffer, int buflen)
 {
     int priority = LOG_ERR;
+    if (this->m_opened == 0) {
+    	openlog(NULL,LOG_PID,LOG_USER);
+    	this->m_opened = 1;
+    }
+
+    if (this->m_opened == 0) {
+    	return 0;
+    }
+
     switch (this->m_level) {
     case BASE_LOG_FATAL:
         priority = LOG_EMERG;

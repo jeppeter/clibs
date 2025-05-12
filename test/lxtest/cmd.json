@@ -6,6 +6,7 @@
     "input|i<m_input>" : null,
     "output|o<m_output>"  : null,
     "errout|e<m_errout>" : null,
+    "logfiles<m_logfiles>##logfile format name;type;fmtflag;size;maxfiles;level name has (stderr background file) type has (stderr background append trunc rotate) fmtflag(all location timestamp level msg) level has (fatal error warn info debug trace)##" : [],
     "withevent<m_withevt>" : false,
     "bauderate<m_bauderate>" : 115200,
     "xonxoff<m_xonxoff>" : true,
@@ -136,6 +137,9 @@
     },
     "icmpping<icmpping_handler>##ips ... to ping for time##" : {
         "$" : "+"
+    },
+    "logtst<logtst_handler>##[num] default num 10##" : {
+        "$" : "?"
     }
 
 }

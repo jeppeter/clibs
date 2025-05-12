@@ -10,7 +10,6 @@
 #include <ux_inner.h>
 #undef  __UX_INNER_DEFINED__
 
-#include <ux_output_debug_cfg.h>
 
 
 #define  BASE_LOG_FATAL        0
@@ -31,7 +30,6 @@ void debug_buffer_fmt(int level,const char* file,int lineno,unsigned char* pBuff
 void backtrace_out_string(int level,int stkidx, const char* file, int lineno, const char* fmt,...);
 
 int init_log(int loglvl);
-int init_output_ex(OutputCfg* pcfgs);
 void fini_log();
 
 #ifdef __cplusplus

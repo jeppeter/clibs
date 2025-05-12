@@ -1497,3 +1497,75 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+int get_dirname(const char* fname, char** ppdir,int* psize)
+{
+    int ret;
+    char* dupstr = NULL;
+    char* pdir = NULL;
+    char* pretdir=NULL;
+    int retsize=0;
+    int retlen=0;
+    if (fname == NULL) {
+        return snprintf_safe(ppdir,psize,NULL);
+    }
+
+    if (ppdir == NULL || psize == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretdir = *ppdir;
+    retsize = *psize;
+
+    dupstr = strdup(fname);
+    if (dupstr == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pdir = dirname(dupstr);
+    if (pdir == NULL) {
+        pdir = (char*)".";
+    }
+
+    retlen = strlen(pdir);
+    if (retsize <= retlen || pretdir == NULL) {
+        retsize = retlen + 1;
+        pretdir = (char*)malloc(retsize);
+        if (pretdir == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    memset(pretdir,0, retsize);
+    memcpy(pretdir,pdir,retlen);
+
+    if (*ppdir && *ppdir != pretdir) {
+        free(*ppdir);
+    }
+
+    *ppdir = pretdir;
+    *psize = retsize;
+    if (dupstr) {
+        free(dupstr);
+    }
+    dupstr = NULL;
+
+    return retlen;
+fail:
+    if (pretdir && pretdir != *ppdir) {
+        free(pretdir);
+    }
+    pretdir = NULL;
+
+    if (dupstr) {
+        free(dupstr);
+    }
+    dupstr = NULL;
+    SETERRNO(ret);
+    return ret;
+
+}

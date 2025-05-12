@@ -2,6 +2,7 @@
 #include <ux_output_debug.h>
 #include <ux_err.h>
 #include <ux_strop.h>
+#include <ux_time_op.h>
 
 #include <pthread.h>
 #include <syslog.h>
@@ -19,7 +20,6 @@
 #include "ux_output_debug_cfg.cpp"
 #include "ux_output_debug_file.cpp"
 
-static int st_output_loglvl = BASE_LOG_DEFAULT;
 static int st_output_opened = 0;
 static int st_log_inited = 0;
 static pthread_mutex_t st_log_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -34,6 +34,8 @@ int error_out(const char* fmt, ...)
     ret += fprintf(stderr, "\n");
     return ret;
 }
+
+#define  UX_OUTPUT_DEBUG(...)  do{fprintf(stderr,"[%s:%d]:",__FILE__,__LINE__),fprintf(stderr,__VA_ARGS__); fprintf(stderr,"\n"); fflush(stderr);} while(0)
 
 
 void __free_log_output()
@@ -62,7 +64,6 @@ int __inner_time_format(int freed, char** ppfmt, size_t *pfmtsize)
     time_t nowt;
     struct tm nowtime,*prettm;
 
-    __time64_t nowt;
     if (freed) {
         if (ppfmt && *ppfmt) {
             free(*ppfmt);
@@ -137,139 +138,7 @@ fail:
 
 
 
-typedef int (output_func_t)(int level, char* outstr);
 
-static int __syslog_output(int level, char* outstr)
-{
-    int priority = LOG_ERR;
-    int outlen=0;
-    switch (level) {
-    case BASE_LOG_FATAL:
-        priority = LOG_EMERG;
-        break;
-    case BASE_LOG_ERROR:
-        priority = LOG_ERR;
-        break;
-    case BASE_LOG_WARN:
-        priority = LOG_WARNING;
-        break;
-    case BASE_LOG_INFO:
-        priority = LOG_NOTICE;
-        break;
-    case BASE_LOG_DEBUG:
-        priority = LOG_INFO;
-        break;
-    case BASE_LOG_TRACE:
-        priority = LOG_DEBUG;
-        break;
-    }
-
-    if (st_output_opened == 0) {
-        openlog(NULL, LOG_PID, LOG_USER);
-        st_output_opened = 1;
-    }
-
-    if (outstr != NULL) {
-    	outlen = strlen(outstr);	
-    }
-    
-
-    syslog(priority, "%s\n", outstr);
-    return outlen;
-}
-
-static int __stderr_output(int level, char* outstr)
-{
-	int outlen = 0;
-    level = level;
-    fprintf(stderr, "%s\n", outstr);
-    fflush(stderr);
-    if (outstr != NULL) {
-    	outlen = strlen(outstr);
-    }
-    return outlen;
-}
-
-
-static int __output_format_buffer_v(char** ppbuf, int *pbufsize, int level, const char* file, int lineno, const char* fmt, va_list ap)
-{
-    int retlen = 0;
-    int ret;
-    struct timespec ts;
-    uint64_t millsecs;
-
-    if (ppbuf == NULL || pbufsize == NULL) {
-        ret = -EINVAL;
-        SETERRNO(ret);
-        return ret;
-    }
-
-    if (fmt == NULL) {    	
-        if (*ppbuf) {
-            free(*ppbuf);
-        }
-        *ppbuf = NULL;
-        *pbufsize = 0;
-        return 0;
-    }
-
-    switch (level) {
-    case BASE_LOG_FATAL:
-        ret = snprintf_safe(ppbuf, pbufsize, "<FATAL>");
-        break;
-    case BASE_LOG_ERROR:
-        ret = snprintf_safe(ppbuf, pbufsize, "<ERROR>");
-        break;
-    case BASE_LOG_WARN:
-        ret = snprintf_safe(ppbuf, pbufsize, "<WARN>");
-        break;
-    case BASE_LOG_INFO:
-        ret = snprintf_safe(ppbuf, pbufsize, "<INFO>");
-        break;
-    case BASE_LOG_DEBUG:
-        ret = snprintf_safe(ppbuf, pbufsize, "<DEBUG>");
-        break;
-    case BASE_LOG_TRACE:
-        ret = snprintf_safe(ppbuf, pbufsize, "<TRACE>");
-        break;
-    default:
-        ret = -EINVAL;
-        SETERRNO(ret);
-        break;
-    }
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = clock_gettime(CLOCK_MONOTONIC , &ts);
-    if (ret  < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    millsecs = ts.tv_sec * 1000;
-    millsecs += (ts.tv_nsec / (1000 * 1000));
-
-    ret = append_snprintf_safe(ppbuf, pbufsize, " [%s:%d]:time(%lld:0x%llx)", file, lineno, millsecs, millsecs);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = append_vsnprintf_safe(ppbuf, pbufsize, fmt, ap);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    retlen = ret;
-    return retlen;
-fail:
-    snprintf_safe(ppbuf, pbufsize,NULL);
-    SETERRNO(ret);
-    return ret;
-}
 
 const char* _get_loglevel_note(int loglvl)
 {
@@ -331,7 +200,7 @@ static int __call_out_line(int level, const char* file, int lineno, const char* 
     pthread_mutex_lock(&st_log_mutex);
     for (i = 0; st_log_output_ios != NULL && i < st_log_output_ios->size(); i++) {
         pout = st_log_output_ios->at(i);
-        ret = pout->write_log(loglvl, locstr, timestr, _get_loglevel_note(loglvl), msg);
+        ret = pout->write_log(level, locstr, timestr, _get_loglevel_note(level), msg);
         if (ret < 0) {
             GETERRNO(ret);
             pthread_mutex_unlock(&st_log_mutex);
@@ -376,10 +245,9 @@ void debug_out_string(int level, const char* file, int lineno, const char* fmt, 
 
 
 
-static void __inner_buffer_output(int level, const char* file,int lineno, unsigned char* pBuffer, int buflen, const char* fmt, va_list ap, output_func_t fn)
+static void __inner_buffer_output(int level, const char* file,int lineno, unsigned char* pBuffer, int buflen, const char* fmt, va_list ap)
 {
     int ret;
-    int retsize = 0;
     char* fmttime = NULL;
     size_t timesize = 0;
     char* msg = NULL;
@@ -432,16 +300,7 @@ static void __inner_buffer_output(int level, const char* file,int lineno, unsign
     if (st_log_output_ios != NULL) {
         for (i = 0; i < st_log_output_ios->size(); i++) {
             pout = st_log_output_ios->at(i);
-            ret = pout->write_buffer_log(loglvl, locstr, timestr, _get_loglevel_note(loglvl), msg, pBuffer, buflen);
-            if (ret < 0) {
-                GETERRNO(ret);
-                pthread_mutex_unlock(&st_log_mutex);
-                goto fail;
-            }
-
-            if (retsize < ret) {
-                retsize = ret;
-            }
+            ret = pout->write_buffer_log(level, locstr, timestr, _get_loglevel_note(level), msg, pBuffer, buflen);
         }
     }
 
@@ -453,31 +312,34 @@ static void __inner_buffer_output(int level, const char* file,int lineno, unsign
     str_append_snprintf_safe(&locstr, &locsize, NULL);
     str_append_snprintf_safe(&timestr, &tmsize, NULL);
     __inner_time_format(1, &fmttime, &timesize);
-    return retsize;
+    return;
 fail:
     str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
     str_append_snprintf_safe(&locstr, &locsize, NULL);
     str_append_snprintf_safe(&timestr, &tmsize, NULL);
     __inner_time_format(1, &fmttime, &timesize);
     SETERRNO(ret);
-    return ret;
+    return;
 }
 
 static int __output_backtrace_format_out(int level, int stkidx, const char* file, int lineno, void** ppfuncs , int funclen, const char* fmt, va_list ap)
 {
     int retlen = 0;
     int ret;
-    struct timespec ts;
-    uint64_t millsecs;
     char** ppsymbols=NULL;
     int i;
     char* msg=NULL;
     int msgsize=0;
     char* pretfmt=NULL;
     int fmtsize=0;
+    char* locstr=NULL;
+    int locsize=0;
+    char* timestr=NULL;
+    int tmsize=0;
+    DebugOutIO* pout=NULL;
 
 
-     ret = __inner_time_format(0, &fmttime, &timesize);
+    ret = __inner_time_format(0, &pretfmt, (size_t*)&fmtsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -490,7 +352,7 @@ static int __output_backtrace_format_out(int level, int stkidx, const char* file
         goto fail;
     }
 
-    ret = str_append_snprintf_safe(&timestr, &tmsize, "time(0x%llx):%s", (unsigned int)get_cur_ticks(), fmttime);
+    ret = str_append_snprintf_safe(&timestr, &tmsize, "time(0x%llx):%s", (unsigned int)get_cur_ticks(), pretfmt);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -533,22 +395,10 @@ static int __output_backtrace_format_out(int level, int stkidx, const char* file
     }
 
 
-
-
     pthread_mutex_lock(&st_log_mutex);
-    for(i=0;st_log_output_ios!=NULL && i < st_log_output_ios->size();i++) {
+    for(i=0;st_log_output_ios!=NULL && i < (int)st_log_output_ios->size();i++) {
         pout = st_log_output_ios->at(i);
-        ret = pout->write_log(loglvl, locstr, timestr, _get_loglevel_note(loglvl), msg);
-        if (ret < 0) {
-            GETERRNO(ret);
-            pthread_mutex_unlock(&st_log_mutex);
-            goto fail;
-        }
-
-        if (retsize < ret) {
-            retsize = ret;
-        }
-       
+        ret = pout->write_log(level, locstr, timestr, _get_loglevel_note(level), msg);       
     }
 
     pthread_mutex_unlock(&st_log_mutex);
@@ -559,8 +409,7 @@ static int __output_backtrace_format_out(int level, int stkidx, const char* file
     ppsymbols = NULL;
 
     snprintf_safe(&msg, &msgsize,NULL);
-    __inner_time_format(1,&pretfmt,&fmtsize);
-
+    __inner_time_format(1,&pretfmt,(size_t*)&fmtsize);
 
     return retlen;
 fail:
@@ -569,7 +418,7 @@ fail:
     }
     ppsymbols = NULL;
     snprintf_safe(&msg, &msgsize,NULL);
-    __inner_time_format(1,&pretfmt,&fmtsize);
+    __inner_time_format(1,&pretfmt,(size_t*)&fmtsize);
     SETERRNO(ret);
     return ret;
 }
@@ -670,18 +519,55 @@ void __fini_basic_log_env(void)
 int init_log(int loglvl)
 {
     int ret;
-    ret = __init_basic_log_env();
+    OutputCfg* pcfgs =new OutputCfg();
+    OutfileCfg* p = NULL;
+
+    p = new OutfileCfg();
+    ret = p->set_file_type(NULL,UXLIB_DEBUGOUT_FILE_STDERR,0,0);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-    st_log_inited = 1;
+    ret = p->set_level(loglvl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
-    st_output_loglvl = loglvl;
+    ret = pcfgs->insert_config(*p);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    p = NULL;
+
+    ret = init_log_ex(pcfgs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (p) {
+        delete p;
+    }
+    p = NULL;
+
+    if (pcfgs) {
+        delete pcfgs;
+    }
+    pcfgs = NULL;
+
     return 0;
 fail:
-    __fini_basic_log_env();
-    st_log_inited = 0;
+    if (p) {
+        delete p;
+    }
+    p = NULL;
+
+    if (pcfgs) {
+        delete pcfgs;
+    }
+    pcfgs = NULL;
     SETERRNO(ret);
     return ret;
 }
@@ -694,7 +580,7 @@ void fini_log(void)
 }
 
 
-int init_output_ex(OutputCfg* pcfgs)
+int init_log_ex(OutputCfg* pcfgs)
 {
     int ret;
     OutfileCfg* pcfg = NULL;
@@ -712,7 +598,7 @@ int init_output_ex(OutputCfg* pcfgs)
 
 
     pthread_mutex_lock(&st_log_mutex);
-    
+
     __free_log_output();
     ASSERT_IF(st_log_output_ios == NULL);
     st_log_output_ios =  new std::vector<DebugOutIO*>();
@@ -730,7 +616,7 @@ int init_output_ex(OutputCfg* pcfgs)
         st_log_output_ios->push_back(pout);
     }
 
-    pthread_mutex_lock(&st_log_mutex);
+    pthread_mutex_unlock(&st_log_mutex);
     return 0;
 fail:
     SETERRNO(ret);

@@ -2047,3 +2047,50 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int logtst_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int num = 10;
+    int i;
+
+    init_log_verbose(pargs);
+
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        num = atoi(parsestate->leftargs[0]);
+    }
+
+    for (i=0;i<num;i++) {
+        FATAL_INFO("fatal info");
+        ERROR_INFO("error info");
+        WARN_INFO("warn info");
+        INFO_INFO("info info");
+        DEBUG_INFO("debug info");
+        TRACE_INFO("trace info");
+
+        FATAL_BUFFER(pargs,sizeof(*pargs));
+        ERROR_BUFFER(pargs,sizeof(*pargs));
+        WARN_BUFFER(pargs,sizeof(*pargs));
+        INFO_BUFFER(pargs,sizeof(*pargs));
+        DEBUG_BUFFER(pargs,sizeof(*pargs));
+        TRACE_BUFFER(pargs,sizeof(*pargs));
+
+        FATAL_BUFFER_FMT(pargs,sizeof(*pargs),"fatal info");
+        ERROR_BUFFER_FMT(pargs,sizeof(*pargs),"error info");
+        WARN_BUFFER_FMT(pargs,sizeof(*pargs),"warn info");
+        INFO_BUFFER_FMT(pargs,sizeof(*pargs),"info info");
+        DEBUG_BUFFER_FMT(pargs,sizeof(*pargs),"debug info");
+        TRACE_BUFFER_FMT(pargs,sizeof(*pargs),"trace info");
+
+
+        BACKTRACE_FATAL(1,"fatal backtrace");
+        BACKTRACE_ERROR(1,"error backtrace");
+        BACKTRACE_WARN(1,"warn backtrace");
+        BACKTRACE_INFO(1,"info backtrace");
+        BACKTRACE_DEBUG(1,"debug backtrace");
+        BACKTRACE_TRACE(1,"trace backtrace");
+
+    }
+
+    return 0;
+}

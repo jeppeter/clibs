@@ -62,7 +62,7 @@ extern "C" {
 #endif
 
 
-int init_output_ex(OutputCfg* pcfgs);
+int init_log_ex(OutputCfg* pcfgs);
 
 #ifdef __cplusplus
 };
