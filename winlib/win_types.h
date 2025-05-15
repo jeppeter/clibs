@@ -25,9 +25,15 @@ typedef INT64         int64_t;
 #ifdef _M_X64
 typedef UINT64 addr_t;
 typedef UINT64 flags_t;
+#define MAX_ADDR_VAL     (0xffffffffffffffffULL)
+#define ADDR_PAGE_SIZE   (0x1000ULL)
+#define ADDR_PAGE_MASK   (0xfffULL)
 #elif defined(_M_IX86)
 typedef UINT32 addr_t;
 typedef UINT32 flags_t;
+#define MAX_ADDR_VAL     (0xffffffffUL)
+#define ADDR_PAGE_SIZE   (0x1000UL)
+#define ADDR_PAGE_MASK   (0xfffUL)
 #else
 #error "not support architecture for windows compiler"
 #endif

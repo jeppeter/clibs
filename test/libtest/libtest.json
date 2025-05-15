@@ -575,6 +575,12 @@
     },
     "icmpping<icmpping_handler>##ip... to ping ips##" : {
         "$" : "+"
+    },
+    "procmap<procmap_handler>##[pid] to query proc memory default -1 for current process##" : {
+        "$" : "?"
+    },
+    "backtrace<backtrace_handler>##[stackidx] to query stackidx default 0##" : {
+        "$" : "?"
     }
 
 }
