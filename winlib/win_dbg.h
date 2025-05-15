@@ -66,6 +66,12 @@ typedef struct __debug_symbol_info{
 	sym_info_t m_syminfo[1];
 }debug_symbol_info_t,*pdebug_symbol_info_t;
 
+typedef struct __proc_mem_info {
+	uint64_t m_startaddr;
+	uint64_t m_endaddr;
+	char m_file[512];	
+} proc_mem_info_t,*pproc_mem_info_t;
+
 
 #ifdef  _M_X64
 
@@ -79,6 +85,12 @@ WINLIB_API int windbg_interrupt(void* pclient);
 WINLIB_API int enum_symbol_pdb(const char* pdbfile,const char* searchmask,addr_t loadaddr, pdebug_symbol_info_t psyminfo,int maxsize,uint64_t* pretval);
 
 #endif /*  _M_X64*/
+
+WINLIB_API int backtrace_safe(int idx, void*** pppbacks, int *psize);
+/***********************************************
+*  pid >= 0 for process id pid == -1 for current process < -1 for free ppmem psize
+***********************************************/
+WINLIB_API int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize);
 
 
 #ifdef __cplusplus

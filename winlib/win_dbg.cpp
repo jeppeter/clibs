@@ -1178,3 +1178,114 @@ fail:
 }
 
 #endif /* _M_X64 */
+
+
+int backtrace_safe(int idx, void*** pppbacks, int *psize)
+{
+    int ret;
+    void** ppretbacks = NULL;
+    int retsize=0;
+    int retlen;
+    PVOID* ppcurbacks=NULL;
+    int curbacksize=0;
+    USHORT sret;
+    int i,j;
+    if (idx < 0) {
+        if (pppbacks && *pppbacks) {
+            free(*pppbacks);
+            *pppbacks = NULL;
+        }
+
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (pppbacks == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    curbacksize = 4;
+try_again:
+    if (ppcurbacks) {
+        free(ppcurbacks);
+    }
+    ppcurbacks = NULL;
+    ppcurbacks = malloc(sizeof(*ppcurbacks) * curbacksize);
+    if (ppcurbacks == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    sret = CaptureStackBackTrace(0,curbacksize,ppcurbacks,NULL);
+    if (sret == curbacksize) {
+        curbacksize <<= 1;
+        goto try_again;
+    }
+
+    retlen = sret - idx;
+    if (retlen >= retsize) {
+        retsize = retlen + 1;
+        ppretbacks = malloc(sizeof(*ppretbacks) * retsize);
+        if (ppretbacks == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    for(i=idx,j=0;i<sret;i++,j++) {
+        ppretbacks[j] = ppcurbacks[i];
+    }
+
+    if (ppcurbacks) {
+        free(ppcurbacks);
+    }
+    ppcurbacks = NULL;
+
+    if (*pppbacks && *pppbacks != ppretbacks) {
+        free(*pppbacks);
+    }
+    *pppbacks = ppretbacks;
+    *psize = retsize;
+    return retlen;
+fail:
+    if (ppcurbacks) {
+        free(ppcurbacks);
+    }
+    ppcurbacks = NULL;
+
+    if (ppretbacks && ppretbacks != *pppbacks) {
+        free(ppretbacks);
+    }
+    ppretbacks = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize);
+{
+    pproc_mem_info_t pretmem=NULL;
+    if (pid < -1) {
+        if (ppmem && *ppmem) {
+            free(*ppmem);
+            *ppmem = NULL;
+        }
+
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+
+    if (ppmem == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+
+}
