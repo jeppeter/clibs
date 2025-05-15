@@ -1275,12 +1275,15 @@ int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
     int retlen =0;
     HANDLE hproc = NULL;
     addr_t saddr = 0;
+    PSAPI_WORKING_SET_INFORMATION *pwrkset=NULL;
+    int wrksize=0;
     int ret;
-    uint8_t buf[32];
-    DWORD buflen;
-    int cont = 0;
     BOOL bret;
-    DWORD dret;
+    uint8_t buf[32];
+    uint8_t cmpbuf[32];
+    int i;
+    int buflen = 0;
+
     DEBUG_INFO("pid %d", pid);
     if (pid < -1) {
         if (ppmem && *ppmem) {
@@ -1312,70 +1315,57 @@ int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
         goto fail;
     }
 
-    cont = 0;
-    for(saddr=0;saddr<=(MAX_ADDR_VAL - ADDR_PAGE_MASK);saddr += ADDR_PAGE_SIZE) {
+    wrksize = sizeof(*pwrkset);
+try_again:
+    if (pwrkset) {
+        free(pwrkset);
+    }
+    pwrkset = NULL;
+
+    pwrkset = (PSAPI_WORKING_SET_INFORMATION*)malloc((size_t)wrksize);
+    if (pwrkset == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(pwrkset,0,(size_t)wrksize);
+
+    bret = QueryWorkingSet(hproc,pwrkset, (DWORD)wrksize);
+    if (!bret) {
+        GETERRNO(ret);
+        if (ret != -ERROR_BAD_LENGTH) {
+            ERROR_INFO("query %d error %d", pid,ret);
+            goto fail;            
+        }
+        wrksize <<= 1;
+        goto try_again;
+    }
+
+    for(i=0;i<pwrkset->NumberOfEntries;i++) {
+        PSAPI_WORKING_SET_BLOCK wsb = pwrkset->WorkingSetInfo[i];
+        DEBUG_INFO("[%d][%d] wsb.VirtualPage 0x%llx", pid, i, wsb.VirtualPage);
+        saddr = (wsb.VirtualPage << 12);
         buflen = 0;
-        bret= ReadProcessMemory(hproc,(LPCVOID)saddr,buf,sizeof(buf),(size_t*)&buflen);
-        if (!bret) {
+        bret = ReadProcessMemory(hproc,(LPCVOID)saddr,buf, sizeof(buf), (size_t*)&buflen);
+        if (bret) {
+            if (pid < 0) {
+                memcpy(cmpbuf, (const void*)saddr,sizeof(cmpbuf));
+                if (memcmp(cmpbuf, buf,sizeof(buf)) != 0) {
+                    DEBUG_BUFFER_FMT(cmpbuf,sizeof(cmpbuf), "cmpbuf at 0x%llx", saddr);
+                    DEBUG_BUFFER_FMT(buf,sizeof(buf),"buf 0x%llx", saddr);
+                }
+            }
+        } else {
             GETERRNO(ret);
-            //DEBUG_INFO("[%d].[0x%llx] error %d buflen %d", pid, saddr, ret, buflen);
-            if (cont != 0) {
-                pretmem[retlen].m_endaddr = saddr - ADDR_PAGE_SIZE + ADDR_PAGE_MASK;
-                retlen += 1;
-            }
-            cont = 0;
-            continue;
+            ERROR_INFO("[%d] read memory error %d", pid, ret);
         }
 
-        if (cont == 0) {
-            DEBUG_INFO("[%d].[0x%llx] succ retlen %d retsize %d", pid, saddr, retlen, retsize);
-            if (retlen >= retsize) {
-                if (retsize == 0) {
-                    retsize = 4;
-                } else {
-                    retsize <<= 1;
-                }
-                ptmp = (pproc_mem_info_t)malloc(sizeof(*ptmp) * retsize);
-                if (ptmp == NULL) {
-                    GETERRNO(ret);
-                    goto fail;
-                }
-                memset(ptmp,0,sizeof(*ptmp) * retsize);
-                if (retlen > 0) {
-                    memcpy(ptmp, pretmem, sizeof(*ptmp) * retlen);
-                }
-                if (pretmem && pretmem != *ppmem) {
-                    free(pretmem);
-                }
-                pretmem = ptmp;
-                ptmp = NULL;
-            }
-            //DEBUG_INFO("retlen %d pretmem %p", retlen, pretmem);
-
-            pretmem[retlen].m_startaddr = saddr;
-            //DEBUG_INFO(" ");
-
-            /*now to read the buffer map size*/
-            dret = GetMappedFileNameA(hproc,(LPVOID)saddr,(LPSTR)&(pretmem[retlen].m_file),sizeof(pretmem[retlen].m_file)-1);
-            DEBUG_INFO("dret %d", dret);
-            if (dret == 0) {
-                GETERRNO(ret);
-#ifdef _M_X64                
-                ERROR_INFO("query 0x%llx error %d", saddr, ret);
-#else
-                ERROR_INFO("query 0x%lx error %d", saddr, ret);
-#endif        
-                memset(&(pretmem[retlen].m_file), 0, sizeof(pretmem[retlen].m_file));
-            }
-        }
-        cont = 1;
     }
 
-    if (cont != 0) {
-        pretmem[retlen].m_endaddr = saddr - ADDR_PAGE_SIZE + ADDR_PAGE_MASK;
-        retlen += 1;
-        cont = 0;
+
+    if (pwrkset) {
+        free(pwrkset);
     }
+    pwrkset = NULL;
 
     if (hproc != NULL && hproc != GetCurrentProcess()) {
         CloseHandle(hproc);
@@ -1390,6 +1380,11 @@ int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
     *psize = retsize;
     return retlen;
 fail:
+    if (pwrkset) {
+        free(pwrkset);
+    }
+    pwrkset = NULL;
+
     if (hproc != NULL && hproc != GetCurrentProcess()) {
         CloseHandle(hproc);
     }
