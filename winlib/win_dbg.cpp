@@ -1267,6 +1267,31 @@ fail:
     return ret;
 }
 
+#define EXPAND_MEM_INFO()                                                                         \
+do{                                                                                               \
+    if (retlen >= (retsize - 3)) {                                                                \
+        if (retsize == 0) {                                                                       \
+            retsize = 8;                                                                          \
+        } else {                                                                                  \
+            retsize += 8;                                                                         \
+        }                                                                                         \
+        ptmp = (pproc_mem_info_t)malloc(retsize * sizeof(*ptmp));                                 \
+        if (ptmp == NULL) {                                                                       \
+            GETERRNO(ret);                                                                        \
+            goto fail;                                                                            \
+        }                                                                                         \
+        memset(ptmp, 0 , sizeof(*ptmp) * retsize);                                                \
+        if (retlen >= 0 && pretmem) {                                                             \
+            memcpy(ptmp, pretmem, (retlen + 1) * sizeof(*ptmp));                                  \
+        }                                                                                         \
+        if (pretmem && pretmem != *ppmem) {                                                       \
+            free(pretmem);                                                                        \
+        }                                                                                         \
+        pretmem = ptmp;                                                                           \
+        ptmp = NULL;                                                                              \
+    }                                                                                             \
+}while(0)
+
 
 int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
 {
@@ -1275,14 +1300,16 @@ int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
     int retlen =0;
     HANDLE hproc = NULL;
     addr_t saddr = 0;
+    uint64_t lastpage = 0;
     PSAPI_WORKING_SET_INFORMATION *pwrkset=NULL;
     int wrksize=0;
     int ret;
     BOOL bret;
-    uint8_t buf[32];
-    uint8_t cmpbuf[32];
     int i;
-    int buflen = 0;
+    DWORD sret;
+    char* pfname = NULL;
+    char* storefname = NULL;
+    size_t fnamesize= sizeof(pretmem[retlen].m_file);
 
     DEBUG_INFO("pid %d", pid);
     if (pid < -1) {
@@ -1315,6 +1342,15 @@ int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
         goto fail;
     }
 
+    pfname = (char*)malloc(fnamesize);
+    storefname = (char*)malloc(fnamesize);
+    if (pfname == NULL || storefname == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    memset(pfname, 0, fnamesize);
+    memset(storefname,0, fnamesize);
+
     wrksize = sizeof(*pwrkset);
 try_again:
     if (pwrkset) {
@@ -1340,27 +1376,86 @@ try_again:
         goto try_again;
     }
 
-    for(i=0;i<pwrkset->NumberOfEntries;i++) {
+    for(i=0;i<(int)pwrkset->NumberOfEntries;i++) {
         PSAPI_WORKING_SET_BLOCK wsb = pwrkset->WorkingSetInfo[i];
         DEBUG_INFO("[%d][%d] wsb.VirtualPage 0x%llx", pid, i, wsb.VirtualPage);
         saddr = (wsb.VirtualPage << 12);
-        buflen = 0;
-        bret = ReadProcessMemory(hproc,(LPCVOID)saddr,buf, sizeof(buf), (size_t*)&buflen);
-        if (bret) {
-            if (pid < 0) {
-                memcpy(cmpbuf, (const void*)saddr,sizeof(cmpbuf));
-                if (memcmp(cmpbuf, buf,sizeof(buf)) != 0) {
-                    DEBUG_BUFFER_FMT(cmpbuf,sizeof(cmpbuf), "cmpbuf at 0x%llx", saddr);
-                    DEBUG_BUFFER_FMT(buf,sizeof(buf),"buf 0x%llx", saddr);
-                }
+        EXPAND_MEM_INFO();
+        if (i == 0) {
+            sret = GetMappedFileNameA(hproc,(LPVOID)saddr,pfname,(DWORD)fnamesize);
+            if (sret == 0) {
+                pretmem[retlen].m_startaddr = saddr;
+                DEBUG_INFO("[%d].[%d].m_startaddr = 0x%llx", pid, retlen, saddr);
+                memset(storefname,0, fnamesize);
+            } else {
+                pretmem[retlen].m_startaddr = saddr;
+                DEBUG_INFO("[%d].[%d].m_startaddr = 0x%llx", pid, retlen, saddr);
+                memcpy(&(pretmem[retlen].m_file),pfname,fnamesize);
+                DEBUG_INFO("[%d].[%d].m_file = [%s]", pid, retlen, pretmem[retlen].m_file);
+                memcpy(storefname,pfname,fnamesize);
             }
         } else {
-            GETERRNO(ret);
-            ERROR_INFO("[%d] read memory error %d", pid, ret);
+            if (wsb.VirtualPage == (lastpage + 1)) {
+                sret = GetMappedFileNameA(hproc,(LPVOID)saddr,pfname,(DWORD)fnamesize);
+                if (sret == 0) {
+                    if (storefname[0] != '\0') {
+                        pretmem[retlen].m_endaddr = (lastpage << 12) + ADDR_PAGE_MASK;
+                        DEBUG_INFO("[%d].[%d].m_endaddr = 0x%llx", pid, retlen, pretmem[retlen].m_endaddr);
+                        retlen += 1;
+                        pretmem[retlen].m_startaddr = saddr;
+                        DEBUG_INFO("[%d].[%d].m_startaddr = 0x%llx", pid, retlen, saddr);
+                        memcpy(&(pretmem[retlen].m_file),pfname,fnamesize);
+                        DEBUG_INFO("[%d].[%d].m_file = [%s]", pid, retlen, pretmem[retlen].m_file);
+                        memcpy(storefname,pfname,fnamesize);
+                    }
+                } else {
+                    if (strcmp(storefname,pfname) != 0) {
+                        pretmem[retlen].m_endaddr = (lastpage << 12) + ADDR_PAGE_MASK;
+                        DEBUG_INFO("[%d].[%d].m_endaddr = 0x%llx", pid, retlen, pretmem[retlen].m_endaddr);
+                        retlen += 1;
+                        pretmem[retlen].m_startaddr = saddr;
+                        DEBUG_INFO("[%d].[%d].m_startaddr = 0x%llx", pid, retlen, saddr);
+                        memcpy(&(pretmem[retlen].m_file),pfname,fnamesize);
+                        DEBUG_INFO("[%d].[%d].m_file = [%s]", pid, retlen, pretmem[retlen].m_file);
+                        memcpy(storefname,pfname,fnamesize);
+                    }
+                }
+            } else {
+                pretmem[retlen].m_endaddr = (lastpage << 12) + ADDR_PAGE_MASK;
+                DEBUG_INFO("[%d].[%d].m_endaddr = 0x%llx", pid, retlen, pretmem[retlen].m_endaddr);
+                retlen += 1;                
+                sret = GetMappedFileNameA(hproc,(LPVOID)saddr,pfname, (DWORD)fnamesize);
+                if (sret == 0) {
+                    pretmem[retlen].m_startaddr = saddr;
+                    DEBUG_INFO("[%d].[%d].m_startaddr = 0x%llx", pid, retlen, saddr);
+                    memset(storefname,0,fnamesize);
+                } else {
+                    pretmem[retlen].m_startaddr = saddr;
+                    DEBUG_INFO("[%d].[%d].m_startaddr = 0x%llx", pid, retlen, saddr);
+                    memcpy(&(pretmem[retlen].m_file),pfname,fnamesize);
+                    DEBUG_INFO("[%d].[%d].m_file = [%s]", pid, retlen, pretmem[retlen].m_file);
+                    memcpy(storefname,pfname,fnamesize);
+                }
+            }
         }
-
+        lastpage = wsb.VirtualPage;
     }
 
+    if (lastpage != 0) {
+        pretmem[retlen].m_endaddr = (lastpage << 12) + ADDR_PAGE_MASK;
+        retlen += 1;
+    }
+
+
+
+    if (pfname) {
+        free(pfname);
+    }
+    pfname = NULL;
+    if (storefname) {
+        free(storefname);
+    }
+    storefname = NULL;
 
     if (pwrkset) {
         free(pwrkset);
@@ -1380,6 +1475,15 @@ try_again:
     *psize = retsize;
     return retlen;
 fail:
+    if (pfname) {
+        free(pfname);
+    }
+    pfname = NULL;
+    if (storefname) {
+        free(storefname);
+    }
+    storefname = NULL;
+
     if (pwrkset) {
         free(pwrkset);
     }

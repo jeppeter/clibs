@@ -760,7 +760,7 @@ int call_func1(int idx)
     }
     stacklen = ret;
     for(i=0;i<stacklen;i++) {
-        fprintf(stdout,"[%d] %p\n",i,ppstack[i]);
+        fprintf(stdout,"[%d] 0x%p\n",i,ppstack[i]);
     }
 
     backtrace_safe(-1,&ppstack,&stacksize);
@@ -786,6 +786,9 @@ int backtrace_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     int idx=0;
     pargs_options_t pargs = (pargs_options_t) popt;
     int ret;
+    pproc_mem_info_t pmem=NULL;
+    int memsize=0,memlen=0;
+    int i;
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
@@ -797,6 +800,25 @@ int backtrace_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
     ret = call_func3(idx);
 
+    ret = get_proc_mem_info(-1,&pmem,&memsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    memlen = ret;
+    fprintf(stdout,"memlen %d\n", memlen);
+    for(i=0;i<memlen;i++) {
+#ifdef _M_X64        
+        fprintf(stdout,"[0x%llx] - [0x%llx]           [%s]\n",pmem[i].m_startaddr, pmem[i].m_endaddr,pmem[i].m_file);
+#else
+        fprintf(stdout,"[0x%lx] - [0x%lx]           [%s]\n",pmem[i].m_startaddr, pmem[i].m_endaddr,pmem[i].m_file);
+#endif        
+    }
+
+    ret = 0;
+out:
+    get_proc_mem_info(-2,&pmem,&memsize);
     SETERRNO(ret);
     return ret;
 

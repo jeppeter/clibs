@@ -20,6 +20,8 @@
 
 #define UNREACHABLE_VALUE  0xffffffffffffffff
 
+#pragma comment (lib, "Ws2_32.lib")
+
 
 PingCap::PingCap(const char* ip,int timeout,int nextout,int times)
 {
