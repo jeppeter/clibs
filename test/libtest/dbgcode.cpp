@@ -788,7 +788,8 @@ int backtrace_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     int ret;
     pproc_mem_info_t pmem=NULL;
     int memsize=0,memlen=0;
-    int i;
+    int i,j;
+    char** searchfiles=NULL;
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
@@ -796,6 +797,9 @@ int backtrace_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     init_log_level(pargs);
     if (parsestate->leftargs && parsestate->leftargs[0]) {
         idx = atoi(parsestate->leftargs[0]);
+        if (parsestate->leftargs && parsestate->leftargs[1]) {
+            searchfiles = &(parsestate->leftargs[1]);
+        }
     }
 
     ret = call_func3(idx);
@@ -813,7 +817,23 @@ int backtrace_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         fprintf(stdout,"[0x%llx] - [0x%llx]           [%s]\n",pmem[i].m_startaddr, pmem[i].m_endaddr,pmem[i].m_file);
 #else
         fprintf(stdout,"[0x%lx] - [0x%lx]           [%s]\n",pmem[i].m_startaddr, pmem[i].m_endaddr,pmem[i].m_file);
-#endif        
+#endif
+        if (searchfiles != NULL) {
+            int matched = 0;
+            for(j=0;searchfiles[j] != NULL;j++) {
+                size_t slen = strlen(searchfiles[j]);
+                size_t flen = strlen(pmem[i].m_file);
+                char* pptr = pmem[i].m_file + flen - slen;
+                if (strcmp(pptr,searchfiles[j]) == 0) {
+                    matched = 1;
+                    break;
+                }
+            }
+
+            if (matched){
+                debug_buffer(stdout,(char*)pmem[i].m_startaddr, 0x20,"[%d][%s] 0x%llx", i,pmem[i].m_file, pmem[i].m_startaddr);
+            }
+        }
     }
 
     ret = 0;

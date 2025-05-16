@@ -580,7 +580,7 @@
         "$" : "?"
     },
     "backtrace<backtrace_handler>##[stackidx] to query stackidx default 0##" : {
-        "$" : "?"
+        "$" : "*"
     }
 
 }
