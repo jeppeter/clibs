@@ -13,7 +13,7 @@
 extern "C" {
 #endif /* __cplusplus*/
 
-WINLIB_API void* memory_load_module(void* ptr, int memsize);
+WINLIB_API void* memory_load_module(void* ptr, size_t memsize);
 WINLIB_API void memory_free_module(void* pmod);
 WINLIB_API void* memory_get_proc_addr(void* pmod,const char* procname);
 WINLIB_API void* memory_get_resource_addr(void* pmod,const char* resid);

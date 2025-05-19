@@ -1238,7 +1238,7 @@ try_again:
         }
     }
 
-    for(i=idx,j=0;i<sret;i++,j++) {
+    for(i=idx+1,j=0;i<sret;i++,j++) {
         ppretbacks[j] = ppcurbacks[i];
     }
 
@@ -1500,3 +1500,4 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
