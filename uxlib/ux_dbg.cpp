@@ -290,6 +290,8 @@ int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
 				GETERRNO(ret);
 				goto fail;
 			}
+			/*we should give next address*/
+			pretmem[retlen].m_endaddr -= 1;
 
 			if (poslen >= 9) {
 				cpylen = pendpos[8] - pstartpos[8];
