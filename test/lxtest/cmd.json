@@ -140,6 +140,12 @@
     },
     "logtst<logtst_handler>##[num] default num 10##" : {
         "$" : "?"
+    },
+    "procmap<procmap_handler>##[pid] to query proc memory default -1 for current process##" : {
+        "$" : "?"
+    },
+    "backtrace2<backtrace2_handler>##[stackidx] to query stackidx default 0##" : {
+        "$" : "*"
     }
 
 }

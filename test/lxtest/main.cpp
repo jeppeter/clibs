@@ -13,6 +13,7 @@
 #include <ux_sock.h>
 #include <ux_tty.h>
 #include <ux_libev.h>
+#include <ux_dbg.h>
 
 #include <string.h>
 #include <unistd.h>
@@ -99,6 +100,8 @@ int encbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int decbase64_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int logtst_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int procmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int backtrace2_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
@@ -626,6 +629,8 @@ void sig_handler(int signum)
     if (signum == SIGINT && st_evtfd >= 0) {
         ERROR_INFO("call SIGINT write evtfd %d",st_evtfd);
         write(st_evtfd,&lval,sizeof(lval));
+    } else if (signum == SIGSEGV) {
+        BACKTRA
     }
     return ;
 }
