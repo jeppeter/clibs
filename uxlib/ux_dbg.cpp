@@ -205,6 +205,7 @@ int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
 		if (strlen(curline) == 0) {
 			continue;
 		}
+		DEBUG_INFO("[%d][%s]",i,curline);
 
 		ret = regex_exec(pmatchreg,curline,&pstartpos,&pendpos,&possize);
 		if (ret < 0) {

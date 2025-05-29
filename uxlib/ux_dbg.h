@@ -4,10 +4,14 @@
 
 #include <ux_err.h>
 
+#define  UX_MEM_EXEC         1
+#define  UX_MEM_READ         2
+#define  UX_MEM_WRITE        4
 
 typedef struct __proc_mem_info {
 	uint64_t m_startaddr;
 	uint64_t m_endaddr;
+	uint32_t m_flags;
 	char m_file[512];	
 } proc_mem_info_t,*pproc_mem_info_t;
 

@@ -1292,6 +1292,20 @@ do{                                                                             
     }                                                                                             \
 }while(0)
 
+uint32_t _get_protection(uint32_t prot)
+{
+
+}
+
+const char* _get_protection_str(uint32_t prot)
+{
+    switch(prot) {
+        case 0:
+            return "NOACCESS";
+        case 
+    }
+}
+
 
 int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
 {
@@ -1309,6 +1323,7 @@ int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
     DWORD sret;
     char* pfname = NULL;
     char* storefname = NULL;
+    DWORD lastprotect = 0;
     size_t fnamesize= sizeof(pretmem[retlen].m_file);
 
     DEBUG_INFO("pid %d", pid);
@@ -1439,6 +1454,7 @@ try_again:
             }
         }
         lastpage = wsb.VirtualPage;
+        lastprotect = wsb.Protection;
     }
 
     if (lastpage != 0) {

@@ -175,6 +175,7 @@ int backtrace2_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     fprintf(stdout,"memlen %d\n", memlen);
     for(i=0;i<memlen;i++) {
         fprintf(stdout,"[0x%lx] - [0x%lx]  [0x%lx]         [%s]\n",pmem[i].m_startaddr, pmem[i].m_endaddr, pmem[i].m_endaddr - pmem[i].m_startaddr,pmem[i].m_file);
+        fflush(stdout);
         if (searchfiles != NULL) {
             int matched = 0;
             for(j=0;searchfiles[j] != NULL;j++) {
@@ -191,6 +192,7 @@ int backtrace2_handler(int argc, char* argv[], pextargs_state_t parsestate, void
                 //debug_buffer(stdout,(char*)pmem[i].m_startaddr, 0x20,"[%d][%s] 0x%llx", i,pmem[i].m_file, pmem[i].m_startaddr);
                 //debug_buffer(stdout,(char*)(pmem[i].m_endaddr - 0x20), 0x20,"[%d][%s] 0x%llx", i,pmem[i].m_file,pmem[i].m_endaddr - 0x20);
                 print_buffer(stdout,(unsigned char*)pmem[i].m_startaddr, (int)(pmem[i].m_endaddr - pmem[i].m_startaddr + 1), "[%d][%s] 0x%lx size 0x%x", i,pmem[i].m_file,pmem[i].m_startaddr, (int)(pmem[i].m_endaddr - pmem[i].m_startaddr + 1));
+                fflush(stdout);
             }
         }
     }
