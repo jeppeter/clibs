@@ -629,9 +629,7 @@ void sig_handler(int signum)
     if (signum == SIGINT && st_evtfd >= 0) {
         ERROR_INFO("call SIGINT write evtfd %d",st_evtfd);
         write(st_evtfd,&lval,sizeof(lval));
-    } else if (signum == SIGSEGV) {
-        BACKTRA
-    }
+    } 
     return ;
 }
 

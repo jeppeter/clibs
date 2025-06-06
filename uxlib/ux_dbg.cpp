@@ -138,6 +138,7 @@ int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
 	char* parsestr=NULL;
 	int parsesize=0;
 	char* pendptr = NULL;
+	char* pcurptr=NULL;
 	int i;
 
 
@@ -294,11 +295,42 @@ int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
 			/*we should give next address*/
 			pretmem[retlen].m_endaddr -= 1;
 
+			cpylen = pendpos[3] - pstartpos[3];
+			if (cpylen >= cpysize) {
+				cpysize = cpylen + 1;
+				if (pcpystr) {
+					free(pcpystr);
+				}
+				pcpystr = NULL;
+				pcpystr = (char*)malloc(cpysize);
+				if (pcpystr == NULL) {
+					GETERRNO(ret);
+					goto fail;
+				}
+			}
+			memset(pcpystr,0, cpysize);
+			memcpy(pcpystr,&curline[pstartpos[3]],cpylen);
+			DEBUG_INFO("pcpystr [%s]",pcpystr);
+			/*now to get the flags*/
+			pcurptr = pcpystr;
+			while(*pcurptr != '\0') {
+				if (*pcurptr == 'r' || *pcurptr == 'R') {
+					pretmem[retlen].m_flags |= UX_MEM_READ;
+				} else if (*pcurptr == 'w' || *pcurptr == 'W') {
+					pretmem[retlen].m_flags |= UX_MEM_WRITE;
+				} else if (*pcurptr == 'x' || *pcurptr == 'X') {
+					pretmem[retlen].m_flags |= UX_MEM_EXEC;
+				}
+				pcurptr ++;
+			}
+
 			if (poslen >= 9) {
 				cpylen = pendpos[8] - pstartpos[8];
+				DEBUG_INFO("cpylen %d startpos[8] %d", cpylen,pstartpos[8]);
 				if (cpylen >= (int)sizeof(pretmem[retlen].m_file)) {
 					cpylen = sizeof(pretmem[retlen].m_file) - 1;
 				}
+				DEBUG_INFO("curline[%d] [%s]", pstartpos[8], &curline[pstartpos[8]]);
 				if (curline[pstartpos[8]] == '/') {
 					memcpy(&(pretmem[retlen].m_file), &(curline[pstartpos[8]]),cpylen);
 				}				

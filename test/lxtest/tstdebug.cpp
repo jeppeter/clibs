@@ -144,6 +144,82 @@ int call_func3(int idx)
 {
     return call_func2(idx);
 }
+int get_prot_str(int val, char** ppstr,int *psize)
+{
+    int ret;
+    int wlen = 0;
+    if (val < 0) {
+        return snprintf_safe(ppstr,psize,NULL);
+    }
+
+    ret = snprintf_safe(ppstr,psize,"");
+    if (ret < 0) {
+        GETERRNO(ret);
+        SETERRNO(ret);
+        return ret;
+    }
+
+    if ((val & UX_MEM_READ) != 0) {
+        ret = append_snprintf_safe(ppstr,psize,"UX_MEM_READ");
+        if (ret < 0) {
+            GETERRNO(ret);
+            SETERRNO(ret);
+            return ret;
+        }
+        wlen = ret;
+    }
+
+    if ((val & UX_MEM_WRITE) != 0) {
+        if (wlen > 0) {
+            ret = append_snprintf_safe(ppstr,psize,"|");
+            if (ret < 0) {
+                GETERRNO(ret);
+                SETERRNO(ret);
+                return ret;
+            }
+            wlen = ret;
+        }
+
+        ret = append_snprintf_safe(ppstr,psize,"UX_MEM_WRITE");
+        if (ret < 0) {
+            GETERRNO(ret);
+            SETERRNO(ret);
+            return ret;
+        }
+        wlen = ret;        
+    }
+
+    if ((val & UX_MEM_EXEC) != 0) {
+        if (wlen > 0) {
+            ret = append_snprintf_safe(ppstr,psize,"|");
+            if (ret < 0) {
+                GETERRNO(ret);
+                SETERRNO(ret);
+                return ret;
+            }
+            wlen = ret;
+        }
+
+        ret = append_snprintf_safe(ppstr,psize,"UX_MEM_EXEC");
+        if (ret < 0) {
+            GETERRNO(ret);
+            SETERRNO(ret);
+            return ret;
+        }
+        wlen = ret;        
+    }
+
+    if(wlen ==0) {
+        ret = append_snprintf_safe(ppstr,psize,"NOACCESS");
+        if (ret < 0) {
+            GETERRNO(ret);
+            SETERRNO(ret);
+            return ret;
+        }        
+    }
+    return 0;
+
+}
 
 int backtrace2_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
@@ -154,6 +230,8 @@ int backtrace2_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     int memsize=0,memlen=0;
     int i,j;
     char** searchfiles=NULL;
+    char* protstr=NULL;
+    int protsize=0;
 
     init_log_verbose(pargs);
     if (parsestate->leftargs && parsestate->leftargs[0]) {
@@ -174,8 +252,12 @@ int backtrace2_handler(int argc, char* argv[], pextargs_state_t parsestate, void
     memlen = ret;
     fprintf(stdout,"memlen %d\n", memlen);
     for(i=0;i<memlen;i++) {
-        fprintf(stdout,"[0x%lx] - [0x%lx]  [0x%lx]         [%s]\n",pmem[i].m_startaddr, pmem[i].m_endaddr, pmem[i].m_endaddr - pmem[i].m_startaddr,pmem[i].m_file);
-        fflush(stdout);
+        ret = get_prot_str((int)pmem[i].m_flags, &protstr,&protsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+        fprintf(stdout,"[0x%lx] - [0x%lx]  [0x%lx]    [%s]     [%s]\n",pmem[i].m_startaddr, pmem[i].m_endaddr, pmem[i].m_endaddr - pmem[i].m_startaddr,protstr,pmem[i].m_file);        fflush(stdout);
         if (searchfiles != NULL) {
             int matched = 0;
             for(j=0;searchfiles[j] != NULL;j++) {
@@ -191,14 +273,17 @@ int backtrace2_handler(int argc, char* argv[], pextargs_state_t parsestate, void
             if (matched){
                 //debug_buffer(stdout,(char*)pmem[i].m_startaddr, 0x20,"[%d][%s] 0x%llx", i,pmem[i].m_file, pmem[i].m_startaddr);
                 //debug_buffer(stdout,(char*)(pmem[i].m_endaddr - 0x20), 0x20,"[%d][%s] 0x%llx", i,pmem[i].m_file,pmem[i].m_endaddr - 0x20);
-                print_buffer(stdout,(unsigned char*)pmem[i].m_startaddr, (int)(pmem[i].m_endaddr - pmem[i].m_startaddr + 1), "[%d][%s] 0x%lx size 0x%x", i,pmem[i].m_file,pmem[i].m_startaddr, (int)(pmem[i].m_endaddr - pmem[i].m_startaddr + 1));
-                fflush(stdout);
+                if ((pmem[i].m_flags & UX_MEM_READ) != 0) {
+                    print_buffer(stdout,(unsigned char*)pmem[i].m_startaddr, (int)(pmem[i].m_endaddr - pmem[i].m_startaddr + 1), "[%d][%s] 0x%lx size 0x%x", i,pmem[i].m_file,pmem[i].m_startaddr, (int)(pmem[i].m_endaddr - pmem[i].m_startaddr + 1));
+                    fflush(stdout);                    
+                }
             }
         }
     }
 
     ret = 0;
 out:
+    get_prot_str(-1,&protstr,&protsize);
     get_proc_mem_info(-2,&pmem,&memsize);
     SETERRNO(ret);
     return ret;
