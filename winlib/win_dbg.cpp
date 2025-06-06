@@ -1275,6 +1275,7 @@ do{                                                                             
         } else {                                                                                  \
             retsize += 8;                                                                         \
         }                                                                                         \
+        DEBUG_INFO("expand size %d retlen %d",retsize,retlen);                                    \
         ptmp = (pproc_mem_info_t)malloc(retsize * sizeof(*ptmp));                                 \
         if (ptmp == NULL) {                                                                       \
             GETERRNO(ret);                                                                        \
@@ -1289,21 +1290,150 @@ do{                                                                             
         }                                                                                         \
         pretmem = ptmp;                                                                           \
         ptmp = NULL;                                                                              \
+        DEBUG_INFO("expand size %d retlen %d",retsize,retlen);                                    \
     }                                                                                             \
 }while(0)
 
 uint32_t _get_protection(uint32_t prot)
 {
-
+    switch((prot & 0x1f)) {
+        case 0:
+            return 0;
+        case 1:
+            return WIN_MEM_READ;
+        case 2:
+            return WIN_MEM_EXEC;
+        case 3:
+            return WIN_MEM_EXEC|WIN_MEM_READ;
+        case 4:
+            return WIN_MEM_WRITE|WIN_MEM_READ;
+        case 5:
+            return WIN_MEM_WRITE|WIN_MEM_READ;
+        case 6:
+            return WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE;
+        case 7:
+            return WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE;
+        case 8:
+            return 0;
+        case 9:
+            return WIN_MEM_READ;
+        case 10:
+            return WIN_MEM_EXEC;
+        case 11:
+            return WIN_MEM_EXEC|WIN_MEM_READ;
+        case 12:
+            return WIN_MEM_READ|WIN_MEM_WRITE;
+        case 13:
+            return WIN_MEM_READ|WIN_MEM_WRITE;
+        case 14:
+            return WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE;
+        case 15:
+            return WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE;
+        case 16:
+            return 0;
+        case 17:
+            return WIN_MEM_READ;
+        case 18:
+            return WIN_MEM_EXEC;
+        case 19:
+            return WIN_MEM_EXEC|WIN_MEM_READ;
+        case 20:
+            return WIN_MEM_READ|WIN_MEM_WRITE;
+        case 21:
+            return WIN_MEM_READ|WIN_MEM_WRITE;
+        case 22:
+            return WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE;
+        case 23:
+            return WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE;
+        case 24:
+            return 0;
+        case 25:
+            return WIN_MEM_READ;
+        case 26:
+            return WIN_MEM_EXEC;
+        case 27:
+            return WIN_MEM_EXEC|WIN_MEM_READ;
+        case 28:
+            return WIN_MEM_READ|WIN_MEM_WRITE;
+        case 29:
+            return WIN_MEM_READ|WIN_MEM_WRITE;
+        case 30:
+            return WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE;
+        case 31:
+            return WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE;
+    }
+    return 0;
 }
 
 const char* _get_protection_str(uint32_t prot)
 {
-    switch(prot) {
+    switch((prot & 0x1f)) {
         case 0:
             return "NOACCESS";
-        case 
+        case 1:
+            return "WIN_MEM_READ";
+        case 2:
+            return "WIN_MEM_EXEC";
+        case 3:
+            return "WIN_MEM_EXEC|WIN_MEM_READ";
+        case 4:
+            return "WIN_MEM_WRITE|WIN_MEM_READ";
+        case 5:
+            return "WIN_MEM_WRITE|WIN_MEM_READ";
+        case 6:
+            return "WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE";
+        case 7:
+            return "WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE";
+        case 8:
+            return "NOACCESS";
+        case 9:
+            return "WIN_MEM_READ";
+        case 10:
+            return "WIN_MEM_EXEC";
+        case 11:
+            return "WIN_MEM_EXEC|WIN_MEM_READ";
+        case 12:
+            return "WIN_MEM_READ|WIN_MEM_WRITE";
+        case 13:
+            return "WIN_MEM_READ|WIN_MEM_WRITE";
+        case 14:
+            return "WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE";
+        case 15:
+            return "WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE";
+        case 16:
+            return "NOACCESS";
+        case 17:
+            return "WIN_MEM_READ";
+        case 18:
+            return "WIN_MEM_EXEC";
+        case 19:
+            return "WIN_MEM_EXEC|WIN_MEM_READ";
+        case 20:
+            return "WIN_MEM_READ|WIN_MEM_WRITE";
+        case 21:
+            return "WIN_MEM_READ|WIN_MEM_WRITE";
+        case 22:
+            return "WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE";
+        case 23:
+            return "WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE";
+        case 24:
+            return "NOACCESS";
+        case 25:
+            return "WIN_MEM_READ";
+        case 26:
+            return "WIN_MEM_EXEC";
+        case 27:
+            return "WIN_MEM_EXEC|WIN_MEM_READ";
+        case 28:
+            return "WIN_MEM_READ|WIN_MEM_WRITE";
+        case 29:
+            return "WIN_MEM_READ|WIN_MEM_WRITE";
+        case 30:
+            return "WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE";
+        case 31:
+            return "WIN_MEM_EXEC|WIN_MEM_READ|WIN_MEM_WRITE";
     }
+    return "NOACCESS";
 }
 
 
@@ -1323,7 +1453,7 @@ int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
     DWORD sret;
     char* pfname = NULL;
     char* storefname = NULL;
-    DWORD lastprotect = 0;
+    uint32_t lastprotect = 0;
     size_t fnamesize= sizeof(pretmem[retlen].m_file);
 
     DEBUG_INFO("pid %d", pid);
@@ -1343,6 +1473,14 @@ int get_proc_mem_info(int pid,pproc_mem_info_t *ppmem,int *psize)
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
         return ret;
+    }
+
+    pretmem = *ppmem;
+    retsize = *psize;
+
+    if (pretmem != NULL && retsize > 0) {
+        /*to memset*/
+        memset(pretmem, 0, sizeof(*pretmem) * retsize);
     }
 
     if (pid < 0) {
@@ -1397,6 +1535,8 @@ try_again:
         saddr = (wsb.VirtualPage << 12);
         EXPAND_MEM_INFO();
         if (i == 0) {
+            DEBUG_INFO("[%d].[%d].m_flags = %s",pid,retlen,_get_protection_str(wsb.Protection));
+            pretmem[retlen].m_flags = _get_protection(wsb.Protection);
             sret = GetMappedFileNameA(hproc,(LPVOID)saddr,pfname,(DWORD)fnamesize);
             if (sret == 0) {
                 pretmem[retlen].m_startaddr = saddr;
@@ -1410,34 +1550,41 @@ try_again:
                 memcpy(storefname,pfname,fnamesize);
             }
         } else {
-            if (wsb.VirtualPage == (lastpage + 1)) {
+            if (wsb.VirtualPage == (lastpage + 1) && _get_protection(wsb.Protection) == lastprotect) {
                 sret = GetMappedFileNameA(hproc,(LPVOID)saddr,pfname,(DWORD)fnamesize);
                 if (sret == 0) {
                     if (storefname[0] != '\0') {
                         pretmem[retlen].m_endaddr = (lastpage << 12) + ADDR_PAGE_MASK;
                         DEBUG_INFO("[%d].[%d].m_endaddr = 0x%llx", pid, retlen, pretmem[retlen].m_endaddr);
+                        DEBUG_INFO("last [%d].[%d].m_file = [%s]", pid, retlen, pretmem[retlen].m_file);
                         retlen += 1;
                         pretmem[retlen].m_startaddr = saddr;
                         DEBUG_INFO("[%d].[%d].m_startaddr = 0x%llx", pid, retlen, saddr);
                         memcpy(&(pretmem[retlen].m_file),pfname,fnamesize);
                         DEBUG_INFO("[%d].[%d].m_file = [%s]", pid, retlen, pretmem[retlen].m_file);
                         memcpy(storefname,pfname,fnamesize);
+                        pretmem[retlen].m_flags = _get_protection(wsb.Protection);
+                        DEBUG_INFO("[%d].[%d].m_flags = %s", pid,retlen, _get_protection_str(wsb.Protection));
                     }
                 } else {
                     if (strcmp(storefname,pfname) != 0) {
                         pretmem[retlen].m_endaddr = (lastpage << 12) + ADDR_PAGE_MASK;
                         DEBUG_INFO("[%d].[%d].m_endaddr = 0x%llx", pid, retlen, pretmem[retlen].m_endaddr);
+                        DEBUG_INFO("last [%d].[%d].m_file = [%s]", pid, retlen, pretmem[retlen].m_file);
                         retlen += 1;
                         pretmem[retlen].m_startaddr = saddr;
                         DEBUG_INFO("[%d].[%d].m_startaddr = 0x%llx", pid, retlen, saddr);
                         memcpy(&(pretmem[retlen].m_file),pfname,fnamesize);
                         DEBUG_INFO("[%d].[%d].m_file = [%s]", pid, retlen, pretmem[retlen].m_file);
                         memcpy(storefname,pfname,fnamesize);
+                        pretmem[retlen].m_flags = _get_protection(wsb.Protection);
+                        DEBUG_INFO("[%d].[%d].m_flags = %s", pid,retlen, _get_protection_str(wsb.Protection));
                     }
                 }
             } else {
                 pretmem[retlen].m_endaddr = (lastpage << 12) + ADDR_PAGE_MASK;
                 DEBUG_INFO("[%d].[%d].m_endaddr = 0x%llx", pid, retlen, pretmem[retlen].m_endaddr);
+                DEBUG_INFO("last [%d].[%d].m_file = [%s]", pid, retlen, pretmem[retlen].m_file);
                 retlen += 1;                
                 sret = GetMappedFileNameA(hproc,(LPVOID)saddr,pfname, (DWORD)fnamesize);
                 if (sret == 0) {
@@ -1451,10 +1598,12 @@ try_again:
                     DEBUG_INFO("[%d].[%d].m_file = [%s]", pid, retlen, pretmem[retlen].m_file);
                     memcpy(storefname,pfname,fnamesize);
                 }
+                pretmem[retlen].m_flags = _get_protection(wsb.Protection);
+                DEBUG_INFO("[%d].[%d].m_flags = %s", pid,retlen, _get_protection_str(wsb.Protection));
             }
         }
         lastpage = wsb.VirtualPage;
-        lastprotect = wsb.Protection;
+        lastprotect = _get_protection(wsb.Protection);
     }
 
     if (lastpage != 0) {

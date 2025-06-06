@@ -74,6 +74,7 @@ typedef struct __proc_mem_info {
 	uint64_t m_startaddr;
 	uint64_t m_endaddr;
 	uint32_t m_flags;
+	uint32_t m_reserv1;
 	char m_file[512];	
 } proc_mem_info_t,*pproc_mem_info_t;
 
