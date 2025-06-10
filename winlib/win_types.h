@@ -28,12 +28,14 @@ typedef UINT64 flags_t;
 #define MAX_ADDR_VAL     (0xffffffffffffffffULL)
 #define ADDR_PAGE_SIZE   (0x1000ULL)
 #define ADDR_PAGE_MASK   (0xfffULL)
+#define ADDR_PAGE_ALIGN  (0xfffffffffffff000ULL)
 #elif defined(_M_IX86)
 typedef UINT32 addr_t;
 typedef UINT32 flags_t;
 #define MAX_ADDR_VAL     (0xffffffffUL)
 #define ADDR_PAGE_SIZE   (0x1000UL)
 #define ADDR_PAGE_MASK   (0xfffUL)
+#define ADDR_PAGE_ALIGN  (0xfffff000UL)
 #else
 #error "not support architecture for windows compiler"
 #endif

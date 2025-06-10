@@ -2084,6 +2084,241 @@ fail:
 }
 
 
+
+int __sid_length_check(PSID psrcsid,int len,TCHAR* ptsidstr)
+{
+    PSID pnsid=NULL;
+    TCHAR* ptcmpsidstr=NULL;
+    int curlen=0;
+    int valid = 0;
+    addr_t srcaddr = ((addr_t) psrcsid) & ADDR_PAGE_ALIGN;
+    addr_t dstaddr = (addr_t) ((uint8_t*)psrcsid + len) & ADDR_PAGE_ALIGN;
+    HANDLE hproc;
+    uint8_t readbuf[4];
+    size_t dret;
+    BOOL bret;
+    curlen = len + 16;
+    int ret;
+
+    if (dstaddr != srcaddr) {
+        hproc = GetCurrentProcess();
+
+        while (srcaddr != dstaddr) {
+            dret = 0;
+            bret = ReadProcessMemory(hproc,(LPVOID)srcaddr,readbuf,sizeof(readbuf),&dret);
+            if (!bret || dret != sizeof(readbuf)) {            
+                return 0;
+            }
+            srcaddr += ADDR_PAGE_SIZE;
+        }
+
+        dret = 0;
+        /*to test memory ok*/
+        bret = ReadProcessMemory(hproc,(LPVOID)srcaddr,readbuf,sizeof(readbuf),&dret);
+        if (!bret || dret != sizeof(readbuf)) {            
+            return 0;
+        }        
+
+    }
+
+
+    pnsid = LocalAlloc(LMEM_FIXED,(size_t)curlen);
+    if (pnsid == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    memset(pnsid,0,(size_t)curlen);
+    if (len > 0) {
+        memcpy(pnsid,psrcsid,(size_t)len);
+    }
+
+    bret = ConvertSidToStringSid(pnsid,&ptcmpsidstr);
+    if (!bret) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (_tcscmp(ptcmpsidstr,ptsidstr) == 0) {
+        valid = 1;
+    }
+
+    if (ptcmpsidstr) {
+        LocalFree(ptcmpsidstr);
+    }
+    ptcmpsidstr = NULL;
+
+    if (pnsid) {
+        LocalFree(pnsid);
+    }
+    pnsid = NULL;
+
+
+    SETERRNO(0);
+    return valid;
+fail:
+    if (ptcmpsidstr) {
+        LocalFree(ptcmpsidstr);
+    }
+    ptcmpsidstr = NULL;
+
+    if (pnsid) {
+        LocalFree(pnsid);
+    }
+    pnsid = NULL;
+
+    SETERRNO(ret);
+    return 0;
+
+}
+
+int __copy_sid_ex(PSID psrcsid,PSID* ppdstsid,int *psize)
+{
+    int retlen = 0;
+    PSID pretsid=NULL;
+    int retsize=0;
+    uint8_t readbuf[8];
+    TCHAR* ptsidstr=NULL;
+    int i;
+    uint8_t *psrcptr,*pdstptr;
+    PSID pcmpsid = NULL;
+    addr_t srcaddr,dstaddr;
+    HANDLE hproc=NULL;
+    size_t dret;
+    int ret;
+    BOOL bret;
+
+    if (psrcsid == NULL) {
+        if (ppdstsid && *ppdstsid) {
+            LocalFree(*ppdstsid);
+            *ppdstsid = NULL;
+        }
+        if (psize) {
+            *psize = 0;
+        }
+        return 0;
+    }
+    if (ppdstsid == NULL || psize == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pretsid = *ppdstsid;
+    retsize = *psize;
+
+    DEBUG_INFO(" ");
+
+    bret = ConvertSidToStringSid(psrcsid,&ptsidstr);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("ConvertSidToStringSid error %d",ret);
+        goto fail;
+    }
+
+    DEBUG_BUFFER_FMT(ptsidstr,_tcslen(ptsidstr)* sizeof(TCHAR),"ptsidstr");
+
+    /*now we should copy the size*/
+    bret = ConvertStringSidToSid(ptsidstr,&pcmpsid);
+    if (!bret) {
+        GETERRNO(ret);
+        ERROR_INFO("ConvertStringSidToSid error %d",ret);
+        goto fail;
+    }
+
+
+    psrcptr = (uint8_t*)psrcsid;
+    pdstptr = (uint8_t*)pcmpsid;
+    hproc = GetCurrentProcess();
+    i = 0;
+    while(1) {
+        srcaddr = (addr_t) psrcptr;
+        dstaddr = (addr_t) pdstptr;
+        if ((srcaddr & ADDR_PAGE_MASK) == 0) {
+            dret = 0;
+            /*it is the page range over ,so check it is ok*/
+            bret = ReadProcessMemory(hproc,(LPVOID)srcaddr,readbuf,sizeof(readbuf),&dret);
+            if (!bret || dret != sizeof(readbuf)) {
+                retlen = i;
+                break;
+            }
+        }
+
+        if ((dstaddr & ADDR_PAGE_MASK) == 0) {
+            bret = ReadProcessMemory(hproc,(LPVOID)dstaddr,readbuf,sizeof(readbuf),&dret);
+            if (!bret || dret != sizeof(readbuf)) {
+                retlen = i;
+                break;
+            }
+        }
+
+        if (*psrcptr != *pdstptr) {
+            retlen = i;
+            break;
+        }
+
+        i ++;
+        psrcptr ++;
+        pdstptr ++;
+    }
+
+
+    if (retsize < retlen) {
+        retsize = retlen + 1;
+        pretsid = LocalAlloc(LMEM_FIXED,(size_t)retsize);
+        if (pretsid == NULL) {
+            GETERRNO(ret);
+            goto fail;
+        }
+    }
+
+    memset(pretsid,0,(size_t)retsize);
+    if (retlen > 0) {
+        memcpy(pretsid,psrcsid,(size_t)retlen);
+    }
+
+
+    if (pcmpsid) {
+        LocalFree(pcmpsid);
+    }
+    pcmpsid = NULL;
+
+
+    if (ptsidstr) {
+        LocalFree(ptsidstr);
+    }
+    ptsidstr = NULL;
+
+
+    if (*ppdstsid && pretsid != *ppdstsid) {
+        LocalFree(*ppdstsid);
+    }
+
+    *ppdstsid = pretsid;
+    *psize = retsize;
+
+    return retlen;
+fail:
+    if (pcmpsid) {
+        LocalFree(pcmpsid);
+    }
+    pcmpsid = NULL;
+
+
+    if (ptsidstr) {
+        LocalFree(ptsidstr);
+    }
+    ptsidstr = NULL;
+
+    if (pretsid && pretsid != *ppdstsid) {
+        LocalFree(pretsid);
+    }
+    pretsid = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+
 int __get_sid_from_name(const char* name, PSID* ppsid, int *psidsize)
 {
     TCHAR* ptname = NULL;
@@ -2765,21 +3000,22 @@ fail:
     return ret;
 }
 
-int __set_file_owner(const char* fname, const char* username)
+int __set_file_owner_by_sid(const char* fname, PSID psid)
 {
     int ret = 0;
-    int sidsize = 0;
-    PSID psid = NULL;
     int dpsize = 0;
     int dplen = 0;
     PSECURITY_DESCRIPTOR pdp = NULL;
-    ret = __get_sid_from_name(username, &psid, &sidsize);
+    PSID pdupsid = NULL;
+    int dupsize=0;
+
+    ret = __copy_sid_ex(psid,&pdupsid,&dupsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
-    DEBUG_BUFFER_FMT(psid, ret, "sid for [%s]", username);
-    ret = __new_sid_descriptor(psid, SID_OWNER_MODE, &pdp, &dpsize);
+
+    ret = __new_sid_descriptor(pdupsid, SID_OWNER_MODE, &pdp, &dpsize);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -2787,9 +3023,8 @@ int __set_file_owner(const char* fname, const char* username)
     dplen = ret;
     DEBUG_BUFFER_FMT(pdp, dplen, "dp with sid");
     /*psid is LocalFree in __new_sid_descriptor*/
-    psid = NULL;
-    sidsize = 0;
-
+    pdupsid = NULL;
+    dupsize = 0;
 
     ret = __set_file_descriptor((char*)fname, OWNER_SECURITY_INFORMATION, pdp);
     if (ret < 0) {
@@ -2798,14 +3033,42 @@ int __set_file_owner(const char* fname, const char* username)
     }
 
     __new_sid_descriptor(NULL, SID_OWNER_MODE, &pdp, &dpsize);
-    __get_sid_from_name(NULL, &psid, &sidsize);
+
+    __copy_sid_ex(NULL,&pdupsid,&dupsize);
     SETERRNO(0);
     return 0;
 fail:
     __new_sid_descriptor(NULL, SID_OWNER_MODE, &pdp, &dpsize);
+    __copy_sid_ex(NULL,&pdupsid,&dupsize);
+    SETERRNO(ret);
+    return ret;    
+
+}
+
+int __set_file_owner(const char* fname, const char* username)
+{
+    int ret = 0;
+    int sidsize = 0;
+    PSID psid = NULL;
+    ret = __get_sid_from_name(username, &psid, &sidsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    DEBUG_BUFFER_FMT(psid, ret, "sid for [%s]", username);
+    ret = __set_file_owner_by_sid(fname,psid);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    __get_sid_from_name(NULL, &psid, &sidsize);
+    SETERRNO(0);
+    return 0;
+fail:
     __get_sid_from_name(NULL, &psid, &sidsize);
     SETERRNO(ret);
     return ret;    
+    
 }
 
 
@@ -2879,6 +3142,91 @@ fail:
     return ret;    
 }
 
+int __get_proc_sid(int freed,PSID* ppsid,int *psize)
+{
+    HANDLE hproc=NULL;
+    HANDLE htoken=NULL;
+    LPVOID pbuf=NULL;
+    DWORD bufsize=16;
+    DWORD buflen=0;
+    int retlen;
+    int ret;
+    PTOKEN_USER puser=NULL;
+    BOOL bret;
+    if (freed) {
+        return __copy_sid_ex(NULL,ppsid,psize);
+    }
+    
+    hproc = GetCurrentProcess();
+    bret = OpenProcessToken(hproc,TOKEN_QUERY,&htoken);
+    if (!bret) {
+        GETERRNO(ret);
+        htoken = NULL;
+        ERROR_INFO("get htoken error %d", ret);
+        goto fail;
+    }
+
+
+try_again:
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+    pbuf = malloc(bufsize);
+    if (pbuf == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    buflen = 0;
+    bret = GetTokenInformation(htoken,TokenUser,pbuf,bufsize,&buflen);
+    if (!bret) {
+        GETERRNO(ret);
+        if(ret == -ERROR_INSUFFICIENT_BUFFER) {
+            bufsize <<= 1;
+            goto try_again;
+        }
+        ERROR_INFO("get current process sid error [%d]", ret);
+        goto fail;
+    }
+
+    DEBUG_INFO(" ");
+
+    puser = (PTOKEN_USER) pbuf;
+    ret = __copy_sid_ex(puser->User.Sid,ppsid,psize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = ret;
+    if (retlen > 0) {
+        DEBUG_BUFFER_FMT(*ppsid,retlen,"sid get");
+    }    
+
+    if (htoken) {
+        CloseHandle(htoken);
+    }
+    htoken = NULL;
+
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+    return retlen;
+fail:
+
+    if (htoken) {
+        CloseHandle(htoken);
+    }
+    htoken = NULL;
+
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
 int set_file_acls(const char* fname, void* pacl1)
 {
     TCHAR* ptfname=NULL;
@@ -2887,6 +3235,8 @@ int set_file_acls(const char* fname, void* pacl1)
     int cnt = 0;
     int enablesec = 0;
     pwin_acl_t poldacl=NULL;
+    PSID pprocsid=NULL;
+    int procsidsize = 0;
 
     pwin_acl_t pacl = (pwin_acl_t)pacl1;
     if (fname == NULL || pacl == NULL) {
@@ -2909,13 +3259,34 @@ int set_file_acls(const char* fname, void* pacl1)
     enablesec = 1;
     /*now we should get current process sid*/
 
+    ret = __get_proc_sid(0,&pprocsid,&procsidsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
+    ret = __set_file_owner_by_sid(fname,pprocsid);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
 
     ret = __set_file_acl_inner(fname,pacl);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
     }
+    cnt = ret;
+
+
+
+    __get_proc_sid(1,&pprocsid,&procsidsize);
+    /*to free memory*/
+    get_file_acls(NULL,(void**)&poldacl);
+    if (enablesec) {
+        disable_security_priv();
+    }
+    enablesec = 0;
 
 
     return cnt;
@@ -2925,7 +3296,7 @@ fail:
     }
     get_file_acls(NULL,(void**)&poldacl);
 
-
+    __get_proc_sid(1,&pprocsid,&procsidsize);
     if (enablesec) {
         disable_security_priv();
     }
