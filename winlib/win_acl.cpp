@@ -2826,6 +2826,7 @@ int __set_file_acl_inner(const char* fname, pwin_acl_t pacl)
     TCHAR* ptfname=NULL;
     int tfnamesize = 0;
     int cnt = 0;
+    BOOL bret;
     ret = AnsiToTchar(fname,&ptfname,&tfnamesize);
     if (ret < 0) {
         GETERRNO(ret);
@@ -2884,7 +2885,6 @@ int set_file_acls(const char* fname, void* pacl1)
     int tfnamesize=0;
     int ret;
     int cnt = 0;
-    BOOL bret;
     int enablesec = 0;
     pwin_acl_t poldacl=NULL;
 
@@ -2895,7 +2895,7 @@ int set_file_acls(const char* fname, void* pacl1)
         return ret;
     }
 
-    ret = get_file_acls(fname,&poldacl);
+    ret = get_file_acls(fname,(void**)&poldacl);
     if (ret < 0) {
         GETERRNO(ret);
         goto fail;
@@ -2923,7 +2923,7 @@ fail:
     if (poldacl) {
         __set_file_acl_inner(fname,poldacl);
     }
-    get_file_acls(NULL,&poldacl);
+    get_file_acls(NULL,(void**)&poldacl);
 
 
     if (enablesec) {
