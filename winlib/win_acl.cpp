@@ -2765,8 +2765,7 @@ fail:
     return ret;
 }
 
-
-int set_file_owner(const char* fname, const char* username)
+int __set_file_owner(const char* fname, const char* username)
 {
     int ret = 0;
     int sidsize = 0;
@@ -2806,23 +2805,27 @@ fail:
     __new_sid_descriptor(NULL, SID_OWNER_MODE, &pdp, &dpsize);
     __get_sid_from_name(NULL, &psid, &sidsize);
     SETERRNO(ret);
-    return ret;
+    return ret;    
 }
 
-int set_file_acls(const char* fname, void* pacl1)
+
+int set_file_owner(const char* fname, const char* username)
 {
-    TCHAR* ptfname=NULL;
-    int tfnamesize=0;
     int ret;
-    int cnt = 0;
-    BOOL bret;
-    pwin_acl_t pacl = (pwin_acl_t)pacl1;
-    if (fname == NULL || pacl == NULL) {
+    if (fname == NULL || username == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
         return ret;
     }
+    return __set_file_owner(fname,username);
+}
 
+int __set_file_acl_inner(const char* fname, pwin_acl_t pacl)
+{
+    int ret;
+    TCHAR* ptfname=NULL;
+    int tfnamesize = 0;
+    int cnt = 0;
     ret = AnsiToTchar(fname,&ptfname,&tfnamesize);
     if (ret < 0) {
         GETERRNO(ret);
@@ -2868,9 +2871,65 @@ int set_file_acls(const char* fname, void* pacl1)
         }
         cnt += 1;
     }
+    return cnt;
+fail:
+    AnsiToTchar(NULL,&ptfname,&tfnamesize);
+    SETERRNO(ret);
+    return ret;    
+}
+
+int set_file_acls(const char* fname, void* pacl1)
+{
+    TCHAR* ptfname=NULL;
+    int tfnamesize=0;
+    int ret;
+    int cnt = 0;
+    BOOL bret;
+    int enablesec = 0;
+    pwin_acl_t poldacl=NULL;
+
+    pwin_acl_t pacl = (pwin_acl_t)pacl1;
+    if (fname == NULL || pacl == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = get_file_acls(fname,&poldacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = enable_security_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enablesec = 1;
+    /*now we should get current process sid*/
+
+
+
+    ret = __set_file_acl_inner(fname,pacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
 
     return cnt;
 fail:
+    if (poldacl) {
+        __set_file_acl_inner(fname,poldacl);
+    }
+    get_file_acls(NULL,&poldacl);
+
+
+    if (enablesec) {
+        disable_security_priv();
+    }
+    enablesec = 0;
     AnsiToTchar(NULL,&ptfname,&tfnamesize);
     SETERRNO(ret);
     return ret;
