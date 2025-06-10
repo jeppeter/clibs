@@ -314,7 +314,7 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                     goto out;
                 }
 
-                fprintf(stdout, "[%03d][%03d]%-5s %-*s %-*s %-*s %-*s %-*s %-*s %-*s\n", i, j, "sacl",
+                fprintf(stdout, "sacl[%03d][%03d]%-5s %-*s %-*s %-*s %-*s %-*s %-*s %-*s\n", i, j, "sacl",
                     maxfilesize + 1, fname, maxownersize + 1 , owner,
                     maxgroupsize + 1, group, maxusersize + 1, user,
                     maxactionsize + 1 , action, maxrightsize + 1 , right,
@@ -367,7 +367,7 @@ int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
                     goto out;
                 }
 
-                fprintf(stdout, "[%03d][%03d]%-5s %-*s %-*s %-*s %-*s %-*s %-*s %-*s\n", i, j, "dacl",
+                fprintf(stdout, "dacl[%03d][%03d]%-5s %-*s %-*s %-*s %-*s %-*s %-*s %-*s\n", i, j, "dacl",
                     maxfilesize + 1, fname, maxownersize + 1 , owner,
                     maxgroupsize + 1, group, maxusersize + 1, user,
                     maxactionsize + 1 , action, maxrightsize + 1 , right,
@@ -1595,7 +1595,7 @@ int dumpdacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             accnum = ret;
 
             DEBUG_BUFFER_FMT(pdp, dpsize, "[%d][dacl][%s] for [%d] explicit access", i , sddl, accnum);
-            next_one:
+        next_one:
             __get_explicit_access_2(NULL, &paccess, &accsize);
             accnum = 0;
             __get_security_descriptor_from_string_2(NULL, &pdp);
@@ -1606,6 +1606,48 @@ int dumpdacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     out:
     __get_explicit_access_2(NULL, &paccess, &accsize);
     __get_security_descriptor_from_string_2(NULL, &pdp);
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int setacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    void* pacl=NULL;
+    int ret;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    char* fname=NULL;
+
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+
+    init_log_level(pargs);
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        fname = parsestate->leftargs[0];
+    }
+
+    if (fname == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        fprintf(stderr, "need file\n");
+        goto out;
+    }
+
+    ret = get_file_acls(fname,&pacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = set_file_acls(fname,pacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    fprintf(stdout,"set [%s] acl succ\n", fname);
+    ret = 0;
+out:
+    get_file_acls(NULL,&pacl);
     SETERRNO(ret);
     return ret;
 }

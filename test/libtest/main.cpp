@@ -173,6 +173,7 @@ int regbinget_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int regbinset_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int winver_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int setacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setowner_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getsid_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int setgroup_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);

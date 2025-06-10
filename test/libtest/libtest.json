@@ -120,6 +120,9 @@
     "getacl<getacl_handler>##files...  to get the file acl##" : {
         "$" : "+"
     },
+    "setacl<setacl_handler>##file [aclrule] to set file acl##" : {
+        "$" : "+"
+    },
     "setowner<setowner_handler>##owner files... to set owner for file or directory##" : {
         "$" : "+"
     },

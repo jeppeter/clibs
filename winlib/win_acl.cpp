@@ -2811,10 +2811,69 @@ fail:
 
 int set_file_acls(const char* fname, void* pacl1)
 {
-    fname = fname;
-    pacl1 = pacl1;
-    SETERRNO(0);
-    return 0;
+    TCHAR* ptfname=NULL;
+    int tfnamesize=0;
+    int ret;
+    int cnt = 0;
+    BOOL bret;
+    pwin_acl_t pacl = (pwin_acl_t)pacl1;
+    if (fname == NULL || pacl == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = AnsiToTchar(fname,&ptfname,&tfnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (pacl->m_saclsdp != NULL) {
+        bret = SetFileSecurity(ptfname,SACL_SECURITY_INFORMATION,pacl->m_saclsdp);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("set [%s] SACL_SECURITY_INFORMATION error %d", fname, ret);
+            goto fail;
+        }
+        cnt += 1;
+    }
+
+    if (pacl->m_daclsdp != NULL) {
+        bret = SetFileSecurity(ptfname,DACL_SECURITY_INFORMATION,pacl->m_daclsdp);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("set [%s] DACL_SECURITY_INFORMATION error %d", fname, ret);
+            goto fail;
+        }
+        cnt += 1;
+    }
+
+    if (pacl->m_groupsdp != NULL) {
+        bret = SetFileSecurity(ptfname,GROUP_SECURITY_INFORMATION,pacl->m_groupsdp);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("set [%s] GROUP_SECURITY_INFORMATION error %d", fname, ret);
+            goto fail;
+        }
+        cnt += 1;
+    }
+
+    if (pacl->m_ownersdp != NULL) {
+        bret = SetFileSecurity(ptfname,OWNER_SECURITY_INFORMATION,pacl->m_ownersdp);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("set [%s] OWNER_SECURITY_INFORMATION error %d", fname, ret);
+            goto fail;
+        }
+        cnt += 1;
+    }
+
+    return cnt;
+fail:
+    AnsiToTchar(NULL,&ptfname,&tfnamesize);
+    SETERRNO(ret);
+    return ret;
 }
 
 int get_name_sid(const char* name, char** ppsid, int *psize)
