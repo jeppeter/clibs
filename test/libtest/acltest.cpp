@@ -544,9 +544,17 @@ int removesacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void
         goto out;
     }
 
+    ret = set_file_acls(fname,pacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"flush [%s] right error %d\n",fname,ret);
+        goto out;
+    }
+
+
     fprintf(stdout, "[%s] remove sacl [%s][%s][%s][%s] succ\n", fname, username, action, right, inherit != NULL ? inherit : "notmodify");
     ret = 0;
-    out:
+out:
     get_file_acls(NULL, &pacl);
     SETERRNO(ret);
     return ret;
@@ -609,6 +617,14 @@ int removedacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void
         fprintf(stderr, "[%s] remove dacl [%s][%s][%s][%s] error[%d]\n", fname, username, action, right, inherit != NULL ? inherit : "notmodify", ret);
         goto out;
     }
+
+    ret = set_file_acls(fname,pacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"flush [%s] right error %d\n",fname,ret);
+        goto out;
+    }
+
 
     fprintf(stdout, "[%s] remove dacl [%s][%s][%s][%s] succ\n", fname, username, action, right, inherit != NULL ? inherit : "notmodify");
     ret = 0;
@@ -676,9 +692,16 @@ int addsacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         goto out;
     }
 
+    ret = set_file_acls(fname,pacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"flush [%s] right error %d\n",fname,ret);
+        goto out;
+    }
+
     fprintf(stdout, "[%s] add sacl [%s][%s][%s][%s] succ\n", fname, username, action, right, inherit != NULL ? inherit : "notmodify");
     ret = 0;
-    out:
+out:
     get_file_acls(NULL, &pacl);
     SETERRNO(ret);
     return ret;
