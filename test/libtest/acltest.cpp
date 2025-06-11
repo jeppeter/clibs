@@ -742,6 +742,13 @@ int adddacl_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
         goto out;
     }
 
+    ret = set_file_acls(fname,pacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"flush [%s] right error %d\n",fname,ret);
+        goto out;
+    }
+
     fprintf(stdout, "[%s] add dacl [%s][%s][%s][%s] succ\n", fname, username, action, right, inherit != NULL ? inherit : "notmodify");
     ret = 0;
 out:

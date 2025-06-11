@@ -73,6 +73,11 @@ typedef struct __win_acl {
     DWORD m_sacllen;
 } win_acl_t, *pwin_acl_t;
 
+#define  OWNER_MODI                1
+#define  GROUP_MODI                2
+#define  DACL_MODI                 4
+#define  SACL_MODI                 8
+
 void __free_trustee(PTRUSTEE* pptrustee);
 
 void __release_trustee(PTRUSTEE ptrustee)
@@ -3083,228 +3088,6 @@ int set_file_owner(const char* fname, const char* username)
     return __set_file_owner(fname,username);
 }
 
-int __set_file_acl_inner(const char* fname, pwin_acl_t pacl)
-{
-    int ret;
-    TCHAR* ptfname=NULL;
-    int tfnamesize = 0;
-    int cnt = 0;
-    BOOL bret;
-    ret = AnsiToTchar(fname,&ptfname,&tfnamesize);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    if (pacl->m_saclsdp != NULL) {
-        bret = SetFileSecurity(ptfname,SACL_SECURITY_INFORMATION,pacl->m_saclsdp);
-        if (!bret) {
-            GETERRNO(ret);
-            ERROR_INFO("set [%s] SACL_SECURITY_INFORMATION error %d", fname, ret);
-            goto fail;
-        }
-        cnt += 1;
-    }
-
-    if (pacl->m_daclsdp != NULL) {
-        bret = SetFileSecurity(ptfname,DACL_SECURITY_INFORMATION,pacl->m_daclsdp);
-        if (!bret) {
-            GETERRNO(ret);
-            ERROR_INFO("set [%s] DACL_SECURITY_INFORMATION error %d", fname, ret);
-            goto fail;
-        }
-        cnt += 1;
-    }
-
-    if (pacl->m_groupsdp != NULL) {
-        bret = SetFileSecurity(ptfname,GROUP_SECURITY_INFORMATION,pacl->m_groupsdp);
-        if (!bret) {
-            GETERRNO(ret);
-            ERROR_INFO("set [%s] GROUP_SECURITY_INFORMATION error %d", fname, ret);
-            goto fail;
-        }
-        cnt += 1;
-    }
-
-    if (pacl->m_ownersdp != NULL) {
-        bret = SetFileSecurity(ptfname,OWNER_SECURITY_INFORMATION,pacl->m_ownersdp);
-        if (!bret) {
-            GETERRNO(ret);
-            ERROR_INFO("set [%s] OWNER_SECURITY_INFORMATION error %d", fname, ret);
-            goto fail;
-        }
-        cnt += 1;
-    }
-    return cnt;
-fail:
-    AnsiToTchar(NULL,&ptfname,&tfnamesize);
-    SETERRNO(ret);
-    return ret;    
-}
-
-int __get_proc_sid(int freed,PSID* ppsid,int *psize)
-{
-    HANDLE hproc=NULL;
-    HANDLE htoken=NULL;
-    LPVOID pbuf=NULL;
-    DWORD bufsize=16;
-    DWORD buflen=0;
-    int retlen;
-    int ret;
-    PTOKEN_USER puser=NULL;
-    BOOL bret;
-    if (freed) {
-        return __copy_sid_ex(NULL,ppsid,psize);
-    }
-    
-    hproc = GetCurrentProcess();
-    bret = OpenProcessToken(hproc,TOKEN_QUERY,&htoken);
-    if (!bret) {
-        GETERRNO(ret);
-        htoken = NULL;
-        ERROR_INFO("get htoken error %d", ret);
-        goto fail;
-    }
-
-
-try_again:
-    if (pbuf) {
-        free(pbuf);
-    }
-    pbuf = NULL;
-    pbuf = malloc(bufsize);
-    if (pbuf == NULL) {
-        GETERRNO(ret);
-        goto fail;
-    }
-    buflen = 0;
-    bret = GetTokenInformation(htoken,TokenUser,pbuf,bufsize,&buflen);
-    if (!bret) {
-        GETERRNO(ret);
-        if(ret == -ERROR_INSUFFICIENT_BUFFER) {
-            bufsize <<= 1;
-            goto try_again;
-        }
-        ERROR_INFO("get current process sid error [%d]", ret);
-        goto fail;
-    }
-
-    DEBUG_INFO(" ");
-
-    puser = (PTOKEN_USER) pbuf;
-    ret = __copy_sid_ex(puser->User.Sid,ppsid,psize);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-    retlen = ret;
-    if (retlen > 0) {
-        DEBUG_BUFFER_FMT(*ppsid,retlen,"sid get");
-    }    
-
-    if (htoken) {
-        CloseHandle(htoken);
-    }
-    htoken = NULL;
-
-    if (pbuf) {
-        free(pbuf);
-    }
-    pbuf = NULL;
-    return retlen;
-fail:
-
-    if (htoken) {
-        CloseHandle(htoken);
-    }
-    htoken = NULL;
-
-    if (pbuf) {
-        free(pbuf);
-    }
-    pbuf = NULL;
-    SETERRNO(ret);
-    return ret;
-}
-
-int set_file_acls(const char* fname, void* pacl1)
-{
-    TCHAR* ptfname=NULL;
-    int tfnamesize=0;
-    int ret;
-    int cnt = 0;
-    int enablesec = 0;
-    pwin_acl_t poldacl=NULL;
-    PSID pprocsid=NULL;
-    int procsidsize = 0;
-
-    pwin_acl_t pacl = (pwin_acl_t)pacl1;
-    if (fname == NULL || pacl == NULL) {
-        ret = -ERROR_INVALID_PARAMETER;
-        SETERRNO(ret);
-        return ret;
-    }
-
-    ret = get_file_acls(fname,(void**)&poldacl);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = enable_security_priv();
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-    enablesec = 1;
-    /*now we should get current process sid*/
-
-    ret = __get_proc_sid(0,&pprocsid,&procsidsize);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = __set_file_owner_by_sid(fname,pprocsid);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-
-    ret = __set_file_acl_inner(fname,pacl);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto fail;
-    }
-    cnt = ret;
-
-
-
-    __get_proc_sid(1,&pprocsid,&procsidsize);
-    /*to free memory*/
-    get_file_acls(NULL,(void**)&poldacl);
-    if (enablesec) {
-        disable_security_priv();
-    }
-    enablesec = 0;
-
-
-    return cnt;
-fail:
-    if (poldacl) {
-        __set_file_acl_inner(fname,poldacl);
-    }
-    get_file_acls(NULL,(void**)&poldacl);
-
-    __get_proc_sid(1,&pprocsid,&procsidsize);
-    if (enablesec) {
-        disable_security_priv();
-    }
-    enablesec = 0;
-    AnsiToTchar(NULL,&ptfname,&tfnamesize);
-    SETERRNO(ret);
-    return ret;
-}
 
 int get_name_sid(const char* name, char** ppsid, int *psize)
 {
@@ -4498,6 +4281,7 @@ try_dacl_sec:
         enabled = 0;
     }
 
+
     DEBUG_BUFFER_FMT(pacl->m_fname, pacl->m_namesize, "fname");
     *ppacl1 = pacl;
     SETERRNO(0);
@@ -4520,6 +4304,230 @@ fail:
     if (pacl != NULL && pacl != *ppacl1) {
         __free_win_acl(&pacl);
     }
+    SETERRNO(ret);
+    return ret;
+}
+
+
+int __set_file_acl_inner(const char* fname, pwin_acl_t pacl)
+{
+    int ret;
+    TCHAR* ptfname=NULL;
+    int tfnamesize = 0;
+    int cnt = 0;
+    BOOL bret;
+    ret = AnsiToTchar(fname,&ptfname,&tfnamesize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (pacl->m_saclsdp != NULL) {
+        bret = SetFileSecurity(ptfname,SACL_SECURITY_INFORMATION,pacl->m_saclsdp);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("set [%s] SACL_SECURITY_INFORMATION error %d", fname, ret);
+            goto fail;
+        }
+        cnt += 1;
+    }
+
+    if (pacl->m_daclsdp != NULL) {
+        bret = SetFileSecurity(ptfname,DACL_SECURITY_INFORMATION,pacl->m_daclsdp);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("set [%s] DACL_SECURITY_INFORMATION error %d", fname, ret);
+            goto fail;
+        }
+        cnt += 1;
+    }
+
+    if (pacl->m_groupsdp != NULL) {
+        bret = SetFileSecurity(ptfname,GROUP_SECURITY_INFORMATION,pacl->m_groupsdp);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("set [%s] GROUP_SECURITY_INFORMATION error %d", fname, ret);
+            goto fail;
+        }
+        cnt += 1;
+    }
+
+    if (pacl->m_ownersdp != NULL) {
+        bret = SetFileSecurity(ptfname,OWNER_SECURITY_INFORMATION,pacl->m_ownersdp);
+        if (!bret) {
+            GETERRNO(ret);
+            ERROR_INFO("set [%s] OWNER_SECURITY_INFORMATION error %d", fname, ret);
+            goto fail;
+        }
+        cnt += 1;
+    }
+    return cnt;
+fail:
+    AnsiToTchar(NULL,&ptfname,&tfnamesize);
+    SETERRNO(ret);
+    return ret;    
+}
+
+int __get_proc_sid(int freed,PSID* ppsid,int *psize)
+{
+    HANDLE hproc=NULL;
+    HANDLE htoken=NULL;
+    LPVOID pbuf=NULL;
+    DWORD bufsize=16;
+    DWORD buflen=0;
+    int retlen;
+    int ret;
+    PTOKEN_USER puser=NULL;
+    BOOL bret;
+    if (freed) {
+        return __copy_sid_ex(NULL,ppsid,psize);
+    }
+    
+    hproc = GetCurrentProcess();
+    bret = OpenProcessToken(hproc,TOKEN_QUERY,&htoken);
+    if (!bret) {
+        GETERRNO(ret);
+        htoken = NULL;
+        ERROR_INFO("get htoken error %d", ret);
+        goto fail;
+    }
+
+
+try_again:
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+    pbuf = malloc(bufsize);
+    if (pbuf == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    buflen = 0;
+    bret = GetTokenInformation(htoken,TokenUser,pbuf,bufsize,&buflen);
+    if (!bret) {
+        GETERRNO(ret);
+        if(ret == -ERROR_INSUFFICIENT_BUFFER) {
+            bufsize <<= 1;
+            goto try_again;
+        }
+        ERROR_INFO("get current process sid error [%d]", ret);
+        goto fail;
+    }
+
+    DEBUG_INFO(" ");
+
+    puser = (PTOKEN_USER) pbuf;
+    ret = __copy_sid_ex(puser->User.Sid,ppsid,psize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    retlen = ret;
+    if (retlen > 0) {
+        DEBUG_BUFFER_FMT(*ppsid,retlen,"sid get");
+    }    
+
+    if (htoken) {
+        CloseHandle(htoken);
+    }
+    htoken = NULL;
+
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+    return retlen;
+fail:
+
+    if (htoken) {
+        CloseHandle(htoken);
+    }
+    htoken = NULL;
+
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+    SETERRNO(ret);
+    return ret;
+}
+
+int set_file_acls(const char* fname, void* pacl1)
+{
+    TCHAR* ptfname=NULL;
+    int tfnamesize=0;
+    int ret;
+    int cnt = 0;
+    int enablesec = 0;
+    pwin_acl_t poldacl=NULL;
+    PSID pprocsid=NULL;
+    int procsidsize = 0;
+
+    pwin_acl_t pacl = (pwin_acl_t)pacl1;
+    if (fname == NULL || pacl == NULL) {
+        ret = -ERROR_INVALID_PARAMETER;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    ret = get_file_acls(fname,(void**)&poldacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = enable_security_priv();
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    enablesec = 1;
+    /*now we should get current process sid*/
+
+    ret = __get_proc_sid(0,&pprocsid,&procsidsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __set_file_owner_by_sid(fname,pprocsid);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = __set_file_acl_inner(fname,pacl);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    cnt = ret;
+
+
+
+    __get_proc_sid(1,&pprocsid,&procsidsize);
+    /*to free memory*/
+    get_file_acls(NULL,(void**)&poldacl);
+    if (enablesec) {
+        disable_security_priv();
+    }
+    enablesec = 0;
+
+
+    return cnt;
+fail:
+    if (poldacl) {
+        __set_file_acl_inner(fname,poldacl);
+    }
+    get_file_acls(NULL,(void**)&poldacl);
+
+    __get_proc_sid(1,&pprocsid,&procsidsize);
+    if (enablesec) {
+        disable_security_priv();
+    }
+    enablesec = 0;
+    AnsiToTchar(NULL,&ptfname,&tfnamesize);
     SETERRNO(ret);
     return ret;
 }
