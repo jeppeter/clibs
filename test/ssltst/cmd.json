@@ -355,6 +355,12 @@
     },
     "tsreqdec<tsreqdec_handler>##binfile ... to decode TimeStampReq##" : {
         "$" : "+"
+    },
+    "rsasign<rsasign_handler>##privkey.pem inputdatafile signdatafile to sign with rsa in sha256 digest##" : {
+        "$" : 3
+    },
+    "rsavfy<rsavfy_handler>##cert.pem inputdatafile signdatafile to verify with rsa in sha256 digest##" : {
+        "$" : 3
     }
 
 }

@@ -156,6 +156,8 @@ int x509extenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int x509extdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tsreqenc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tsreqdec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int rsavfy_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 #ifdef __cplusplus
 };

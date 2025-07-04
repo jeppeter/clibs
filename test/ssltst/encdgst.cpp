@@ -378,3 +378,274 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char *privkeyfile=NULL,*inputfile=NULL, *signfile=NULL;
+    char *keydata=NULL, *indata=NULL,*signdata=NULL;
+    int keysize=0,insize=0,signsize=0;
+    int keylen=0,inlen=0,signlen=0;
+    int ret;
+    BIO* keybio=NULL;
+    EVP_PKEY* pkey=NULL;
+    EVP_MD_CTX* ctx=NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_verbose(pargs);
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        privkeyfile = parsestate->leftargs[0];
+        if (parsestate->leftargs && parsestate->leftargs[1]) {
+            inputfile = parsestate->leftargs[1];
+            if (parsestate->leftargs && parsestate->leftargs[2]) {
+                signfile = parsestate->leftargs[2];
+            }
+        }
+    }
+
+    if (privkeyfile == NULL || inputfile == NULL || signfile == NULL) {
+        fprintf(stderr,"need privkey inputfile signfile\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
+    ret = read_file_whole(privkeyfile,&keydata,&keysize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    keylen = ret;
+
+    ret = read_file_whole(inputfile,&indata,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    inlen = ret;
+
+    keybio = BIO_new_mem_buf(keydata,keylen);
+    if (keybio == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("mem buf error [%d]", ret);
+        goto out;
+    }
+
+    pkey = d2i_PrivateKey_bio(keybio,NULL);
+    if (pkey == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("from [%s] key error %d", privkeyfile,ret);
+        goto out;
+    }
+
+    ctx = EVP_MD_CTX_create();
+    if (ctx == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = EVP_DigestSignInit(ctx, NULL, EVP_sha256(), NULL, pkey);
+    if (ret <= 0) {
+        GETERRNO(ret);
+        ERROR_INFO("Digest init error %d", ret);
+        goto out;
+    }
+
+    ret = EVP_DigestSignUpdate(ctx,indata,inlen);
+    if (ret <= 0) {
+        GETERRNO(ret);
+        ERROR_INFO("update digest error %d", ret);
+        goto out;
+    }
+
+    signsize = 0;
+    ret = EVP_DigestSignFinal(ctx,NULL,(size_t*)&signsize);
+    if (ret <= 0) {
+        GETERRNO(ret);
+        ERROR_INFO("final error %d", ret);
+        goto out;
+    }
+
+    signdata = (char*) malloc(signsize);
+    if (signdata == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+    memset(signdata,0,signsize);
+
+    signlen = signsize;
+    ret = EVP_DigestSignFinal(ctx,(unsigned char*)signdata,(size_t*)&signlen);
+    if (ret <= 0) {
+        GETERRNO(ret);
+        ERROR_INFO("final error %d", ret);
+        goto out;
+    }
+
+    ret = write_file_whole(signfile,signdata,signsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = 0;
+out:
+    if (signdata) {
+        free(signdata);
+    }
+    signdata = NULL;
+    signsize = 0;
+    signlen = 0;
+
+    if (ctx) {
+        EVP_MD_CTX_destroy(ctx);
+    }
+    ctx = NULL;
+
+    if (pkey) {
+        EVP_PKEY_free(pkey);
+    }
+    pkey = NULL;
+
+    if (keybio) {
+        BIO_free(keybio);
+    }
+    keybio = NULL;
+    read_file_whole(NULL,&keydata,&keysize);
+    read_file_whole(NULL,&indata,&insize);
+    SETERRNO(ret);
+    return ret;
+}
+
+int rsavfy_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    char *certfile=NULL,*inputfile=NULL, *signfile=NULL;
+    char *certdata=NULL, *indata=NULL,*signdata=NULL;
+    int certsize=0,insize=0,signsize=0;
+    int certlen=0,inlen=0,signlen=0;
+    int ret;
+    BIO* certbio=NULL;
+    X509* cert=NULL;
+    EVP_PKEY* pubkey=NULL;
+    EVP_MD_CTX* ctx=NULL;
+    X509_PUBKEY* x509pubkey = NULL;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    init_log_verbose(pargs);
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        certfile = parsestate->leftargs[0];
+        if (parsestate->leftargs && parsestate->leftargs[1]) {
+            inputfile = parsestate->leftargs[1];
+            if (parsestate->leftargs && parsestate->leftargs[2]) {
+                signfile = parsestate->leftargs[2];
+            }
+        }
+    }
+
+    if (certfile == NULL || inputfile == NULL || signfile == NULL) {
+        fprintf(stderr,"need certfile inputfile signfile\n");
+        ret = -EINVAL;
+        goto out;
+    }
+
+    ret = read_file_whole(certfile,&certdata,&certsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    certlen = ret;
+
+    ret = read_file_whole(inputfile,&indata,&insize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    inlen = ret;
+
+    ret = read_file_whole(signfile,&signdata,&signsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    signlen = ret;
+
+    certbio = BIO_new_mem_buf(certdata,certlen);
+    if (certbio == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("mem buf error [%d]", ret);
+        goto out;
+    }
+
+    cert = d2i_X509_bio(certbio,NULL);
+    if (cert == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("from [%s] key error %d", certfile,ret);
+        goto out;
+    }
+
+    x509pubkey =  X509_get_X509_PUBKEY(cert);
+    if (x509pubkey == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("can not get x509pubkey %d",ret);
+        goto out;
+    }
+
+    pubkey = X509_PUBKEY_get(x509pubkey);
+    if (pubkey == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("get pubkey error %d", ret);
+        goto out;
+    }
+
+
+    ctx = EVP_MD_CTX_create();
+    if (ctx == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ret = EVP_DigestVerifyInit(ctx, NULL, EVP_sha256(), NULL, pubkey);
+    if (ret <= 0) {
+        GETERRNO(ret);
+        ERROR_INFO("Digest init error %d", ret);
+        goto out;
+    }
+
+    ret = EVP_DigestVerifyUpdate(ctx,indata,inlen);
+    if (ret <= 0) {
+        GETERRNO(ret);
+        ERROR_INFO("update digest error %d", ret);
+        goto out;
+    }
+
+    ret = EVP_DigestVerifyFinal(ctx,(unsigned char*)signdata,signlen);
+    if (ret <= 0) {
+        GETERRNO(ret);
+        ERROR_INFO("final error %d", ret);
+        goto out;
+    }
+
+
+    fprintf(stdout,"verify [%s] with certfile [%s] with sign [%s] ok\n",inputfile,certfile,signfile);
+    ret = 0;
+out:
+
+    if (ctx) {
+        EVP_MD_CTX_destroy(ctx);
+    }
+    ctx = NULL;
+
+    if (cert) {
+        X509_free(cert);
+    }
+    cert = NULL;
+
+
+    if (certbio) {
+        BIO_free(certbio);
+    }
+    certbio = NULL;
+    read_file_whole(NULL,&signdata,&signsize);
+    read_file_whole(NULL,&certdata,&certsize);
+    read_file_whole(NULL,&indata,&insize);
+    SETERRNO(ret);
+    return ret;
+
+}
