@@ -383,6 +383,8 @@ int rsasign_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 {
     char *privkeyfile=NULL,*inputfile=NULL, *signfile=NULL;
     char *keydata=NULL, *indata=NULL,*signdata=NULL;
+    char *pkeydata=NULL;
+    int keydatalen=0;
     int keysize=0,insize=0,signsize=0;
     int keylen=0,inlen=0,signlen=0;
     int ret;
