@@ -2110,7 +2110,7 @@ int __sid_length_check(PSID psrcsid,int len,TCHAR* ptsidstr)
 
         while (srcaddr != dstaddr) {
             dret = 0;
-            bret = ReadProcessMemory(hproc,(LPVOID)srcaddr,readbuf,sizeof(readbuf),&dret);
+            bret = ReadProcessMemory(hproc,(LPVOID)srcaddr,readbuf,sizeof(readbuf),(SIZE_T*)&dret);
             if (!bret || dret != sizeof(readbuf)) {            
                 return 0;
             }
@@ -2119,7 +2119,7 @@ int __sid_length_check(PSID psrcsid,int len,TCHAR* ptsidstr)
 
         dret = 0;
         /*to test memory ok*/
-        bret = ReadProcessMemory(hproc,(LPVOID)srcaddr,readbuf,sizeof(readbuf),&dret);
+        bret = ReadProcessMemory(hproc,(LPVOID)srcaddr,readbuf,sizeof(readbuf),(SIZE_T*)&dret);
         if (!bret || dret != sizeof(readbuf)) {            
             return 0;
         }        
@@ -2242,7 +2242,7 @@ int __copy_sid_ex(PSID psrcsid,PSID* ppdstsid,int *psize)
         if ((srcaddr & ADDR_PAGE_MASK) == 0) {
             dret = 0;
             /*it is the page range over ,so check it is ok*/
-            bret = ReadProcessMemory(hproc,(LPVOID)srcaddr,readbuf,sizeof(readbuf),&dret);
+            bret = ReadProcessMemory(hproc,(LPVOID)srcaddr,readbuf,sizeof(readbuf),(SIZE_T*)&dret);
             if (!bret || dret != sizeof(readbuf)) {
                 retlen = i;
                 break;
@@ -2250,7 +2250,7 @@ int __copy_sid_ex(PSID psrcsid,PSID* ppdstsid,int *psize)
         }
 
         if ((dstaddr & ADDR_PAGE_MASK) == 0) {
-            bret = ReadProcessMemory(hproc,(LPVOID)dstaddr,readbuf,sizeof(readbuf),&dret);
+            bret = ReadProcessMemory(hproc,(LPVOID)dstaddr,readbuf,sizeof(readbuf),(SIZE_T*)&dret);
             if (!bret || dret != sizeof(readbuf)) {
                 retlen = i;
                 break;
