@@ -917,6 +917,7 @@ int __inner_start_read(psock_data_priv_t psock)
 		//DEBUG_INFO("dret %ld", dret);
 		if (dret == 0) {
 			ret = -WSAESHUTDOWN;
+			DEBUG_INFO("[%s:%d]=>[%s:%d] WSAESHUTDOWN",psock->m_peeraddr, psock->m_peerport, psock->m_selfaddr,psock->m_selfport);
 			/*to make the close error*/
 			psock->m_closeerr = 1;
 			goto fail;
