@@ -149,8 +149,11 @@ int writeoffset_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
         fprintf(stderr, "write [%s] error[%d]\n", outfile, ret);
         goto out;
     }
-
+#if __SIZEOF_POINTER__ == 8
     fprintf(stdout, "read [%s] => [%s] offset[%ld:0x%lx] len[%d]\n", infile, outfile, offset, offset, buflen);
+#else
+    fprintf(stdout, "read [%s] => [%s] offset[%lld:0x%llx] len[%d]\n", infile, outfile, offset, offset, buflen);
+#endif
     __debug_buf(stdout, pbuf, buflen);
     ret = 0;
 out:

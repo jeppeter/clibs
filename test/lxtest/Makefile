@@ -27,8 +27,13 @@ all:dynamic
 
 dynamic:lxtest
 
+ifeq (${CROSS_LIBRARAY_PATH},)
 lxtest:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so
 	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -lextargs -ljson -luxlib -lcryptutil -llzma,"LINK    $@")
+else
+lxtest:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -L${CROSS_LIBRARAY_PATH} -lextargs -ljson -luxlib -lcryptutil -llzma,"LINK    $@")	
+endif
 
 ${DYNAMICDIR}/libuxlib.so:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/uxlib all,"GEN     libuxlib.so")
@@ -48,9 +53,13 @@ all:static
 
 static:lxtest_static
 
-
+ifeq (${CROSS_LIBRARAY_PATH},)
 lxtest_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a
 	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -lextargs -ljson -luxlib -lcryptutil -llzma,"LINK    $@")
+else
+lxtest_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -L${CROSS_LIBRARAY_PATH} -lextargs -ljson -luxlib -lcryptutil -llzma,"LINK    $@")
+endif
 
 
 ${STATICDIR}/libuxlib.a:

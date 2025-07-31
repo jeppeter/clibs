@@ -101,7 +101,11 @@ int procmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 
     memlen = ret;
     for(i=0;i<memlen;i++) {
+#if __SIZEOF_POINTER__ == 8
         fprintf(stdout,"[0x%lx] - [0x%lx]           [%s]\n",pmem[i].m_startaddr, pmem[i].m_endaddr,pmem[i].m_file);
+#else
+        fprintf(stdout,"[0x%llx] - [0x%llx]           [%s]\n",pmem[i].m_startaddr, pmem[i].m_endaddr,pmem[i].m_file);
+#endif
     }
 
     ret = 0;
@@ -257,7 +261,12 @@ int backtrace2_handler(int argc, char* argv[], pextargs_state_t parsestate, void
             GETERRNO(ret);
             goto out;
         }
-        fprintf(stdout,"[0x%lx] - [0x%lx]  [0x%lx]    [%s]     [%s]\n",pmem[i].m_startaddr, pmem[i].m_endaddr, pmem[i].m_endaddr - pmem[i].m_startaddr,protstr,pmem[i].m_file);        fflush(stdout);
+#if __SIZEOF_POINTER__ == 8
+        fprintf(stdout,"[0x%lx] - [0x%lx]  [0x%lx]    [%s]     [%s]\n",pmem[i].m_startaddr, pmem[i].m_endaddr, pmem[i].m_endaddr - pmem[i].m_startaddr,protstr,pmem[i].m_file);
+#else        
+        fprintf(stdout,"[0x%llx] - [0x%llx]  [0x%llx]    [%s]     [%s]\n",pmem[i].m_startaddr, pmem[i].m_endaddr, pmem[i].m_endaddr - pmem[i].m_startaddr,protstr,pmem[i].m_file);
+#endif
+        fflush(stdout);
         if (searchfiles != NULL) {
             int matched = 0;
             for(j=0;searchfiles[j] != NULL;j++) {

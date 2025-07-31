@@ -42,7 +42,11 @@ PingCap::~PingCap()
 void PingCap::_print_result(const char* file, int line,uint64_t val)
 {
 	if (this->m_verbose > 0) {
+#if __SIZEOF_POINTER__ == 8
 		printf("[%s:%d] %s ttl %ld\n",file,line,this->m_ip, val);
+#else
+		printf("[%s:%d] %s ttl %lld\n",file,line,this->m_ip, val);
+#endif
 	}
 	return;
 }

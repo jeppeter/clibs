@@ -129,7 +129,7 @@ do{                                                                             
 
 #if 1
 #define  LOG_DEBUG(...) do {                                                                      \
-    fprintf(stderr,"[%d][%s:%d]:",getpid(),__FILE__,__LINE__);                       \
+    fprintf(stderr,"[%d][%s:%d]:",getpid(),__FILE__,__LINE__);                                    \
     fprintf(stderr,__VA_ARGS__);                                                                  \
     fprintf(stderr, "\n");                                                                        \
     fflush(stderr);                                                                               \
@@ -425,7 +425,11 @@ int parse_cfgs(OutputCfg& cfgs, const char* line,int defaultlevel)
 
     LOG_DEBUG("pcurptr [%s]",pcurptr);
     PARSE_VALUE(size,uint64_t,"size");
+#if __SIZEOF_POINTER__ == 8
     LOG_DEBUG("size [0x%lx]",size);
+#else
+    LOG_DEBUG("size [0x%llx]",size);
+#endif
     LOG_DEBUG("pcurptr [%s]",pcurptr);
     PARSE_VALUE(maxfiles,int,"maxfiles");
     LOG_DEBUG("maxfiles [%d]",maxfiles);

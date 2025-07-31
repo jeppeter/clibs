@@ -74,8 +74,11 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
             GETERRNO(ret);
             goto out;
         }
-
+#if __SIZEOF_POINTER__ == 8
         printf("%s mean %ld %f\n",ipstr,cval, ratio);
+#else
+        printf("%s mean %lld %f\n",ipstr,cval, ratio);
+#endif
         idx += 1;
     }
     ret = 0;

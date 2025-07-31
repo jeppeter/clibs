@@ -139,7 +139,8 @@ int PingTotal::__insert_pingcap(int fd,PingCap* pv)
 	if (this->m_findmap == NULL) {
 		this->m_findmap = new std::map<int,PingCap*>();
 	}
-	this->m_findmap->insert({fd,pv});
+	//this->m_findmap->insert({fd,pv});
+	this->m_findmap->insert(std::pair<int,PingCap*>(fd,pv));
 	return 0;
 }
 

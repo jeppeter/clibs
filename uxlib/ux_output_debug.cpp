@@ -218,13 +218,13 @@ static int __call_out_line(int level, const char* file, int lineno, const char* 
     pthread_mutex_unlock(&st_log_mutex);
 
 
-    str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
+    str_append_vsnprintf_safe(&msg, &msgsize, NULL, ap);
     str_append_snprintf_safe(&locstr, &locsize, NULL);
     str_append_snprintf_safe(&timestr, &tmsize, NULL);
     __inner_time_format(1, &fmttime, &timesize);
     return retsize;
 fail:
-    str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
+    str_append_vsnprintf_safe(&msg, &msgsize, NULL, ap);
     str_append_snprintf_safe(&locstr, &locsize, NULL);
     str_append_snprintf_safe(&timestr, &tmsize, NULL);
     __inner_time_format(1, &fmttime, &timesize);
@@ -311,13 +311,13 @@ static void __inner_buffer_output(int level, const char* file,int lineno, unsign
     pthread_mutex_unlock(&st_log_mutex);
 
 
-    str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
+    str_append_vsnprintf_safe(&msg, &msgsize, NULL, ap);
     str_append_snprintf_safe(&locstr, &locsize, NULL);
     str_append_snprintf_safe(&timestr, &tmsize, NULL);
     __inner_time_format(1, &fmttime, &timesize);
     return;
 fail:
-    str_append_vsnprintf_safe(&msg, &msgsize, NULL, NULL);
+    str_append_vsnprintf_safe(&msg, &msgsize, NULL, ap);
     str_append_snprintf_safe(&locstr, &locsize, NULL);
     str_append_snprintf_safe(&timestr, &tmsize, NULL);
     __inner_time_format(1, &fmttime, &timesize);
