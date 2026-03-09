@@ -16,15 +16,11 @@ extern "C" {
 
 WINLIB_API void* init_tcping_sock(int type);
 WINLIB_API void free_tcping_sock(void** ppsock);
-WINLIB_API int send_tcping_request(void* psock,const char* ip);
-WINLIB_API int tcping_complete_read(void* psock);
-WINLIB_API int tcping_complete_write(void* psock);
-WINLIB_API HANDLE get_tcping_read_evt(void* psock);
-WINLIB_API HANDLE get_tcping_write_evt(void* psock);
-WINLIB_API int tcping_is_read_mode(void* psock);
-WINLIB_API int tcping_is_write_mode(void* psock);
+WINLIB_API int send_tcping_request(void* psock,const char* ip,int port);
+WINLIB_API int tcping_complete(void* psock);
+WINLIB_API HANDLE get_tcping_evt(void* psock);
+WINLIB_API int tcping_is_pending(void* psock);
 WINLIB_API int tcping_send_cnt(void* psock);
-WINLIB_API int recv_tcping_response(void* psock,uint64_t* pval);
 
 
 #ifdef __cplusplus
