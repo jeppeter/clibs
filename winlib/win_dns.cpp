@@ -1,5 +1,19 @@
 #include <win_dns.h>
+#include <win_sock.h>
+#include <stdlib.h>
 
+
+
+#pragma warning(push)
+
+#pragma warning(disable:4005)
+
+
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+#include <mswsock.h>
+
+#pragma warning(pop)
 
 #define WSA_GETERRNO(ret) do { ret = WSAGetLastError(); if (ret > 0) {ret = -ret;} if (ret == 0) {ret = -1;} } while(0)
 
@@ -17,8 +31,8 @@ typedef struct __dns_query {
 	int m_inprog;
 	int m_error;
 	uint64_t m_startticks;
-	PADDRINFOEX  m_infores;
-	ADDRINFOEX m_hints;
+	PADDRINFOEXW  m_infores;
+	ADDRINFOEXW m_hints;
 	WSAOVERLAPPED m_ov;
 	HANDLE m_compevt;
 	HANDLE m_cancelevt;
@@ -264,8 +278,8 @@ void WINAPI dns_query_callback(DWORD error,DWORD bytes,LPOVERLAPPED ov)
 		GETERRNO(ret);
 		pdnsqry->m_error = 1;
 		pdnsqry->m_inprog = 0;
-		SetEvent(pdnsqry->m_errevt);
 		ERROR_INFO("__fill_dns_result error %d", ret);
+		SetEvent(pdnsqry->m_errevt);
 		SETERRNO(ret);
 		return;
 	}
@@ -328,8 +342,6 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 
 		pdnsqry->m_inprog = 1;
 	}
-
-
 
 	AnsiToUnicode(NULL,&pwport,&wportsize);
 	AnsiToUnicode(NULL,&pwip,&wipsize);
