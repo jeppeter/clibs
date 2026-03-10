@@ -14,11 +14,11 @@
 extern "C" {
 #endif /* __cplusplus*/
 
-WINLIB_API void* alloc_dns_query(int type,const char* name,const char* portstr);
+WINLIB_API void* start_dns_query(int type,const char* name,const char* portstr);
 WINLIB_API void free_dns_query(void** ppdnsqry);
 WINLIB_API int dns_query_time_left(void* pdnsqry, int timeout);
 WINLIB_API HANDLE dns_query_get_complete_evt(void* pdnsqry);
-WINLIB_API HANDLE dns_query_get_cancel_evt(void* pdnsqry);
+WINLIB_API HANDLE dns_query_get_error_evt(void* pdnsqry);
 WINLIB_API int dns_query_get_result(void* pdnsqry,int idx,const char** ppstr, int *psize);
 
 #ifdef __cplusplus
