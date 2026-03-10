@@ -1,12 +1,8 @@
-#include <win_dns.h>
-#include <win_sock.h>
-#include <stdlib.h>
-
-
-
 #pragma warning(push)
 
 #pragma warning(disable:4005)
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
 
 
 #include <WinSock2.h>
@@ -14,6 +10,17 @@
 #include <mswsock.h>
 
 #pragma warning(pop)
+
+
+#include <win_dns.h>
+#include <win_uniansi.h>
+#include <win_time.h>
+#include <win_sock.h>
+#include <win_output_debug.h>
+#include <stdlib.h>
+
+
+
 
 #define WSA_GETERRNO(ret) do { ret = WSAGetLastError(); if (ret > 0) {ret = -ret;} if (ret == 0) {ret = -1;} } while(0)
 
@@ -61,14 +68,13 @@ void __free_dns_query(PDNS_QUERY_t* ppdnsqry)
 {
 	if (ppdnsqry && *ppdnsqry) {
 		int ret;
-		int i;
 		PDNS_QUERY_t pdnsqry = *ppdnsqry;
 		if (pdnsqry->m_magic != DNS_QUERY_HDR_MAGIC) {
 			ERROR_INFO("not valid DNS_QUERY_HDR_MAGIC 0x%x", pdnsqry->m_magic);
 		}
 
 		if (pdnsqry->m_inprog != 0) {
-			ret = GetAddrInfoExCancel(pdnsqry->m_cancelevt);
+			ret = GetAddrInfoExCancel(&pdnsqry->m_cancelevt);
 			if (ret != NO_ERROR) {
 				ERROR_INFO("GetAddrInfoExCancel error %d ",ret);
 			}
@@ -118,7 +124,7 @@ PDNS_QUERY_t __alloc_dns_query(int type,const char* name,const char* portstr)
 	PDNS_QUERY_t pdnsqry = NULL;
 	int ret;
 
-	pdnsqry = malloc(sizeof(*pdnsqry));
+	pdnsqry =(PDNS_QUERY_t) malloc(sizeof(*pdnsqry));
 	if (pdnsqry == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -165,8 +171,7 @@ fail:
 int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 {
 	int ret;
-	int retlen = 0;
-	PADDRINFOEX    pcurinfo=NULL;
+	PADDRINFOEXW    pcurinfo=NULL;
 	char* pstr = NULL;
 	int size = 256;
 	char** pptmp=NULL;
@@ -177,7 +182,7 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 		free(pstr);
 	}
 	pstr = NULL;
-	pstr = malloc(size);
+	pstr =(char*) malloc((size_t)size);
 	if (pstr == NULL) {
 		GETERRNO(ret);
 		goto fail;
@@ -187,8 +192,16 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 	pcurinfo = pdnsqry->m_infores;
 	while(pcurinfo != NULL) {
 		if (pcurinfo->ai_family == pdnsqry->m_aftype) {
-			memset(pstr,0,size);
-			ret = WSAAddressToStringA(&pcurinfo->ai_addr,(DWORD) pcurinfo->ai_addrlen,NULL,pstr,size);
+			memset(pstr,0,(size_t)size);
+			DWORD dsize=(DWORD) size;
+#pragma warning(push)
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1929
+#pragma warning(disable:4996)
+#endif
+#endif
+			ret = WSAAddressToStringA(pcurinfo->ai_addr,(DWORD) pcurinfo->ai_addrlen,NULL,pstr,&dsize);
+#pragma warning(pop)
 			if (ret == 0) {
 				if(pdnsqry->m_ipsize <= (pdnsqry->m_iplen + 1)) {
 					if (pdnsqry->m_ipsize == 0) {
@@ -197,7 +210,7 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 						pdnsqry->m_ipsize <<= 1;
 					}
 
-					pptmp = malloc(sizeof(*pptmp) * pdnsqry->m_ipsize);
+					pptmp = (char**)malloc(sizeof(*pptmp) * pdnsqry->m_ipsize);
 					if (pptmp == NULL) {
 						GETERRNO(ret);
 						goto fail;
@@ -228,7 +241,7 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 						free(pstr);
 					}
 					pstr = NULL;
-					pstr = malloc(size);
+					pstr = (char*)malloc((size_t)size);
 					if (pstr == NULL) {
 						GETERRNO(ret);
 						goto fail;
@@ -263,7 +276,9 @@ fail:
 void WINAPI dns_query_callback(DWORD error,DWORD bytes,LPOVERLAPPED ov)
 {
 	PDNS_QUERY_t pdnsqry = NULL;
+	int ret;
 
+	bytes = bytes;
 	pdnsqry = CONTAINING_RECORD(ov,DNS_QUERY_t,m_ov);
 	if (error != ERROR_SUCCESS) {
 		ERROR_INFO("error code %d", error);
@@ -298,7 +313,6 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 	int wipsize=0,wportsize=0;
 	int ret;
 	int completed = 0;
-	DWORD dret;
 
 	if (pdnsqry->m_qryip == NULL || pdnsqry->m_inprog != 0) {
 		ret = -ERROR_INVALID_PARAMETER;
@@ -326,16 +340,16 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 	pdnsqry->m_hints.ai_protocol  = IPPROTO_TCP;
 
 	pdnsqry->m_startticks = get_current_ticks();
-	dret = GetAddrInfoExW(pwip,pwport,NS_DNS,NULL,&pdnsqry->m_hints,&pdnsqry->m_infores,NULL,
+	ret = GetAddrInfoExW(pwip,pwport,NS_DNS,NULL,&pdnsqry->m_hints,&pdnsqry->m_infores,NULL,
 			&pdnsqry->m_ov,dns_query_callback,&pdnsqry->m_cancelevt);
-	if (dret == 0) {
+	if (ret == 0) {
 		ret = __fill_dns_result(pdnsqry);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
 	} else {
-		if (dret != WSA_IO_PENDING) {
+		if (ret != WSA_IO_PENDING) {
 			WSA_GETERRNO(ret);
 			goto fail;
 		}
@@ -357,6 +371,7 @@ fail:
 void* start_dns_query(int type,const char* name,const char* portstr)
 {
 	PDNS_QUERY_t pdnsqry=NULL;
+	int ret;
 	if (type != AF_INET && type != AF_INET6) {
 		ret = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
@@ -442,7 +457,7 @@ HANDLE dns_query_get_complete_evt(void* pdnsqry1)
 }
 
 
-int dns_query_get_result(void* pdnsqry,int idx,const char** ppstr, int *psize)
+int dns_query_get_result(void* pdnsqry1,int idx,const char** ppstr, int *psize)
 {
 	PDNS_QUERY_t pdnsqry = (PDNS_QUERY_t) pdnsqry1;
 	int ret;
@@ -452,7 +467,7 @@ int dns_query_get_result(void* pdnsqry,int idx,const char** ppstr, int *psize)
 
 	if (pdnsqry == NULL || idx < 0) {
 		if (ppstr && *ppstr) {
-			free(*ppstr);
+			free((void*)(*ppstr));
 			*ppstr = NULL;
 		}
 
