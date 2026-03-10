@@ -30,7 +30,7 @@
 
 
 #define WSA_GETERRNO(ret) do { ret = WSAGetLastError(); if (ret > 0) {ret = -ret;} if (ret == 0) {ret = -1;} } while(0)
-
+#define U64_TIME_PADDING  0xffffffffffffffffULL
 
 #define  TCPING_HDR_MAGIC   0x7792939
 
@@ -391,6 +391,30 @@ int resend_tcping_request(void* psock1)
 fail:
 	SETERRNO(ret);
 	return ret;
+}
+
+int get_tcping_tick(void* psock1, uint64_t *pval)
+{
+	PTCPING_SOCK_t psock = (PTCPING_SOCK_t) psock1;
+	int ret;
+	if (psock == NULL || psock->m_magic != TCPING_HDR_MAGIC || pval == NULL) {
+		ret = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (psock->m_endticks == 0 ) {
+		ret = -ERROR_NOT_READY;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (psock->m_endticks >= psock->m_startticks) {
+		*pval = psock->m_endticks - psock->m_startticks;
+	} else {
+		*pval = psock->m_startticks - psock->m_endticks + U64_TIME_PADDING;
+	}
+	return 0;
 
 }
 

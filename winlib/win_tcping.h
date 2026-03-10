@@ -21,6 +21,7 @@ WINLIB_API int tcping_complete(void* psock);
 WINLIB_API HANDLE get_tcping_evt(void* psock);
 WINLIB_API int tcping_is_pending(void* psock);
 WINLIB_API int resend_tcping_request(void* psock);
+WINLIB_API int get_tcping_tick(void* psock, uint64_t *pval);
 
 
 #ifdef __cplusplus
