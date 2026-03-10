@@ -29,7 +29,6 @@
 #endif
 
 
-#define WSA_GETERRNO(ret) do { ret = WSAGetLastError(); if (ret > 0) {ret = -ret;} if (ret == 0) {ret = -1;} } while(0)
 #define U64_TIME_PADDING  0xffffffffffffffffULL
 
 #define  TCPING_HDR_MAGIC   0x7792939
