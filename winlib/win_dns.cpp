@@ -457,7 +457,7 @@ HANDLE dns_query_get_complete_evt(void* pdnsqry1)
 }
 
 
-int dns_query_get_result(void* pdnsqry1,int idx,const char** ppstr, int *psize)
+int dns_query_get_result(void* pdnsqry1,int idx,char** ppstr, int *psize)
 {
 	PDNS_QUERY_t pdnsqry = (PDNS_QUERY_t) pdnsqry1;
 	int ret;
