@@ -9,6 +9,8 @@
 
 #include <win_types.h>
 
+#define WSA_GETERRNO(ret) do { ret = WSAGetLastError(); if (ret > 0) {ret = -ret;} if (ret == 0) {ret = -1;} } while(0)
+
 
 #ifdef __cplusplus
 extern "C" {

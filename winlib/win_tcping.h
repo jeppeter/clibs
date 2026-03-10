@@ -20,7 +20,7 @@ WINLIB_API int send_tcping_request(void* psock,const char* ip,int port);
 WINLIB_API int tcping_complete(void* psock);
 WINLIB_API HANDLE get_tcping_evt(void* psock);
 WINLIB_API int tcping_is_pending(void* psock);
-WINLIB_API int tcping_send_cnt(void* psock);
+WINLIB_API int resend_tcping_request(void* psock);
 
 
 #ifdef __cplusplus
