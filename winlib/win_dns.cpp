@@ -137,6 +137,7 @@ PDNS_QUERY_t __alloc_dns_query(int type,const char* name,const char* portstr)
 	pdnsqry =(PDNS_QUERY_t) malloc(sizeof(*pdnsqry));
 	if (pdnsqry == NULL) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	}
 
@@ -144,9 +145,15 @@ PDNS_QUERY_t __alloc_dns_query(int type,const char* name,const char* portstr)
 	pdnsqry->m_magic = DNS_QUERY_HDR_MAGIC;
 	pdnsqry->m_aftype = type;
 	pdnsqry->m_qryip = _strdup(name);
-	pdnsqry->m_qryport = _strdup(portstr);
+	if (portstr != NULL) {
+		pdnsqry->m_qryport = _strdup(portstr);	
+	} else {
+		pdnsqry->m_qryport = _strdup("0");	
+	}
+	
 	if (pdnsqry->m_qryip == NULL || pdnsqry->m_qryport == NULL) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	}
 
@@ -336,6 +343,7 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 
 	if (pdnsqry->m_qryip == NULL || pdnsqry->m_inprog != 0) {
 		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO(" ");
 		SETERRNO(ret);
 		return ret;
 	}
@@ -343,6 +351,7 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 	ret = AnsiToUnicode(pdnsqry->m_qryip,&pwip,&wipsize);
 	if (ret < 0) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	}
 
@@ -350,6 +359,7 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 		ret = AnsiToUnicode(pdnsqry->m_qryport,&pwport,&wportsize);
 		if (ret < 0) {
 			GETERRNO(ret);
+			ERROR_INFO(" ");
 			goto fail;
 		}
 	}
@@ -367,12 +377,15 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 		ret = __fill_dns_result(pdnsqry);
 		if (ret < 0) {
 			GETERRNO(ret);
+			ERROR_INFO(" ");
 			goto fail;
 		}
 		pdnsqry->m_exited = 1;
 	} else {
+		ERROR_INFO("ret %d", ret);
 		if (ret != WSA_IO_PENDING) {
 			WSA_GETERRNO(ret);
+			ERROR_INFO("ret %d",ret);
 			goto fail;
 		}
 
@@ -396,12 +409,14 @@ void* start_dns_query(int type,const char* name,const char* portstr)
 	int ret;
 	if (type != AF_INET && type != AF_INET6) {
 		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO(" ");
 		SETERRNO(ret);
 		return NULL;
 	}
 
 	if (name == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO(" ");
 		SETERRNO(ret);
 		return NULL;
 	}
@@ -409,6 +424,7 @@ void* start_dns_query(int type,const char* name,const char* portstr)
 	pdnsqry = __alloc_dns_query(type,name,portstr);
 	if (pdnsqry == NULL) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		SETERRNO(ret);
 		return NULL;
 	}
@@ -417,6 +433,7 @@ void* start_dns_query(int type,const char* name,const char* portstr)
 	ret = __start_query_dns(pdnsqry);
 	if (ret < 0) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	}
 

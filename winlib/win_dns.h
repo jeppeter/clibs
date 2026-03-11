@@ -2,6 +2,7 @@
 #define __WIN_DNS_H_F476C674B0F5F9B07B7F816311F6739C__
 
 
+
 #include <win_types.h>
 
 #undef __WINLIB_INNER_INCLUDE__

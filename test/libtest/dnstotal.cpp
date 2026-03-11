@@ -75,6 +75,7 @@ int DnsTotal::start_dns(int aftype,char* pstr)
 	ret = this->__split_name(pstr,ns,ports);
 	if (ret < 0) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	}
 
@@ -82,6 +83,7 @@ int DnsTotal::start_dns(int aftype,char* pstr)
 	ret = pcap->start_query();
 	if (ret < 0) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	}
 

@@ -1,13 +1,5 @@
 #define WIN32_LEAN_AND_MEAN
 
-
-
-#include <win_tcping.h>
-#include <win_sock.h>
-#include <win_output_debug.h>
-#include <win_time.h>
-#include <stdlib.h>
-
 #pragma warning(push)
 
 #pragma warning(disable:4820)
@@ -18,6 +10,14 @@
 #include <mswsock.h>
 
 #pragma warning(pop)
+
+
+#include <win_tcping.h>
+#include <win_sock.h>
+#include <win_output_debug.h>
+#include <win_time.h>
+#include <stdlib.h>
+
 
 
 #pragma warning(push)

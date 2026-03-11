@@ -61,6 +61,7 @@ int DnsCap::start_query()
 	int ret;
 	if (this->m_dnsname == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO(" ");
 		SETERRNO(ret);
 		return ret;
 	}
@@ -70,6 +71,7 @@ int DnsCap::start_query()
 	this->m_dnsqry = start_dns_query(this->m_aftype,this->m_dnsname,this->m_portstr);
 	if (this->m_dnsqry == NULL) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	}
 

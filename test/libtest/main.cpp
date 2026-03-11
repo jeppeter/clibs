@@ -6,7 +6,7 @@
 #pragma warning(disable:4820)
 #pragma warning(disable:4577)
 
-
+#include <winsock2.h>
 
 #pragma warning(push)
 
@@ -93,6 +93,8 @@
 #include "sock_cli_comm.h"
 #include "pingcap.h"
 #include "pingtotal.h"
+#include "dnstotal.h"
+
 
 #pragma warning(pop)
 

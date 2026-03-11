@@ -604,9 +604,89 @@ out:
 
 int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    REFERENCE_ARG(argc);
+    int i;
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    DnsTotal total;
+    int aftype = AF_INET;
+    std::map<std::string,std::vector<std::string>> okres;
+    std::vector<std::string> errres;
+    HANDLE exithd = NULL;
+
+    init_log_level(pargs);
+
     REFERENCE_ARG(argv);
-    REFERENCE_ARG(parsestate);
-    REFERENCE_ARG(popt);
-    return 0;
+    REFERENCE_ARG(argc);
+
+    exithd = set_ctrlc_handle();
+    if (exithd == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not ctrlc handle\n");
+        goto out;
+    }
+
+
+    if (pargs->m_af6) {
+        aftype = AF_INET6;
+    }
+
+
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        ret = total.start_dns(aftype,parsestate->leftargs[i]);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr,"can not start_dns [%s] error %d\n", parsestate->leftargs[i],ret);
+            goto out;
+        }
+    }
+
+    ret = total.loop(exithd,pargs->m_timeout);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"loop error %d\n", ret);
+        goto out;
+    }
+
+    ret = total.get_result(okres);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"get_result error %d\n",ret);
+        goto out;
+    }
+
+    ret = total.get_error(errres);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"get_error error %d\n",ret);
+        goto out;
+    }
+
+    for(auto iter = okres.begin();iter != okres.end(); ++ iter) {
+        auto nres = okres[iter->first];
+        fprintf(stdout,"%s:",iter->first.c_str());
+        for(i=0;i<(int)nres.size();i++) {
+            auto cstr = nres.at((uint64_t)i);
+            if ((i%5) == 0) {
+                fprintf(stdout,"\n    ");
+            }
+            fprintf(stdout," %s",cstr.c_str());
+        }
+        fprintf(stdout,"\n");
+    }
+
+
+    fprintf(stdout,"errors:");
+    for(i=0;i<(int) errres.size();i++) {
+        auto cstr = errres.at((uint64_t)i);
+        if ((i % 5) == 0) {
+            fprintf(stdout,"\n    ");
+        }
+        fprintf(stdout," %s",cstr.c_str());
+    }
+    fprintf(stdout,"\n");
+
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
 }
