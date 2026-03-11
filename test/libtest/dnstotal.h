@@ -14,8 +14,8 @@ public:
 	int start_dns(int aftype,char* pstr);
 	int loop(HANDLE exithd,int timeout);
 	int is_complete(char* pstr);
-	int get_result(char* pstr,int idx,char** ppstr,int* psize);
-	int get_error(char* pstr, char** ppstr, int *psize);
+	int get_result(std::map<std::string,std::vector<std::string>>& res);
+	int get_error(std::vector<std::string>& res);
 
 private:
 	void __release_resource();

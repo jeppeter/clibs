@@ -3,6 +3,15 @@
 #include "dnstotal.h"
 
 
+#pragma warning(push)
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1910
+/*disable Spectre warnings*/
+#pragma warning(disable:5045)
+#endif
+#endif
+
+
 DnsTotal::DnsTotal()
 {
 
@@ -302,3 +311,27 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+int DnsTotal::get_result(std::map<std::string,std::vector<std::string>>& res)
+{
+	int cnt=0;
+	res.clear();
+	for(auto iter = this->m_ipres.begin();iter != this->m_ipres.end();++ iter) {
+		res.insert({iter->first,this->m_ipres[iter->first]});
+		cnt += 1;
+	}
+	return cnt;
+}
+
+int DnsTotal::get_error(std::vector<std::string>& res)
+{
+	int cnt = 0;
+	res.clear();
+	for(auto iter = this->m_errs.begin();iter != this->m_errs.end(); ++ iter) {
+		res.push_back(iter->first);
+		cnt += 1;
+	}
+	return cnt;
+}
+
+#pragma warning(pop)
