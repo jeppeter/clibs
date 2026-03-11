@@ -11,8 +11,12 @@
 
 #pragma warning(pop)
 
+
+#pragma warning(push)
+#if defined(_MSC_VER)
 #if _MSC_VER >= 1929
 #pragma warning(disable:5045)
+#endif
 #endif
 
 #pragma comment(lib, "netapi32.lib")
@@ -315,3 +319,5 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+#pragma warning(pop)

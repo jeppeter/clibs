@@ -24,7 +24,7 @@
 
 #if defined(_MSC_VER)
 #if _MSC_VER >= 1929
-#pragma warning(disable:5045)
+//#pragma warning(disable:5045)
 #endif
 #endif
 

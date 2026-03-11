@@ -1,9 +1,11 @@
 #include <win_thread.h>
 #include <win_err.h>
 
-
+#pragma warning(push)
+#if defined(_MSC_VER)
 #if _MSC_VER >= 1929
 #pragma warning(disable:5045)
+#endif
 #endif
 
 typedef struct __win_thread {
@@ -240,3 +242,5 @@ void free_thread(void** ppthr1)
 	}
 	return ;
 }
+
+#pragma warning(pop)
