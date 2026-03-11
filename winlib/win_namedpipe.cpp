@@ -3,9 +3,12 @@
 #include <win_types.h>
 #include <win_uniansi.h>
 
+#pragma warning(push)
 
+#if defined(_MSC_VER)
 #if _MSC_VER >= 1929
 #pragma warning(disable:5045)
+#endif
 #endif
 
 #define   NAMED_PIPE_MAGIC             0x33219
@@ -681,3 +684,5 @@ int cancel_namedpipe_write(void* pnp1)
     pnp->m_wrpending = 0;
     return 1;
 }
+
+#pragma warning(pop)

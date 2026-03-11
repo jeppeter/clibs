@@ -2,8 +2,11 @@
 #include <win_err.h>
 #include <win_types.h>
 
+#pragma warning(push)
+#if defined(_MSC_VER)
 #if _MSC_VER >= 1929
-#pragma warning(disable:5045)
+//#pragma warning(disable:5045)
+#endif
 #endif
 
 DWORD __filter_function()
@@ -132,3 +135,5 @@ fail:
     SETERRNO(-ret);
     return ret;
 }
+
+#pragma warning(pop)
