@@ -625,6 +625,13 @@ int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         goto out;
     }
 
+    ret = init_socket();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"not init sock error %d\n", ret);
+        goto out;
+    }
+
 
     if (pargs->m_af6) {
         aftype = AF_INET6;

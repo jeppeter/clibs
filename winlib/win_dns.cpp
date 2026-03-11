@@ -190,7 +190,7 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 	int ret;
 	PADDRINFOEXW    pcurinfo=NULL;
 	char* pstr = NULL;
-	int size = 256;
+	int size = 0;
 	char** pptmp=NULL;
 	wchar_t* pwstr=NULL;
 	int wsize=256;
@@ -209,6 +209,7 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 
 	/*now we should give */
 	pcurinfo = pdnsqry->m_infores;
+	DEBUG_INFO("pcurinfo %p", pcurinfo);
 	while(pcurinfo != NULL) {
 		if (pcurinfo->ai_family == pdnsqry->m_aftype) {
 			memset(pwstr,0,(size_t)wsize * sizeof(*pwstr));
@@ -222,9 +223,12 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 						pdnsqry->m_ipsize <<= 1;
 					}
 
+
+
 					pptmp = (char**)malloc(sizeof(*pptmp) * pdnsqry->m_ipsize);
 					if (pptmp == NULL) {
 						GETERRNO(ret);
+						ERROR_INFO(" ");
 						goto fail;
 					}
 					memset(pptmp, 0, sizeof(*pptmp) * pdnsqry->m_ipsize);
@@ -239,15 +243,20 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 					pptmp = NULL;
 				}
 
+				DEBUG_BUFFER_FMT(pwstr,dsize*sizeof(*pwstr),"pwstr get");
 				ret = UnicodeToAnsi(pwstr,&pstr,&size);
 				if (ret < 0) {
 					GETERRNO(ret);
+					ERROR_INFO("ret %d",ret);
 					goto fail;
 				}
+
+				DEBUG_INFO("pstr %s",pstr);
 
 				pdnsqry->m_iparr[pdnsqry->m_iplen] = _strdup(pstr);
 				if (pdnsqry->m_iparr[pdnsqry->m_iplen] == NULL) {
 					GETERRNO(ret);
+					ERROR_INFO(" ");
 					goto fail;
 				}
 				pdnsqry->m_iplen += 1;
@@ -262,6 +271,7 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 					pwstr = (wchar_t*)malloc((size_t)wsize * sizeof(*pwstr));
 					if (pwstr == NULL) {
 						GETERRNO(ret);
+						ERROR_INFO(" ");
 						goto fail;
 					}
 					continue;
@@ -272,6 +282,7 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 		}
 
 		pcurinfo = pcurinfo->ai_next;
+		DEBUG_INFO("pcurinfo %p", pcurinfo);
 	}
 
 	UnicodeToAnsi(NULL,&pstr,&size);
