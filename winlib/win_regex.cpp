@@ -24,8 +24,12 @@
 
 #pragma warning(pop)
 
+#pragma warning(push)
+
+#if defined(_MSC_VER)
 #if _MSC_VER >= 1929
 #pragma warning(disable:5045)
+#endif
 #endif
 
 #define __REGEX_DEBUG__   1
@@ -385,3 +389,5 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+#pragma warning(pop)

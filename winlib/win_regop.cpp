@@ -6,8 +6,11 @@
 #include <tchar.h>
 
 
+#pragma warning(push)
+#if defined(_MSC_VER)
 #if _MSC_VER >= 1929
 #pragma warning(disable:5045)
+#endif
 #endif
 
 #define  REG_OP_MAGIC     0x448213
@@ -1464,3 +1467,5 @@ fail:
     SETERRNO(ret);
     return ret;
 }
+
+#pragma warning(pop)
