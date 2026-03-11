@@ -599,3 +599,14 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+
+
+int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    REFERENCE_ARG(parsestate);
+    REFERENCE_ARG(popt);
+    return 0;
+}

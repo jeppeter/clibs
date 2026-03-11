@@ -16,10 +16,13 @@ extern "C" {
 
 WINLIB_API void* start_dns_query(int type,const char* name,const char* portstr);
 WINLIB_API void free_dns_query(void** ppdnsqry);
+WINLIB_API int is_dns_query_completed(void* pdnsqry);
 WINLIB_API int dns_query_time_left(void* pdnsqry, int timeout);
+WINLIB_API int is_dns_query_error(void* pdnsqry);
 WINLIB_API HANDLE dns_query_get_complete_evt(void* pdnsqry);
 WINLIB_API HANDLE dns_query_get_error_evt(void* pdnsqry);
 WINLIB_API int dns_query_get_result(void* pdnsqry,int idx,char** ppstr, int *psize);
+
 
 #ifdef __cplusplus
 };

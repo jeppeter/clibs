@@ -21,6 +21,7 @@ void DnsTotal::__release_resource()
 	}
 
 	this->m_dnsnames.clear();
+	this->m_aftypes.clear();
 
 
 	while(this->m_mapdns.count() > 0 ) {
@@ -31,4 +32,11 @@ void DnsTotal::__release_resource()
 	this->m_ipres.clear();
 	this->m_errs.clear();
 	return;
+}
+
+int DnsTotal::start_dns(int aftype,char* pstr)
+{
+	this->m_dnsnames.push_back(pstr);
+	this->m_aftypes.push_back(aftype);
+	return 0;
 }

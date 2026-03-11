@@ -14,6 +14,7 @@
 #pragma warning(pop)
 
 
+
 #define SETERRNO(ret)                                         \
 	do{                                                       \
 		int ___ret = (ret);                                   \
@@ -23,6 +24,7 @@
 			SetLastError((DWORD)-___ret);                     \
 		}                                                     \
 	}while(0)
+
 
 #define GETERRNO(__ret)                                       \
 	do{                                                       \

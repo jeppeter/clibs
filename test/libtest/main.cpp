@@ -127,7 +127,7 @@ typedef struct __args_options {
     char** m_exlogs;
     char* m_regkey;
     int m_times;
-    int m_reserv1;
+    int m_af6;
 } args_options_t, *pargs_options_t;
 
 #pragma comment(lib,"user32.lib")
@@ -334,6 +334,7 @@ int unitoansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int procmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int backtrace_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0

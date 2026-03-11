@@ -3,8 +3,6 @@
 #include <win_dns.h>
 
 
-#pragma warning(push)
-
 
 #pragma warning(push)
 #if defined(_MSC_VER)
@@ -123,7 +121,7 @@ int DnsCap::need_time(int timeout)
 {
 	int ret = -ERROR_NOT_READY;
 	if (this->m_dnsqry) {
-		ret = dns_query_time_left(this->m_dnsqry);
+		ret = dns_query_time_left(this->m_dnsqry,timeout);
 	}
 	if (ret < 0) {
 		SETERRNO(ret);	

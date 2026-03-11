@@ -22,6 +22,7 @@ private:
 private:
 	std::vector<DnsCap*> m_iparrs;
 	std::vector<std::string> m_dnsnames;
+	std::vector<int> m_aftypes;
 	std::map<std::string,DnsCap*> m_mapdns;
 	std::map<std::string,std::map<std::string,std::string>> m_ipmaps;
 	std::map<std::string,std::vector<std::string>> m_ipres;
