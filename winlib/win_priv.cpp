@@ -5,8 +5,12 @@
 
 #include <Windows.h>
 
+#pragma warning(push)
+
+#if defined(_MSC_VER)
 #if _MSC_VER >= 1929
-#pragma warning(disable:5045)
+//#pragma warning(disable:5045)
+#endif
 #endif
 
 int __handle_priv_token(HANDLE htoken, const char* privstr, int enabled)
@@ -386,3 +390,5 @@ int is_create_global_priv(void)
 {
     return __get_priv_value("SeCreateGlobalPrivilege");      
 }
+
+#pragma warning(pop)
