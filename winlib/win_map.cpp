@@ -5,8 +5,11 @@
 #include <win_uniansi.h>
 #include <win_priv.h>
 
+#pragma warning(push)
+#if defined(_MSC_VER)
 #if _MSC_VER >= 1929
-#pragma warning(disable:5045)
+//#pragma warning(disable:5045)
+#endif
 #endif
 
 typedef struct __map_buffer_t {
@@ -596,3 +599,5 @@ void unmap_buffer(void** ppmap)
     }
     return ;
 }
+
+#pragma warning(pop)
