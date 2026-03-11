@@ -23,11 +23,12 @@
 #pragma comment(lib,"Ws2_32.lib")
 #pragma comment(lib,"Iphlpapi.lib")
 
-
-#if _MSC_VER >= 1910
 #pragma warning(push)
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1910
 /*disable Spectre warnings*/
 #pragma warning(disable:5045)
+#endif
 #endif
 
 int __fill_addr(char* pbuf, int bufsize, struct sockaddr *psockaddr, const char *fmt, ...)
@@ -905,6 +906,4 @@ fail:
     return ret;
 }
 
-#if _MSC_VER >= 1910
 #pragma warning(pop)
-#endif
