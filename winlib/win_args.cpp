@@ -13,10 +13,11 @@
 
 #pragma warning(pop)
 
-#if _MSC_VER >= 1910
 #pragma warning(push)
-/*disable Spectre warnings*/
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1910
 #pragma warning(disable:5045)
+#endif
 #endif
 
 
@@ -75,7 +76,7 @@ char** copy_args(int argc, TCHAR *argv[])
     return ppargs;
 fail:
     free_args(&ppargs);
-    SETERRNO(-ret);
+    SETERRNO(ret);
     return NULL;
 }
 
@@ -114,7 +115,7 @@ int  parse_number(char* str, uint64_t *pnum, char** ppend)
     }
     return 1;
 fail:
-    SETERRNO(-ret);
+    SETERRNO(ret);
     return ret;
 }
 
@@ -478,6 +479,4 @@ void free_argv(char*** pppargv)
     return;
 }
 
-#if _MSC_VER >= 1910
 #pragma warning(pop)
-#endif

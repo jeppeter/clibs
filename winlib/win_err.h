@@ -15,15 +15,17 @@
 
 
 
-#define SETERRNO(ret)                                         \
-	do{                                                       \
-		int ___ret = (ret);                                   \
-		if (___ret > 0) {                                     \
-			SetLastError((DWORD)___ret);                      \
-		} else {                                              \
-			SetLastError((DWORD)-___ret);                     \
-		}                                                     \
-	}while(0)
+#define SETERRNO(ret)       _set_error(ret)
+
+__forceinline void _set_error(int ret)
+{
+	DWORD dret = (DWORD)ret;
+	if (ret < 0) {
+		dret = (DWORD) -ret;
+	}
+	SetLastError(dret);
+	return;
+}
 
 
 #define GETERRNO(__ret)                                       \

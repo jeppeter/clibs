@@ -3,8 +3,11 @@
 #include <win_uniansi.h>
 #include <win_strop.h>
 
+#pragma warning(push)
+#if defined(_MSC_VER)
 #if _MSC_VER >= 1929
-#pragma warning(disable:5045)
+//#pragma warning(disable:5045)
+#endif
 #endif
 
 static HANDLE st_hevent = NULL;
@@ -273,3 +276,5 @@ fail:
     SETERRNO(ret);
     return NULL;
 }
+
+#pragma warning(pop)

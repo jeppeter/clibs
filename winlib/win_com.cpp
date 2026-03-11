@@ -2,9 +2,6 @@
 #include <win_com.h>
 #include <win_output_debug.h>
 
-#if _MSC_VER >= 1929
-#pragma warning(disable:5045)
-#endif
 
 #pragma comment(lib,"Ole32.lib")
 
@@ -49,3 +46,4 @@ void uninitialize_com(void)
 	CoUninitialize();
 	return ;
 }
+

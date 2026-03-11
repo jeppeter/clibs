@@ -20,10 +20,13 @@
 
 #pragma warning(pop)
 
-#if _MSC_VER >= 1910
 #pragma warning(push)
+
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1910
 /*disable Spectre warnings*/
 #pragma warning(disable:5045)
+#endif
 #endif
 
 
@@ -2329,6 +2332,4 @@ fail:
 }
 
 
-#if _MSC_VER >= 1910
 #pragma warning(pop)
-#endif
