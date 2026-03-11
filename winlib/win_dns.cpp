@@ -209,7 +209,6 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 
 	/*now we should give */
 	pcurinfo = pdnsqry->m_infores;
-	DEBUG_INFO("pcurinfo %p", pcurinfo);
 	while(pcurinfo != NULL) {
 		if (pcurinfo->ai_family == pdnsqry->m_aftype) {
 			memset(pwstr,0,(size_t)wsize * sizeof(*pwstr));
@@ -251,8 +250,6 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 					goto fail;
 				}
 
-				DEBUG_INFO("pstr %s",pstr);
-
 				pdnsqry->m_iparr[pdnsqry->m_iplen] = _strdup(pstr);
 				if (pdnsqry->m_iparr[pdnsqry->m_iplen] == NULL) {
 					GETERRNO(ret);
@@ -261,7 +258,9 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 				}
 				pdnsqry->m_iplen += 1;
 			} else {
+				ERROR_INFO("ret %d", ret);
 				WSA_GETERRNO(ret);
+				ERROR_INFO("ret %d", ret);
 				if (ret == -WSAENOBUFS) {
 					wsize <<= 1;
 					if (pwstr) {
@@ -282,7 +281,6 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 		}
 
 		pcurinfo = pcurinfo->ai_next;
-		DEBUG_INFO("pcurinfo %p", pcurinfo);
 	}
 
 	UnicodeToAnsi(NULL,&pstr,&size);
@@ -349,7 +347,7 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 {
 	wchar_t* pwip=NULL,*pwport=NULL;
 	int wipsize=0,wportsize=0;
-	int ret;
+	int ret,cret;
 	int completed = 0;
 
 	if (pdnsqry->m_qryip == NULL || pdnsqry->m_inprog != 0) {
@@ -382,9 +380,9 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 	pdnsqry->m_exited = 0;
 
 	pdnsqry->m_startticks = get_current_ticks();
-	ret = GetAddrInfoExW(pwip,pwport,NS_DNS,NULL,&pdnsqry->m_hints,&pdnsqry->m_infores,NULL,
+	cret = GetAddrInfoExW(pwip,pwport,NS_DNS,NULL,&pdnsqry->m_hints,&pdnsqry->m_infores,NULL,
 			&pdnsqry->m_ov,dns_query_callback,&pdnsqry->m_cancelevt);
-	if (ret == 0) {
+	if (cret == 0) {
 		ret = __fill_dns_result(pdnsqry);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -393,10 +391,9 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 		}
 		pdnsqry->m_exited = 1;
 	} else {
-		ERROR_INFO("ret %d", ret);
-		if (ret != WSA_IO_PENDING) {
+		if (cret != WSA_IO_PENDING && cret != ERROR_IO_PENDING) {
 			WSA_GETERRNO(ret);
-			ERROR_INFO("ret %d",ret);
+			ERROR_INFO("cret %d ret %d",cret,ret);
 			goto fail;
 		}
 

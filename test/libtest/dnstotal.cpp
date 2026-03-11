@@ -1,6 +1,7 @@
 #define _HAS_EXCEPTIONS 0
 
 #include "dnstotal.h"
+#include <win_output_debug.h>
 
 
 #pragma warning(push)
@@ -62,6 +63,7 @@ int DnsTotal::__split_name(char* pname,std::string& name, std::string& ports)
 		name = ns.substr(0,sidx);
 		ports = ns.substr(sidx+1,ns.length() - sidx-1);
 	}
+	DEBUG_INFO("name %s ports %s",name.c_str(),ports.c_str());
 	return 0;
 }
 
@@ -142,11 +144,7 @@ int DnsTotal::__handle_complete(int idx)
 			break;
 		}
 
-		curstr += ptmpstr;
-		if (portstr.length() > 0) {
-			curstr += ':';
-			curstr += portstr;
-		}
+		curstr = ptmpstr;
 
 		dnsarr.push_back(curstr);
 		j += 1;
