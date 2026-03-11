@@ -6,9 +6,11 @@
 
 #pragma comment(lib,"Advapi32.lib")
 
-#if _MSC_VER >= 1910
 #pragma warning(push)
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1910
 #pragma warning(disable:5045)
+#endif
 #endif
 
 void __close_scm(SC_HANDLE* pschd)
@@ -1368,6 +1370,4 @@ fail:
 }
 
 
-#if _MSC_VER >= 1910
 #pragma warning(pop)
-#endif
