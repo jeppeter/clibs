@@ -3,8 +3,12 @@
 #include <win_err.h>
 #include <win_uniansi.h>
 
+#pragma warning(push)
+
+#if defined(_MSC_VER)
 #if _MSC_VER >= 1929
 #pragma warning(disable:5045)
+#endif
 #endif
 
 #pragma comment(lib,"User32.lib")
@@ -523,3 +527,5 @@ fail:
 	SETERRNO(ret);
 	return ret;
 }
+
+#pragma warning(pop)

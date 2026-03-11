@@ -3,8 +3,11 @@
 #include <win_output_debug.h>
 #include <win_regop.h>
 
+#pragma warning(push)
+#if defined(_MSC_VER)
 #if _MSC_VER >= 1929
-#pragma warning(disable:5045)
+//#pragma warning(disable:5045)
+#endif
 #endif
 
 #define  VERSION_REG_PATH   "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion"
@@ -179,3 +182,5 @@ fail:
 	__get_type(1, &ptype,&typesize);
 	return 0;
 }
+
+#pragma warning(pop)
