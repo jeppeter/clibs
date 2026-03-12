@@ -6,6 +6,8 @@
 #include <string>
 #include "evcombo.h"
 
+#include <vector>
+
 
 class TcpingCap 
 {
@@ -15,7 +17,6 @@ public:
 	int set_timeout(int timeout);
 	int set_nexttime(int nextime);
 	int set_times(int times);
-	int set_verbose(int verbose);
 	int start();
 
 private:
@@ -34,6 +35,12 @@ private:
 	void __remove_events();
 	void __remove_component();
 
+	void __release_resource();
+
+	int __collect_value();
+	int __collect_and_switch_next();
+	int __inc_and_check_times_over();
+
 
 	int __reset_parameter();
 	int __switch_to_next_wait();
@@ -43,18 +50,17 @@ private:
 	int __handle_timeout(uint64_t guid,libev_enum_event_t event);
 
 	int __call_notify();
-	
+
 
 private:
-	int m_tcpingtype;
 	std::string m_ipstr;
 	int m_port;
+	int m_tcpingtype;
 	void* m_evmain;
-	IEvCombo* pcombo;
+	IEvCombo* m_combo;
 
 	void* m_sock;
 
-	int m_verbose;	
 	int m_times;
 	int m_curtime;
 	int m_timeout;
@@ -62,12 +68,14 @@ private:
 
 
 	HANDLE m_evthd;
-	int m_inserthd;
-
 	uint64_t m_tmoutguid;
-	int m_tmoutok;
 	uint64_t m_tmnextguid;
+
+	int m_inserthd;
+	int m_tmoutok;
 	int m_tmnextok;
+	int m_reserv1;
+
 	std::vector<uint64_t> m_tcpingval;
 };
 

@@ -192,6 +192,12 @@ fail:
 	return NULL;
 }
 
+
+void* init_tcping_sock(int aftype)
+{
+	return __alloc_tcping_sock(aftype);
+}
+
 void free_tcping_sock(void** ppsock)
 {
 	if (ppsock && *ppsock) {
