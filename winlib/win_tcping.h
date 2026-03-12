@@ -5,6 +5,9 @@
 
 #include <win_types.h>
 
+#define TCP_PING_FAIL_VALUE   0xffffffffffffffffULL
+
+
 #undef __WINLIB_INNER_INCLUDE__
 #define __WINLIB_INNER_INCLUDE__
 #include <win_inner.h>

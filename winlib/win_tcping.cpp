@@ -44,7 +44,7 @@ typedef struct __tcping_sock {
 	uint64_t m_endticks;
 	char* m_ipname;
 	int m_port;
-	int m_reserv1;
+	int m_error;
 	WSAOVERLAPPED m_connov;
 	LPFN_CONNECTEX  m_connexfunc;
 } TCPING_SOCK_t,*PTCPING_SOCK_t;
@@ -73,6 +73,10 @@ void __close_tcping_sock(PTCPING_SOCK_t psock)
 		CloseHandle(psock->m_connov.hEvent);
 	}
 	memset(&psock->m_connov,0,sizeof(psock->m_connov));
+
+	psock->m_error = 0;
+	psock->m_startticks = 0;
+	psock->m_endticks = 0;
 	return;
 }
 
@@ -266,8 +270,9 @@ int __connect_sock(PTCPING_SOCK_t psock)
 		if (ret != ERROR_IO_PENDING) {
 			ERROR_INFO("connect [%s:%d] error %d", psock->m_ipname, psock->m_port, ret);
 			goto fail;
-		}
-		psock->m_inconn = 1;
+		} else {
+			psock->m_inconn = 1;	
+		}		
 	}
 	return completed;
 fail:
@@ -372,6 +377,7 @@ int resend_tcping_request(void* psock1)
 {
 	PTCPING_SOCK_t psock = (PTCPING_SOCK_t) psock1;
 	int ret;
+	int completed = 0;
 	if (psock == NULL || psock->m_magic != TCPING_HDR_MAGIC || psock->m_connexfunc == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
 		ERROR_INFO("not valid state");
@@ -386,7 +392,14 @@ int resend_tcping_request(void* psock1)
 		GETERRNO(ret);
 		goto fail;
 	}
-	return ret;
+
+	ret = __connect_sock(psock);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	completed = ret;
+	return completed;
 fail:
 	SETERRNO(ret);
 	return ret;
@@ -402,17 +415,23 @@ int get_tcping_tick(void* psock1, uint64_t *pval)
 		return ret;
 	}
 
-	if (psock->m_endticks == 0 ) {
+	if (psock->m_inconn != 0) {
 		ret = -ERROR_NOT_READY;
 		SETERRNO(ret);
 		return ret;
 	}
 
-	if (psock->m_endticks >= psock->m_startticks) {
-		*pval = psock->m_endticks - psock->m_startticks;
+	if (psock->m_error != 0) {
+		*pval = TCP_PING_FAIL_VALUE;
 	} else {
-		*pval = psock->m_startticks - psock->m_endticks + U64_TIME_PADDING;
+		if (psock->m_endticks >= psock->m_startticks) {
+			*pval = psock->m_endticks - psock->m_startticks;
+		} else {
+			*pval = psock->m_startticks - psock->m_endticks + U64_TIME_PADDING;
+		}
+
 	}
+
 	return 0;
 
 }

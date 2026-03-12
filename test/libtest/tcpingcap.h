@@ -6,7 +6,6 @@
 #include <string>
 #include "evcombo.h"
 
-#define TCP_PING_FAIL_VALUE   0xffffffffffffffffULL
 
 class TcpingCap 
 {
