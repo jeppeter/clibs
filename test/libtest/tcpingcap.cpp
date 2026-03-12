@@ -1,75 +1,126 @@
 #include "tcpingcap.h"
 
-TcpingCap::TcpingCap(const char* ipportstr,int timeout,int nextout,int times)
+
+int TcpingCap::__reset_parameter()
 {
 	this->m_verbose = 0;
-	this->m_ip = NULL;
-	this->m_port = 0;
-	if (ipportstr) {
-		this->m_ipstr = _strdup(ipportstr);	
-	} else {
-		this->m_ipstr = NULL;
-	}
-	
-	this->m_tcpingtype = AF_INET;
-	this->m_expire = 0;
-	this->m_nextstart = 0;
-	this->m_times = times;
-	this->m_timeout = timetout;
-	this->m_nexttime = nextout;
-	this->m_tcpingval = NULL;
+	this->m_times = 10;
+	this->m_curtime = 0;
+	this->m_timeout = 5000;
+	this->m_nexttime = 3000;
+
+	return 0;
 }
 
-void TcpingCap::__free_ipstr()
+TcpingCap::TcpingCap(int aftype,const char* ipstr,const char* portstr,void* pev,IEvCombo* pcombo)
 {
-	if (this->m_ip) {
-		free(this->m_ip);
+	this->m_tcpingtype = aftype;
+	this->m_ipstr = ipstr;
+	if (portstr != NULL) {
+		this->m_port = atoi(portstr);	
+	} else {
+		this->m_port = -1;
 	}
-	this->m_ip = NULL;
+	this->m_evmain = pev;
+	this->m_combo = pcombo;
 
-	this->m_port = 0;
-	return;
+	this->m_sock = NULL;
+
+	this->__reset_parameter();
+
+
+	this->m_evthd = NULL;
+	this->m_inserthd = 0;
+
+	this->m_tmoutguid = 0;
+	this->m_tmoutok = 0;
+	this->m_tmnextguid = 0;
+	this->m_tmnextok = 0;
+
+	/*tcpingval ok*/
+
+	
+}
+
+
+void TcpingCap::__remove_events()
+{
+	int ret;
+	if (this->m_evmain != NULL) {
+		if (this->m_inserthd != 0) {
+			ret = libev_remove_handle(this->m_evmain,this->m_evthd);
+			if (ret < 0) {
+				GETERRNO(ret);
+				ERROR_INFO("remove [%s:%d] evthd %x error %d",this->m_ipstr.c_str(),this->m_port,this->m_evthd, ret);
+			}
+			this->m_inserthd = 0;
+		}
+
+		if (this->m_tmoutok != 0) {
+			ret = libev_remove_timer(this->m_evmain,this->m_tmoutguid);
+			if (ret < 0) {
+				GETERRNO(ret);
+				ERROR_INFO("remove [%s:%d] tmout 0x%llx error %d", this->m_ipstr.c_str(),this->m_port, this->m_tmoutguid,ret);
+			}
+			this->m_tmoutok = 0;
+			this->m_tmoutguid = 0;
+		}
+
+		if (this->m_tmnextok != 0) {
+			ret = libev_remove_timer(this->m_evmain,this->m_tmnextguid);
+			if (ret < 0) {
+				GETERRNO(ret);
+				ERROR_INFO("remove [%s:%d] tmnext 0x%llx error %d", this->m_ipstr.c_str(),this->m_port, this->m_tmnextguid,ret);
+			}
+			this->m_tmnextok = 0;
+			this->m_tmnextguid = 0;
+		}
+	}
+}
+
+void TcpingCap::__remove_component()
+{
+	if (this->m_combo) {
+		this->m_combo->remove_ev_component(this,0);
+	}
 }
 
 void TcpingCap::__release_resource()
 {
-	free_tcping_sock(&(this->m_sock));
-	if (this->m_tcpingval) {
-		while(this->m_tcpingval->size()) {
-			this->m_tcpingval->erase(this->m_tcpingval->begin());
-		}
-		delete this->m_tcpingval;		
-	}
+	this->__remove_events();
+	this->__remove_component();
 
-	if (this->m_ip) {
-		free(this->m_ip);
-	}
-	this->m_ip = NULL;
-	this->m_port = 0;
-
-	this->m_tcpingval = NULL;
-	this->m_expire = 0;
-	this->m_nextstart = 0;
+	free_tcping_sock(&this->m_sock);
+	this->m_tcpingval.clear();
 }
 
 TcpingCap::~TcpingCap()
 {
 	this->__release_resource();
-	if (this->m_ipstr) {
-		free(this->m_ipstr);
-		this->m_ipstr = NULL;
-	}
+
+	this->m_ipstr = "";
+	this->m_port = -1;
+
+	this->__reset_parameter();
 }
 
 
-int TcpingCap::__parse_ipstr()
+
+int TcpingCap::start()
 {
-	if (this->m_ip) {
-		free(this->m_ip);
+	int ret;
+	if (this->m_sock == NULL) {
+		this->m_sock = init_tcping_sock(this->m_tcpingtype);
+		if (this->m_sock == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	} else {
+
 	}
-}
 
-int TcpingCap::__start_alloc()
-{
-
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
 }
