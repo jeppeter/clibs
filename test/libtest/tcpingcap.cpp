@@ -37,45 +37,58 @@ TcpingCap::TcpingCap(int aftype,const char* ipstr,const char* portstr,void* pev,
 	this->m_tmnextguid = 0;
 	this->m_tmnextok = 0;
 
-	/*tcpingval ok*/
-
-	
+	/*tcpingval ok*/	
 }
 
+void TcpingCap::__remove_evthd()
+{
+	int ret;
+	if (this->m_inserthd != 0) {
+		ret = libev_remove_handle(this->m_evmain,this->m_evthd);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("remove [%s:%d] evthd %x error %d",this->m_ipstr.c_str(),this->m_port,this->m_evthd, ret);
+		}
+		this->m_inserthd = 0;
+	}
+	return;
+}
+
+void TcpingCap::__remove_tmout()
+{
+	int ret;
+	if (this->m_tmoutok != 0) {
+		ret = libev_remove_timer(this->m_evmain,this->m_tmoutguid);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("remove [%s:%d] tmout 0x%llx error %d", this->m_ipstr.c_str(),this->m_port, this->m_tmoutguid,ret);
+		}
+		this->m_tmoutok = 0;
+		this->m_tmoutguid = 0;
+	}
+}
+
+void TcpingCap::__remove_tmnextout()
+{
+	int ret;
+	if (this->m_tmnextok != 0) {
+		ret = libev_remove_timer(this->m_evmain,this->m_tmnextguid);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("remove [%s:%d] tmnext 0x%llx error %d", this->m_ipstr.c_str(),this->m_port, this->m_tmnextguid,ret);
+		}
+		this->m_tmnextok = 0;
+		this->m_tmnextguid = 0;
+	}
+
+}
 
 void TcpingCap::__remove_events()
 {
-	int ret;
-	if (this->m_evmain != NULL) {
-		if (this->m_inserthd != 0) {
-			ret = libev_remove_handle(this->m_evmain,this->m_evthd);
-			if (ret < 0) {
-				GETERRNO(ret);
-				ERROR_INFO("remove [%s:%d] evthd %x error %d",this->m_ipstr.c_str(),this->m_port,this->m_evthd, ret);
-			}
-			this->m_inserthd = 0;
-		}
-
-		if (this->m_tmoutok != 0) {
-			ret = libev_remove_timer(this->m_evmain,this->m_tmoutguid);
-			if (ret < 0) {
-				GETERRNO(ret);
-				ERROR_INFO("remove [%s:%d] tmout 0x%llx error %d", this->m_ipstr.c_str(),this->m_port, this->m_tmoutguid,ret);
-			}
-			this->m_tmoutok = 0;
-			this->m_tmoutguid = 0;
-		}
-
-		if (this->m_tmnextok != 0) {
-			ret = libev_remove_timer(this->m_evmain,this->m_tmnextguid);
-			if (ret < 0) {
-				GETERRNO(ret);
-				ERROR_INFO("remove [%s:%d] tmnext 0x%llx error %d", this->m_ipstr.c_str(),this->m_port, this->m_tmnextguid,ret);
-			}
-			this->m_tmnextok = 0;
-			this->m_tmnextguid = 0;
-		}
-	}
+	this->__remove_evthd();
+	this->__remove_tmout();
+	this->__remove_tmnextout();
+	return ;
 }
 
 void TcpingCap::__remove_component()
@@ -88,15 +101,19 @@ void TcpingCap::__remove_component()
 void TcpingCap::__release_resource()
 {
 	this->__remove_events();
-	this->__remove_component();
 
 	free_tcping_sock(&this->m_sock);
+	this->m_evthd = NULL;
 	this->m_tcpingval.clear();
 }
 
 TcpingCap::~TcpingCap()
 {
 	this->__release_resource();
+	this->__remove_component();
+
+	this->m_evmain = NULL;
+	this->m_combo = NULL;
 
 	this->m_ipstr = "";
 	this->m_port = -1;
@@ -104,23 +121,303 @@ TcpingCap::~TcpingCap()
 	this->__reset_parameter();
 }
 
-
-
-int TcpingCap::start()
+int TcpingCap::__insert_tmnextout()
 {
-	int ret;
-	if (this->m_sock == NULL) {
-		this->m_sock = init_tcping_sock(this->m_tcpingtype);
-		if (this->m_sock == NULL) {
+	if (this->m_tmnextok == 0) {
+		this->m_tmnextguid = 0;
+		ret = libev_insert_timer(this->m_evmain,&this->m_tmnextguid,TcpingCap::tcping_timeout,this,this->m_nexttime,0);
+		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
+		this->m_tmnextok = 1;
 	} else {
-
+		ERROR_INFO("already insert tmnextout");
 	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int TcpingCap::__insert_tmout()
+{
+	if(this->m_tmoutok == 0) {
+		this->m_tmoutguid = 0;
+		ret = libev_insert_timer(this->m_evmain,&this->m_tmoutguid,TcpingCap::tcping_timeout,this,this->m_timeout,0);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		this->m_tmoutok = 1;
+	} else {
+		ERROR_INFO("already insert tmout");
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int TcpingCap::__insert_evthd()
+{
+	if(this->m_inserthd == 0) {
+		ret = libev_insert_handle(this->m_evmain,this->m_evthd,TcpingCap::tcping_callback,this);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		this->m_inserthd = 1;
+	} else {
+		ERROR_INFO("already insert evt");
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int TcpingCap::__collect_value()
+{
+	uint64_t val;
+	int ret;
+	ret = get_tcping_tick(this->m_sock,&val);
+	if (ret < 0 ) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	this->m_tcpingval.push_back(val);
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;	
+}
+
+int TcpingCap::__switch_to_next_wait()
+{
+	int ret;
+
+	ASSERT_IF(this->m_sock != NULL);
+
+
+	this->__remove_evthd();
+	this->__remove_tmout();
+
+	ret = this->__insert_tmnextout();
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
 
 	return 0;
 fail:
 	SETERRNO(ret);
 	return ret;
+}
+
+int TcpingCap::__call_notify()
+{
+	int ret = 0;
+	if (this->m_combo != NULL) {
+		ret = this->m_combo->notify_result(this,0);
+	}
+	return ret;
+}
+
+int TcpingCap::__switch_to_start()
+{
+	this->__remove_tmnextout();
+
+	ASSERT_IF(this->m_sock != NULL);
+
+	ret = resend_tcping_request(this->m_sock);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = this->__insert_evthd();
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret=  this->__insert_tmout();
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	return 0
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
+
+int TcpingCap::start()
+{
+	int ret;
+	if (this->m_evmain == NULL) {
+		ret  = -ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	this->__release_resource();
+
+	this->m_sock = init_tcping_sock(this->m_tcpingtype);
+	if (this->m_sock == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = send_tcping_request(this->m_sock, this->m_ipstr.c_str(),this->m_port);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	if (ret > 0) {
+		ret = this->__collect_value();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = this->__call_notify();
+		if (ret < 0)　 {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = this->__switch_to_next_wait();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	} else {
+		if (this->m_evthd == NULL) {
+			this->m_evthd = get_tcping_evt(this->m_sock);
+			if (this->m_evthd == NULL) {
+				GETERRNO(ret);
+				ERROR_INFO("can not get evthd");
+				goto fail;
+			}
+		}
+
+		ret = this->__switch_to_start();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+
+	return 0;
+fail:
+	this->__release_resource();
+	SETERRNO(ret);
+	return ret;
+}
+
+int TcpingCap::__handle_evt(HANDLE hd,libev_enum_event_t event)
+{
+	ASSERT_IF(this->m_sock != NULL);
+	ret = tcping_complete(this->m_sock);
+	if (ret < 0) {
+		this->m_tcpingval.push_back(TCP_PING_FAIL_VALUE);
+	} else {
+		ret = this->__collect_value();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	}
+	ret = this->__call_notify();
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret=  this->__switch_to_next_wait();
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;	
+}
+
+int TcpingCap::__inc_and_check_times_over()
+{
+	int ret = 0;
+	this->m_curtime += 1;
+	if (this->m_times != 0 && this->m_curtime >= this->m_times) {
+		ret = 1;
+	}
+	return ret;
+}
+
+
+int TcpingCap::tcping_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void* args)
+{
+	TcpingCap* pThis = (TcpingCap*) args;
+	ret = pThis->__handle_evt(hd,event);
+	if (ret < 0) {
+		delete pThis;
+	}
+	return 0;
+}
+
+int TcpingCap::__handle_timeout(uint64_t guid, libev_enum_event_t event)
+{
+	if (this->m_tmoutok != 0 && this->m_tmoutguid == guid) {
+		/*ok this will give */
+		this->m_tcpingval.push_back(TCP_PING_FAIL_VALUE);
+		ret = this->__call_notify();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		ret = this->__switch_to_next_wait();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+	} else if (this->m_tmnextok != 0 && this->m_tmnextguid == guid) {
+		this->m_curtime += 1;
+
+		ret = this->__switch_to_start();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = this->__inc_and_check_times_over();
+		if (ret != 0) {
+			ret = -ERROR_OVERFLOW
+			goto fail;
+		}
+	} else {
+		ERROR_INFO("notify with 0x%llx guid" ,guid);
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;	
+}
+
+int TcpingCap::tcping_timeout(uint64_t guid,libev_enum_event_t event,void* pevmain,void* args)
+{
+	TcpingCap* pThis = (TcpingCap*) args;
+	ret = pThis->__handle_timeout(guid,event);
+	if (ret < 0) {
+		delete pThis;
+	}
+	return 0;
 }

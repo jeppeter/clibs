@@ -6,6 +6,8 @@
 #include <string>
 #include "evcombo.h"
 
+#define TCP_PING_FAIL_VALUE   0xffffffffffffffffULL
+
 class TcpingCap 
 {
 public:
@@ -18,14 +20,31 @@ public:
 	int start();
 
 private:
-	static tcping_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void* args);
-	static tcping_timeout(uint64_t guid,libev_enum_event_t event,void* pevmain,void* args);
+	static int tcping_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void* args);
+	static int tcping_timeout(uint64_t guid,libev_enum_event_t event,void* pevmain,void* args);
 
 
 private:
+	void __remove_evthd();
+	void __remove_tmout();
+	void __remove_tmnextout();
+
+	int __insert_evthd();
+	int __insert_tmout();
+	int __insert_tmnextout();
 	void __remove_events();
 	void __remove_component();
+
+
 	int __reset_parameter();
+	int __switch_to_next_wait();
+	int __switch_to_start();
+
+	int __handle_evt(HANDLE hd,libev_enum_event_t event);
+	int __handle_timeout(uint64_t guid,libev_enum_event_t event);
+
+	int __call_notify();
+	
 
 private:
 	int m_tcpingtype;
