@@ -148,7 +148,7 @@ int DnsTotal::__handle_complete(int idx)
 
 		curstr += ptmpstr;
 		if (portstr.length() >0) {
-			curstr += ',';
+			curstr += ';';
 			curstr += portstr;
 		}
 
