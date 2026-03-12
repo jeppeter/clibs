@@ -118,7 +118,6 @@ int DnsCap::is_error()
 	return ret;
 }
 
-
 int DnsCap::need_time(int timeout)
 {
 	int ret = -ERROR_NOT_READY;

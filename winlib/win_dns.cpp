@@ -257,6 +257,7 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 					goto fail;
 				}
 				pdnsqry->m_iplen += 1;
+				DEBUG_INFO("m_iplen %d", pdnsqry->m_iplen);
 			} else {
 				ERROR_INFO("ret %d", ret);
 				WSA_GETERRNO(ret);
@@ -322,6 +323,8 @@ void WINAPI dns_query_callback(DWORD error,DWORD bytes,LPOVERLAPPED ov)
 		return;
 	}
 
+	DEBUG_INFO("dns_query_callback");
+
 	ret = __fill_dns_result(pdnsqry);
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -380,9 +383,11 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 	pdnsqry->m_exited = 0;
 
 	pdnsqry->m_startticks = get_current_ticks();
-	cret = GetAddrInfoExW(pwip,pwport,NS_DNS,NULL,&pdnsqry->m_hints,&pdnsqry->m_infores,NULL,
+	//cret = GetAddrInfoExW(pwip,pwport,NS_ALL,NULL,&pdnsqry->m_hints,&pdnsqry->m_infores,NULL,
+	cret = GetAddrInfoExW(pwip,NULL,NS_ALL,NULL,&pdnsqry->m_hints,&pdnsqry->m_infores,NULL,
 			&pdnsqry->m_ov,dns_query_callback,&pdnsqry->m_cancelevt);
 	if (cret == 0) {
+		DEBUG_INFO("call direct filled");
 		ret = __fill_dns_result(pdnsqry);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -478,6 +483,7 @@ int dns_query_time_left(void* pdnsqry1,int timeout)
 	}
 
 	cticks = get_current_ticks();
+	DEBUG_INFO("m_startticks 0x%llx cticks 0x%llx timeout %d", pdnsqry->m_startticks,cticks, timeout);
 	return need_wait_times(pdnsqry->m_startticks,cticks,timeout);
 }
 

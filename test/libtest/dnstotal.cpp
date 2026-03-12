@@ -56,7 +56,7 @@ int DnsTotal::__split_name(char* pname,std::string& name, std::string& ports)
 	ports = "";
 	name = "";
 
-	sidx = ns.find(':');
+	sidx = ns.find(',');
 	if (sidx == std::string::npos) {
 		name = pname;
 	} else {
@@ -110,6 +110,7 @@ fail:
 int DnsTotal::__handle_error(int idx)
 {
 	DnsCap* pcur = this->m_iparrs.at((uint64_t)idx);
+	DEBUG_INFO("error %d", idx);
 	std::string cstr = this->m_dnsnames.at((uint64_t)idx);
 	this->m_dnsnames.erase(this->m_dnsnames.begin() + idx);
 	this->m_aftypes.erase(this->m_aftypes.begin() + idx);
@@ -122,6 +123,7 @@ int DnsTotal::__handle_error(int idx)
 int DnsTotal::__handle_complete(int idx)
 {
 	std::vector<std::string> dnsarr;
+	DEBUG_INFO("complete %d", idx);
 	char* ptmpstr=NULL;
 	int tmpsize=0;
 	DnsCap* pcur = this->m_iparrs.at((uint64_t)idx);
@@ -144,7 +146,11 @@ int DnsTotal::__handle_complete(int idx)
 			break;
 		}
 
-		curstr = ptmpstr;
+		curstr += ptmpstr;
+		if (portstr.length() >0) {
+			curstr += ',';
+			curstr += portstr;
+		}
 
 		dnsarr.push_back(curstr);
 		j += 1;
@@ -191,9 +197,30 @@ int DnsTotal::loop(HANDLE exithd,int timeout)
 			cont = 0;
 			for(i=0;i<(int)this->m_iparrs.size();i++) {
 				pcur = this->m_iparrs.at((uint64_t)i);
+				if (pcur->is_error() != 0 ) {
+					ret = this->__handle_error(i);
+					if (ret < 0) {
+						GETERRNO(ret);
+						ERROR_INFO(" ");
+						goto fail;
+					}
+					cont = 1;
+					break;
+				}
+
+				if (pcur->is_completed() != 0) {
+					ret = this->__handle_complete(i);
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
+					cont = 1;
+					break;
+				}
 				/*time out so do this remove*/
 				ret = pcur->need_time(timeout);
 				if (ret < 0) {
+					DEBUG_INFO("[%d]need time %d",i ,ret);
 					ret = this->__handle_error(i);
 					cont = 1;
 					break;
