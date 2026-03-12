@@ -171,7 +171,7 @@ int TcpingCap::__insert_tmnextout()
 		ERROR_INFO("already insert tmnextout");
 	}
 	return 0;
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -191,7 +191,7 @@ int TcpingCap::__insert_tmout()
 		ERROR_INFO("already insert tmout");
 	}
 	return 0;
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -210,7 +210,7 @@ int TcpingCap::__insert_evthd()
 		ERROR_INFO("already insert evt");
 	}
 	return 0;
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -227,7 +227,7 @@ int TcpingCap::__collect_value()
 	this->m_tcpingval.push_back(val);
 
 	return 0;
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;	
 }
@@ -249,7 +249,7 @@ int TcpingCap::__switch_to_next_wait()
 	}
 
 	return 0;
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -288,7 +288,7 @@ int TcpingCap::__switch_to_start()
 		goto fail;
 	}
 	return 0;
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;
 }
@@ -353,7 +353,7 @@ int TcpingCap::start()
 	}
 
 	return 0;
-	fail:
+fail:
 	this->__release_resource();
 	SETERRNO(ret);
 	return ret;
@@ -380,7 +380,7 @@ int TcpingCap::__collect_and_switch_next()
 		goto fail;
 	}
 
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;	
 }
@@ -407,7 +407,7 @@ int TcpingCap::__handle_evt(HANDLE hd,libev_enum_event_t event)
 	}
 
 	return 1;
-	fail:
+fail:
 	SETERRNO(ret);
 	return ret;	
 }
