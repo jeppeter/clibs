@@ -95,6 +95,96 @@ void DnsCap::__remove_timeout_guid()
 	return;
 }
 
+void DnsCap::__remove_error_evt()
+{
+	if (this->m_inserterr != 0) {
+		ret = libev_remove_handle(this->m_evmain,this->m_errevt);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("remove [%s:%s] errevt error %d", this->m_dnsname.c_str(),this->m_portstr.c_str(),ret);
+		}
+		this->m_inserterr = 0;
+	}
+	return;
+}
+
+void DnsCap::__remove_comp_evt()
+{
+	if (this->m_insertcomp != 0) {
+		ret = libev_remove_handle(this->m_evmain,this->m_compevt);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("remove [%s:%s] compevt error %d", this->m_dnsname.c_str(),this->m_portstr.c_str(),ret);
+		}
+		this->m_insertcomp = 0;
+	}
+	return;
+}
+
+int DnsCap::__insert_timeout_guid()
+{
+	int ret;
+	if (this->m_inserttmout == 0) {
+		ret = libev_insert_timer(this->m_evmain,&this->m_tmoutguid,DnsCap::dnscap_timeout,this,this->m_timeout,0);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		this->m_inserttmout = 1;
+	} else {
+		ret = -ERROR_ALREADY_EXISTS;
+		ERROR_INFO("already exist [%s:%s] tmout guid", this->m_dnsname.c_str(),this->m_portstr.c_str());
+		goto fail;
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int DnsCap::__insert_error_evt()
+{
+	int ret;
+	if (this->m_inserterr == 0) {
+		ret = libev_insert_handle(this->m_evmain,this->m_errevt,DnsCap::dnscap_callback,this);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		this->m_inserterr = 1;
+	} else {
+		ret = -ERROR_ALREADY_EXISTS;
+		ERROR_INFO("already exist [%s:%s] errevt", this->m_dnsname.c_str(),this->m_portstr.c_str());
+		goto fail;
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int DnsCap::__insert_comp_evt()
+{
+	int ret;
+	if (this->m_insertcomp == 0) {
+		ret = libev_insert_handle(this->m_evmain,this->m_compevt,DnsCap::dnscap_callback,this);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		this->m_insertcomp = 1;
+	} else {
+		ret = -ERROR_ALREADY_EXISTS;
+		ERROR_INFO("already exist [%s:%s] compevt", this->m_dnsname.c_str(),this->m_portstr.c_str());
+		goto fail;
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+
 int DnsCap::start()
 {
 	int ret;
@@ -118,70 +208,86 @@ int DnsCap::start()
 	if (ret > 0) {
 		this->__call_notify();
 		completed = 1;
+	} else {
+		/*now we should set value*/
+		this->m_compevt = dns_query_get_complete_evt(this->m_dnsqry);
+		this->m_errevt = dns_query_get_error_evt(this->m_dnsqry);
+		if (this->m_compevt == NULL || this->m_errevt == NULL) {
+			ret = -ERROR_INVALID_PARAMTER;
+			ERROR_INFO("can not get compevt or errevt");
+			goto fail;
+		}
+
+		ret = this->__insert_comp_evt();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = this->__insert_error_evt();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+		ret = this->__insert_timeout_guid();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
 	}
 	return completed;
 fail:
+	this->__stop_query();
 	SETERRNO(ret);
 	return ret;
 
 }
 
-HANDLE DnsCap::get_complete_evt()
-{
-	HANDLE hret =NULL;
-	if (this->m_dnsqry != NULL) {
-		hret = dns_query_get_complete_evt(this->m_dnsqry);
-	}
-	return hret;
-}
 
-HANDLE DnsCap::get_error_evt()
+int DnsCap::_callback_func(HANDLE hd,libev_enum_event_t event)
 {
-	HANDLE hret =NULL;
-	if (this->m_dnsqry != NULL) {
-		hret = dns_query_get_error_evt(this->m_dnsqry);
-	}
-	return hret;
-}
-
-int DnsCap::is_completed()
-{
-	int ret =0;
-	if (this->m_dnsqry) {
+	if (hd == this->m_compevt) {
+		/*now to */
 		ret = is_dns_query_completed(this->m_dnsqry);
-	}
-	return ret;
-}
+		if (ret != 0) {
+			ret = this->__fill_dns_info();
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			this->__call_notify();
+			/*now we should*/
+		}
+	} else if (hd == this->m_errevt) {
 
-int DnsCap::is_error()
-{
-	int ret =0;
-	if (this->m_dnsqry) {
-		ret = is_dns_query_error(this->m_dnsqry);
-	}
-	return ret;
-}
-
-int DnsCap::need_time(int timeout)
-{
-	int ret = -ERROR_NOT_READY;
-	if (this->m_dnsqry) {
-		ret = dns_query_time_left(this->m_dnsqry,timeout);
-	}
-	if (ret < 0) {
-		SETERRNO(ret);	
-	}	
-	return ret;
-}
-
-int DnsCap::get_result(int idx,char** ppstr,int *psize)
-{
-	if (this->m_dnsqry == NULL) {
+	} else {
+		ERROR_INFO("hd 0x%x not ok",hd);
 		return 0;
 	}
-
-	return dns_query_get_result(this->m_dnsqry,idx,ppstr,psize);
 }
+
+int DnsCap::dnscap_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void* args)
+{
+	DnsCap* pThis= (DnsCap*)args;
+	ret = pThis->_callback_func(hd,event);
+	if (ret < 0) {
+		delete pThis;
+	}
+	return 0;
+}
+
+int DnsCap::dnscap_timeout(uint64_t guid,libev_enum_event_t event,void* pevmain,void* args)
+{
+	DnsCap* pThis= (DnsCap*)args;
+	ret = pThis->_timeout_func(hd,event);
+	if (ret < 0) {
+		delete pThis;
+	}
+	return 0;
+}
+
 
 
 #pragma warning(pop)

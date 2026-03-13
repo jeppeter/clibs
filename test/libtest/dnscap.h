@@ -19,6 +19,8 @@ private:
 	static int dnscap_timeout(uint64_t guid,libev_enum_event_t event,void* pevmain,void* args);
 
 private:
+	int _callback_func(HANDLE hd,libev_enum_event_t event);
+	int _timeout_func(uint64_t guid, libev_enum_event_t event);
 	void __call_notify();
 	void __call_remove();
 	void __release_resource();

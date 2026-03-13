@@ -365,6 +365,7 @@ fail:
 int TcpingCap::start()
 {
 	int ret;
+	int completed = 0;
 	if (this->m_evmain == NULL) {
 		ret  = -ERROR_INVALID_PARAMETER;
 		SETERRNO(ret);
@@ -398,11 +399,20 @@ int TcpingCap::start()
 			goto fail;
 		}
 
+
+
 		ret = this->__switch_to_next_wait();
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		}
+
+		ret = this->__inc_and_check_times_over();
+		if (ret > 0) {
+			completed = 1;
+		}
+
+
 	} else {
 		if (this->m_evthd == NULL) {
 			this->m_evthd = get_tcping_evt(this->m_sock);
@@ -420,7 +430,7 @@ int TcpingCap::start()
 		}
 	}
 
-	return 0;
+	return completed;
 fail:
 	this->__release_resource();
 	SETERRNO(ret);

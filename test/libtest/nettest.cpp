@@ -724,7 +724,6 @@ int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     int nexttime;
     pargs_options_t pargs = (pargs_options_t) popt;
     TcpingTotal *ptotal=NULL;
-    TcpingCap* pcap =NULL;
     void* pevmain = NULL;
     int i;
     DnsTotal total;
@@ -762,17 +761,21 @@ int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         ret = ptotal->start_tcping(aftype,name.c_str(),(char*)ports.c_str());
         if (ret < 0) {
             GETERRNO(ret);
+            goto out;
+        }
+    }
+
+    if (ptotal->get_tasks() > 0) {
+        ret = libev_winev_loop(pevmain);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
         }
     }
 
 
     ret = 0;
 out:
-    if (pcap) {
-        delete pcap;
-    }
-    pcap = NULL;
-
     if (ptotal) {
         delete ptotal;
     }

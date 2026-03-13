@@ -106,9 +106,15 @@ int TcpingTotal::start_tcping(int aftype,const char* ipstr, char* portstr)
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
+	} else if (ret == 0) {
+		this->m_caps.push_back(pcap);	
+		pcap = NULL;
+	} else {
+		delete pcap;
+		pcap = NULL;
 	}
 
-	this->m_caps.push_back(pcap);
+	
 	pcap = NULL;
 	return 0;
 fail:
@@ -141,6 +147,13 @@ int TcpingTotal::set_times(int times)
 	ret = this->m_times;
 	this->m_times = times;
 	return ret;
+}
+
+int TcpingTotal::get_tasks()
+{
+	int cnt = 0;
+	cnt = (int)this->m_caps.size();
+	return cnt;
 }
 
 #pragma warning(pop)

@@ -16,6 +16,7 @@ public:
 	int set_times(int times);
 	int set_timeout(int timeout);
 	int set_nexttime(int nexttime);
+	int get_tasks();
 
 private:
 	void __release_resource();
