@@ -698,6 +698,24 @@ out:
     return ret;
 }
 
+int __split_time(const char* pstr, std::string& name,std::string& ports)
+{
+    std::string ns = pstr;
+    size_t sidx;
+    ports = "";
+    name = "";
+
+    sidx = ns.find(',');
+    if (sidx == std::string::npos) {
+        name = pname;
+    } else {
+        name = ns.substr(0,sidx);
+        ports = ns.substr(sidx+1,ns.length() - sidx-1);
+    }
+    DEBUG_INFO("name %s ports %s",name.c_str(),ports.c_str());
+    return 0;    
+}
+
 int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     int aftype = AF_INET;
@@ -705,8 +723,61 @@ int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     int timeout;
     int nexttime;
     pargs_options_t pargs = (pargs_options_t) popt;
+    TcpingTotal *ptotal=NULL;
+    TcpingCap* pcap =NULL;
+    void* pevmain = NULL;
+    int i;
+    DnsTotal total;
+    std::string name,ports;
+
+    init_log_level(pargs);
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
-    return 0;
+
+    if (pargs->m_af6) {
+        aftype = AF_INET6;
+    }
+
+    pevmain = libev_init_winev();
+    if (pevmain == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr,"libev_init_winev error %d\n", ret);
+        goto fail;
+    }
+
+    times = pargs->m_times;
+    timeout = pargs->m_timeout;
+    nexttime = pargs->m_nexttime;
+
+    ptotal = new TcpingTotal(pevmain,times,timeout,nexttime);
+
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i] ;i++) {
+        ret = __split_time(parsestate->leftargs[i],name,ports);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        ret = ptotal->start_tcping(aftype,name.c_str(),ports.c_str());
+        if (ret < 0) {
+            GETERRNO(ret);
+        }
+    }
+
+
+    ret = 0;
+out:
+    if (pcap) {
+        delete pcap;
+    }
+    pcap = NULL;
+
+    if (ptotal) {
+        delete ptotal;
+    }
+    ptotal = NULL;
+
+    libev_free_winev(&pevmain);
+    SETERRNO(ret);
+    return ret;
 }
