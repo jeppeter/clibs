@@ -51,6 +51,8 @@ private:
 
 	uint64_t m_tmoutguid;
 	int m_inserttmout;
+
+	std::vector<std::string> m_results;
 };
 
 #endif /* __DNSCAP_H_6301675AB6BAABD6DC4827D9043391E5__ */

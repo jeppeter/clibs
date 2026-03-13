@@ -242,9 +242,78 @@ fail:
 	this->__stop_query();
 	SETERRNO(ret);
 	return ret;
-
 }
 
+int DnsCap::__fill_dns_info()
+{
+	int idx = 0;
+	int ret;
+	char* pdns=NULL;
+	int dnssize=0;
+	std::string vstr;
+	while(1) {
+		ret = dns_query_get_result(this->m_dnsqry,idx,&pdns,&dnssize);
+		if (ret == 0) {
+			break;
+		}
+
+		vstr = this->m_dnsname;
+		if (this->m_portstr.length() > 0) {
+			vstr += ',';
+			vstr += this->m_portstr;
+		}
+		vstr += ';';
+		vstr += pdns;
+		if (this->m_portstr.length() > 0) {
+			vstr += ',';
+			vstr += this->m_portstr;
+		}
+		vstr += ';'
+		this->m_results.push_back(vstr);
+		idx += 1;
+	}
+
+	dns_query_get_result(NULL,-1,&pdns,&dnssize);
+	return 0;
+}
+
+int DnsCap::__fill_dns_error()
+{
+	std::string vstr;
+
+	vstr = "ERROR";
+	vstr += this->m_dnsname;
+	if (this->m_portstr.length() > 0) {
+		vstr += ';';
+		vstr += ',';
+		vstr += this->m_portstr;
+	}
+	vstr += ';';
+	this->m_results.push_back(vstr);
+	return 0;
+}
+
+int DnsCap::_timeout_func(uint64_t guid,libev_enum_event_t event)
+{
+	if (guid == this->m_tmoutguid) {
+		ret = this->__fill_dns_error();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		this->__remove_timeout_guid();
+		this->__remove_comp_evt();
+		this->__remove_error_evt();
+		this->__call_notify();
+		/*to exists*/
+		ret = -ERROR_ALREADY_EXISTS;
+		SETERRNO(ret);
+		return ret;
+	} else {
+		ERROR_INFO("0x%llx not guid", guid);
+	}
+	return 0;
+}
 
 int DnsCap::_callback_func(HANDLE hd,libev_enum_event_t event)
 {
@@ -257,15 +326,37 @@ int DnsCap::_callback_func(HANDLE hd,libev_enum_event_t event)
 				GETERRNO(ret);
 				goto fail;
 			}
+			this->__remove_timeout_guid();
+			this->__remove_comp_evt();
+			this->__remove_error_evt();
 			this->__call_notify();
-			/*now we should*/
+			/*to exists*/
+			ret = -ERROR_ALREADY_EXISTS;
+			SETERRNO(ret);
+			return ret;
 		}
 	} else if (hd == this->m_errevt) {
+		ret = is_dns_query_error(this->m_dnsqry);
+		if (ret != 0) {
+			ret = this->__fill_dns_error();
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			this->__remove_timeout_guid();
+			this->__remove_comp_evt();
+			this->__remove_error_evt();
+			this->__call_notify();
+			/*exit*/
+			ret = -ERROR_ALREADY_EXISTS;
+			SETERRNO(ret);
+			return ret;
+		}
 
 	} else {
 		ERROR_INFO("hd 0x%x not ok",hd);
-		return 0;
 	}
+	return 0;
 }
 
 int DnsCap::dnscap_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void* args)
