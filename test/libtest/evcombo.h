@@ -19,7 +19,16 @@ public:
 class IEvRunner {
 public:
 	virtual ~IEvRunner(void) {};
+	/*
+	return < 0 for failed
+	== 0 for it in progress
+	> 0 for completed
+	*/
 	virtual int start()=0;
+	/*
+	return == 0 for no more information
+	> 0 get one information
+	*/
 	virtual int get_result(std::string& vstr)=0;
 };
 

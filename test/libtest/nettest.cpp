@@ -698,9 +698,9 @@ out:
     return ret;
 }
 
-int __split_time(const char* pstr, std::string& name,std::string& ports)
+int __split_time(const char* pname, std::string& name,std::string& ports)
 {
-    std::string ns = pstr;
+    std::string ns = pname;
     size_t sidx;
     ports = "";
     name = "";
@@ -729,6 +729,7 @@ int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     int i;
     DnsTotal total;
     std::string name,ports;
+    int ret;
 
     init_log_level(pargs);
 
@@ -743,7 +744,7 @@ int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     if (pevmain == NULL) {
         GETERRNO(ret);
         fprintf(stderr,"libev_init_winev error %d\n", ret);
-        goto fail;
+        goto out;
     }
 
     times = pargs->m_times;
@@ -756,9 +757,9 @@ int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         ret = __split_time(parsestate->leftargs[i],name,ports);
         if (ret < 0) {
             GETERRNO(ret);
-            goto fail;
+            goto out;
         }
-        ret = ptotal->start_tcping(aftype,name.c_str(),ports.c_str());
+        ret = ptotal->start_tcping(aftype,name.c_str(),(char*)ports.c_str());
         if (ret < 0) {
             GETERRNO(ret);
         }
