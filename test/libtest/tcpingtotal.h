@@ -12,7 +12,7 @@ public:
 	TcpingTotal(void* pev,int times,int timeout,int nexttime);
 	virtual ~TcpingTotal();
 	virtual void notify_event(void* ptr,ev_combo_event_t event);
-	int start_tcping(int aftype,const char* ipstr, int port);
+	int start_tcping(int aftype,const char* ipstr, char* portstr);
 	int set_times(int times);
 	int set_timeout(int timeout);
 	int set_nexttime(int nexttime);
@@ -30,6 +30,6 @@ private:
 	int m_timeout;
 
 	int m_indestruct;
-}
+};
 
 #endif /* __TCPINGTOTAL_H_F0F9821FF614549F406852B779173CB9__ */

@@ -94,6 +94,7 @@
 #include "pingcap.h"
 #include "pingtotal.h"
 #include "dnstotal.h"
+#include "tcpingtotal.h"
 
 
 #pragma warning(pop)
@@ -130,6 +131,8 @@ typedef struct __args_options {
     char* m_regkey;
     int m_times;
     int m_af6;
+    int m_nexttime;
+    int m_reserv1;
 } args_options_t, *pargs_options_t;
 
 #pragma comment(lib,"user32.lib")
@@ -337,6 +340,8 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 int procmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int backtrace_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int ivtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -759,6 +764,7 @@ void close_ctrlc_handle()
 #include "tstreg.cpp"
 #include "tstuser.cpp"
 #include "cppcon.cpp"
+#include "cpptest.cpp"
 
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {

@@ -2,6 +2,8 @@
 #define __EVCOMBO_H_9C6BB9CD28732F9654EB0DB80140E41F__
 
 
+#include <string>
+
 typedef enum {
 	remove_event = 0,
 	get_result_event,

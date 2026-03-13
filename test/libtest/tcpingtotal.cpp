@@ -1,14 +1,24 @@
+#define _HAS_EXCEPTIONS 0
+
 #include "tcpingtotal.h"
+
+#include <win_output_debug.h>
+
+#pragma warning(push)
+
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1910
+#pragma warning(disable:5045)
+#endif
+#endif
+
 
 TcpingTotal::TcpingTotal(void* pev,int times,int timeout,int nexttime)
 {
 	this->m_evmain = pev;
-
-
 	this->m_times = times;
 	this->m_timeout = timeout;
 	this->m_nexttime = nexttime;
-
 	this->m_indestruct = 0;
 }
 
@@ -16,6 +26,7 @@ void TcpingTotal::__release_resource()
 {
 	while (this->m_caps.size() > 0) {
 		TcpingCap* pcap = this->m_caps.at(0);
+		/*to free functions*/
 		this->m_caps.erase(this->m_caps.begin());
 		delete pcap;
 		pcap = NULL;
@@ -26,7 +37,7 @@ TcpingCap* TcpingTotal::__get_cap(void* pthis,int& idx)
 {
 	int i;
 	TcpingCap* pcap=NULL;
-	for(i=0;i<this->m_caps.size();i++) {
+	for(i=0;i< (int)this->m_caps.size();i++) {
 		pcap = this->m_caps.at((uint64_t)i);
 		if (pcap == pthis) {
 			idx = i;
@@ -41,6 +52,7 @@ void TcpingTotal::notify_event(void* pthis,ev_combo_event_t event)
 {
 	TcpingCap* pcap;
 	int idx;
+	int ret;
 	pcap = this->__get_cap(pthis,idx);
 	if (pcap == NULL) {
 		return;
@@ -80,11 +92,12 @@ TcpingTotal::~TcpingTotal()
 	this->m_indestruct = 0;
 }
 
-int TcpingTotal::start_tcping(int aftype,const char* ipstr, int port)
+int TcpingTotal::start_tcping(int aftype,const char* ipstr, char* portstr)
 {
 	TcpingCap* pcap=NULL;
+	int ret;
 
-	pcap = new TcpingCap(aftype,ipstr,port,this->m_evmain,this);
+	pcap = new TcpingCap(aftype,ipstr,portstr,this->m_evmain,this);
 	pcap->set_timeout(this->m_timeout);
 	pcap->set_times(this->m_times);
 	pcap->set_nexttime(this->m_nexttime);
@@ -130,3 +143,4 @@ int TcpingTotal::set_times(int times)
 	return ret;
 }
 
+#pragma warning(pop)

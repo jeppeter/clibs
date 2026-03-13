@@ -697,3 +697,16 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int aftype = AF_INET;
+    int times;
+    int timeout;
+    int nexttime;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+    return 0;
+}
