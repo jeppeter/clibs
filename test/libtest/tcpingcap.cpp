@@ -4,6 +4,10 @@
 
 #include <win_output_debug.h>
 #include <win_tcping.h>
+#include <win_time.h>
+#include <win_strop.h>
+
+#include <time.h>
 
 #pragma warning(push)
 
@@ -129,7 +133,7 @@ void TcpingCap::__remove_events()
 void TcpingCap::__remove_component()
 {
 	if (this->m_combo) {
-		this->m_combo->remove_ev_component(this,0);
+		this->m_combo->notify_event(this,remove_event);
 	}
 }
 
@@ -142,8 +146,9 @@ void TcpingCap::__release_resource()
 	this->m_tcpingval.clear();
 }
 
-TcpingCap::~TcpingCap()
+TcpingCap::~TcpingCap(void)
 {
+	DEBUG_INFO("TcpingCap destructor");
 	this->__release_resource();
 	this->__remove_component();
 
@@ -215,16 +220,78 @@ fail:
 	return ret;
 }
 
+int TcpingCap::_get_now_str(std::string& tstr,uint64_t val)
+{
+	time_t nowt;
+	struct tm ctm;
+	char* ptime=NULL;
+	int tsize=0;
+	char* ccstr=NULL;
+	int ccsize=0;
+	int ret;
+
+
+	nowt = time(NULL);
+	ret = time_to_tm(&nowt,&ctm);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+	tstr = "TCPINGCAP;";
+	ret = snprintf_safe(&ccstr,&ccsize,"%s,%d",this->m_ipstr.c_str(),this->m_port);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	tstr += ccstr;
+	tstr += ";";
+	ret = tm_to_str(&ctm,&ptime,&tsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+	tstr += ptime;
+	ret = snprintf_safe(&ccstr,&ccsize,"0x%llx",val);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	tstr += ccstr;
+
+	tm_to_str(NULL,&ptime,&tsize);
+	snprintf_safe(&ccstr,&ccsize,NULL);
+	return 0;
+fail:
+	tm_to_str(NULL,&ptime,&tsize);
+	snprintf_safe(&ccstr,&ccsize,NULL);
+	SETERRNO(ret);
+	return ret;
+}
+
 int TcpingCap::__collect_value()
 {
 	uint64_t val;
 	int ret;
+	std::string tstr;
 	ret = get_tcping_tick(this->m_sock,&val);
 	if (ret < 0 ) {
 		GETERRNO(ret);
 		goto fail;
 	}
-	this->m_tcpingval.push_back(val);
+	ret = this->_get_now_str(tstr,val);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+	this->m_tcpingval.push_back(tstr);
 
 	return 0;
 fail:
@@ -258,7 +325,8 @@ int TcpingCap::__call_notify()
 {
 	int ret = 0;
 	if (this->m_combo != NULL) {
-		ret = this->m_combo->notify_result(this,0);
+		this->m_combo->notify_event(this,get_result_event);
+		ret = 1;
 	}
 	return ret;
 }
@@ -440,10 +508,18 @@ int TcpingCap::__handle_timeout(uint64_t guid, libev_enum_event_t event)
 	int ret;
 	REFERENCE_ARG(event);
 	if (this->m_tmoutok != 0 && this->m_tmoutguid == guid) {
+		std::string cstr;
 		/*we remove this before call back*/
 		this->__remove_tmout();
 		/*ok this will give */
-		this->m_tcpingval.push_back((uint64_t)TCP_PING_FAIL_VALUE);
+		ret = this->_get_now_str(cstr,TCP_PING_FAIL_VALUE);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
+
+		this->m_tcpingval.push_back(cstr);
 		ret = this->__call_notify();
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -500,6 +576,20 @@ int TcpingCap::tcping_timeout(uint64_t guid,libev_enum_event_t event,void* pevma
 		delete pThis;
 	}
 	return 0;
+}
+
+int TcpingCap::get_result(std::string& vstr)
+{
+	int ret = 0;
+
+	if (this->m_tcpingval.size() > 0) {
+		vstr = this->m_tcpingval.at(0);
+		this->m_tcpingval.erase(this->m_tcpingval.begin());
+		ret = 1;
+	} else {
+		vstr = "";
+	}
+	return ret;
 }
 
 #pragma warning(pop)

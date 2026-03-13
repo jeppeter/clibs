@@ -9,15 +9,17 @@
 #include <vector>
 
 
-class TcpingCap 
+class TcpingCap : public IEvRunner
 {
 public:
 	TcpingCap(int aftype,const char* ipstr,const char* portstr,void* pev,IEvCombo* pcombo);
-	virtual ~TcpingCap();
+	//virtual ~IEvRunner();
+	virtual ~TcpingCap(void);
 	int set_timeout(int timeout);
 	int set_nexttime(int nextime);
 	int set_times(int times);
-	int start();
+	virtual int start();
+	virtual int get_result(std::string& vstr);
 
 private:
 	static int tcping_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void* args);
@@ -51,6 +53,8 @@ private:
 
 	int __call_notify();
 
+	int _get_now_str(std::string& tstr,uint64_t val);
+
 
 private:
 	std::string m_ipstr;
@@ -76,7 +80,7 @@ private:
 	int m_tmnextok;
 	int m_reserv1;
 
-	std::vector<uint64_t> m_tcpingval;
+	std::vector<std::string> m_tcpingval;
 };
 
 
