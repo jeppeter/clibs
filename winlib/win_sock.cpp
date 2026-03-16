@@ -263,10 +263,13 @@ int __format_saddr(char* ipaddr,int port,struct sockaddr* paddr,int *pfamily)
 	ret = inet_pton(AF_INET,ipaddr,&paddr4->sin_addr.s_addr);
 	if (ret != 1) {
 		paddr6 = (struct sockaddr_in6*)paddr;
+		memset(paddr6,0,sizeof(*paddr6));
 		paddr6->sin6_family = AF_INET6;
 		ret = inet_pton(AF_INET6,ipaddr,&paddr6->sin6_addr);
 		if (ret == 1) {
 			paddr6->sin6_port = htons((unsigned short)port);
+			paddr6->sin6_flowinfo = 0;
+			paddr6->sin6_scope_id = 0;
 			retlen = sizeof(*paddr6);
 			if (pfamily) {
 				*pfamily = AF_INET6;
@@ -828,6 +831,7 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 		goto fail;
 	}
 
+	DEBUG_INFO("aftype %d", psock->m_aftype);
 	psock->m_sock = socket(psock->m_aftype, SOCK_STREAM, 0);
 	if (psock->m_sock == INVALID_SOCKET) {
 		WSA_GETERRNO(ret);
@@ -860,6 +864,7 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 
 	namelen = ret;
 
+	DEBUG_BUFFER_FMT(&nameaddr,namelen,"nameaddr");
 	ret = bind(psock->m_sock, &nameaddr, namelen);
 	if (ret != 0) {
 		WSA_GETERRNO(ret);
