@@ -368,8 +368,6 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 	int wipsize=0,wportsize=0;
 	int ret,cret;
 	int completed = 0;
-	char* pbuffer = NULL;
-	int buflen = SOCKADDR_MAX_LEN;
 
 	if (pdnsqry->m_qryip == NULL || pdnsqry->m_inprog != 0) {
 		ret = -ERROR_INVALID_PARAMETER;
@@ -415,40 +413,9 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 		pdnsqry->m_exited = 1;
 	} else {
 		if (cret != WSA_IO_PENDING && cret != ERROR_IO_PENDING) {
-			if (cret == WSAHOST_NOT_FOUND) {
-
-				if (pbuffer == NULL) {
-					pbuffer = (char*)malloc((size_t)buflen);
-					if (pbuffer == NULL) {
-						GETERRNO(ret);
-						goto fail;
-					}
-				}
-
-				/*this means it is ok to transfer for the ip address in ipv6 so do it*/
-				ret = inet_pton(pdnsqry->m_aftype,pdnsqry->m_qryip,pbuffer);
-				if (ret != 1) {
-					WSA_GETERRNO(ret);
-					ERROR_INFO("WSAHOST_NOT_FOUND for type %d [%s] inet_pton ret %d",pdnsqry->m_aftype,pdnsqry->m_qryip, ret);
-					ret = -cret;
-					goto fail;
-				}
-
-				ret = __append_dns_value(pdnsqry,pdnsqry->m_qryip);
-				if (ret < 0) {
-					GETERRNO(ret);
-					goto fail;
-				}
-
-				pdnsqry->m_inprog = 0;
-				pdnsqry->m_exited = 1;
-				completed = 1;
-
-			} else {
-				WSA_GETERRNO(ret);
-				ERROR_INFO("cret %d ret %d",cret,ret);
-				goto fail;				
-			}
+			WSA_GETERRNO(ret);
+			ERROR_INFO("cret %d ret %d",cret,ret);
+			goto fail;				
 		} else {
 			pdnsqry->m_inprog = 1;	
 		}
@@ -456,20 +423,12 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 		
 	}
 
-	if (pbuffer) {
-		free(pbuffer);
-	}
-	pbuffer =NULL;
 
 	AnsiToUnicode(NULL,&pwport,&wportsize);
 	AnsiToUnicode(NULL,&pwip,&wipsize);
 
 	return completed;
 fail:
-	if (pbuffer) {
-		free(pbuffer);
-	}
-	pbuffer =NULL;
 	AnsiToUnicode(NULL,&pwport,&wportsize);
 	AnsiToUnicode(NULL,&pwip,&wipsize);
 	SETERRNO(ret);
