@@ -418,9 +418,7 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 			goto fail;				
 		} else {
 			pdnsqry->m_inprog = 1;	
-		}
-
-		
+		}		
 	}
 
 

@@ -1,9 +1,8 @@
 #define _HAS_EXCEPTIONS 0
-
+#include <win_sock.h>
 #include "tcpingcap.h"
 
 #include <win_output_debug.h>
-#include <win_sock.h>
 #include <win_time.h>
 #include <win_strop.h>
 

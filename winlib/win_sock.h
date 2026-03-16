@@ -1,6 +1,19 @@
 #ifndef __WIN_SOCK_H_3416A85870F7CA4F6AB69687D35EE5CF__
 #define __WIN_SOCK_H_3416A85870F7CA4F6AB69687D35EE5CF__
 
+#pragma warning(push)
+
+#pragma warning(disable:4005)
+#pragma warning(disable:4668)
+#pragma warning(disable:4820)
+
+
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+#include <mswsock.h>
+
+#pragma warning(pop)
+
 
 #undef __WINLIB_INNER_INCLUDE__
 #define __WINLIB_INNER_INCLUDE__
@@ -9,9 +22,6 @@
 
 #include <win_types.h>
 
-#include <WinSock2.h>
-#include <WS2tcpip.h>
-#include <mswsock.h>
 
 #define WSA_GETERRNO(ret) do { ret = WSAGetLastError(); if (ret > 0) {ret = -ret;} if (ret == 0) {ret = -1;} } while(0)
 
