@@ -10,6 +10,9 @@ import sys
 import os
 import time
 import random
+import socket
+import traceback
+import select
 
 def read_file(infile=None):
     fin = sys.stdin
@@ -182,12 +185,50 @@ def pumpfile_handler(args,parser):
     return
 
 
+def socklisten_handler(args,parser):
+    set_logging(args)
+    port = int(args.subnargs[0])
+    host = '0.0.0.0'
+    if len(args.subnargs) > 1:
+        host = args.subnargs[1]
+    else:
+        if args.af6:
+            host = '::0'
+    aftype = socket.AF_INET
+    if args.af6:
+        aftype = socket.AF_INET6
+    sock = None
+    while True:
+        try:
+            if sock is None:
+                sock = socket.socket(aftype,socket.SOCK_STREAM)
+                sock.bind((host,port))
+                sock.listen(2)
+                sock.setblocking(False)
+                logging.info('listen on %s:%d'%(host,port))
+            rd = [sock]
+            rc , _, _ = select.select(rd,[],[],2.0)
+            if len(rc) > 0:
+                acc,addr = sock.accept()
+                logging.info('acc  %s'%(repr(addr)))
+                acc.close()
+        except KeyboardInterrupt:
+            logging.info('keyboard interrupt')
+            break
+        except:
+            logging.error('%s'%(traceback.format_exc()))
+            sock.close()
+            sock = None
+    sys.exit(0)
+    return
+
 def main():
     commandline='''
     {
         "random|R" : true,
         "output|o" : null,
         "input|i" : null,
+        "af6" : false,
         "test<test_handler>" : {
             "$" : "*"
         },
@@ -199,6 +240,9 @@ def main():
         },
         "outrand<outrand_handler>" : {
             "$" : 0
+        },
+        "socklisten<socklisten_handler>": {
+            "$" : "+"
         }
     }
     '''

@@ -294,7 +294,7 @@ int TcpingCap::__collect_value()
 		if (ret < 0) {
 			val = MAX_TIME_VALUE;
 		} else {
-			val = (uint64_t) ret;
+			val = (uint64_t) (this->m_timeout - ret);
 		}		
 	}
 
