@@ -79,7 +79,7 @@ typedef struct __sock_data_priv {
 	OVERLAPPED m_rdov;
 	uint8_t* m_prdbuf;
 	int m_closeerr;
-	int m_reserv2;
+	int m_aftype;
 
 	int m_peernamed;
 	int m_socknamed;
@@ -249,11 +249,54 @@ void free_socket(void** pptcp)
 	return ;
 }
 
+int __format_saddr(char* ipaddr,int port,struct sockaddr* paddr,int *pfamily)
+{
+	int ret;
+	int retlen = sizeof(struct sockaddr_in);
+	struct sockaddr_in* paddr4 ;
+	struct sockaddr_in6* paddr6 ;
+
+	paddr4 = (struct sockaddr_in*)paddr;
+	memset(paddr4,0,sizeof(*paddr4));
+
+	paddr4->sin_family = AF_INET;
+	ret = inet_pton(AF_INET,ipaddr,&paddr4->sin_addr.s_addr);
+	if (ret != 1) {
+		paddr6 = (struct sockaddr_in6*)paddr;
+		paddr6->sin6_family = AF_INET6;
+		ret = inet_pton(AF_INET6,ipaddr,&paddr6->sin6_addr.sa_addr);
+		if (ret == 1) {
+			paddr6->sin6_port = htons(port);
+			retlen = sizeof(*paddr6);
+			if (pfamily) {
+				*pfamily = AF_INET6;
+			}
+		} else {
+			GETERRNO(ret);
+			ERROR_INFO("format [%s] for ip address",ipaddr);
+			goto fail;
+		}
+	} else {
+		paddr4->sin_port = htons(port);
+		retlen = sizeof(*paddr4);
+		if (pfamily) {
+			*pfamily = AF_INET;
+		}
+	}
+
+	return retlen;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
 
 psock_data_priv_t __alloc_sock_priv(int typeval, char* ipaddr, int port)
 {
 	psock_data_priv_t psock = NULL;
 	int ret;
+	struct sockaddr* nameaddr = NULL;
+	int family=0;
+
 
 	psock = (psock_data_priv_t)malloc(sizeof(*psock));
 	if (psock == NULL) {
@@ -266,6 +309,25 @@ psock_data_priv_t __alloc_sock_priv(int typeval, char* ipaddr, int port)
 	psock->m_type = typeval;
 	psock->m_magic = SOCKET_DATA_MAGIC;
 	psock->m_closeerr = 0;
+	/*we set default AF_INET*/
+	psock->m_aftype = AF_INET;
+
+	nameaddr = (struct sockaddr*) malloc(sizeof(*nameaddr));
+	if (nameaddr == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = __format_saddr(ipaddr,port,nameaddr,&family);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	/*to set family*/
+	psock->m_aftype = family;
+
+
 	if (typeval == SOCKET_CLIENT_TYPE) {
 		psock->m_peeraddr = _strdup(ipaddr);
 		if (psock->m_peeraddr == NULL) {
@@ -285,8 +347,18 @@ psock_data_priv_t __alloc_sock_priv(int typeval, char* ipaddr, int port)
 		goto fail;
 	}
 
+	if (nameaddr) {
+		free(nameaddr);
+	}
+	nameaddr = NULL;
+
+
 	return psock;
 fail:
+	if (nameaddr) {
+		free(nameaddr);
+	}
+	nameaddr = NULL;
 	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
@@ -416,8 +488,14 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 {
 	int ret;
 	psock_data_priv_t psock = NULL;
-	struct sockaddr_in name;
-	int namelen = 0;
+	struct sockaddr bindconn;
+	int bindlen = 0;
+	int bindfamily;
+	struct sockaddr_in* bindaddr4;
+	struct sockaddr_in6* bindaddr6;
+	struct sockaddr connname;
+	int connnamelen = 0;
+	int family;
 	u_long block = 1;
 	GUID guid = WSAID_CONNECTEX;
 	DWORD dret;
@@ -444,28 +522,59 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 		goto fail;
 	}
 
-	memset(&name, 0, sizeof(name));
-	name.sin_family = AF_INET;
-	if (bindip != NULL) {
-		inet_pton(AF_INET, bindip, &(name.sin_addr));
-	} else {
-		name.sin_addr.s_addr = INADDR_ANY;
-	}
-
-	if (bindport != 0) {
-		name.sin_port = htons((uint16_t)bindport);
-	} else {
-		name.sin_port = 0;
-	}
-
-	namelen = sizeof(name);
-	ret = bind(psock->m_sock, (const struct sockaddr*)&name, namelen);
-	if (ret != 0) {
-		WSA_GETERRNO(ret);
-		ERROR_INFO("bind address[%s:%d] error[%d]", bindip ? bindip : "INADDR_ANY", bindport, ret);
+	ret = __format_saddr(ipaddr,port,&connname,&family);
+	if (ret < 0) {
+		GETERRNO(ret);
 		goto fail;
 	}
+	connnamelen = ret;
 
+	if (family == AF_INET || family == AF_INET6) {
+		if (bindip != NULL) {
+			ret = __format_saddr(bindip,bindport,&bindconn,&bindfamily);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			if (bindfamily != family) {
+				ret = -ERROR_INVALID_PARAMETER;
+				ERROR_INFO("ipaddr [%s] bindip [%s] not match in same family",ipaddr, bindip);
+				goto fail;
+			}
+
+			bindlen = ret;
+		} else {
+			if (family == AF_INET) {
+				bindaddr4 = (struct sockaddr_in*) &bindconn;
+				memset(bindaddr4,0,sizeof(*bindaddr4));
+				bindaddr4->sin_family = AF_INET;
+				bindaddr4->sin_addr.s_addr = INADDR_ANY;
+				bindaddr4->sin_port = htons(bindport);
+				bindlen = sizeof(*bindaddr4);
+			} else {
+				bindaddr6 = (struct sockaddr_in6*) &bindconn;
+				memset(bindaddr6,0,sizeof(*bindaddr6));
+				bindaddr6->sin6_family = AF_INET6;
+				memset(&bindaddr6->sin6_addr,0,sizeof(bindaddr6->sin6_addr));
+				bindaddr6->sin6_port = htons(bindport);
+				bindlen = sizeof(*bindaddr6);
+			}
+		}
+
+
+		ret = bind(psock->m_sock, (const struct sockaddr*)&bindconn, bindlen);
+		if (ret != 0) {
+			WSA_GETERRNO(ret);
+			ERROR_INFO("bind address[%s:%d] error[%d]", bindip ? bindip : "INADDR_ANY", bindport, ret);
+			goto fail;
+		}
+
+	} else {
+		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO("family %d not valid",family);
+		goto fail;
+	}
 
 	psock->m_connevt = CreateEvent(NULL, TRUE, FALSE, NULL);
 	if (psock->m_connevt == NULL) {
@@ -476,11 +585,6 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 
 	memset(&(psock->m_connov), 0, sizeof(psock->m_connov));
 	psock->m_connov.hEvent = psock->m_connevt;
-
-	memset(&name, 0, sizeof(name));
-	name.sin_family = AF_INET;
-	inet_pton(AF_INET, ipaddr, &(name.sin_addr));
-	name.sin_port = htons((uint16_t)port);
 
 
 	ret = WSAIoctl(psock->m_sock, SIO_GET_EXTENSION_FUNCTION_POINTER,
@@ -497,9 +601,9 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 		goto fail;
 	}
 
-	namelen = sizeof(name);
+
 	DEBUG_INFO(" before connect [%s:%d]", psock->m_peeraddr, psock->m_peerport);
-	bret = psock->m_connexfunc(psock->m_sock, (const struct sockaddr*) &name, namelen, NULL, 0, &dret, &(psock->m_connov));
+	bret = psock->m_connexfunc(psock->m_sock, (const struct sockaddr*) &connname, connnamelen, NULL, 0, &dret, &(psock->m_connov));
 	DEBUG_INFO("connect %s", bret ? "TRUE" : "FALSE");
 	if (bret) {
 		ret = __get_self_name(psock);
