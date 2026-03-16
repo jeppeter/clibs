@@ -609,7 +609,8 @@ int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     int ret;
     DnsTotal* total=NULL;
     int aftype = AF_INET;
-    std::vector<std::string> okres;
+    std::map<std::string,std::vector<std::string>> okres;
+    std::vector<std::string> errs;
     HANDLE exithd = NULL;
     void* pev = NULL;
 
@@ -679,12 +680,32 @@ int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     }
 
 
-    i = 0;
-    fprintf(stdout,"result:");
     for(auto iter = okres.begin();iter != okres.end(); ++ iter) {        
-        if ((i%5) == 0){
-            fprintf(stdout,"\n");
-        } 
+        fprintf(stdout,"%s:", iter->first.c_str());
+        i = 0;
+        for(i=0;i< (int)iter->second.size() ;i += 1) {
+            if ((i%5) == 0) {
+                fprintf(stdout,"\n    ");
+            }
+            fprintf(stdout," %s",iter->second.at((uint64_t)i).c_str());
+        }
+        fprintf(stdout,"\n");
+    }
+
+    ret = total->get_errors(errs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"get_error error %d\n",ret);
+        goto out;
+    }
+    
+
+    i = 0;
+    fprintf(stdout,"errors:");
+    for(auto iter = errs.begin(); iter != errs.end(); ++ iter) {
+        if ((i%5) == 0) {
+            fprintf(stdout,"\n    ");
+        }
         fprintf(stdout," %s",iter->c_str());
         i += 1;
     }
@@ -725,6 +746,8 @@ int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 {
     pargs_options_t pargs = (pargs_options_t) popt;
     int ret;
+
+    REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
 

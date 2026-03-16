@@ -5,6 +5,7 @@
 #include "dnscap.h"
 #include <vector>
 #include <string>
+#include <map>
 
 class DnsTotal : public IEvCombo
 {
@@ -14,7 +15,8 @@ public:
 	virtual void notify_event(void* ptr,ev_combo_event_t event);
 	int start_dns(int aftype,char* pstr);
 	int set_timeout(int timeout);
-	int get_result(std::vector<std::string>& res);
+	int get_result(std::map<std::string,std::vector<std::string>>& res);
+	int get_errors(std::vector<std::string>& errs);
 	int get_dns_query();
 
 private:
@@ -28,8 +30,8 @@ private:
 private:
 	std::vector<DnsCap*> m_iparrs;
 	void* m_evmain;
-	std::vector<int> m_aftypes;
-	std::vector<std::string> m_ipres;
+	std::map<std::string,std::vector<std::string>> m_ipres;
+	std::vector<std::string> m_iperrs;
 	int m_indelprog;
 	int m_timeout;
 };

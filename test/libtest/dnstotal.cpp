@@ -3,6 +3,8 @@
 #include "dnstotal.h"
 #include <win_output_debug.h>
 
+#include <iterator>
+
 
 #pragma warning(push)
 #if defined(_MSC_VER)
@@ -89,14 +91,67 @@ int DnsTotal::__get_result(DnsCap* pcap)
 {
 	int ret;
 	std::string vstr;
+	std::string partname;
+	std::string dname;
+	std::string ports;
+	size_t ns;
+	size_t passlen;
 	int cnt = 0;
 	while(1) {
 		ret = pcap->get_result(vstr);
 		if (ret == 0) {
 			break;
 		}
-		this->m_ipres.push_back(vstr);
-		cnt += 1;
+
+		if (vstr.compare(0,6,"ERROR;") == 0) {
+			/*now to get the value*/
+			ns = vstr.find(';',6);
+			if (ns != std::string::npos) {
+				partname = vstr.substr(6,ns);
+			} else {
+				partname = vstr.substr(6,vstr.length());
+			}
+			this->m_iperrs.push_back(partname);
+			cnt = 1;
+		} else {
+			passlen = 0;
+			std::string k;
+			std::vector<std::string> vvec;
+			ns = vstr.find(';',0);
+			if (ns == std::string::npos) {
+				k = vstr;
+				passlen = vstr.length();
+			} else {
+				k = vstr.substr(0,ns);
+				passlen = ns + 1;
+			}
+
+			auto iter = this->m_ipres.find(k);
+			if (iter != this->m_ipres.end()) {
+				std::copy(iter->second.begin(),iter->second.end(),std::back_inserter(vvec));
+			}
+
+			while(passlen < vstr.length()) {
+				ns = vstr.find(';',passlen);
+				if (ns == std::string::npos) {
+					partname = vstr.substr(ns,vstr.length());
+					vvec.push_back(partname);
+					passlen = vstr.length();
+					break;
+				}
+
+				partname = vstr.substr(passlen,ns);
+				passlen = ns + 1;
+				vvec.push_back(partname);
+				cnt += 1;
+			}
+
+			if (iter != this->m_ipres.end()) {
+				iter->second = vvec;
+			} else {
+				this->m_ipres.insert({k,vvec});
+			}
+		}		
 	}
 	return cnt;
 }
@@ -168,14 +223,24 @@ fail:
 
 
 
-int DnsTotal::get_result(std::vector<std::string>& res)
+int DnsTotal::get_result(std::map<std::string,std::vector<std::string>>& res)
 {
 	int cnt=0;
 	res.clear();
 	for(auto iter = this->m_ipres.begin();iter != this->m_ipres.end();++ iter) {
-		res.push_back(*iter);
+		res.insert({iter->first,iter->second});
 		cnt += 1;
 	}
+	return cnt;
+}
+
+int DnsTotal::get_errors(std::vector<std::string>& errs)
+{
+	int cnt =0;
+	errs.clear();
+
+	std::copy(this->m_iperrs.begin(),this->m_iperrs.end(),std::back_inserter(errs));
+	cnt = (int)this->m_iperrs.size();
 	return cnt;
 }
 
