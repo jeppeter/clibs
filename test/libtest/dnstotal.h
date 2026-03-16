@@ -1,36 +1,37 @@
 #ifndef __DNSTOTAL_H_8B63989FF2928F6B4D0A89F9339B2A23__
 #define __DNSTOTAL_H_8B63989FF2928F6B4D0A89F9339B2A23__
 
+#include "evcombo.h"
 #include "dnscap.h"
 #include <vector>
-#include <map>
 #include <string>
 
-class DnsTotal 
+class DnsTotal : public IEvCombo
 {
 public:
-	DnsTotal();
+	DnsTotal(void* pevmain,int timeout);
 	virtual ~DnsTotal();
+	virtual void notify_event(void* ptr,ev_combo_event_t event);
 	int start_dns(int aftype,char* pstr);
-	int loop(HANDLE exithd,int timeout);
-	int is_complete(char* pstr);
-	int get_result(std::map<std::string,std::vector<std::string>>& res);
-	int get_error(std::vector<std::string>& res);
+	int set_timeout(int timeout);
+	int get_result(std::vector<std::string>& res);
+	int get_dns_query();
 
 private:
 	void __release_resource();
 	int __split_name(char* pname,std::string& name, std::string& ports);
 	int __handle_error(int idx);
 	int __handle_complete(int idx);
+	DnsCap* __find_dns(void* parg, int *pidx);
+	int __get_result(DnsCap* pcap);
 
 private:
 	std::vector<DnsCap*> m_iparrs;
-	std::vector<DnsCap*> m_endips;
-	std::vector<std::string> m_dnsnames;
-	std::vector<std::string> m_ports;
+	void* m_evmain;
 	std::vector<int> m_aftypes;
-	std::map<std::string,std::vector<std::string>> m_ipres;
-	std::map<std::string,int> m_errs;
+	std::vector<std::string> m_ipres;
+	int m_indelprog;
+	int m_timeout;
 };
 
 

@@ -13,14 +13,25 @@
 #endif
 
 
-DnsTotal::DnsTotal()
+DnsTotal::DnsTotal(void* pevmain,int timeout)
 {
+	this->m_evmain = pevmain;
+	this->m_timeout = timeout;
+	this->m_indelprog = 0;
+}
 
+int DnsTotal::set_timeout(int timeout)
+{
+	int ret =this->m_timeout;
+	this->m_timeout = timeout;
+	return ret;
 }
 
 DnsTotal::~DnsTotal()
 {
+	this->m_indelprog = 1;
 	this->__release_resource();
+	this->m_indelprog = 0;
 }
 
 void DnsTotal::__release_resource()
@@ -32,20 +43,7 @@ void DnsTotal::__release_resource()
 		cur = NULL;
 	}
 
-	while(this->m_endips.size() > 0) {
-		DnsCap* cur = this->m_endips.at(0);
-		this->m_endips.erase(this->m_endips.begin());
-		delete cur;
-		cur = NULL;		
-	}
-
-	this->m_dnsnames.clear();
-	this->m_ports.clear();
-	this->m_aftypes.clear();
-
-
 	this->m_ipres.clear();
-	this->m_errs.clear();
 	return;
 }
 
@@ -67,6 +65,65 @@ int DnsTotal::__split_name(char* pname,std::string& name, std::string& ports)
 	return 0;
 }
 
+DnsCap* DnsTotal::__find_dns(void* parg,int *pidx)
+{
+	DnsCap* pret = NULL;
+	DnsCap* pcap = NULL;
+	int i;
+
+	for(i=0;i< (int)this->m_iparrs.size() ;i += 1) {
+		pcap = this->m_iparrs.at((uint64_t)i);
+		if (pcap == parg) {
+			pret = pcap;
+			if (pidx) {
+				*pidx = i;
+			}
+			break;
+		}
+	}
+
+	return pret;
+}
+
+int DnsTotal::__get_result(DnsCap* pcap)
+{
+	int ret;
+	std::string vstr;
+	int cnt = 0;
+	while(1) {
+		ret = pcap->get_result(vstr);
+		if (ret == 0) {
+			break;
+		}
+		this->m_ipres.push_back(vstr);
+		cnt += 1;
+	}
+	return cnt;
+}
+
+void DnsTotal::notify_event(void* parg, ev_combo_event_t event)
+{
+	int idx;
+	if (event == remove_event) {
+		DnsCap* pcap = this->__find_dns(parg,&idx);
+		if (pcap != NULL) {
+			this->m_iparrs.erase(this->m_iparrs.begin() + idx);
+		}
+		if (this->m_indelprog == 0 && this->m_iparrs.size() == 0) {
+			if (this->m_evmain) {
+				/*to break the loop*/
+				libev_break_winev_loop(this->m_evmain);
+			}
+		}
+	} else if (event == get_result_event) {
+		DnsCap* pcap = this->__find_dns(parg,&idx);
+		if (pcap != NULL) {
+			this->__get_result(pcap);
+		}
+	}
+	return ;
+}
+
 int DnsTotal::start_dns(int aftype,char* pstr)
 {
 
@@ -81,19 +138,21 @@ int DnsTotal::start_dns(int aftype,char* pstr)
 		goto fail;
 	}
 
-	pcap = new DnsCap(aftype,(const char*)ns.c_str(),ports.length() == 0 ? (char*)NULL: (char*)ports.c_str());
-	ret = pcap->start_query();
+	pcap = new DnsCap(aftype,(const char*)ns.c_str(),ports.length() == 0 ? (char*)NULL: (char*)ports.c_str(),this->m_evmain,this);
+	pcap->set_timeout(this->m_timeout);
+	ret = pcap->start();
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO(" ");
 		goto fail;
+	} else if (ret > 0) {
+		/*we do not need to insert*/
+		delete pcap;
+		pcap = NULL;
+	} else {
+		this->m_iparrs.push_back(pcap);	
 	}
-
-
-	this->m_dnsnames.push_back(pstr);
-	this->m_ports.push_back(ports);
-	this->m_aftypes.push_back(aftype);
-	this->m_iparrs.push_back(pcap);
+	
 	/*do not clear*/
 	pcap = NULL;
 
@@ -107,258 +166,22 @@ fail:
 	return ret;
 }
 
-int DnsTotal::__handle_error(int idx)
-{
-	DnsCap* pcur = this->m_iparrs.at((uint64_t)idx);
-	DEBUG_INFO("error %d", idx);
-	std::string cstr = this->m_dnsnames.at((uint64_t)idx);
-	this->m_dnsnames.erase(this->m_dnsnames.begin() + idx);
-	this->m_aftypes.erase(this->m_aftypes.begin() + idx);
-	this->m_iparrs.erase(this->m_iparrs.begin() + idx);
-	this->m_endips.push_back(pcur);
-	this->m_errs.insert({cstr,1});
-	return 0;
-}
-
-int DnsTotal::__handle_complete(int idx)
-{
-	std::vector<std::string> dnsarr;
-	DEBUG_INFO("complete %d", idx);
-	char* ptmpstr=NULL;
-	int tmpsize=0;
-	DnsCap* pcur = this->m_iparrs.at((uint64_t)idx);
-	int j;
-	std::string name = this->m_dnsnames.at((uint64_t)idx);
-	std::string portstr = this->m_ports.at((uint64_t)idx);
-	int ret;
 
 
-	j = 0;
-	while(1) {
-		std::string curstr = "";
-		ret = pcur->get_result(j,&ptmpstr,&tmpsize);
-		if (ret < 0) {
-			GETERRNO(ret);
-			pcur->get_result(-1,&ptmpstr,&tmpsize);
-			goto fail;
-		}else if (ret == 0) {
-			pcur->get_result(-1,&ptmpstr,&tmpsize);
-			break;
-		}
-
-		curstr += ptmpstr;
-		if (portstr.length() >0) {
-			curstr += ';';
-			curstr += portstr;
-		}
-
-		dnsarr.push_back(curstr);
-		j += 1;
-	}
-
-
-	this->m_dnsnames.erase(this->m_dnsnames.begin() + idx);
-	this->m_ports.erase(this->m_ports.begin() + idx);
-	this->m_aftypes.erase(this->m_aftypes.begin() + idx);
-	this->m_iparrs.erase(this->m_iparrs.begin() + idx);
-	this->m_endips.push_back(pcur);
-	this->m_ipres.insert({name,dnsarr});
-	return 0;
-
-fail:
-	SETERRNO(ret);
-	return ret;
-}
-
-int DnsTotal::loop(HANDLE exithd,int timeout)
-{
-	int ret;
-	HANDLE* waithdls=NULL;
-	DWORD waitnum=0;
-	DnsCap* pcur=NULL;
-	int i;
-	int waitsize=0;
-	waitsize = 1 + (int)this->m_iparrs.size() * 2;
-	DWORD dtime,dret ;
-	HANDLE hdl;
-	int cont;
-
-	waithdls = (HANDLE*)malloc(sizeof(*waithdls) * waitsize);
-	if (waithdls == NULL) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	while (this->m_iparrs.size() > 0) {
-		cont = 1;
-
-		dtime = (DWORD)timeout;
-		while(cont) {
-			cont = 0;
-			for(i=0;i<(int)this->m_iparrs.size();i++) {
-				pcur = this->m_iparrs.at((uint64_t)i);
-				if (pcur->is_error() != 0 ) {
-					ret = this->__handle_error(i);
-					if (ret < 0) {
-						GETERRNO(ret);
-						ERROR_INFO(" ");
-						goto fail;
-					}
-					cont = 1;
-					break;
-				}
-
-				if (pcur->is_completed() != 0) {
-					ret = this->__handle_complete(i);
-					if (ret < 0) {
-						GETERRNO(ret);
-						goto fail;
-					}
-					cont = 1;
-					break;
-				}
-				/*time out so do this remove*/
-				ret = pcur->need_time(timeout);
-				if (ret < 0) {
-					DEBUG_INFO("[%d]need time %d",i ,ret);
-					ret = this->__handle_error(i);
-					cont = 1;
-					break;
-				} else if ((int)dtime > ret) {
-					dtime = (DWORD)ret;
-				}
-			}
-		}
-
-		cont = 1;
-
-		waitnum = 0;
-		while (cont != 0) {
-			cont = 0;
-			waitnum = 0;
-			if (exithd != NULL) {
-				waithdls[waitnum] = exithd;
-				waitnum += 1;
-			}
-
-
-			for(i=0;i< (int)this->m_iparrs.size();i++) {
-				pcur = this->m_iparrs.at((uint64_t)i);
-				if (pcur->is_error() != 0) {
-					ret = this->__handle_error(i);
-					if (ret < 0) {
-						GETERRNO(ret);
-						pcur = NULL;
-						goto fail;
-					}
-					cont = 1;
-					break;
-				}
-
-				if (pcur->is_completed() != 0) {
-					ret = this->__handle_complete(i);
-					if (ret < 0) {
-						GETERRNO(ret);
-						goto fail;
-					}
-					cont=1;
-					break;
-				}
-
-				waithdls[waitnum] = pcur->get_complete_evt();
-				if (waithdls[waitnum] != NULL) {
-					waitnum += 1;
-				}
-
-				waithdls[waitnum] = pcur->get_error_evt();
-				if (waithdls[waitnum] != NULL) {
-					waitnum += 1;
-				}				
-			}
-		}
-
-		if (waitnum == 0 || this->m_iparrs.size() == 0) {
-			break;
-		}
-
-
-
-
-		dret = WaitForMultipleObjectsEx(waitnum,waithdls,FALSE,dtime,TRUE);
-		if (dret < (WAIT_OBJECT_0 + waitnum)) {
-			hdl = waithdls[(dret- WAIT_OBJECT_0)];
-			if (hdl == exithd) {
-				ret = -WSAEINTR;
-				ERROR_INFO("exithdl");
-				goto fail;
-			}
-
-			for(i=0;i< (int)this->m_iparrs.size();i++) {
-				pcur = this->m_iparrs.at((uint64_t)i);
-				if (pcur->get_complete_evt() == hdl) {
-					ret = this->__handle_complete(i);
-					if (ret < 0) {
-						GETERRNO(ret);
-						goto fail;
-					}
-					break;
-				}
-
-				if (pcur->get_error_evt() == hdl) {
-					ret = this->__handle_error(i);
-					if (ret < 0) {
-						GETERRNO(ret);
-						goto fail;
-					}
-					break;					
-				}
-			}
-
-		} else if (dret != WAIT_TIMEOUT) {
-			GETERRNO(ret);
-			ERROR_INFO("wait timeout");
-			goto fail;
-		}
-	}
-
-
-	if (waithdls) {
-		free(waithdls);
-	}
-	waithdls = NULL;
-
-
-	return 0;
-fail:
-	if (waithdls) {
-		free(waithdls);
-	}
-	waithdls = NULL;
-
-	SETERRNO(ret);
-	return ret;
-}
-
-int DnsTotal::get_result(std::map<std::string,std::vector<std::string>>& res)
+int DnsTotal::get_result(std::vector<std::string>& res)
 {
 	int cnt=0;
 	res.clear();
 	for(auto iter = this->m_ipres.begin();iter != this->m_ipres.end();++ iter) {
-		res.insert({iter->first,this->m_ipres[iter->first]});
+		res.push_back(*iter);
 		cnt += 1;
 	}
 	return cnt;
 }
 
-int DnsTotal::get_error(std::vector<std::string>& res)
+int DnsTotal::get_dns_query()
 {
-	int cnt = 0;
-	res.clear();
-	for(auto iter = this->m_errs.begin();iter != this->m_errs.end(); ++ iter) {
-		res.push_back(iter->first);
-		cnt += 1;
-	}
-	return cnt;
+	return (int)this->m_iparrs.size();
 }
 
 #pragma warning(pop)

@@ -1,3 +1,5 @@
+#define _HAS_EXCEPTIONS 0
+
 #include "dnscap.h"
 
 #include <win_dns.h>
@@ -68,6 +70,7 @@ void DnsCap::__stop_query()
 	this->__remove_timeout_guid();
 
 	free_dns_query(&this->m_dnsqry);
+	this->m_results.clear();
 
 	this->m_compevt = NULL;
 	this->m_errevt = NULL;
@@ -83,6 +86,7 @@ void DnsCap::__release_resource()
 
 void DnsCap::__remove_timeout_guid()
 {
+	int ret;
 	if (this->m_inserttmout != 0) {
 		ret = libev_remove_timer(this->m_evmain,this->m_tmoutguid);
 		if (ret < 0) {
@@ -97,6 +101,7 @@ void DnsCap::__remove_timeout_guid()
 
 void DnsCap::__remove_error_evt()
 {
+	int ret;
 	if (this->m_inserterr != 0) {
 		ret = libev_remove_handle(this->m_evmain,this->m_errevt);
 		if (ret < 0) {
@@ -110,6 +115,7 @@ void DnsCap::__remove_error_evt()
 
 void DnsCap::__remove_comp_evt()
 {
+	int ret;
 	if (this->m_insertcomp != 0) {
 		ret = libev_remove_handle(this->m_evmain,this->m_compevt);
 		if (ret < 0) {
@@ -125,7 +131,7 @@ int DnsCap::__insert_timeout_guid()
 {
 	int ret;
 	if (this->m_inserttmout == 0) {
-		ret = libev_insert_timer(this->m_evmain,&this->m_tmoutguid,DnsCap::dnscap_timeout,this,this->m_timeout,0);
+		ret = libev_insert_timer(this->m_evmain,&this->m_tmoutguid,DnsCap::dnscap_timeout,this,(uint32_t)this->m_timeout,0);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -191,7 +197,7 @@ int DnsCap::start()
 	int completed = 0;
 	if (this->m_dnsname.length() == 0) {
 		ret = -ERROR_INVALID_PARAMETER;
-		ERROR_INFO(" ");
+		ERROR_INFO("not set dnsname");
 		SETERRNO(ret);
 		return ret;
 	}
@@ -206,6 +212,11 @@ int DnsCap::start()
 
 	ret =  is_dns_query_completed(this->m_dnsqry);
 	if (ret > 0) {
+		ret = this->__fill_dns_info();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
 		this->__call_notify();
 		completed = 1;
 	} else {
@@ -213,7 +224,7 @@ int DnsCap::start()
 		this->m_compevt = dns_query_get_complete_evt(this->m_dnsqry);
 		this->m_errevt = dns_query_get_error_evt(this->m_dnsqry);
 		if (this->m_compevt == NULL || this->m_errevt == NULL) {
-			ret = -ERROR_INVALID_PARAMTER;
+			ret = - ERROR_INVALID_PARAMETER;
 			ERROR_INFO("can not get compevt or errevt");
 			goto fail;
 		}
@@ -237,6 +248,7 @@ int DnsCap::start()
 		}
 
 	}
+
 	return completed;
 fail:
 	this->__stop_query();
@@ -268,7 +280,7 @@ int DnsCap::__fill_dns_info()
 			vstr += ',';
 			vstr += this->m_portstr;
 		}
-		vstr += ';'
+		vstr += ';';
 		this->m_results.push_back(vstr);
 		idx += 1;
 	}
@@ -281,10 +293,9 @@ int DnsCap::__fill_dns_error()
 {
 	std::string vstr;
 
-	vstr = "ERROR";
+	vstr = "ERROR;";
 	vstr += this->m_dnsname;
 	if (this->m_portstr.length() > 0) {
-		vstr += ';';
 		vstr += ',';
 		vstr += this->m_portstr;
 	}
@@ -295,6 +306,8 @@ int DnsCap::__fill_dns_error()
 
 int DnsCap::_timeout_func(uint64_t guid,libev_enum_event_t event)
 {
+	int ret;
+	REFERENCE_ARG(event);
 	if (guid == this->m_tmoutguid) {
 		ret = this->__fill_dns_error();
 		if (ret < 0) {
@@ -313,10 +326,15 @@ int DnsCap::_timeout_func(uint64_t guid,libev_enum_event_t event)
 		ERROR_INFO("0x%llx not guid", guid);
 	}
 	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
 }
 
 int DnsCap::_callback_func(HANDLE hd,libev_enum_event_t event)
 {
+	int ret;
+	REFERENCE_ARG(event);
 	if (hd == this->m_compevt) {
 		/*now to */
 		ret = is_dns_query_completed(this->m_dnsqry);
@@ -357,11 +375,16 @@ int DnsCap::_callback_func(HANDLE hd,libev_enum_event_t event)
 		ERROR_INFO("hd 0x%x not ok",hd);
 	}
 	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
 }
 
 int DnsCap::dnscap_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void* args)
 {
 	DnsCap* pThis= (DnsCap*)args;
+	int ret;
+	REFERENCE_ARG(pevmain);
 	ret = pThis->_callback_func(hd,event);
 	if (ret < 0) {
 		delete pThis;
@@ -372,13 +395,32 @@ int DnsCap::dnscap_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,voi
 int DnsCap::dnscap_timeout(uint64_t guid,libev_enum_event_t event,void* pevmain,void* args)
 {
 	DnsCap* pThis= (DnsCap*)args;
-	ret = pThis->_timeout_func(hd,event);
+	int ret;
+	REFERENCE_ARG(pevmain);
+	ret = pThis->_timeout_func(guid,event);
 	if (ret < 0) {
 		delete pThis;
 	}
 	return 0;
 }
 
+int DnsCap::set_timeout(int timeout)
+{
+	int ret = this->m_timeout;
+	this->m_timeout = timeout;
+	return ret;
+}
+
+int DnsCap::get_result(std::string& vstr)
+{
+	if(this->m_results.size() == 0) {
+		return 0;
+	}
+
+	vstr = this->m_results.at(0);
+	this->m_results.erase(this->m_results.begin());
+	return 1;
+}
 
 
 #pragma warning(pop)

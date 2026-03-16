@@ -4,6 +4,8 @@
 #include <win_err.h>
 #include "evcombo.h"
 #include <win_libev.h>
+#include <vector>
+#include <string>
 
 class DnsCap : public IEvRunner
 {
@@ -21,6 +23,10 @@ private:
 private:
 	int _callback_func(HANDLE hd,libev_enum_event_t event);
 	int _timeout_func(uint64_t guid, libev_enum_event_t event);
+
+	int __fill_dns_info();
+	int __fill_dns_error();
+
 	void __call_notify();
 	void __call_remove();
 	void __release_resource();
@@ -45,12 +51,13 @@ private:
 
 
 	HANDLE m_compevt;
-	int m_insertcomp;
 	HANDLE m_errevt;
+	int m_insertcomp;
 	int m_inserterr;
 
 	uint64_t m_tmoutguid;
 	int m_inserttmout;
+	int m_reserv1;
 
 	std::vector<std::string> m_results;
 };

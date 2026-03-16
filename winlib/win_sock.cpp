@@ -270,6 +270,7 @@ int __format_saddr(char* ipaddr,int port,struct sockaddr* paddr,int *pfamily)
 			retlen = sizeof(*paddr6);
 			if (pfamily) {
 				*pfamily = AF_INET6;
+				DEBUG_INFO("family AF_INET6");
 			}
 		} else {
 			GETERRNO(ret);
@@ -281,6 +282,7 @@ int __format_saddr(char* ipaddr,int port,struct sockaddr* paddr,int *pfamily)
 		retlen = sizeof(*paddr4);
 		if (pfamily) {
 			*pfamily = AF_INET;
+			DEBUG_INFO("family AF_INET");
 		}
 	}
 

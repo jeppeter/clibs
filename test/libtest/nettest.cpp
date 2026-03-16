@@ -607,16 +607,29 @@ int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
     int i;
     pargs_options_t pargs = (pargs_options_t) popt;
     int ret;
-    DnsTotal total;
+    DnsTotal* total=NULL;
     int aftype = AF_INET;
-    std::map<std::string,std::vector<std::string>> okres;
-    std::vector<std::string> errres;
+    std::vector<std::string> okres;
     HANDLE exithd = NULL;
+    void* pev = NULL;
 
     init_log_level(pargs);
 
     REFERENCE_ARG(argv);
     REFERENCE_ARG(argc);
+
+    pev = libev_init_winev();
+    if (pev == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not libev_init_winev error %d\n", ret);
+        goto out;
+    }
+
+    total = new DnsTotal(pev,5000);
+
+    if (pargs->m_timeout != 0) {
+        total->set_timeout(pargs->m_timeout);
+    }
 
     exithd = set_ctrlc_handle();
     if (exithd == NULL) {
@@ -639,7 +652,7 @@ int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
 
     for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
-        ret = total.start_dns(aftype,parsestate->leftargs[i]);
+        ret = total->start_dns(aftype,parsestate->leftargs[i]);
         if (ret < 0) {
             GETERRNO(ret);
             fprintf(stderr,"can not start_dns [%s] error %d\n", parsestate->leftargs[i],ret);
@@ -647,53 +660,45 @@ int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
         }
     }
 
-    ret = total.loop(exithd,pargs->m_timeout);
-    if (ret < 0) {
-        GETERRNO(ret);
-        fprintf(stderr,"loop error %d\n", ret);
-        goto out;
+    ret = total->get_dns_query();
+    if (ret != 0) {
+        ret = libev_winev_loop(pev);
+        if (ret < 0) {
+            GETERRNO(ret);
+            fprintf(stderr,"can not loop ok %d\n",ret);
+            goto out;
+        }
     }
 
-    ret = total.get_result(okres);
+
+    ret = total->get_result(okres);
     if (ret < 0) {
         GETERRNO(ret);
         fprintf(stderr,"get_result error %d\n",ret);
         goto out;
     }
 
-    ret = total.get_error(errres);
-    if (ret < 0) {
-        GETERRNO(ret);
-        fprintf(stderr,"get_error error %d\n",ret);
-        goto out;
-    }
 
-    for(auto iter = okres.begin();iter != okres.end(); ++ iter) {
-        auto nres = okres[iter->first];
-        fprintf(stdout,"%s:",iter->first.c_str());
-        for(i=0;i<(int)nres.size();i++) {
-            auto cstr = nres.at((uint64_t)i);
-            if ((i%5) == 0) {
-                fprintf(stdout,"\n    ");
-            }
-            fprintf(stdout," %s",cstr.c_str());
-        }
-        fprintf(stdout,"\n");
-    }
-
-
-    fprintf(stdout,"errors:");
-    for(i=0;i<(int) errres.size();i++) {
-        auto cstr = errres.at((uint64_t)i);
-        if ((i % 5) == 0) {
-            fprintf(stdout,"\n    ");
-        }
-        fprintf(stdout," %s",cstr.c_str());
+    i = 0;
+    fprintf(stdout,"result:");
+    for(auto iter = okres.begin();iter != okres.end(); ++ iter) {        
+        if ((i%5) == 0){
+            fprintf(stdout,"\n");
+        } 
+        fprintf(stdout," %s",iter->c_str());
+        i += 1;
     }
     fprintf(stdout,"\n");
 
+
     ret = 0;
 out:
+    if (total){
+        delete total;
+    }
+    total = NULL;
+
+    libev_free_winev(&pev);
     SETERRNO(ret);
     return ret;
 }
@@ -718,70 +723,15 @@ int __split_time(const char* pname, std::string& name,std::string& ports)
 
 int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
-    int aftype = AF_INET;
-    int times;
-    int timeout;
-    int nexttime;
     pargs_options_t pargs = (pargs_options_t) popt;
-    TcpingTotal *ptotal=NULL;
-    void* pevmain = NULL;
-    int i;
-    DnsTotal total;
-    std::string name,ports;
     int ret;
 
     init_log_level(pargs);
 
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
-
-    if (pargs->m_af6) {
-        aftype = AF_INET6;
-    }
-
-    pevmain = libev_init_winev();
-    if (pevmain == NULL) {
-        GETERRNO(ret);
-        fprintf(stderr,"libev_init_winev error %d\n", ret);
-        goto out;
-    }
-
-    times = pargs->m_times;
-    timeout = pargs->m_timeout;
-    nexttime = pargs->m_nexttime;
-
-    ptotal = new TcpingTotal(pevmain,times,timeout,nexttime);
-
-    for(i=0;parsestate->leftargs && parsestate->leftargs[i] ;i++) {
-        ret = __split_time(parsestate->leftargs[i],name,ports);
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto out;
-        }
-        ret = ptotal->start_tcping(aftype,name.c_str(),(char*)ports.c_str());
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto out;
-        }
-    }
-
-    if (ptotal->get_tasks() > 0) {
-        ret = libev_winev_loop(pevmain);
-        if (ret < 0) {
-            GETERRNO(ret);
-            goto out;
-        }
-    }
-
-
     ret = 0;
-out:
-    if (ptotal) {
-        delete ptotal;
-    }
-    ptotal = NULL;
 
-    libev_free_winev(&pevmain);
     SETERRNO(ret);
     return ret;
 }
