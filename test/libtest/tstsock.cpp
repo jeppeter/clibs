@@ -558,12 +558,15 @@ int tstsvrsockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 		port = atoi(parsestate->leftargs[0]);
 		if (parsestate->leftargs[1]) {
 			fname = parsestate->leftargs[1];
+			if (parsestate->leftargs[2]) {
+				ip = parsestate->leftargs[2];
+			}
 		}
 	}
 
 	if (port <= 0 || port >= (1 << 16) || fname == NULL) {
 		ret = -ERROR_INVALID_PARAMETER;
-		fprintf(stderr, "[port] %d not valid\n", port);
+		fprintf(stderr, "[port] %d or fname == NULL  not valid\n", port);
 		goto out;
 	}
 
