@@ -39,6 +39,8 @@
 #define  SOCKET_CLIENT_TYPE  0x1
 #define  SOCKET_SERVER_TYPE  0x2
 
+#define  SOCKADDR_MAX_LEN    sizeof(struct sockaddr_in6)
+
 typedef struct __sock_data_priv {
 	uint32_t m_magic;
 	int m_type;
@@ -448,13 +450,14 @@ int __get_self_name(psock_data_priv_t psock)
 	int namelen = 0;
 	int ret;
 	int rc;
-	nameaddr =(struct sockaddr*) malloc(sizeof(*nameaddr));
+	namelen = SOCKADDR_MAX_LEN;
+	nameaddr =(struct sockaddr*) malloc((size_t)namelen);
 	if (nameaddr == NULL) {
 		GETERRNO(ret);
 		goto fail;
 	}
 
-	namelen = sizeof(*nameaddr);
+	DEBUG_INFO("namelen %d", namelen);
 	rc = getsockname(psock->m_sock, nameaddr, &namelen);
 	if (rc != 0) {
 		GETERRNO(ret);
@@ -485,12 +488,12 @@ fail:
 
 int __get_peer_name(psock_data_priv_t psock)
 {
-	struct sockaddr *nameaddr=NULL;
+	struct sockaddr *nameaddr=NULL;	
 	int ret;
 	int namelen;
 
 
-	namelen = sizeof(*nameaddr);
+	namelen = SOCKADDR_MAX_LEN;
 	nameaddr =(struct sockaddr*) malloc((size_t)namelen);
 	if (nameaddr == NULL) {
 		GETERRNO(ret);
@@ -598,7 +601,7 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 	}
 
 	if (connname == NULL) {
-		connname = (struct sockaddr*)malloc(sizeof(*connname));
+		connname = (struct sockaddr*)malloc(SOCKADDR_MAX_LEN);
 		if (connname == NULL) {
 			GETERRNO(ret);
 			goto fail;
@@ -613,7 +616,7 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 	connnamelen = ret;
 
 	if (bindconn == NULL) {
-		bindconn = (struct sockaddr*)malloc(sizeof(*bindconn));
+		bindconn = (struct sockaddr*)malloc(SOCKADDR_MAX_LEN);
 		if (bindconn == NULL) {
 			GETERRNO(ret);
 			goto fail;
@@ -637,6 +640,7 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 			bindlen = ret;
 		} else {
 			if (family == AF_INET) {
+				DEBUG_INFO("bindip AF_INET NULL");
 				bindaddr4 = (struct sockaddr_in*) bindconn;
 				memset(bindaddr4,0,sizeof(*bindaddr4));
 				bindaddr4->sin_family = AF_INET;
@@ -644,6 +648,7 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 				bindaddr4->sin_port = htons((unsigned short)bindport);
 				bindlen = sizeof(*bindaddr4);
 			} else {
+				DEBUG_INFO("bindip AF_INET6 NULL");
 				bindaddr6 = (struct sockaddr_in6*) bindconn;
 				memset(bindaddr6,0,sizeof(*bindaddr6));
 				bindaddr6->sin6_family = AF_INET6;
@@ -654,6 +659,7 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 		}
 
 
+		DEBUG_INFO("bind [%s:%d]", bindip ? bindip: "NULL", bindport);
 		ret = bind(psock->m_sock, bindconn, bindlen);
 		if (ret != 0) {
 			WSA_GETERRNO(ret);
@@ -853,10 +859,15 @@ int __inner_accept(psock_data_priv_t psock)
 	psock->m_ooaccrd = 0;
 
 	psock->m_inacc = 0;
-	memset(&nameaddr, 0, sizeof(nameaddr));
+	nameaddr = (struct sockaddr*)malloc(SOCKADDR_MAX_LEN);
+	if (nameaddr == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(nameaddr, 0, SOCKADDR_MAX_LEN);
 	memset(psock->m_paccbuf, 0, psock->m_accbuflen);
 	DEBUG_INFO("m_accbuflen %d" , psock->m_accbuflen);
-	bret = psock->m_acceptexfunc(psock->m_sock, psock->m_accsock, psock->m_paccbuf, 0, sizeof(*nameaddr) + 16, sizeof(*nameaddr) + 16, &dret, &(psock->m_accov));
+	bret = psock->m_acceptexfunc(psock->m_sock, psock->m_accsock, psock->m_paccbuf, 0, SOCKADDR_MAX_LEN + 16, SOCKADDR_MAX_LEN + 16, &dret, &(psock->m_accov));
 	if (!bret) {
 		WSA_GETERRNO(ret);
 		if (ret != -WSA_IO_PENDING) {
@@ -870,8 +881,17 @@ int __inner_accept(psock_data_priv_t psock)
 		psock->m_ooaccrd = (int)dret;
 	}
 
+	if(nameaddr) {
+		free(nameaddr);
+	}
+	nameaddr = NULL;
+
 	return psock->m_inacc;
 fail:
+	if(nameaddr) {
+		free(nameaddr);
+	}
+	nameaddr = NULL;
 	SETERRNO(ret);
 	return ret;
 }
@@ -889,7 +909,7 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 	int opt;
 
 
-	namelen = sizeof(*nameaddr);
+	namelen = SOCKADDR_MAX_LEN;
 	nameaddr = (struct sockaddr*)malloc((size_t)namelen);
 	if (nameaddr == NULL) {
 		GETERRNO(ret);

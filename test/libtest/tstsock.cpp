@@ -276,6 +276,8 @@ int tstclisockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 	char* fname = NULL;
 	uint64_t cticks, sticks;
 	int leftmills;
+	char* bindip=NULL;
+	int bindport=0;
 
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
@@ -287,6 +289,12 @@ int tstclisockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 			port = atoi(parsestate->leftargs[1]);
 			if (parsestate->leftargs[2]) {
 				fname = parsestate->leftargs[2];
+				if (parsestate->leftargs[3]) {
+					bindip = parsestate->leftargs[3];
+					if (parsestate->leftargs[4]) {
+						bindport = atoi(parsestate->leftargs[4]);
+					}
+				}
 			}
 		}
 	}
@@ -314,7 +322,7 @@ int tstclisockwr_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 		goto out;
 	}
 
-	psock = connect_tcp_socket(ip, port, NULL, 0, 1);
+	psock = connect_tcp_socket(ip, port, bindip, bindport, 1);
 	if (psock == NULL) {
 		GETERRNO(ret);
 		fprintf(stderr, "connect [%s:%d] error[%d]\n", ip, port, ret );
