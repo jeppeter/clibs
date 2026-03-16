@@ -103,6 +103,7 @@ int DnsTotal::__get_result(DnsCap* pcap)
 			break;
 		}
 
+		DEBUG_INFO("get [%s]", vstr.c_str());
 		if (vstr.compare(0,6,"ERROR;") == 0) {
 			/*now to get the value*/
 			ns = vstr.find(';',6);
@@ -158,12 +159,14 @@ int DnsTotal::__get_result(DnsCap* pcap)
 
 void DnsTotal::notify_event(void* parg, ev_combo_event_t event)
 {
-	int idx;
+	int idx=0;
+	DnsCap* pcap = this->__find_dns(parg,&idx);
+	if (pcap == NULL) {
+		return;
+	}
+	DEBUG_INFO("find %p %d",parg, idx);
 	if (event == remove_event) {
-		DnsCap* pcap = this->__find_dns(parg,&idx);
-		if (pcap != NULL) {
-			this->m_iparrs.erase(this->m_iparrs.begin() + idx);
-		}
+		this->m_iparrs.erase(this->m_iparrs.begin() + idx);
 		if (this->m_indelprog == 0 && this->m_iparrs.size() == 0) {
 			if (this->m_evmain) {
 				/*to break the loop*/
@@ -171,10 +174,7 @@ void DnsTotal::notify_event(void* parg, ev_combo_event_t event)
 			}
 		}
 	} else if (event == get_result_event) {
-		DnsCap* pcap = this->__find_dns(parg,&idx);
-		if (pcap != NULL) {
-			this->__get_result(pcap);
-		}
+		this->__get_result(pcap);
 	}
 	return ;
 }
@@ -202,9 +202,16 @@ int DnsTotal::start_dns(int aftype,char* pstr)
 		goto fail;
 	} else if (ret > 0) {
 		/*we do not need to insert*/
+		ret = this->__get_result(pcap);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+
 		delete pcap;
 		pcap = NULL;
 	} else {
+		DEBUG_INFO("insert %p",pcap);
 		this->m_iparrs.push_back(pcap);	
 	}
 	

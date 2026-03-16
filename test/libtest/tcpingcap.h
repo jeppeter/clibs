@@ -54,6 +54,7 @@ private:
 	int __call_notify();
 
 	int _get_now_str(std::string& tstr,uint64_t val);
+	int __start_tcping();
 
 
 private:
@@ -74,11 +75,12 @@ private:
 	HANDLE m_evthd;
 	uint64_t m_tmoutguid;
 	uint64_t m_tmnextguid;
+	uint64_t m_startticks;
 
 	int m_inserthd;
 	int m_tmoutok;
 	int m_tmnextok;
-	int m_reserv1;
+	int m_error;
 
 	std::vector<std::string> m_tcpingval;
 };

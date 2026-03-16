@@ -8,6 +8,8 @@
 #include <win_inner.h>
 #undef __WINLIB_INNER_INCLUDE__
 
+#define  MAX_TIME_VALUE      0xffffffffffffffffULL
+
 #ifdef __cplusplus
 extern "C" {
 #endif

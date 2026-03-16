@@ -742,18 +742,185 @@ int __split_time(const char* pname, std::string& name,std::string& ports)
     return 0;    
 }
 
+int exit_hd_notify(HANDLE hd, libev_enum_event_t event, void* pevmain, void* args)
+{
+    DEBUG_INFO(" ");
+    REFERENCE_ARG(args);
+    REFERENCE_ARG(event);
+    REFERENCE_ARG(hd);
+    libev_break_winev_loop(pevmain);
+    return 0;
+}
+
+
+
+
 int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     pargs_options_t pargs = (pargs_options_t) popt;
     int ret;
+    HANDLE exithd=NULL;
+    TcpingTotal* ptotal = NULL;
+    void* pev=NULL;
+    int times;
+    int nexttime;
+    int timeout;
+    int aftype = AF_INET;
+    DnsTotal* pdns= NULL;
+    std::string name;
+    std::string ports;
+    std::map<std::string,std::vector<std::string>> ipres;
+    std::vector<std::string> iperrs;
+    int i;
 
-    REFERENCE_ARG(parsestate);
 
     init_log_level(pargs);
 
+    times = pargs->m_times;
+    timeout = pargs->m_timeout;
+    if (timeout == 0) {
+        timeout = 5000;
+    }
+    nexttime = pargs->m_nexttime;
+
+    if (pargs->m_af6) {
+        aftype = AF_INET6;
+    }
+
+    ret = init_socket();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "cannot init_socket [%d]\n", ret);
+        goto out;
+    }
+
+
     REFERENCE_ARG(argc);
     REFERENCE_ARG(argv);
+    pev = libev_init_winev();
+    if (pev == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    exithd = set_ctrlc_handle();
+    if (exithd == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    /*now first to give the total*/
+    pdns = new DnsTotal(pev,5000);
+
+    for(i=0;parsestate->leftargs&& parsestate->leftargs[i];i+=1) {
+        ret = pdns->start_dns(aftype,parsestate->leftargs[i]);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+    ret =  libev_insert_handle(pev, exithd, exit_hd_notify, NULL);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO(" ");
+        goto out;
+    }
+
+
+    if (pdns->get_dns_query() != 0) {
+        ret = libev_winev_loop(pev);
+        if (ret < 0) {
+            GETERRNO(ret);
+            DEBUG_INFO(" ");
+            goto out;
+        }
+    }
+
+    DEBUG_INFO(" ");
+
+    ret = pdns->get_result(ipres);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    DEBUG_INFO(" ");
+
+    ret = pdns->get_errors(iperrs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    DEBUG_INFO(" ");
+
+    delete pdns;
+    pdns = NULL;
+
+    libev_free_winev(&pev);
+
+    pev = libev_init_winev();
+    if (pev == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+
+    DEBUG_INFO("ipres size %lld", ipres.size());
+    ptotal = new TcpingTotal(pev,times,timeout,nexttime);
+    for(auto iter = ipres.begin(); iter != ipres.end(); ++ iter) {
+        DEBUG_INFO(" ");
+        if (iter->second.size() > 0) {
+            std::string cstr = iter->second.at(0);
+            size_t sidx = cstr.find(';',0);
+            if (sidx != std::string::npos) {
+                cstr = cstr.substr(0,sidx);
+            }
+            DEBUG_INFO("cstr [%s]", cstr.c_str());
+            ret = __split_time(cstr.c_str(),name,ports);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto out;
+            }
+            ret = ptotal->start_tcping(aftype,name.c_str(),(char*)ports.c_str());
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto out;
+            }
+        }
+    }
+
+
+
+    if (ptotal->get_tasks() != 0) {
+
+        ret =  libev_insert_handle(pev, exithd, exit_hd_notify, NULL);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO(" ");
+            goto out;
+        }
+
+        ret = libev_winev_loop(pev);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
     ret = 0;
+out:
+    if (ptotal) {
+        delete ptotal;
+    }
+    ptotal = NULL;
+
+    if (pdns) {
+        delete pdns;
+    }
+    pdns = NULL;
+
+    libev_free_winev(&pev);
 
     SETERRNO(ret);
     return ret;

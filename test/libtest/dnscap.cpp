@@ -48,7 +48,9 @@ void DnsCap::__call_remove()
 
 void DnsCap::__call_notify()
 {
+	DEBUG_INFO("__call_notify");
 	if (this->m_combo != NULL) {
+		DEBUG_INFO("__call_notify %p", this);
 		this->m_combo->notify_event(this,get_result_event);
 	}
 }
@@ -281,6 +283,7 @@ int DnsCap::__fill_dns_info()
 			vstr += this->m_portstr;
 		}
 		vstr += ';';
+		DEBUG_INFO("insert [%s]", vstr.c_str());
 		this->m_results.push_back(vstr);
 		idx += 1;
 	}
