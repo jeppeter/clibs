@@ -264,9 +264,9 @@ int __format_saddr(char* ipaddr,int port,struct sockaddr* paddr,int *pfamily)
 	if (ret != 1) {
 		paddr6 = (struct sockaddr_in6*)paddr;
 		paddr6->sin6_family = AF_INET6;
-		ret = inet_pton(AF_INET6,ipaddr,&paddr6->sin6_addr.sa_addr);
+		ret = inet_pton(AF_INET6,ipaddr,&paddr6->sin6_addr);
 		if (ret == 1) {
-			paddr6->sin6_port = htons(port);
+			paddr6->sin6_port = htons((unsigned short)port);
 			retlen = sizeof(*paddr6);
 			if (pfamily) {
 				*pfamily = AF_INET6;
@@ -277,7 +277,7 @@ int __format_saddr(char* ipaddr,int port,struct sockaddr* paddr,int *pfamily)
 			goto fail;
 		}
 	} else {
-		paddr4->sin_port = htons(port);
+		paddr4->sin_port = htons((unsigned short)port);
 		retlen = sizeof(*paddr4);
 		if (pfamily) {
 			*pfamily = AF_INET;
@@ -364,10 +364,82 @@ fail:
 	return NULL;
 }
 
+int __get_addr_from_nameaddr(struct sockaddr* nameaddr,psock_data_priv_t psock,char** ppbuf,int *pport)
+{
+	char* pretbuf=NULL;
+	int addrlen;
+	char* pret = NULL;
+	struct sockaddr_in* paddr4;
+	struct sockaddr_in6* paddr6;
+	int ret;
+	if (nameaddr->sa_family != psock->m_aftype) {
+		ret = -ERROR_INVALID_PARAMETER;
+		ERROR_INFO("nameaddr sa_family %d != aftype %d",nameaddr->sa_family,psock->m_aftype);
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (ppbuf == NULL) {
+		ret = - ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	if (nameaddr->sa_family == AF_INET) {
+		addrlen = INET_ADDRSTRLEN;
+	} else if (nameaddr->sa_family == AF_INET6) {
+		addrlen = INET6_ADDRSTRLEN;
+	} else {
+		ret = - ERROR_INVALID_PARAMETER;
+		goto fail;
+	}
+
+	pretbuf = (char*)malloc((size_t)addrlen);
+	if (pretbuf == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	memset(pretbuf,0,(size_t)addrlen);
+	if (nameaddr->sa_family == AF_INET) {
+		paddr4 = (struct sockaddr_in*) nameaddr;
+		pret = (char*)inet_ntop(psock->m_aftype,&(paddr4->sin_addr),pretbuf,(size_t)addrlen);
+		if (pport) {
+			*pport = ntohs(paddr4->sin_port);
+		}
+	} else if (nameaddr->sa_family == AF_INET6) {
+		paddr6 = (struct sockaddr_in6*) nameaddr;
+		pret = (char*)inet_ntop(psock->m_aftype,&(paddr6->sin6_addr),pretbuf,(size_t)addrlen);
+		if (pport) {
+			*pport = ntohs(paddr6->sin6_port);
+		}
+	}
+
+	if (pret == NULL) {
+		WSA_GETERRNO(ret);
+		ERROR_INFO("get name addr error %d",ret);
+		goto fail;
+	}
+
+	if (*ppbuf && *ppbuf != pretbuf) {
+		free(*ppbuf);
+	}
+	*ppbuf = pretbuf;
+	pretbuf = NULL;
+	return addrlen;
+fail:
+	if (pretbuf != NULL && pretbuf != *ppbuf) {
+		free(pretbuf);
+	}
+	pretbuf = NULL;
+
+	SETERRNO(ret);
+	return ret;
+}
+
 int __get_self_name(psock_data_priv_t psock)
 {
 	struct sockaddr nameaddr;
-	struct sockaddr_in* name;
 	int namelen = 0;
 	int ret;
 	int rc;
@@ -379,27 +451,11 @@ int __get_self_name(psock_data_priv_t psock)
 		goto fail;
 	}
 
-	name = (struct sockaddr_in*)&nameaddr;
-
-	if (name->sin_family != AF_INET) {
-		ret = -ERROR_INVALID_PARAMETER;
-		ERROR_INFO("socket name [%s:%d] not valid [%d]", psock->m_peeraddr, psock->m_peerport, name->sin_family);
-		goto fail;
-	}
-
-	/**/
-	if (psock->m_selfaddr != NULL) {
-		free(psock->m_selfaddr);
-	}
-	psock->m_selfaddr = NULL;
-	psock->m_selfaddr = (char*) malloc(INET_ADDRSTRLEN);
-	if (psock->m_selfaddr == NULL) {
+	ret = __get_addr_from_nameaddr(&nameaddr,psock,&(psock->m_selfaddr),&psock->m_selfport);
+	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
-	memset(psock->m_selfaddr, 0, INET_ADDRSTRLEN);
-	inet_ntop(AF_INET, &(name->sin_addr), psock->m_selfaddr, INET_ADDRSTRLEN);
-	psock->m_selfport = ntohs(name->sin_port);
 
 	return 0;
 fail:
@@ -410,7 +466,6 @@ fail:
 int __get_peer_name(psock_data_priv_t psock)
 {
 	struct sockaddr nameaddr;
-	struct sockaddr_in* name;
 	int ret;
 	int namelen;
 
@@ -424,25 +479,11 @@ int __get_peer_name(psock_data_priv_t psock)
 		goto fail;
 	}
 
-	name = (struct sockaddr_in*) &nameaddr;
-	if (name->sin_family != AF_INET) {
-		ret = -ERROR_INVALID_PARAMETER;
-		ERROR_INFO("socket name [%s:%d] not valid [%d]", psock->m_selfaddr, psock->m_selfport, name->sin_family);
-		goto fail;
-	}
-
-	if (psock->m_peeraddr != NULL) {
-		free(psock->m_peeraddr);
-	}
-	psock->m_peeraddr = NULL;
-	psock->m_peeraddr = (char*) malloc(INET_ADDRSTRLEN);
-	if (psock->m_peeraddr == NULL) {
+	ret = __get_addr_from_nameaddr(&nameaddr,psock,&psock->m_peeraddr,&psock->m_peerport);
+	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
-	memset(psock->m_peeraddr, 0, INET_ADDRSTRLEN);
-	inet_ntop(AF_INET, &(name->sin_addr), psock->m_peeraddr, INET_ADDRSTRLEN);
-	psock->m_peerport = ntohs(name->sin_port);
 	return 0;
 fail:
 	SETERRNO(ret);
@@ -507,7 +548,7 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 		goto fail;
 	}
 
-	psock->m_sock = socket(AF_INET, SOCK_STREAM, 0);
+	psock->m_sock = socket(psock->m_aftype, SOCK_STREAM, 0);
 	if (psock->m_sock == INVALID_SOCKET) {
 		WSA_GETERRNO(ret);
 		goto fail;
@@ -550,14 +591,14 @@ void* connect_tcp_socket(char* ipaddr, int port, char* bindip, int bindport, int
 				memset(bindaddr4,0,sizeof(*bindaddr4));
 				bindaddr4->sin_family = AF_INET;
 				bindaddr4->sin_addr.s_addr = INADDR_ANY;
-				bindaddr4->sin_port = htons(bindport);
+				bindaddr4->sin_port = htons((unsigned short)bindport);
 				bindlen = sizeof(*bindaddr4);
 			} else {
 				bindaddr6 = (struct sockaddr_in6*) &bindconn;
 				memset(bindaddr6,0,sizeof(*bindaddr6));
 				bindaddr6->sin6_family = AF_INET6;
 				memset(&bindaddr6->sin6_addr,0,sizeof(bindaddr6->sin6_addr));
-				bindaddr6->sin6_port = htons(bindport);
+				bindaddr6->sin6_port = htons((unsigned short)bindport);
 				bindlen = sizeof(*bindaddr6);
 			}
 		}
@@ -771,9 +812,9 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 {
 	psock_data_priv_t psock = NULL;
 	int ret;
-	struct sockaddr_in* name;
 	struct sockaddr nameaddr;
 	int namelen;
+	int family;
 	DWORD dret;
 	GUID GuidAcceptEx = WSAID_ACCEPTEX;
 	u_long block;
@@ -785,7 +826,7 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 		goto fail;
 	}
 
-	psock->m_sock = socket(AF_INET, SOCK_STREAM, 0);
+	psock->m_sock = socket(psock->m_aftype, SOCK_STREAM, 0);
 	if (psock->m_sock == INVALID_SOCKET) {
 		WSA_GETERRNO(ret);
 		ERROR_INFO("make socket for server [%s:%d] error[%d]", ipaddr, port, ret);
@@ -809,14 +850,14 @@ void* bind_tcp_socket(char* ipaddr, int port, int backlog)
 		goto fail;
 	}
 
+	ret = __format_saddr(ipaddr,port,&nameaddr,&family);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
 
-	memset(&nameaddr, 0, sizeof(nameaddr));
-	name = (struct sockaddr_in*) &nameaddr;
-	name->sin_family = AF_INET;
-	inet_pton(AF_INET, ipaddr, &(name->sin_addr));
-	name->sin_port = htons((uint16_t)port);
+	namelen = ret;
 
-	namelen = sizeof(nameaddr);
 	ret = bind(psock->m_sock, &nameaddr, namelen);
 	if (ret != 0) {
 		WSA_GETERRNO(ret);
