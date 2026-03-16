@@ -9,7 +9,14 @@
 
 #include <win_types.h>
 
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+#include <mswsock.h>
+
 #define WSA_GETERRNO(ret) do { ret = WSAGetLastError(); if (ret > 0) {ret = -ret;} if (ret == 0) {ret = -1;} } while(0)
+
+
+#define  SOCKADDR_MAX_LEN    sizeof(struct sockaddr_in6)
 
 
 #ifdef __cplusplus

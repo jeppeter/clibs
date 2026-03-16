@@ -185,13 +185,57 @@ fail:
 	return NULL;
 }
 
+int __append_dns_value(PDNS_QUERY_t pdnsqry,char* pval)
+{
+	char** pptmp = NULL;
+	int ret;
+	if (pdnsqry->m_iparr == NULL || (pdnsqry->m_iplen+1) >= pdnsqry->m_ipsize ) {
+		if (pdnsqry->m_ipsize == 0) {
+			pdnsqry->m_ipsize = 4;
+		} else {
+			pdnsqry->m_ipsize <<= 1;
+		}
+
+		pptmp = (char**)malloc(sizeof(*pptmp) * pdnsqry->m_ipsize);
+		if (pptmp == NULL) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		memset(pptmp, 0, sizeof(*pptmp) * pdnsqry->m_ipsize);
+		if (pdnsqry->m_iplen > 0) {
+			memcpy(pptmp, pdnsqry->m_iparr, sizeof(*pptmp) * pdnsqry->m_iplen);
+		}
+
+		if (pdnsqry->m_iparr) {
+			free(pdnsqry->m_iparr);
+		}
+		pdnsqry->m_iparr = pptmp;
+		pptmp = NULL;
+	}
+
+	pdnsqry->m_iparr[pdnsqry->m_iplen] = _strdup(pval);
+	if (pdnsqry->m_iparr[pdnsqry->m_iplen] == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	pdnsqry->m_iplen += 1;
+
+	return pdnsqry->m_iplen;
+fail:
+	if (pptmp) {
+		free(pptmp);
+	}
+	pptmp = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
 int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 {
 	int ret;
 	PADDRINFOEXW    pcurinfo=NULL;
 	char* pstr = NULL;
 	int size = 0;
-	char** pptmp=NULL;
 	wchar_t* pwstr=NULL;
 	int wsize=256;
 
@@ -215,33 +259,6 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 			DWORD dsize=(DWORD) wsize;
 			ret = WSAAddressToStringW(pcurinfo->ai_addr,(DWORD) pcurinfo->ai_addrlen,NULL,pwstr,&dsize);
 			if (ret == 0) {
-				if(pdnsqry->m_ipsize <= (pdnsqry->m_iplen + 1)) {
-					if (pdnsqry->m_ipsize == 0) {
-						pdnsqry->m_ipsize = 4;
-					} else {
-						pdnsqry->m_ipsize <<= 1;
-					}
-
-
-
-					pptmp = (char**)malloc(sizeof(*pptmp) * pdnsqry->m_ipsize);
-					if (pptmp == NULL) {
-						GETERRNO(ret);
-						ERROR_INFO(" ");
-						goto fail;
-					}
-					memset(pptmp, 0, sizeof(*pptmp) * pdnsqry->m_ipsize);
-					if (pdnsqry->m_iplen > 0) {
-						memcpy(pptmp, pdnsqry->m_iparr, sizeof(*pptmp) * pdnsqry->m_iplen);
-					}
-
-					if (pdnsqry->m_iparr) {
-						free(pdnsqry->m_iparr);
-					}
-					pdnsqry->m_iparr = pptmp;
-					pptmp = NULL;
-				}
-
 				DEBUG_BUFFER_FMT(pwstr,dsize*sizeof(*pwstr),"pwstr get");
 				ret = UnicodeToAnsi(pwstr,&pstr,&size);
 				if (ret < 0) {
@@ -250,13 +267,12 @@ int __fill_dns_result(PDNS_QUERY_t pdnsqry)
 					goto fail;
 				}
 
-				pdnsqry->m_iparr[pdnsqry->m_iplen] = _strdup(pstr);
-				if (pdnsqry->m_iparr[pdnsqry->m_iplen] == NULL) {
+				ret = __append_dns_value(pdnsqry,pstr);
+				if (ret < 0) {
 					GETERRNO(ret);
-					ERROR_INFO(" ");
 					goto fail;
 				}
-				pdnsqry->m_iplen += 1;
+
 				DEBUG_INFO("m_iplen %d", pdnsqry->m_iplen);
 			} else {
 				ERROR_INFO("ret %d", ret);
@@ -352,6 +368,8 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 	int wipsize=0,wportsize=0;
 	int ret,cret;
 	int completed = 0;
+	char* pbuffer = NULL;
+	int buflen = SOCKADDR_MAX_LEN;
 
 	if (pdnsqry->m_qryip == NULL || pdnsqry->m_inprog != 0) {
 		ret = -ERROR_INVALID_PARAMETER;
@@ -397,19 +415,61 @@ int __start_query_dns(PDNS_QUERY_t pdnsqry)
 		pdnsqry->m_exited = 1;
 	} else {
 		if (cret != WSA_IO_PENDING && cret != ERROR_IO_PENDING) {
-			WSA_GETERRNO(ret);
-			ERROR_INFO("cret %d ret %d",cret,ret);
-			goto fail;
+			if (cret == WSAHOST_NOT_FOUND) {
+
+				if (pbuffer == NULL) {
+					pbuffer = (char*)malloc((size_t)buflen);
+					if (pbuffer == NULL) {
+						GETERRNO(ret);
+						goto fail;
+					}
+				}
+
+				/*this means it is ok to transfer for the ip address in ipv6 so do it*/
+				ret = inet_pton(pdnsqry->m_aftype,pdnsqry->m_qryip,pbuffer);
+				if (ret != 1) {
+					WSA_GETERRNO(ret);
+					ERROR_INFO("WSAHOST_NOT_FOUND for type %d [%s] inet_pton ret %d",pdnsqry->m_aftype,pdnsqry->m_qryip, ret);
+					ret = -cret;
+					goto fail;
+				}
+
+				ret = __append_dns_value(pdnsqry,pdnsqry->m_qryip);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+
+				pdnsqry->m_inprog = 0;
+				pdnsqry->m_exited = 1;
+				completed = 1;
+
+			} else {
+				WSA_GETERRNO(ret);
+				ERROR_INFO("cret %d ret %d",cret,ret);
+				goto fail;				
+			}
+		} else {
+			pdnsqry->m_inprog = 1;	
 		}
 
-		pdnsqry->m_inprog = 1;
+		
 	}
+
+	if (pbuffer) {
+		free(pbuffer);
+	}
+	pbuffer =NULL;
 
 	AnsiToUnicode(NULL,&pwport,&wportsize);
 	AnsiToUnicode(NULL,&pwip,&wipsize);
 
 	return completed;
 fail:
+	if (pbuffer) {
+		free(pbuffer);
+	}
+	pbuffer =NULL;
 	AnsiToUnicode(NULL,&pwport,&wportsize);
 	AnsiToUnicode(NULL,&pwip,&wipsize);
 	SETERRNO(ret);

@@ -39,7 +39,6 @@
 #define  SOCKET_CLIENT_TYPE  0x1
 #define  SOCKET_SERVER_TYPE  0x2
 
-#define  SOCKADDR_MAX_LEN    sizeof(struct sockaddr_in6)
 
 typedef struct __sock_data_priv {
 	uint32_t m_magic;
