@@ -428,8 +428,11 @@ int tstsvrsockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 		goto out;
 	}
 
+	DEBUG_INFO(" ");
+
 	hd = get_tcp_accept_handle(psock);
 	if (hd != NULL) {
+		DEBUG_INFO("wait object");
 		dret = WaitForSingleObject(hd, INFINITE);
 		if (dret != WAIT_OBJECT_0) {
 			GETERRNO(ret);
@@ -438,6 +441,7 @@ int tstsvrsockrd_handler(int argc, char* argv[], pextargs_state_t parsestate, vo
 		}
 	}
 
+	DEBUG_INFO("complete accept");
 	ret = complete_tcp_accept(psock);
 	if (ret < 0) {
 		GETERRNO(ret);
