@@ -1,3 +1,4 @@
+#include <win_sock.h>
 #include <icmp_inner.h>
 #include <win_ping.h>
 #include <win_err.h>
@@ -207,7 +208,7 @@ int __bind_ping_sock(PPING_SOCK_t psock)
 	struct sockaddr* saddr=NULL;
 	int addrlen;
 
-	addrlen = (int)sizeof(*saddr);
+	addrlen = SOCKADDR_MAX_LEN;
 get_again:
 	if (saddr) {
 		free(saddr);
@@ -225,7 +226,7 @@ get_again:
 			addrlen <<= 1;
 			goto get_again;
 		}
-		DEBUG_INFO(" ");
+		ERROR_INFO(" ");
 		goto fail;
 	}
 	addrlen = ret;
@@ -459,11 +460,8 @@ get_saddr_again:
 	psock->m_rcvcomplete = 0;
 	ret = WSASendTo(psock->m_sock,&sndbuf,1,&bytessend,flags,psock->m_sndaddr,psock->m_saddrlen,&(psock->m_sndov),NULL);
 	if (ret == SOCKET_ERROR) {
-		if (WSAGetLastError() != WSA_IO_PENDING ) {
-			ret = WSAGetLastError();
-			if (ret > 0) {
-				ret = -ret;
-			}
+		WSA_GETERRNO(ret);
+		if (ret != - WSA_IO_PENDING) {
 			ERROR_INFO("to send buffer error %d", ret);
 			goto fail;
 		}

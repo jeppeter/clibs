@@ -3,60 +3,69 @@
 #define __PINGCAP_H_DB0F356DE42D03B030B243803FD3981E__
 
 #include <win_ping.h>
+#include "evcombo.h"
 
 #pragma warning(push)
 #pragma warning(disable:4577)
 #pragma warning(disable:4530)
 
 #include <vector>
+#include <string>
 #pragma warning(pop)
 
-#define   NONE_MODE         0
-#define   READ_MODE         1
-#define   WRITE_MODE        2
-#define   EXPIRE_MODE       4
-#define   NEXT_MODE         8
-#define   START_MODE        16
-#define   COMPLETE_MODE     0x8000000
 
 class PingCap
 {
 public:
-	PingCap(const char* ip,int timeout,int nextout,int times);
+	PingCap(int pingtype,const char* ip,void* pev,IEvCombo* pcombo);
 	virtual ~PingCap();
-	int set_verbose(int verbose);
-	int start();
-	int restart(int timeout);
-	int get_mode();
-	HANDLE get_read_evt();
-	HANDLE get_write_evt();
-	int get_expire();
-	int get_next_expire();
-	int complete_read_evt();
-	int complete_write_evt();
-	int send_ping();
-	int read_ping(uint64_t& pval);
-	int get_result(int idx,uint64_t& val);
-	int get_mean_result(uint64_t& val);
-	double get_succ_ratio();
+	int set_timeout(int timeout);
+	int set_nexttime(int nexttime);
+	virtual int start();
+	virtual int get_result(std::string& vstr);
 private:
-	void _print_result(const char* file, int line,uint64_t val);
-	int _get_ping_type();
+	static int ping_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void* args);
+	static int ping_timeout(uint64_t guid,libev_enum_event_t event,void* pevmain,void* args);
+
 	void __release_resource();
-	int __start_alloc();
+
+	void __remove_tmout();
+	void __remove_rd();
+	void __remove_wr();
+	void __remove_tmnext();
+
+	int __insert_tmout();
+	int __insert_rd();
+	int __insert_wr();
+	int __insert_tmnext();
+
+	void __call_remove();
+	void __call_notify();
 
 private:
 	void* m_sock;
-	char* m_ip;
-	int m_verbose;
+	std::string m_ip;
+
+
 	int m_pingtype;
-	uint64_t m_expire;
-	uint64_t m_nextstart;
 	int m_times;
 	int m_timeout;
 	int m_nexttime;
-	int m_reserve1;
-	std::vector<uint64_t>* m_pingval;
+
+	HANDLE m_rdevt;
+	HANDLE m_wrevt;
+	uint64_t m_tmoutguid;
+	uint64_t m_tmnextguid;
+
+	int m_insertrd;
+	int m_insertwr;
+	int m_intserttmout;
+	int m_inserttmnext;
+
+
+	void* m_evmain;
+	IEvCombo* m_combo;
+	std::vector<std::string> m_pingval;
 };
 
 

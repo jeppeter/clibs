@@ -1,13 +1,5 @@
 
-#pragma warning(push)
-#pragma warning(disable:4668)
-#pragma warning(disable:4820)
-
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
-#pragma warning(pop)
-
+#include <win_sock.h>
 #include "pingcap.h"
 #include <win_output_debug.h>
 #include <win_err.h>
@@ -23,50 +15,53 @@
 #pragma comment (lib, "Ws2_32.lib")
 
 
-PingCap::PingCap(const char* ip,int timeout,int nextout,int times)
+PingCap::PingCap(int pingtype,const char* ip,void* pev,IEvCombo* pcombo)
 {
-	this->m_verbose = 0;
 	this->m_sock = NULL;
-	this->m_ip = _strdup(ip);
-	this->m_pingtype = AF_INET;
-	this->m_expire = 0;
-	this->m_nextstart = 0;
+	this->m_ip = ip;
+
+	this->m_pingtype = pingtype;
 	this->m_times = times;
 	this->m_timeout = timeout;
 	this->m_nexttime = nextout;
-	this->m_pingval = NULL;
+
+	this->m_evmain = pev;
+	this->m_combo = pcombo;
+
 }
 
 PingCap::~PingCap()
 {
 	this->__release_resource();
-	if (this->m_ip) {
-		free(this->m_ip);
-	}
-	this->m_ip = NULL;	
 
+	this->m_ip = "";
+
+	this->__call_remove();
 }
 
-void PingCap::_print_result(const char* file, int line,uint64_t val)
+void PingCap::__remove_tmout()
 {
-	if (this->m_verbose > 0) {
-		printf("[%s:%d] %s ttl %lld\n",file,line,this->m_ip, val);
+	int ret;
+	if (this->m_intserttmout != 0) {
+		ret= libev_remove_timer(this->m_evmain,this->m_tmoutguid);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("remove tmout [%s] error %d", this->m_ip.c_str(), ret);
+		}
+		this->m_intserttmout = 0;
+		this->m_tmoutguid = 0;
 	}
 	return;
 }
 
+
 void PingCap::__release_resource()
 {
-	free_ping_sock(&this->m_sock);
-	if (this->m_pingval) {
-		while(this->m_pingval->size() > 0) {
-			this->m_pingval->erase(this->m_pingval->begin());
-		}
-		delete this->m_pingval;
-	}
-	this->m_pingval = NULL;
-	this->m_expire = 0;
-	this->m_nextstart = 0;
+	this->__remove_tmout();
+	this->__remove_tmnext();
+	this->__remove_rd();
+	this->__remove_wr();
+	this->m_pingval.clear();
 	return;
 }
 
