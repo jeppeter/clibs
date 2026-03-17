@@ -4,6 +4,7 @@
 
 #include <win_ping.h>
 #include "evcombo.h"
+#include <win_libev.h>
 
 #pragma warning(push)
 #pragma warning(disable:4577)
@@ -14,13 +15,14 @@
 #pragma warning(pop)
 
 
-class PingCap
+class PingCap : public IEvRunner
 {
 public:
-	PingCap(int pingtype,const char* ip,void* pev,IEvCombo* pcombo);
+	PingCap(int pingtype,const char* ip,int times,int timeout,int nexttime,void* pev,IEvCombo* pcombo);
 	virtual ~PingCap();
 	int set_timeout(int timeout);
 	int set_nexttime(int nexttime);
+	int set_times(int times);
 	virtual int start();
 	virtual int get_result(std::string& vstr);
 private:
@@ -56,6 +58,7 @@ private:
 	int m_timeout;
 	int m_nexttime;
 	int m_curtime;
+	int m_reserv1;
 
 	HANDLE m_rdevt;
 	HANDLE m_wrevt;

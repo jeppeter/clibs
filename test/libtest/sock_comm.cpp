@@ -1,10 +1,13 @@
-#include <WinSock2.h>
-#include <WS2tcpip.h>
-#include <mswsock.h>
+
 
 
 #include <win_sock.h>
 #include "sock_comm.h"
+
+#include <WinSock2.h>
+#include <WS2tcpip.h>
+#include <mswsock.h>
+
 
 #define  PROTO_HDR_SIZE          4
 #define  MINI_BUF_SIZE           512

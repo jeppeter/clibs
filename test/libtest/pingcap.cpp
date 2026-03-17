@@ -15,7 +15,7 @@
 #pragma comment (lib, "Ws2_32.lib")
 
 
-PingCap::PingCap(int pingtype,const char* ip,void* pev,IEvCombo* pcombo)
+PingCap::PingCap(int pingtype,const char* ip,int times,int timeout,int nexttime,void* pev,IEvCombo* pcombo)
 {
 	this->m_sock = NULL;
 	this->m_ip = ip;
@@ -23,7 +23,7 @@ PingCap::PingCap(int pingtype,const char* ip,void* pev,IEvCombo* pcombo)
 	this->m_pingtype = pingtype;
 	this->m_times = times;
 	this->m_timeout = timeout;
-	this->m_nexttime = nextout;
+	this->m_nexttime = nexttime;
 
 	this->m_rdevt = NULL;
 	this->m_wrevt = NULL;
@@ -39,6 +39,31 @@ PingCap::PingCap(int pingtype,const char* ip,void* pev,IEvCombo* pcombo)
 	this->m_combo = pcombo;
 
 }
+
+int PingCap::set_timeout(int timeout)
+{
+	int ret;
+	ret = this->m_timeout;
+	this->m_timeout = timeout;
+	return ret;
+}
+
+int PingCap::set_nexttime(int nextime)
+{
+	int ret;
+	ret = this->m_nexttime;
+	this->m_nexttime = nextime;
+	return ret;
+}
+
+int PingCap::set_times(int times)
+{
+	int ret;
+	ret = this->m_times;
+	this->m_times = times;
+	return ret;
+}
+
 
 PingCap::~PingCap()
 {
@@ -126,7 +151,7 @@ int PingCap::__insert_tmout()
 {
 	int ret;
 	if (this->m_inserttmout == 0) {
-		ret= libev_insert_timer(this->m_evmain,&this->m_tmoutguid,PingCap::ping_timeout,this,this->m_timeout,0);
+		ret= libev_insert_timer(this->m_evmain,&this->m_tmoutguid,PingCap::ping_timeout,this,(uint32_t)this->m_timeout,0);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("insert tmout [%s] error %d", this->m_ip.c_str(), ret);
@@ -146,7 +171,7 @@ int PingCap::__insert_tmnext()
 {
 	int ret;
 	if (this->m_inserttmnext == 0) {
-		ret= libev_insert_timer(this->m_evmain,&this->m_tmnextguid,PingCap::ping_timeout,this,this->m_nexttime,0);
+		ret= libev_insert_timer(this->m_evmain,&this->m_tmnextguid,PingCap::ping_timeout,this,(uint32_t)this->m_nexttime,0);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("insert tmnext [%s] error %d", this->m_ip.c_str(), ret);
@@ -172,11 +197,10 @@ int PingCap::__insert_rd()
 			ERROR_INFO("insert rdevt [%s] error %d", this->m_ip.c_str(), ret);
 		}
 		this->m_insertrd = 1;
+	} else {
+		ERROR_INFO("already insert [%s] rdevt", this->m_ip.c_str());
 	}
 	return 0;
-fail:
-	SETERRNO(ret);
-	return ret;
 }
 
 int PingCap::__insert_wr()

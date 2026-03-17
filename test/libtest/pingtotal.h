@@ -2,28 +2,41 @@
 #ifndef __PINGTOTAL_H_380557163CB18CB433739E2A9828B75C__
 #define __PINGTOTAL_H_380557163CB18CB433739E2A9828B75C__
 
+#include <win_sock.h>
+#include "evcombo.h"
 #include "pingcap.h"
 #include <windows.h>
+#include <map>
+#include <string>
 
 
-class PingTotal
+class PingTotal : public IEvCombo
 {
 public:
-	PingTotal(int timeout,int nexttime,int times,int verbose);
+	PingTotal(int timeout,int nexttime,int times, void* pev);
 	virtual ~PingTotal();
-	int add_host(const char* ip);
-	int get_mean(int idx, char** ppipstr,uint64_t* pval);
-	int loop(HANDLE exithd);
-	int get_succ_ratio(int idx, char** ppipstr,double* pratio);
+	virtual void notify_event(void* ptr,ev_combo_event_t event);
+	int add_host(int aftype,const char* ip);
+	int get_mean(std::map<std::string,double>& res);
+	int get_succ_ratio(std::map<std::string,double>& res);
+
+	int get_tasks();
+
+	int set_timeout(int timeout);
+	int set_nexttime(int nexttime);
+	int set_times(int times);
 private:
-	int __min2(int a, int b);
-private:	
-	std::vector<PingCap*>* m_vec;
-	std::vector<char*>* m_ipvec;
-	int m_verbose;
+	void __release_resource();
+private:
+	std::map<std::string,uint64_t> m_ipcnt;
+	std::map<std::string,uint64_t> m_ipfail;
+	std::map<std::string,double> m_iptotal;
+	std::map<PingCap*,std::string> m_ips;
+	void* m_evmain;
 	int m_timeout;
 	int m_nexttime;
 	int m_times;
+	int m_deleted;
 };
 
 #endif /* __PINGTOTAL_H_380557163CB18CB433739E2A9828B75C__ */
