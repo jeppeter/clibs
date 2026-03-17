@@ -1,6 +1,8 @@
+#define _HAS_EXCEPTIONS 0
 #include "pingtotal.h"
 #include <win_err.h>
 #include <win_libev.h>
+#include <win_time.h>
 
 
 #pragma warning(push)
@@ -13,9 +15,9 @@ PingTotal::PingTotal(int timeout,int nexttime,int times, void* pev)
 	this->m_iptotal.clear();
 	this->m_ips.clear();
 	this->m_evmain = pev;
-	this->m_timeout = 5000;
-	this->m_nexttime = 1000;
-	this->m_times = 0;
+	this->m_timeout = timeout;
+	this->m_nexttime = nexttime;
+	this->m_times = times;
 
 	this->m_deleted = 0;
 }
@@ -110,45 +112,46 @@ int PingTotal::__get_single_info(std::string& name, std::string& vstr)
 
 	/*to skip ;0x*/
 	hxstr = vstr.substr(np + 3, vstr.length() - 1);
-	val = std::stoull(hxstr,&pendptr,16);
+	val = std::strtoull(hxstr.c_str(),&pendptr,16);
 	DEBUG_INFO("[%s] val 0x%llx", vstr.c_str(),val);
 
 	if (val == MAX_TIME_VALUE) {
 		auto iter = this->m_ipcnt.find(name);
+		std::string bname = name;
 		if (iter == this->m_ipcnt.end()) {
-			this->m_ipcnt.insert({name,0});
+			this->m_ipcnt.insert({bname,(uint64_t)0});
 		} 
 
-		auto iter = this->m_ipfail.find(name);
-		if (iter == this->m_ipfail.end()) {
-			this->m_ipfail.insert({name,1});
+		auto citer = this->m_ipfail.find(name);
+		if (citer == this->m_ipfail.end()) {
+			this->m_ipfail.insert({name,(uint64_t)1});
 		} else {
-			iter->second += 1;
+			citer->second += 1;
 		}
 
-		auto iter = this->m_iptotal.find(name);
-		if (iter == this->m_iptotal.end()) {
+		auto biter = this->m_iptotal.find(name);
+		if (biter == this->m_iptotal.end()) {
 			this->m_iptotal.insert({name,0.0});
 		}	
 	} else {
 		auto iter = this->m_ipcnt.find(name);
 		if (iter == this->m_ipcnt.end()) {
-			this->m_ipcnt.insert({name,1});
+			this->m_ipcnt.insert({name,(uint64_t)1});
 		}  else {
 			iter->second += 1;
 		}
 
-		auto iter = this->m_ipfail.find(name);
-		if (iter == this->m_ipfail.end()) {
-			this->m_ipfail.insert({name,0});
+		auto citer = this->m_ipfail.find(name);
+		if (citer == this->m_ipfail.end()) {
+			this->m_ipfail.insert({name,(uint64_t)0});
 		}
 
-		auto iter = this->m_iptotal.find(name);
+		auto biter = this->m_iptotal.find(name);
 		double iv = (double) val;
-		if (iter == this->m_iptotal.end()) {
+		if (biter == this->m_iptotal.end()) {
 			this->m_iptotal.insert({name,iv});
 		} else {
-			iter->second += iv;
+			biter->second += iv;
 		}
 	}
 	return 0;
@@ -191,7 +194,7 @@ int PingTotal::add_host(int aftype,const char* ip)
 	std::string name;
 	int completed = 0;
 
-	pcap = new PingCap(aftype,ip,this->m_time,this->m_timeout,this->m_nexttime,this->m_evmain,this);
+	pcap = new PingCap(aftype,ip,this->m_times,this->m_timeout,this->m_nexttime,this->m_evmain,this);
 	ret = pcap->start();
 	if (ret < 0) {
 		GETERRNO(ret);
@@ -234,7 +237,7 @@ int PingTotal::get_mean(std::map<std::string,double>& res)
 	int ret;
 	int cnt=0;
 
-	for(auto iter = this->m_ipcnt.begin(),cnt = 0; iter != this->m_ipcnt.end(); ++ iter,cnt += 1) {
+	for(auto iter = this->m_ipcnt.begin(); iter != this->m_ipcnt.end(); ++ iter,cnt += 1) {
 		std::string name = iter->first;
 		if (iter->second == 0) {
 			res.insert({name,0.0});
@@ -246,7 +249,7 @@ int PingTotal::get_mean(std::map<std::string,double>& res)
 				goto fail;
 			}
 
-			double cval = citer->second / iter->second;
+			double cval = (double)citer->second / (double)iter->second;
 			res.insert({name,cval});
 		}
 	}
@@ -262,7 +265,7 @@ int PingTotal::get_succ_ratio(std::map<std::string,double>& res)
 {
 	int ret;
 	int cnt = 0;
-	for(auto iter = this->m_ipcnt.begin(), cnt = 0; iter != this->m_ipcnt.end() ; ++ iter, cnt += 1) {
+	for(auto iter = this->m_ipcnt.begin(); iter != this->m_ipcnt.end() ; ++ iter, cnt += 1) {
 		uint64_t succcnt = iter->second;
 		std::string name = iter->first;
 		auto citer = this->m_ipfail.find(name);

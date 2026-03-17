@@ -5,6 +5,7 @@
 #include <win_ping.h>
 #include "evcombo.h"
 #include <win_libev.h>
+#include <Windows.h>
 
 #pragma warning(push)
 #pragma warning(disable:4577)
@@ -47,6 +48,12 @@ private:
 	int __push_now_str(uint64_t val);
 	int __collect_value_and_next(uint64_t val);
 	int __inc_and_check_next();
+
+	int __get_now_str(std::string& tstr,uint64_t val);
+	int __restart();
+
+	int _callback_func(HANDLE hd);
+	int __timeout(uint64_t guid);
 
 private:
 	void* m_sock;

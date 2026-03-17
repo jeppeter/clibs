@@ -1,9 +1,12 @@
-
+#define _HAS_EXCEPTIONS 0
 #include <win_sock.h>
 #include "pingcap.h"
 #include <win_output_debug.h>
 #include <win_err.h>
 #include <win_time.h>
+#include <win_strop.h>
+
+#include <time.h>
 
 #pragma warning(push)
 #pragma warning(disable:4530)
@@ -213,11 +216,10 @@ int PingCap::__insert_wr()
 			ERROR_INFO("insert wrevt [%s] error %d", this->m_ip.c_str(), ret);
 		}
 		this->m_insertwr = 1;
+	} else {
+		ERROR_INFO("already insert [%s] wrevt", this->m_ip.c_str());
 	}
 	return 0;
-fail:
-	SETERRNO(ret);
-	return ret;
 }
 
 
@@ -255,7 +257,7 @@ int PingCap::__get_now_str(std::string& tstr,uint64_t val)
 
 
 	tstr = "PINGCAP;";
-	ret = snprintf_safe(&ccstr,&ccsize,"%s",this->m_ipstr.c_str());
+	ret = snprintf_safe(&ccstr,&ccsize,"%s",this->m_ip.c_str());
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
@@ -337,6 +339,8 @@ int PingCap::__restart()
 	int ret;
 	int completed = 0;
 	uint64_t val;
+
+	ASSERT_IF(this->m_sock != NULL);
 	this->__remove_wr();
 	this->__remove_rd();
 	this->__remove_tmout();
@@ -367,7 +371,7 @@ int PingCap::__restart()
 				completed = 1;
 			}
 		} else {
-			this->m_rdevt = get_ping_read_evt();
+			this->m_rdevt = get_ping_read_evt(this->m_sock);
 			if (this->m_rdevt == NULL) {
 				ret = - ERROR_INVALID_PARAMETER;
 				ERROR_INFO("can not get rdevt for [%s]", this->m_ip.c_str());
@@ -385,7 +389,7 @@ int PingCap::__restart()
 			}
 		}
 	} else {
-		this->m_wrevt = get_ping_write_evt();
+		this->m_wrevt = get_ping_write_evt(this->m_sock);
 		if (this->m_wrevt == NULL) {
 			ret = - ERROR_INVALID_PARAMETER;
 			ERROR_INFO("can not get wrevt for [%s]", this->m_ip.c_str());
@@ -455,13 +459,14 @@ int PingCap::get_result(std::string& vstr)
 	return ret;
 }
 
-int PingCap::__callback(HANDLE hd)
+int PingCap::_callback_func(HANDLE hd)
 {
 	int ret;
 	int completed = 0;
+	uint64_t val;
 	if (hd == this->m_wrevt) {
 		ASSERT_IF(this->m_sock != NULL);
-		ret = complete_write_evt(this->m_sock);
+		ret = ping_complete_write(this->m_sock);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -499,7 +504,7 @@ int PingCap::__callback(HANDLE hd)
 		}
 	} else if (hd == this->m_rdevt) {
 		ASSERT_IF(this->m_sock != NULL);
-		ret = complete_read_evt(this->m_sock);
+		ret = ping_complete_read(this->m_sock);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail; 
@@ -536,7 +541,9 @@ int PingCap::ping_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void
 {
 	PingCap* pThis = (PingCap*) args;
 	int ret;
-	ret = pThis->__callback(hd);
+	REFERENCE_ARG(pevmain);
+	REFERENCE_ARG(event);
+	ret = pThis->_callback_func(hd);
 	if (ret < 0 || ret > 0) {
 		delete pThis;
 	}
@@ -579,6 +586,8 @@ int PingCap::ping_timeout(uint64_t guid,libev_enum_event_t event,void* pevmain,v
 {
 	PingCap* pThis = (PingCap*) args;
 	int ret;
+	REFERENCE_ARG(event);
+	REFERENCE_ARG(pevmain);
 	ret = pThis->__timeout(guid);
 	if (ret < 0 || ret > 0) {
 		delete pThis;

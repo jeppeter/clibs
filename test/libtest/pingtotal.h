@@ -27,6 +27,8 @@ public:
 	int set_times(int times);
 private:
 	void __release_resource();
+	int __get_info(PingCap* pcap, std::string& name);
+	int __get_single_info(std::string& name, std::string& vstr);
 private:
 	std::map<std::string,uint64_t> m_ipcnt;
 	std::map<std::string,uint64_t> m_ipfail;
