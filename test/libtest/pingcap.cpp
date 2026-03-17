@@ -25,6 +25,16 @@ PingCap::PingCap(int pingtype,const char* ip,void* pev,IEvCombo* pcombo)
 	this->m_timeout = timeout;
 	this->m_nexttime = nextout;
 
+	this->m_rdevt = NULL;
+	this->m_wrevt = NULL;
+	this->m_tmoutguid = 0;
+	this->m_tmnextguid = 0;
+
+	this->m_inserttmout = 0;
+	this->m_inserttmnext = 0;
+	this->m_insertrd = 0;
+	this->m_insertwr = 0;
+
 	this->m_evmain = pev;
 	this->m_combo = pcombo;
 
@@ -33,25 +43,157 @@ PingCap::PingCap(int pingtype,const char* ip,void* pev,IEvCombo* pcombo)
 PingCap::~PingCap()
 {
 	this->__release_resource();
-
 	this->m_ip = "";
-
 	this->__call_remove();
 }
+
+
+void PingCap::__call_remove()
+{
+	if (this->m_combo) {
+		this->m_combo->notify_event(this,remove_event);
+	}
+}
+
+void PingCap::__call_notify()
+{
+	if (this->m_combo) {
+		this->m_combo->notify_event(this,get_result_event);
+	}
+}
+
 
 void PingCap::__remove_tmout()
 {
 	int ret;
-	if (this->m_intserttmout != 0) {
+	if (this->m_inserttmout != 0) {
 		ret= libev_remove_timer(this->m_evmain,this->m_tmoutguid);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("remove tmout [%s] error %d", this->m_ip.c_str(), ret);
 		}
-		this->m_intserttmout = 0;
+		this->m_inserttmout = 0;
 		this->m_tmoutguid = 0;
 	}
 	return;
+}
+
+void PingCap::__remove_tmnext()
+{
+	int ret;
+	if (this->m_inserttmout != 0) {
+		ret= libev_remove_timer(this->m_evmain,this->m_tmnextguid);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("remove tmnext [%s] error %d", this->m_ip.c_str(), ret);
+		}
+		this->m_inserttmnext = 0;
+		this->m_tmnextguid = 0;
+	}
+	return;
+}
+
+void PingCap::__remove_rd()
+{
+	int ret;
+	if (this->m_insertrd != 0) {
+		ret= libev_remove_handle(this->m_evmain,this->m_rdevt);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("remove rdevt [%s] error %d", this->m_ip.c_str(), ret);
+		}
+		this->m_insertrd = 0;
+	}
+	return;
+}
+
+void PingCap::__remove_wr()
+{
+	int ret;
+	if (this->m_insertwr != 0) {
+		ret= libev_remove_handle(this->m_evmain,this->m_wrevt);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("remove wrevt [%s] error %d", this->m_ip.c_str(), ret);
+		}
+		this->m_insertwr = 0;
+	}
+	return;
+}
+
+
+int PingCap::__insert_tmout()
+{
+	int ret;
+	if (this->m_inserttmout == 0) {
+		ret= libev_insert_timer(this->m_evmain,&this->m_tmoutguid,PingCap::ping_timeout,this,this->m_timeout,0);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("insert tmout [%s] error %d", this->m_ip.c_str(), ret);
+			goto fail;
+		}
+		this->m_inserttmout = 1;
+	} else {
+		ERROR_INFO("already insert tmout for [%s]", this->m_ip.c_str());
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int PingCap::__insert_tmnext()
+{
+	int ret;
+	if (this->m_inserttmnext == 0) {
+		ret= libev_insert_timer(this->m_evmain,&this->m_tmnextguid,PingCap::ping_timeout,this,this->m_nexttime,0);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("insert tmnext [%s] error %d", this->m_ip.c_str(), ret);
+			goto fail;
+		}
+		this->m_inserttmnext = 1;
+	} else {
+		ERROR_INFO("already insert tmnext for [%s]", this->m_ip.c_str());
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int PingCap::__insert_rd()
+{
+	int ret;
+	if (this->m_insertrd == 0) {
+		ret= libev_insert_handle(this->m_evmain,this->m_rdevt,PingCap::ping_callback,this);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("insert rdevt [%s] error %d", this->m_ip.c_str(), ret);
+		}
+		this->m_insertrd = 1;
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int PingCap::__insert_wr()
+{
+	int ret;
+	if (this->m_insertwr == 0) {
+		ret= libev_insert_handle(this->m_evmain,this->m_wrevt,PingCap::ping_callback,this);
+		if (ret < 0) {
+			GETERRNO(ret);
+			ERROR_INFO("insert wrevt [%s] error %d", this->m_ip.c_str(), ret);
+		}
+		this->m_insertwr = 1;
+	}
+	return 0;
+fail:
+	SETERRNO(ret);
+	return ret;
 }
 
 
@@ -61,88 +203,184 @@ void PingCap::__release_resource()
 	this->__remove_tmnext();
 	this->__remove_rd();
 	this->__remove_wr();
+
+	free_ping_sock(&this->m_sock);
+	this->m_rdevt = NULL;
+	this->m_wrevt = NULL;
 	this->m_pingval.clear();
 	return;
 }
 
-int PingCap::__start_alloc()
+int PingCap::__get_now_str(std::string& tstr,uint64_t val)
 {
+	time_t nowt;
+	struct tm ctm;
+	char* ptime=NULL;
+	int tsize=0;
+	char* ccstr=NULL;
+	int ccsize=0;
 	int ret;
-	uint64_t val;
-	/*now to init*/
-	ASSERT_IF(this->m_sock == NULL);
-	ASSERT_IF(this->m_pingval != NULL);
-	DEBUG_INFO("m_pingtype %d", this->m_pingtype);
-	this->m_sock = init_ping_sock(this->m_pingtype);
-	if (this->m_sock == NULL) {
-		GETERRNO(ret);
-		DEBUG_INFO("ret %d", ret);
-		goto fail;
-	}
-	ret = send_ping_request(this->m_sock,this->m_ip);
-	this->m_expire = get_current_ticks();
+
+
+	nowt = time(NULL);
+	ret = time_to_tm(&nowt,&ctm);
 	if (ret < 0) {
 		GETERRNO(ret);
-		DEBUG_INFO("error [%d]", this->m_ip);
 		goto fail;
-	} else if (ret > 0) {
-		ret = recv_ping_response(this->m_sock,&val);
-		if (ret < 0) {
-			GETERRNO(ret);
-			DEBUG_INFO("recv [%s] error %d", this->m_ip, ret);
-			goto fail;
-		} else if (ret > 0) {
-			this->_print_result(__FILE__,__LINE__,val);
-			this->m_pingval->push_back(val);
-			this->m_expire = 0;
-			this->m_nextstart = get_current_ticks();
-		}
 	}
+
+
+	tstr = "PINGCAP;";
+	ret = snprintf_safe(&ccstr,&ccsize,"%s",this->m_ipstr.c_str());
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	tstr += ccstr;
+	tstr += ";";
+	ret = tm_to_str(&ctm,&ptime,&tsize);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+
+	tstr += ptime;
+	tstr += ';';
+	ret = snprintf_safe(&ccstr,&ccsize,"0x%llx",val);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	tstr += ccstr;
+	tstr += ';';
+
+	tm_to_str(NULL,&ptime,&tsize);
+	snprintf_safe(&ccstr,&ccsize,NULL);
+	return 0;
+fail:
+	tm_to_str(NULL,&ptime,&tsize);
+	snprintf_safe(&ccstr,&ccsize,NULL);
+	SETERRNO(ret);
+	return ret;
+}
+
+int PingCap::__inc_and_check_next()
+{
+	int ret = 0;
+	this->m_curtime += 1;
+	if (this->m_times != 0 && this->m_curtime >= this->m_times)	 {
+		ret = 1;
+	}
+	return ret;
+}
+
+int PingCap::__collect_value_and_next(uint64_t val)
+{
+	std::string tstr;
+	int ret;
+
+	ret = this->__get_now_str(tstr,val);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	this->m_pingval.push_back(tstr);
+
+	/*now to remove the values*/
+	this->__remove_rd();
+	this->__remove_wr();
+	this->__remove_tmout();
+
+	ret = this->__insert_tmnext();
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	this->__call_notify();
+
 	return 0;
 fail:
 	SETERRNO(ret);
 	return ret;
 }
 
-int PingCap::_get_ping_type()
+int PingCap::__restart()
 {
-	struct addrinfo hints;
-	struct addrinfo* pres=NULL;
 	int ret;
+	int completed = 0;
+	uint64_t val;
+	this->__remove_wr();
+	this->__remove_rd();
+	this->__remove_tmout();
+	this->__remove_tmnext();
 
-	memset(&hints,0,sizeof(hints));
-	hints.ai_flags = 0;
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_RAW;
-	hints.ai_protocol = 0;
+	this->m_wrevt = NULL;
+	this->m_rdevt = NULL;
 
-
-	DEBUG_INFO(" ");
-	ret = getaddrinfo(this->m_ip,"0",&hints,&pres);
-	if (ret != 0) {
+	ret = send_ping_request(this->m_sock, this->m_ip.c_str());
+	if (ret < 0) {
 		GETERRNO(ret);
-		ERROR_INFO("get [%s] addrinfo error %d", this->m_ip,ret);
 		goto fail;
+	} else if (ret > 0) {
+		ret = recv_ping_response(this->m_sock,&val);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		} else if (ret > 0) {
+			/**/
+			ret = this->__collect_value_and_next(val);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+
+			ret = this->__inc_and_check_next();
+			if (ret > 0) {
+				completed = 1;
+			}
+		} else {
+			this->m_rdevt = get_ping_read_evt();
+			if (this->m_rdevt == NULL) {
+				ret = - ERROR_INVALID_PARAMETER;
+				ERROR_INFO("can not get rdevt for [%s]", this->m_ip.c_str());
+				goto fail;
+			}
+			ret = this->__insert_rd();
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+			ret = this->__insert_tmout();
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			}
+		}
+	} else {
+		this->m_wrevt = get_ping_write_evt();
+		if (this->m_wrevt == NULL) {
+			ret = - ERROR_INVALID_PARAMETER;
+			ERROR_INFO("can not get wrevt for [%s]", this->m_ip.c_str());
+			goto fail;
+		}
+		ret = this->__insert_wr();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		ret = this->__insert_tmout();
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
 	}
 
-	if (pres == NULL) {
-		GETERRNO(ret);
-		ERROR_INFO("get [%s] null", this->m_ip);
-		goto fail;
-	}
-
-	DEBUG_INFO(" ");
-	this->m_pingtype = pres->ai_addr->sa_family;
-	if (pres != NULL) {
-		freeaddrinfo(pres);	
-	}
-	pres = NULL;
-	return 1;
+	return completed;
 fail:
-	if (pres != NULL) {
-		freeaddrinfo(pres);	
-	}
-	pres = NULL;
 	SETERRNO(ret);
 	return ret;
 }
@@ -150,357 +388,180 @@ fail:
 int PingCap::start()
 {
 	int ret;
-	if (this->m_ip == NULL) {
+	int completed = 0;
+	if (this->m_ip.length() == 0) {
 		ret = -ERROR_INVALID_PARAMETER;
 		goto fail;
 	}
 
-	ret = this->_get_ping_type();
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
 	this->__release_resource();
-	if (this->m_pingval == NULL) {
-		this->m_pingval = new std::vector<uint64_t>();
-	}
 
-	ret = this->__start_alloc();
-	if (ret < 0) {
-		GETERRNO(ret);
-		ERROR_INFO("ret %d", ret);
-		goto fail;
-	}
-	
-	return 0;
-fail:
-	this->__release_resource();
-	SETERRNO(ret);
-	return ret;
-}
-
-int PingCap::get_mode()
-{
-	int ret;
-	int retval = NONE_MODE;
-	uint64_t cticks;
+	this->m_sock = init_ping_sock(this->m_pingtype);
 	if (this->m_sock == NULL) {
-		return NONE_MODE;
-	}
-
-	if ((int)this->m_pingval->size() >= this->m_times && this->m_times != 0) {
-		DEBUG_INFO("[%s] COMPLETE_MODE", this->m_ip);
-		return COMPLETE_MODE;
-	}
-
-	if (this->m_expire == 0 && this->m_nextstart != 0) {
-		cticks = get_current_ticks();
-		ret = need_wait_times(this->m_nextstart,cticks,this->m_nexttime);
-		if (ret < 0) {
-			DEBUG_INFO("[%s] START_MODE", this->m_ip);
-			return START_MODE;
-		} else {
-			DEBUG_INFO("[%s] NEXT_MODE", this->m_ip);
-			return NEXT_MODE;
-		}
-	}
-
-	if (this->m_expire != 0) {
-		cticks = get_current_ticks();
-		ret = need_wait_times(this->m_expire,cticks,this->m_timeout);
-		if (ret < 0) {
-			DEBUG_INFO("[%s] EXPIRE_MODE", this->m_ip);
-			return EXPIRE_MODE;
-		}
-		retval = NONE_MODE;
-		if (ping_is_read_mode(this->m_sock) != 0) {
-			DEBUG_INFO("[%s] READ_MODE", this->m_ip);
-			retval |= READ_MODE;
-		}
-		if (ping_is_write_mode(this->m_sock) != 0) {
-			DEBUG_INFO("[%s] WRITE_MODE", this->m_ip);
-			retval |= WRITE_MODE;
-		}
-	}
-	return retval;
-}
-
-HANDLE PingCap::get_read_evt()
-{
-	HANDLE hret=NULL;
-	if (this->m_sock) {
-		hret = get_ping_read_evt(this->m_sock);
-	}
-	return hret;
-}
-
-HANDLE PingCap::get_write_evt()
-{
-	HANDLE hret=NULL;
-	if (this->m_sock) {
-		hret = get_ping_write_evt(this->m_sock);
-	}
-	DEBUG_INFO("[%s] hret %p", this->m_ip, hret);
-	return hret;
-}
-
-int PingCap::send_ping()
-{
-	int ret;
-	if (this->m_sock == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
-		SETERRNO(ret);
-		return ret;
-	}
-	ret = send_ping_request(this->m_sock,this->m_ip);
-	this->m_expire = get_current_ticks();
-	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	}
-	return ret;
-fail:
-	SETERRNO(ret);
-	return ret;
-}
 
-int PingCap::read_ping(uint64_t& val)
-{
-	uint64_t cval;
-	int ret;
-	if (this->m_sock == NULL) {
-		ret = -ERROR_INVALID_PARAMETER;
-		SETERRNO(ret);
-		return ret;
-	}
-
-	ret = recv_ping_response(this->m_sock,&cval);
+	ret = this->__restart();
 	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
 	} else if (ret > 0) {
-		this->_print_result(__FILE__,__LINE__,val);
-		this->m_expire = 0;
-		this->m_pingval->push_back(cval);
-		val = cval;
+		completed = 1;
 	}
-	return ret;
+
+	
+	return completed;
 fail:
+	this->__release_resource();
 	SETERRNO(ret);
 	return ret;
 }
 
-int PingCap::get_result(int idx,uint64_t& val)
-{
-	if (this->m_pingval != NULL && idx < (int)this->m_pingval->size()) {
-		uint64_t cval;
-		cval = this->m_pingval->at((uint64_t)idx);
-		val = cval;
-		return 1;
-	}
-	return 0;
-}
 
-int PingCap::get_mean_result(uint64_t& val)
+
+int PingCap::get_result(std::string& vstr)
 {
-	uint64_t tval=0;
-	uint64_t mval = 0;
-	int ret=0;
-	uint64_t cval;
-	uint64_t succcnt = 0;
-	int idx;
-	if (this->m_pingval != NULL && this->m_pingval->size() > 0) {
-		for(idx=0;idx < (int)this->m_pingval->size();idx++) {
-			cval = this->m_pingval->at((uint64_t)idx);
-			if (cval != UNREACHABLE_VALUE) {
-				tval += cval;	
-				succcnt += 1;
-			}			
-		}
-		if (succcnt != 0) {
-			mval = tval / succcnt;
-		}
+	int ret = 0;
+	if (this->m_pingval.size () > 0) {
+		vstr = this->m_pingval.at(0);
+		this->m_pingval.erase(this->m_pingval.begin());
 		ret = 1;
 	}
-	val = mval;
 	return ret;
 }
 
-double PingCap::get_succ_ratio()
-{
-	double ratio = 0.0;
-	double succcnt = 0.0;
-	double allcnt = 0.0;
-	int idx = 0;
-	uint64_t cval;
-	if (this->m_pingval != NULL && this->m_pingval->size() > 0) {
-		for(idx=0;idx < (int)this->m_pingval->size();idx++) {
-			cval = this->m_pingval->at((uint64_t)idx);
-			if (cval != UNREACHABLE_VALUE) {
-				succcnt += 1.0;
-			}
-			allcnt += 1.0;		
-		}
-		if (allcnt != 0.0) {
-			ratio = succcnt / allcnt;
-		}
-	}
-	return ratio;	
-}
-
-int PingCap::restart(int timeout)
+int PingCap::__callback(HANDLE hd)
 {
 	int ret;
-	if (this->m_pingtype == 0) {
-		ret = this->_get_ping_type();
+	int completed = 0;
+	if (hd == this->m_wrevt) {
+		ASSERT_IF(this->m_sock != NULL);
+		ret = complete_write_evt(this->m_sock);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
+		} else if (ret > 0) {
+			this->__remove_wr();
+			ret = recv_ping_response(this->m_sock,&val);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			} else if (ret > 0) {
+				/*now */
+				ret = this->__collect_value_and_next(val);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+
+				ret = this->__inc_and_check_next();
+				if (ret != 0) {
+					completed = 1;
+				}
+			} else {
+				this->m_rdevt = get_ping_read_evt(this->m_sock);
+				if (this->m_rdevt == NULL) {
+					GETERRNO(ret);
+					goto fail;
+				}
+
+				ret = this->__insert_rd();
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+			}
+		}
+	} else if (hd == this->m_rdevt) {
+		ASSERT_IF(this->m_sock != NULL);
+		ret = complete_read_evt(this->m_sock);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail; 
+		} else if (ret > 0) {
+			ret = recv_ping_response(this->m_sock,&val);
+			if (ret < 0) {
+				GETERRNO(ret);
+				goto fail;
+			} else if (ret > 0) {
+				ret = this->__collect_value_and_next(val);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+
+				ret=  this->__inc_and_check_next();
+				if (ret != 0) {
+					completed = 1;
+				}
+			} else {
+				ret = - ERROR_INVALID_PARAMETER;
+				ERROR_INFO("recv ping response on [%s]", this->m_ip.c_str());
+				goto fail;
+			}
 		}
 	}
+	return completed;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
 
-	if (this->m_sock) {
-		free_ping_sock(&this->m_sock);
-	}
-	if (timeout != 0) {
-		/*this means expired*/
-		this->_print_result(__FILE__,__LINE__,UNREACHABLE_VALUE);
-		this->m_pingval->push_back(UNREACHABLE_VALUE);
-	}
-
-	ret = this->__start_alloc();
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
+int PingCap::ping_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void* args)
+{
+	PingCap* pThis = (PingCap*) args;
+	int ret;
+	ret = pThis->__callback(hd);
+	if (ret < 0 || ret > 0) {
+		delete pThis;
 	}
 	return 0;
-fail:
-	SETERRNO(ret);
-	return ret;
 }
 
-int PingCap::complete_read_evt()
+int PingCap::__timeout(uint64_t guid)
 {
 	int ret;
-	int retv=0;
-	uint64_t cval;
+	int completed = 0;
+	if (guid == this->m_tmoutguid) {
+		ret = this->__collect_value_and_next(MAX_TIME_VALUE);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
 
-	if (this->m_sock == NULL){
-		ret = -ERROR_INVALID_PARAMETER;
-		goto fail;
-	}
+		ret = this->__inc_and_check_next();
+		if (ret > 0) {
+			completed = 1;
+		}
 
-	ret = ping_complete_read(this->m_sock);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	} else if (ret > 0) {
-		retv = 1;
-		ret = recv_ping_response(this->m_sock,&cval);
+	} else if (guid == this->m_tmnextguid) {
+		/*now to start value*/
+		ret = this->__restart();
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
 		} else if (ret > 0) {
-			this->m_expire = 0;
-			this->m_nextstart = get_current_ticks();
-			this->_print_result(__FILE__,__LINE__,cval);
-			ASSERT_IF(this->m_pingval != NULL);
-			this->m_pingval->push_back(cval);
+			completed = 1;
 		}
 	}
-	return retv;
+	return completed;
 fail:
 	SETERRNO(ret);
 	return ret;
 }
 
-int PingCap::complete_write_evt()
+int PingCap::ping_timeout(uint64_t guid,libev_enum_event_t event,void* pevmain,void* args)
 {
+	PingCap* pThis = (PingCap*) args;
 	int ret;
-	int retv=0;
-	uint64_t cval;
-
-	if (this->m_sock == NULL){
-		ret = -ERROR_INVALID_PARAMETER;
-		goto fail;
+	ret = pThis->__timeout(guid);
+	if (ret < 0 || ret > 0) {
+		delete pThis;
 	}
-
-	ret = ping_complete_write(this->m_sock);
-	if (ret < 0) {
-		GETERRNO(ret);
-		DEBUG_INFO(" ");
-		if (ret != -WSAENETUNREACH && ret != -WSAENETRESET) {
-			goto fail;
-		}
-
-		/*this is unreachable , so reset*/
-		cval = UNREACHABLE_VALUE;
-		this->m_pingval->push_back(cval);
-		this->_print_result(__FILE__,__LINE__,cval);
-		/*this is for next restart*/
-		this->m_expire = 0;
-		this->m_nextstart = get_current_ticks();
-		retv= 1;
-	} else if (ret > 0) {
-		retv = 1;
-		ret = recv_ping_response(this->m_sock,&cval);
-		if (ret < 0) {
-			GETERRNO(ret);
-			DEBUG_INFO(" ");
-			goto fail;
-		} else if (ret > 0) {
-			this->m_expire = 0;
-			this->m_nextstart = get_current_ticks();
-			this->_print_result(__FILE__,__LINE__,cval);
-			ASSERT_IF(this->m_pingval != NULL);
-			this->m_pingval->push_back(cval);
-		}
-	}
-	return retv;
-fail:
-	SETERRNO(ret);
-	return ret;
+	return 0;	
 }
 
-int PingCap::get_expire()
-{
-	int retval = 0x7fffffff;
-	int ret;
-	uint64_t cticks;
-	cticks = get_current_ticks();
-	if (this->m_expire != 0) {
-		ret = need_wait_times(this->m_expire,cticks,this->m_timeout);
-		if (ret < 0) {
-			retval = 0;
-		} else {
-			retval = ret;
-		}
-	}
-	return retval;
-}
 
-int PingCap::get_next_expire()
-{
-	int retval = 0x7fffffff;
-	int ret;
-	uint64_t cticks;
-	cticks = get_current_ticks();
-	if (this->m_expire == 0) {
-		ret = need_wait_times(this->m_nextstart,cticks,this->m_nexttime);
-		if (ret < 0) {
-			retval = 0;
-		} else {
-			retval = ret;
-		}
-	}
-	return retval;	
-}
-
-int PingCap::set_verbose(int verbose)
-{
-	int oldval = this->m_verbose;
-	this->m_verbose = verbose;
-	return oldval;
-}
 
 #pragma warning(pop)

@@ -30,17 +30,21 @@ private:
 	void __release_resource();
 
 	void __remove_tmout();
+	void __remove_tmnext();
 	void __remove_rd();
 	void __remove_wr();
-	void __remove_tmnext();
 
 	int __insert_tmout();
+	int __insert_tmnext();
 	int __insert_rd();
 	int __insert_wr();
-	int __insert_tmnext();
 
 	void __call_remove();
 	void __call_notify();
+
+	int __push_now_str(uint64_t val);
+	int __collect_value_and_next(uint64_t val);
+	int __inc_and_check_next();
 
 private:
 	void* m_sock;
@@ -51,6 +55,7 @@ private:
 	int m_times;
 	int m_timeout;
 	int m_nexttime;
+	int m_curtime;
 
 	HANDLE m_rdevt;
 	HANDLE m_wrevt;
@@ -59,7 +64,7 @@ private:
 
 	int m_insertrd;
 	int m_insertwr;
-	int m_intserttmout;
+	int m_inserttmout;
 	int m_inserttmnext;
 
 
