@@ -594,11 +594,14 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         }
     }
 
-    ret = libev_winev_loop(pev);
-    if (ret < 0) {
-        GETERRNO(ret);
-        goto out;
+    if (pdns->get_dns_query() != 0) {
+        ret = libev_winev_loop(pev);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }        
     }
+
 
     ret = pdns->get_result(dnsres);
     if (ret < 0) {
@@ -642,21 +645,22 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
     if (ptotal->get_tasks() != 0) {
         ret = libev_winev_loop(pev);
+        DEBUG_INFO("loop ret %d", ret);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
         }
     }
 
-    ret = ptotal->get_succ_ratio(meanres);
+    ret = ptotal->get_mean(meanres);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
     }
 
-    fprintf(stdout,"%20s %10s\n","IP","AVERAGE");
+    fprintf(stdout,"%-20s %-10s\n","IP","AVERAGE");
     for(auto iter = meanres.begin() ; iter != meanres.end(); ++ iter) {
-        fprintf(stdout,"%20s %05f\n", iter->first.c_str(),iter->second);
+        fprintf(stdout,"%-20s %-05f\n", iter->first.c_str(),iter->second);
     }  
 
     fprintf(stdout,"\n");
@@ -667,9 +671,9 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         goto out;
     }
 
-    fprintf(stdout,"%20s %10s\n", "IP","SUCC RATIO");
+    fprintf(stdout,"%-20s %-10s\n", "IP","SUCC RATIO");
     for(auto iter = failres.begin() ; iter != failres.end(); ++ iter) {
-        fprintf(stdout,"%20s %05f\n", iter->first.c_str(),iter->second);
+        fprintf(stdout,"%-20s %-05f\n", iter->first.c_str(),iter->second);
     }
 
     ret = 0;

@@ -512,6 +512,7 @@ int libev_winev_loop(void* pevmain)
                 plibev_evt_call_t pcall = pev->m_pcallers->at((uint64_t)fidx);
                 //DEBUG_INFO("pcall->m_func %p",pcall->m_func);
                 ret = pcall->m_func(pcall->m_handle,normal_event,pev,pcall->m_args);
+                //DEBUG_INFO("pcall->m_func %p ret %d",pcall->m_func, ret);
                 if (ret < 0) {
                     GETERRNO(ret);
                     goto fail;
@@ -538,7 +539,9 @@ int libev_winev_loop(void* pevmain)
             fidx = __find_evt_timer(pev,timerguids.at(i));
             if (fidx >= 0) {
                 ptimer = pev->m_ptimers->at((uint64_t)fidx);
+                //DEBUG_INFO("call ptimer %p", ptimer->m_func);
                 ret = ptimer->m_func(timerguids.at(i),timer_event,pev,ptimer->m_args);
+                //DEBUG_INFO("call ptimer %p ret %d", ptimer->m_func, ret);
                 if (ret < 0) {
                     GETERRNO(ret);
                     goto fail;
@@ -546,20 +549,24 @@ int libev_winev_loop(void* pevmain)
             }
         }
 
+        //DEBUG_INFO("find timers update");
         /*now to make running again*/
         for(i=0;i<timerguids.size();i++) {
             fidx = __find_evt_timer(pev,timerguids.at(i));
             if (fidx >= 0) {
                 ptimer = pev->m_ptimers->at((uint64_t)fidx);
                 if (ptimer->m_conti == 0) {
+                    //DEBUG_INFO("remove timer %d 0x%llx", fidx, ptimer->m_guid);
                     pev->m_ptimers->erase(pev->m_ptimers->begin()+fidx);
                     __free_winev_timer(&ptimer);
                 } else {
                     /*to make the next one*/
+                    //DEBUG_INFO("update timer %d 0x%llx", fidx, ptimer->m_guid);
                     ptimer->m_startticks = get_current_ticks();
                 }
             }
         }
+        //DEBUG_INFO("exited %d", pev->m_exited);
     }
     return 0;
 fail:

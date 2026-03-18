@@ -110,7 +110,7 @@ int DnsTotal::__get_result(DnsCap* pcap)
 			if (ns != std::string::npos) {
 				partname = vstr.substr(6,ns);
 			} else {
-				partname = vstr.substr(6,vstr.length());
+				partname = vstr.substr(6,vstr.length()-1);
 			}
 			this->m_iperrs.push_back(partname);
 			cnt = 1;
@@ -126,22 +126,27 @@ int DnsTotal::__get_result(DnsCap* pcap)
 				k = vstr.substr(0,ns);
 				passlen = ns + 1;
 			}
+			DEBUG_INFO("k [%s]", k.c_str());
 
 			auto iter = this->m_ipres.find(k);
 			if (iter != this->m_ipres.end()) {
 				std::copy(iter->second.begin(),iter->second.end(),std::back_inserter(vvec));
 			}
 
+
 			while(passlen < vstr.length()) {
 				ns = vstr.find(';',passlen);
 				if (ns == std::string::npos) {
-					partname = vstr.substr(ns,vstr.length());
+					partname = vstr.substr(ns,vstr.length() - ns -1);
+					DEBUG_INFO("ns %d partname [%s]", ns, partname.c_str());
 					vvec.push_back(partname);
 					passlen = vstr.length();
 					break;
 				}
 
-				partname = vstr.substr(passlen,ns);
+				partname = "";
+				partname = vstr.substr(passlen,ns- passlen);
+				DEBUG_INFO("new [%d:%d] [%s] vstr [%s]",passlen, ns - passlen, partname.c_str(),vstr.c_str());
 				passlen = ns + 1;
 				vvec.push_back(partname);
 				cnt += 1;

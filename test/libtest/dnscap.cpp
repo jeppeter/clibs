@@ -48,9 +48,7 @@ void DnsCap::__call_remove()
 
 void DnsCap::__call_notify()
 {
-	DEBUG_INFO("__call_notify");
 	if (this->m_combo != NULL) {
-		DEBUG_INFO("__call_notify %p", this);
 		this->m_combo->notify_event(this,get_result_event);
 	}
 }
@@ -315,6 +313,7 @@ int DnsCap::_timeout_func(uint64_t guid,libev_enum_event_t event)
 		ret = this->__fill_dns_error();
 		if (ret < 0) {
 			GETERRNO(ret);
+			ERROR_INFO("fill [%s:%s] error %d", this->m_dnsname.c_str(), this->m_portstr.c_str(), ret);
 			goto fail;
 		}
 		this->__remove_timeout_guid();
@@ -338,7 +337,9 @@ int DnsCap::_callback_func(HANDLE hd,libev_enum_event_t event)
 {
 	int ret;
 	REFERENCE_ARG(event);
+	DEBUG_INFO("hd %p", hd);
 	if (hd == this->m_compevt) {
+		DEBUG_INFO("compevt");
 		/*now to */
 		ret = is_dns_query_completed(this->m_dnsqry);
 		if (ret != 0) {
@@ -357,6 +358,7 @@ int DnsCap::_callback_func(HANDLE hd,libev_enum_event_t event)
 			return ret;
 		}
 	} else if (hd == this->m_errevt) {
+		DEBUG_INFO("errevt");
 		ret = is_dns_query_error(this->m_dnsqry);
 		if (ret != 0) {
 			ret = this->__fill_dns_error();
@@ -390,6 +392,7 @@ int DnsCap::dnscap_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,voi
 	REFERENCE_ARG(pevmain);
 	ret = pThis->_callback_func(hd,event);
 	if (ret < 0) {
+		DEBUG_INFO("delete [%s:%s]", pThis->m_dnsname.c_str(),pThis->m_portstr.c_str());
 		delete pThis;
 	}
 	return 0;

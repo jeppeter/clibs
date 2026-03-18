@@ -170,12 +170,14 @@ int __get_sock_addr(const char* ip, const char* port,int sockfamily,struct socka
 	hints.ai_socktype = SOCK_RAW;
 	hints.ai_protocol = 0;
 
+	//DEBUG_INFO("getaddrinfo before");
 	ret = getaddrinfo(ip,port,&hints,&pres);
+	//DEBUG_INFO("getaddrinfo ret %d pres %p", ret, pres);
 	if (ret != 0) {
 		if (ret > 0) {
 			ret = -ret;	
 		}
-		ERROR_INFO("getaddrinfo error [%d]", ret);		
+		ERROR_INFO("getaddrinfo [%s:%s] error [%d]",  ip ? ip : "NULL", port ? port : "NULL",ret);		
 		goto fail;
 	}
 
@@ -417,6 +419,7 @@ int send_ping_request(void* psock1,const char* ip)
 	}
 
 get_saddr_again:
+	//DEBUG_INFO("m_saddrlen %d", psock->m_saddrlen);
 	if (psock->m_sndaddr) {
 		free(psock->m_sndaddr);
 	}
@@ -438,9 +441,12 @@ get_saddr_again:
 			
 			goto get_saddr_again;
 		}
+		DEBUG_INFO("ret %d", ret);
 		goto fail;
 	}
 	psock->m_saddrlen = ret;
+
+	DEBUG_INFO("m_saddrlen %d", psock->m_saddrlen);
 
 	psock->m_indent += 1;
 	psock->m_seq += 1;

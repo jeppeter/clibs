@@ -39,6 +39,7 @@ void PingTotal::__release_resource()
 
 PingTotal::~PingTotal()
 {
+	DEBUG_INFO("~PingTotal");
 	this->m_deleted = 1;
 	this->__release_resource();
 
@@ -58,9 +59,13 @@ void PingTotal::notify_event(void* ptr,ev_combo_event_t event)
 	std::string name = iter->second;
 
 	if (event == remove_event) {
+		/*we do not delete this object ,for it will delete outside this*/
 		this->m_ips.erase(iter);
-		delete pcap;
 		pcap = NULL;
+		if (this->m_deleted == 0 && this->m_ips.size() == 0 && this->m_evmain != NULL) {
+			DEBUG_INFO("loop break");
+			libev_break_winev_loop(this->m_evmain);
+		}
 	} else if (event == get_result_event) {
 		this->__get_info(pcap,name);		
 	}
@@ -111,7 +116,7 @@ int PingTotal::__get_single_info(std::string& name, std::string& vstr)
 	}
 
 	/*to skip ;0x*/
-	hxstr = vstr.substr(np + 3, vstr.length() - 1);
+	hxstr = vstr.substr(np + 3, vstr.length() - np - 3);
 	val = std::strtoull(hxstr.c_str(),&pendptr,16);
 	DEBUG_INFO("[%s] val 0x%llx", vstr.c_str(),val);
 
@@ -119,39 +124,48 @@ int PingTotal::__get_single_info(std::string& name, std::string& vstr)
 		auto iter = this->m_ipcnt.find(name);
 		std::string bname = name;
 		if (iter == this->m_ipcnt.end()) {
+			DEBUG_INFO("ipcnt [%s] cnt 0", bname.c_str());
 			this->m_ipcnt.insert({bname,(uint64_t)0});
 		} 
 
 		auto citer = this->m_ipfail.find(name);
 		if (citer == this->m_ipfail.end()) {
+			DEBUG_INFO("ipfail [%s] cnt 0", bname.c_str());
 			this->m_ipfail.insert({name,(uint64_t)1});
 		} else {
 			citer->second += 1;
+			DEBUG_INFO("ipfail [%s] %lld", bname.c_str(), citer->second);
 		}
 
 		auto biter = this->m_iptotal.find(name);
 		if (biter == this->m_iptotal.end()) {
+			DEBUG_INFO("iptotal [%s] 0.0", bname.c_str());
 			this->m_iptotal.insert({name,0.0});
 		}	
 	} else {
 		auto iter = this->m_ipcnt.find(name);
 		if (iter == this->m_ipcnt.end()) {
+			DEBUG_INFO("[%s] ipcnt 1", name.c_str());
 			this->m_ipcnt.insert({name,(uint64_t)1});
 		}  else {
 			iter->second += 1;
+			DEBUG_INFO("[%s] ipcnt %lld", name.c_str(), iter->second);
 		}
 
 		auto citer = this->m_ipfail.find(name);
 		if (citer == this->m_ipfail.end()) {
+			DEBUG_INFO("[%s] ipfail 0", name.c_str());
 			this->m_ipfail.insert({name,(uint64_t)0});
 		}
 
 		auto biter = this->m_iptotal.find(name);
 		double iv = (double) val;
 		if (biter == this->m_iptotal.end()) {
+			DEBUG_INFO("[%s] iptotal %f", name.c_str(), iv);
 			this->m_iptotal.insert({name,iv});
 		} else {
 			biter->second += iv;
+			DEBUG_INFO("[%s] iptotal %f", name.c_str(), biter->second);
 		}
 	}
 	return 0;
@@ -249,7 +263,8 @@ int PingTotal::get_mean(std::map<std::string,double>& res)
 				goto fail;
 			}
 
-			double cval = (double)citer->second / (double)iter->second;
+			double cval = (double)(citer->second) / (double)(iter->second);
+			DEBUG_INFO("insert [%s] %f / %f %f", name.c_str(), (double)citer->second, (double)iter->second, cval);
 			res.insert({name,cval});
 		}
 	}
@@ -278,9 +293,9 @@ int PingTotal::get_succ_ratio(std::map<std::string,double>& res)
 		uint64_t failcnt = citer->second;
 
 		if (failcnt == 0) {
-			res.insert({name,0.0});
-		} else if (succcnt == 0) {
 			res.insert({name,1.0});
+		} else if (succcnt == 0) {
+			res.insert({name,0.0});
 		} else {
 			double cval = (double)succcnt / (double)(succcnt + failcnt);
 			res.insert({name,cval});

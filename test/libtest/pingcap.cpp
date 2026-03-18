@@ -109,7 +109,7 @@ void PingCap::__remove_tmout()
 void PingCap::__remove_tmnext()
 {
 	int ret;
-	if (this->m_inserttmout != 0) {
+	if (this->m_inserttmnext != 0) {
 		ret= libev_remove_timer(this->m_evmain,this->m_tmnextguid);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -282,6 +282,8 @@ int PingCap::__get_now_str(std::string& tstr,uint64_t val)
 
 	tstr += ccstr;
 	tstr += ';';
+
+	DEBUG_INFO("[%s]", tstr.c_str());
 
 	tm_to_str(NULL,&ptime,&tsize);
 	snprintf_safe(&ccstr,&ccsize,NULL);
@@ -545,7 +547,9 @@ int PingCap::ping_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void
 	REFERENCE_ARG(event);
 	ret = pThis->_callback_func(hd);
 	if (ret < 0 || ret > 0) {
+		DEBUG_INFO("before del %p", pThis);
 		delete pThis;
+		DEBUG_INFO("after del %p", pThis);
 	}
 	return 0;
 }
@@ -567,6 +571,8 @@ int PingCap::__timeout(uint64_t guid)
 		}
 
 	} else if (guid == this->m_tmnextguid) {
+		/*we remove tmnext*/
+		this->__remove_tmnext();
 		/*now to start value*/
 		ret = this->__restart();
 		if (ret < 0) {
