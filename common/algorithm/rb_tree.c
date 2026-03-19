@@ -2,6 +2,7 @@
 #include <rb_priv.h>
 #include <rb_tree.h>
 #include <cmn_err.h>
+#include <cmn_output_debug.h>
 
 /***********************************************
  * all algorithm from  https://en.wikipedia.org/wiki/Red%E2%80%93black_tree
@@ -192,7 +193,7 @@ RB_NODE* rb_insert(RB_TREE* ptree,void* arg)
 			break;
 		}
 
-		ret = ptree->m_comparefunc(sparent->m_value, arg);
+		ret = ptree->m_comparefunc(sparent->m_value,arg);
 		if (ret == 0) {
 			/*it is duplicated so free */
 			ptree->m_destroyfunc(sparent->m_value);
@@ -222,6 +223,7 @@ RB_NODE* rb_insert(RB_TREE* ptree,void* arg)
 	node->m_value = arg;
 
 	__rb_insert_inner(ptree,node,parent,isright);
+	DEBUG_INFO("insert %p", node);
 	return node;
 }
 
@@ -390,6 +392,9 @@ RB_NODE* rb_node_next(RB_NODE* pnode)
 	if (pnode == NULL) {
 		return NULL;
 	}
+
+	DEBUG_INFO("pnode [%p] m_left %p m_right %p m_parent %p",pnode,pnode->m_left, pnode->m_right, pnode->m_parent);
+
 	if (pnode->m_right != NULL) {
 		
 		pcur = pnode->m_right;
@@ -442,12 +447,13 @@ RB_NODE* rb_find(RB_TREE* ptree, void*arg)
 	return NULL;
 }
 
-void destroy_rb_tree(RB_TREE* ptree,int keep)
+void destroy_rb_tree(RB_TREE** pptree,int keep)
 {
-	if (ptree == NULL) {
+	if (pptree == NULL || *pptree == NULL) {
 		return;
 	}
 
+	RB_TREE* ptree = *pptree;
 	rb_free_func_t freefunc = ptree->m_freefunc;
 	rb_destroy_func_t destroyfunc = ptree->m_destroyfunc;
 	RB_NODE* pcur;
@@ -497,5 +503,6 @@ void destroy_rb_tree(RB_TREE* ptree,int keep)
 
 
 	freefunc(ptree);
+	*pptree = NULL;
 	return;
 }

@@ -13,7 +13,7 @@ CP      = copy /Y
 MKDIR   = md.exe
 MAKE    = nmake.exe
 
-TARGET=mutiltools
+TARGET=algorithm
 STATICLIB_FILE = $(TARGET).lib
 SHAREDLIB_FILE = $(TARGET).dll
 

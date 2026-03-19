@@ -7,7 +7,9 @@ typedef void* (*rb_malloc_func_t)(size_t size);
 typedef void (*rb_free_func_t)(void* ptr);
 /*to destroy the function*/
 typedef void (*rb_destroy_func_t)(void* arg);
-/*function return 0 for equal < 0 for less > 0 for greater*/
+/*function return 0 for equal 
+ < 0 for arg2 < arg1 
+ > 0 for arg2 > arg1*/
 typedef int (*rb_compare_func_t)(void* arg1,void* arg2);
 
 

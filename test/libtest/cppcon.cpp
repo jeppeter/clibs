@@ -53,7 +53,7 @@ typedef struct rbval {
 	int m_val;
 } RBVAL_t,*PRBVAL_t;
 
-void malloc_func(size_t size)
+void* malloc_func(size_t size)
 {
 	return malloc(size);
 }
@@ -70,9 +70,9 @@ int compare_func(void* a,void* b)
 	PRBVAL_t pb =(PRBVAL_t)b;
 	uint64_t aaddr,baddr;
 
-	if (pa->m_val < pb->m_val) {
+	if (pa->m_val > pb->m_val) {
 		return -1;
-	} else if (pa->m_val > pb->m_val) {
+	} else if (pa->m_val < pb->m_val) {
 		return 1;
 	} else {
 		if (pa == pb) {
@@ -81,7 +81,7 @@ int compare_func(void* a,void* b)
 
 		aaddr = (uint64_t) pa;
 		baddr = (uint64_t) pb;
-		if (aaddr < baddr) {
+		if (aaddr > baddr) {
 			return -1;
 		} else {
 			return 1;
@@ -91,7 +91,7 @@ int compare_func(void* a,void* b)
 
 PRBVAL_t alloc_val(int a)
 {
-	PRBVAL_t pret= malloc(sizeof(*pret));
+	PRBVAL_t pret= (PRBVAL_t)malloc(sizeof(*pret));
 	if (pret != NULL) {
 		pret->m_val = a;
 	}
@@ -106,7 +106,7 @@ void destroy_val(void* p)
 	return;
 }
 
-int cppcon_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	int ret;
 	RB_TREE* ptree=NULL;
@@ -114,6 +114,50 @@ int cppcon_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 	PRBVAL_t pcur=NULL;
 	RB_NODE* pnode;
 	int i;
+	pargs_options_t pargs = (pargs_options_t) popt;
+
+	init_log_level(pargs);
+	ptree = init_rb_tree(malloc_func,free_func,compare_func,destroy_val);
+	if (ptree == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+		DEBUG_INFO("insert %s", parsestate->leftargs[i]);
+		pval = alloc_val(atoi(parsestate->leftargs[i]));
+		if (pval == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+
+		pnode = rb_insert(ptree,pval);
+		if (pnode == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+		pval = NULL;
+	}
+
+	pnode = rb_first(ptree);
+	while(1) {
+		if (pnode == NULL) {
+			break;
+		}
+		pcur = (PRBVAL_t) rb_node_get(pnode);
+		fprintf(stdout,"value [%d:%p]\n",pcur->m_val,pcur);
+		pnode = rb_node_next(pnode);
+	}
+
+	ret = 0;
+out:
+	if (pval) {
+		destroy_val(pval);
+	}
+	pval = NULL;	
+	destroy_rb_tree(&ptree,0);
+	SETERRNO(ret);
+	return ret;
 
 
 

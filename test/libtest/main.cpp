@@ -58,6 +58,7 @@
 #include <crypt_rsa.h>
 #include <crypt_aes.h>
 #include <crypt_sha256.h>
+#include <rb_tree.h>
 #include <stdarg.h>
 
 #include <proto_api.h>
