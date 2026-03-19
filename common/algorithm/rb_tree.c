@@ -3,6 +3,9 @@
 #include <rb_tree.h>
 #include <cmn_err.h>
 
+/***********************************************
+ * all algorithm from  https://en.wikipedia.org/wiki/Red%E2%80%93black_tree
+***********************************************/
 
 
 RB_TREE* init_rb_tree(rb_malloc_func_t mallocfunc, rb_free_func_t freefunc,rb_compare_func_t comparefunc,rb_destroy_func_t destroyfunc)
@@ -178,6 +181,7 @@ RB_NODE* rb_insert(RB_TREE* ptree,void* arg)
 	RB_NODE* sparent=NULL;
 	RB_NODE* parent = NULL;
 	int isright = 0;
+	int ret;
 
 	/*now search for*/
 
@@ -353,80 +357,86 @@ free_out:
 	return;
 }
 
-int rb_delete(RB_TREE* ptree, void*arg, int keep)
+RB_NODE* rb_first(RB_TREE* ptree)
+{
+	RB_NODE* pleft = NULL;
+	RB_NODE* pcur=NULL;
+	if (ptree== NULL) {
+		return NULL;
+	}
+
+	pcur = ptree->m_root;
+	pleft = pcur->m_left;
+
+	while(1) {
+		if (pleft == NULL) {
+			return pcur;
+		}
+		pcur = pleft;
+		pleft = pcur->m_left;
+	}
+
+	return NULL;
+}
+
+RB_NODE* rb_node_next(RB_NODE* pnode)
+{
+	RB_NODE* pcur;
+	RB_NODE* pnext;
+	if (pnode == NULL) {
+		return NULL;
+	}
+	if (pnode->m_right != NULL) {
+		
+		pcur = pnode->m_right;
+		pnext = pcur->m_left;
+		while(1) {
+			if (pnext == NULL) {
+				return pcur;
+			}
+			pcur = pnext;
+			pnext = pcur->m_left;
+		}
+	}
+
+	if (pnode->m_parent != NULL) {
+		return pnode->m_parent;
+	}
+	return NULL;
+}
+
+void* rb_node_get(RB_NODE* pnode)
+{
+	return pnode->m_value;
+}
+
+void rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep)
+{
+	__rb_delete_inner(ptree,pnode,keep);
+	return;
+}
+
+RB_NODE* rb_find(RB_TREE* ptree, void*arg)
 {
 	int ret;
 	RB_NODE* pnode = ptree->m_root;
 
 	while (1){
 		if (pnode == NULL) {
-			return 0;
+			return NULL;
 		}
 
 		ret = ptree->m_comparefunc(pnode->m_value, arg);
-		if (ret == 0) {
-			__rb_delete_inner(ptree,pnode,keep);
-			return 1;
+		if (ret == 0) {			
+			return pnode;
 		} else if (ret > 0) {
 			pnode = pnode->m_right;
 		} else {
 			pnode = pnode->m_left;
 		}
 	}
-	return 0;
+	return NULL;
 }
-
-#define PUSH_NODE(pcur,isright)                                                                   \
-do{                                                                                               \
-	if (nodesize < (nodelen+1)) {                                                                 \
-		if (nodesize == 0) {                                                                      \
-			nodesize = 4;                                                                         \
-		} else {                                                                                  \
-			nodesize <<= 1;                                                                       \
-		}                                                                                         \
-		pparr = ptree->m_mallocfunc(sizeof(*pparr) * nodesize);                                   \
-		ptmppath = ptree->m_mallocfunc(sizeof(*pparr) * nodesize);                                \
-		if (pparr == NULL || ptmppath) {                                                          \
-			ret = -ENOBUFS;                                                                       \
-			goto fail;                                                                            \
-		}                                                                                         \
-		for(i=0;i<nodesize;i++) {                                                                 \
-			pparr[i] = NULL;                                                                      \
-			ptmppath[i] = 0;                                                                      \
-		}                                                                                         \
-		if (nodelen > 0) {                                                                        \
-			for(i=0;i<nodelen;i++) {                                                              \
-				pparr[i] = nodearr[i];                                                            \
-				ptmppath[i] = pathright[i];                                                       \
-			}                                                                                     \
-		}                                                                                         \
-		if(nodearr) {                                                                             \
-			ptree->m_freefunc(nodearr);                                                           \
-		}                                                                                         \
-		nodearr = pparr;                                                                          \
-		pparr = NULL;                                                                             \
-		if (pathright) {                                                                          \
-			ptree->m_freefunc(pathright);                                                         \
-		}                                                                                         \
-		pathright = ptmppath;                                                                     \
-		ptmppath = NULL;                                                                          \
-	}                                                                                             \
-	pathright[nodelen] = isright;                                                                 \
-	nodearr[nodelen] = pcur;                                                                      \
-	nodelen += 1;                                                                                 \
-}while(0)
-
-#define POP_NODE(pcur,isright)                                                                    \
-do{                                                                                               \
-	if (nodelen > 0) {                                                                            \
-		pcur = pparr[nodelen-1];                                                                  \
-		isright = pathright[nodelen - 1];                                                         \
-		nodelen -= 1;                                                                             \
-	} else {                                                                                      \
-		pcur = NULL;                                                                              \
-		isright = 0;                                                                              \
-	}                                                                                             \
-}while(0)
 
 void destroy_rb_tree(RB_TREE* ptree,int keep)
 {
@@ -434,93 +444,35 @@ void destroy_rb_tree(RB_TREE* ptree,int keep)
 		return;
 	}
 
-	RB_NODE** nodearr = NULL, **pparr=NULL;
-	int* pathright = NULL, *ptmppath=NULL;
 	rb_free_func_t freefunc = ptree->m_freefunc;
 	rb_destroy_func_t destroyfunc = ptree->m_destroyfunc;
-	int nodesize=4;
-	int nodelen=0;
-	RB_NODE* pchild=ptree->m_root;
-	RB_NODE* pcur=NULL;
-	int isright = 0;
+	RB_NODE* pcur;
+	RB_NODE* pnext;
 
-	if (pchild == NULL) {
-		goto free_out;
-	}
+	pcur = rb_first(ptree);
+	pnext = rb_node_next(pcur);
 
-	if (pchild->m_left != NULL) {
-		isright = 0;
-		pchild =  pchild->m_left;
-	} else if (pchild->m_right != NULL) {
-		isright = 1;
-		pchild = pchild->m_right;
-	} else {
-		pchild = NULL;
-		isright = 0;
-	}
-
-next_level:
-	if (pchild == NULL) {
-		POP_NODE(pchild,isright);
-		if (pchild == NULL) {
-			goto free_out;
+	while(1) {
+		if (pcur == NULL) {
+			break;
 		}
-		/*now free the child*/
-		if (keep == 0) {
-			destroyfunc(pchild->m_value);
-		}
-		
-		pcur = NULL;
-		if (isright) {
-			if (pchild->m_parent != NULL) {
-				pchild->m_parent->m_right = NULL;	
+		if (pcur->m_parent != NULL) {
+			if (pcur->m_parent->m_left == pcur) {
+				pcur->m_parent->m_left = NULL;
+			} else {
+				pcur->m_parent->m_right = NULL;
 			}
-			freefunc(pchild);
-			isright = 0;			
-		} else {
-			if (pchild->m_parent != NULL) {
-				pchild->m_parent->m_left = NULL;
-				pcur = pchild->m_parent->m_right;
-				if (pcur != NULL) {
-					isright = 1;
-				}
-			}
-			freefunc(pchild);
-		}		
-		pchild = pcur;
-		goto next_level;
-
-	} else {
-		PUSH_NODE(pchild,isright);
-		if (pchild->m_left != NULL) {
-			isright = 0;
-			pchild = pchild->m_left;
-		} else if (pchild->m_right != NULL) {
-			isright = 1;
-			pchild = pchild->m_right;
-		} else {
-			pchild = NULL;
-			isright = 0;
 		}
-		goto next_level;
-	}
-free_out:
-	if (ptree->m_root != NULL) {
-		destroyfunc(ptree->m_root->m_value);
-		freefunc(ptree->m_root);
-		ptree->m_root = NULL;
+
+		if(keep == 0) {
+			destroyfunc(pcur->m_value);
+		}
+		freefunc(pcur);
+
+		pcur = pnext;
+		pnext = rb_node_next(pcur);
 	}
 
-	if (pparr) {
-		freefunc(pparr);
-	}
-	pparr = NULL;
-
-	if (pathright) {
-		freefunc(pathright);
-	}
-	pathright = NULL;
 	freefunc(ptree);
-
 	return;
 }

@@ -6,16 +6,17 @@
 #define RB_BLACK          1
 #define RB_RED            2
 
-typedef struct rb_node_st {
+struct rb_node_st {
 	struct rb_node_st*    m_left;
 	struct rb_node_st*    m_right;
 	struct rb_node_st*    m_parent;
 	void*    m_value;
 	int      m_color;
+	int      m_reserv1;
 };
 
 
-typedef struct rb_tree_st {
+struct rb_tree_st {
 	rb_malloc_func_t   m_mallocfunc;
 	rb_free_func_t     m_freefunc;
 	rb_destroy_func_t  m_destroyfunc;
