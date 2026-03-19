@@ -366,6 +366,10 @@ RB_NODE* rb_first(RB_TREE* ptree)
 	}
 
 	pcur = ptree->m_root;
+
+	if (pcur == NULL) {
+		return NULL;
+	}
 	pleft = pcur->m_left;
 
 	while(1) {
@@ -394,7 +398,7 @@ RB_NODE* rb_node_next(RB_NODE* pnode)
 			if (pnext == NULL) {
 				return pcur;
 			}
-			pcur = pnext;
+			pcur = pnext;			
 			pnext = pcur->m_left;
 		}
 	}
@@ -445,33 +449,17 @@ void destroy_rb_tree(RB_TREE* ptree,int keep)
 	}
 
 	rb_free_func_t freefunc = ptree->m_freefunc;
-	rb_destroy_func_t destroyfunc = ptree->m_destroyfunc;
 	RB_NODE* pcur;
-	RB_NODE* pnext;
 
-	pcur = rb_first(ptree);
-	pnext = rb_node_next(pcur);
 
 	while(1) {
+		pcur = rb_first(ptree);
 		if (pcur == NULL) {
 			break;
 		}
-		if (pcur->m_parent != NULL) {
-			if (pcur->m_parent->m_left == pcur) {
-				pcur->m_parent->m_left = NULL;
-			} else {
-				pcur->m_parent->m_right = NULL;
-			}
-		}
-
-		if(keep == 0) {
-			destroyfunc(pcur->m_value);
-		}
-		freefunc(pcur);
-
-		pcur = pnext;
-		pnext = rb_node_next(pcur);
+		__rb_delete_inner(ptree,pcur,keep);
 	}
+
 
 	freefunc(ptree);
 	return;
