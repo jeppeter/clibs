@@ -342,6 +342,7 @@ int backtrace_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int ivtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0

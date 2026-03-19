@@ -48,3 +48,73 @@ int cppcon_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 	SETERRNO(ret);
 	return ret;
 }
+
+typedef struct rbval {
+	int m_val;
+} RBVAL_t,*PRBVAL_t;
+
+void malloc_func(size_t size)
+{
+	return malloc(size);
+}
+
+void free_func(void* ptr)
+{
+	free(ptr);
+	return;
+}
+
+int compare_func(void* a,void* b)
+{
+	PRBVAL_t pa=(PRBVAL_t)a;
+	PRBVAL_t pb =(PRBVAL_t)b;
+	uint64_t aaddr,baddr;
+
+	if (pa->m_val < pb->m_val) {
+		return -1;
+	} else if (pa->m_val > pb->m_val) {
+		return 1;
+	} else {
+		if (pa == pb) {
+			return 0;
+		}
+
+		aaddr = (uint64_t) pa;
+		baddr = (uint64_t) pb;
+		if (aaddr < baddr) {
+			return -1;
+		} else {
+			return 1;
+		}
+	}
+}
+
+PRBVAL_t alloc_val(int a)
+{
+	PRBVAL_t pret= malloc(sizeof(*pret));
+	if (pret != NULL) {
+		pret->m_val = a;
+	}
+	return pret;
+}
+
+void destroy_val(void* p)
+{
+	if (p) {
+		free(p);
+	}
+	return;
+}
+
+int cppcon_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int ret;
+	RB_TREE* ptree=NULL;
+	PRBVAL_t pval=NULL;
+	PRBVAL_t pcur=NULL;
+	RB_NODE* pnode;
+	int i;
+
+
+
+}

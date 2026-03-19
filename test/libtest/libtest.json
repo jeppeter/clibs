@@ -595,6 +595,9 @@
     },
     "ivtest<ivtest_handler>##[num]to test iv##" : {
         "$" : "*"
+    },
+    "rbtest<rbtest_handler>##values ... to test rbtest##" : {
+        "$" : "+"
     }
 
 
