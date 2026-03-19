@@ -449,15 +449,50 @@ void destroy_rb_tree(RB_TREE* ptree,int keep)
 	}
 
 	rb_free_func_t freefunc = ptree->m_freefunc;
+	rb_destroy_func_t destroyfunc = ptree->m_destroyfunc;
 	RB_NODE* pcur;
+	RB_NODE* pnext;
+	RB_NODE* parent;
+	int isright;
 
+	pcur = rb_first(ptree);
+	pnext = rb_node_next(pcur);
 
 	while(1) {
-		pcur = rb_first(ptree);
 		if (pcur == NULL) {
 			break;
 		}
-		__rb_delete_inner(ptree,pcur,keep);
+		if (keep == 0) {
+			destroyfunc(pcur->m_value);
+		}
+		pcur->m_value = NULL;
+		parent = pcur->m_parent;
+		isright = 0;
+		if (parent != NULL && parent->m_right == pcur) {
+			isright = 1;
+		}
+
+		if (pcur->m_right != NULL) {
+			if (parent != NULL) {
+				if (isright) {
+					parent->m_right = pcur->m_right;
+				} else {
+					parent->m_left = pcur->m_right;
+				}
+				pcur->m_right->m_parent = parent;
+			} else {
+				ptree->m_root = pcur->m_right;
+				pcur->m_right->m_parent = NULL;
+			}
+		} else {
+			if (pcur->m_parent != NULL) {
+				pcur->m_parent->m_left = NULL;
+			}
+		}
+
+		freefunc(pcur);
+		pcur = pnext;
+		pnext = rb_node_next(pcur);
 	}
 
 
