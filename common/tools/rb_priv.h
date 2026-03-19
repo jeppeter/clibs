@@ -20,7 +20,6 @@ typedef struct rb_tree_st {
 	rb_free_func_t     m_freefunc;
 	rb_destroy_func_t  m_destroyfunc;
 	rb_compare_func_t  m_comparefunc;
-
 	struct rb_node_st* m_root;
 };
 
