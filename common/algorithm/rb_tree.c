@@ -68,6 +68,24 @@ RB_NODE* __rb_rotate_sub_left(RB_TREE* ptree,RB_NODE* psub)
 	return new_root;
 }
 
+void __replace_node(RB_TREE* ptree,RB_NODE* onode, RB_NODE* nnode)
+{
+	if (onode->m_parent == NULL) {
+		ptree->m_root = nnode;
+	} else {
+		if (onode == onode->m_parent->m_left) {
+			onode->m_parent->m_left = nnode;
+		} else {
+			onode->m_parent->m_right = nnode;
+		}
+	}
+
+	if (nnode != NULL) {
+		nnode->m_parent = onode->m_parent;
+	}
+	return;
+}
+
 
 RB_NODE* __rb_rotate_sub_right(RB_TREE* ptree,RB_NODE* psub)
 {
@@ -450,7 +468,90 @@ void* rb_node_get(RB_NODE* pnode)
 	return pnode->m_value;
 }
 
+RB_NODE* __rb_bst_replace(RB_NODE* node)
+{
+	if (node == NULL) {
+		return NULL;
+	}
+
+	if (node->m_left != NULL && node->m_right != NULL) {
+		return rb_node_next(node);
+	}
+	if (node->m_left != NULL) {
+		return node->m_left;
+	}
+	return node->m_right;
+}
+
+RB_NODE* __get_sibling(RB_NODE* node)
+{
+	if (node == NULL || node->m_parent == NULL) {
+		return NULL;
+	}
+	if (node == node->m_parent->m_left ) {
+		return node->m_parent->m_right;
+	}
+	return node->m_parent->m_left;
+}
+
+int __is_on_left(RB_NODE* node)
+{
+	if (node == node->m_parent->m_left) {
+		return 1;
+	}
+	return 0;
+}
+
+
+
+void* __rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep,int recursive)
+{
+	void* pret=pnode->m_value;
+	RB_NODE* v = pnode;
+	RB_NODE* u = __rb_bst_replace(v);
+	RB_NODE* sibling;
+
+	int uvblack = 0;
+	if ((u == NULL || u->m_color == RB_BLACK) && v->m_color == RB_BLACK ) {
+		uvblack = 1;
+	}
+
+	if (u == NULL) {
+		if (v== ptree->m_root) {
+			ptree->m_root = NULL;
+		} else {
+			if (uvblack != 0) {
+				fixup_double_black(ptree,v);
+			} else {
+				sibling = __get_sibling(v);
+				if (sibling != NULL) {
+					sibling->m_color = RB_RED;
+				}
+			}
+
+			if (__is_on_left(v) != 0) {
+				v->m_parent->m_left = NULL;
+			} else {
+				v->m_parent->m_right = NULL;
+			}
+		}
+
+		if (keep == 0 || recursive != 0) {
+			ptree->m_destroyfunc(pret);
+			pret = NULL;
+		}
+		ptree->m_freefunc(v);
+		return pret;
+	}
+
+}
+
 void* rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep)
+{
+	return __rb_delete(ptree,pnode,keep,0);
+}
+
+void* rb_delete2(RB_TREE* ptree, RB_NODE* pnode,int keep)
 {
 	void* pret = NULL;
 	RB_NODE* target = NULL;
