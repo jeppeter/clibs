@@ -223,7 +223,6 @@ RB_NODE* rb_insert(RB_TREE* ptree,void* arg)
 	node->m_value = arg;
 
 	__rb_insert_inner(ptree,node,parent,isright);
-	DEBUG_INFO("insert %p", node);
 	return node;
 }
 
@@ -234,6 +233,9 @@ void __rb_delete_inner(RB_TREE* ptree, RB_NODE* pnode,int keep)
 	RB_NODE* sibling ;
 	RB_NODE* close_nephew;
 	RB_NODE* distant_nephew;
+
+	DEBUG_INFO("parent %p node %p",parent, node);
+
 
 	int isright;
 	if (node == parent->m_right) {
@@ -393,7 +395,6 @@ RB_NODE* rb_node_next(RB_NODE* pnode)
 		return NULL;
 	}
 
-	DEBUG_INFO("pnode [%p] m_left %p m_right %p m_parent %p",pnode,pnode->m_left, pnode->m_right, pnode->m_parent);
 
 	if (pnode->m_right != NULL) {
 		
@@ -409,7 +410,16 @@ RB_NODE* rb_node_next(RB_NODE* pnode)
 	}
 
 	if (pnode->m_parent != NULL) {
-		return pnode->m_parent;
+		while(1) {
+			if (pnode->m_parent == NULL) {
+				return NULL;
+			}
+			if (pnode != pnode->m_parent->m_right) {
+				/*we are on the right ,so we put next*/
+				return pnode->m_parent;
+			}
+			pnode = pnode->m_parent;
+		}
 	}
 	return NULL;
 }
@@ -447,6 +457,25 @@ RB_NODE* rb_find(RB_TREE* ptree, void*arg)
 	return NULL;
 }
 
+RB_NODE* _get_leaf(RB_NODE* pnode)
+{
+	if (pnode == NULL) {
+		return NULL;
+	}
+
+
+	while(1) {
+		if (pnode->m_left != NULL) {
+			pnode = pnode->m_left;
+		} else if (pnode->m_right != NULL) {
+			pnode = pnode->m_right;
+		} else {
+			return pnode;
+		}
+	}
+}
+
+
 void destroy_rb_tree(RB_TREE** pptree,int keep)
 {
 	if (pptree == NULL || *pptree == NULL) {
@@ -457,12 +486,10 @@ void destroy_rb_tree(RB_TREE** pptree,int keep)
 	rb_free_func_t freefunc = ptree->m_freefunc;
 	rb_destroy_func_t destroyfunc = ptree->m_destroyfunc;
 	RB_NODE* pcur;
-	RB_NODE* pnext;
 	RB_NODE* parent;
 	int isright;
 
-	pcur = rb_first(ptree);
-	pnext = rb_node_next(pcur);
+	pcur = _get_leaf(ptree->m_root);
 
 	while(1) {
 		if (pcur == NULL) {
@@ -476,29 +503,12 @@ void destroy_rb_tree(RB_TREE** pptree,int keep)
 		isright = 0;
 		if (parent != NULL && parent->m_right == pcur) {
 			isright = 1;
-		}
-
-		if (pcur->m_right != NULL) {
-			if (parent != NULL) {
-				if (isright) {
-					parent->m_right = pcur->m_right;
-				} else {
-					parent->m_left = pcur->m_right;
-				}
-				pcur->m_right->m_parent = parent;
-			} else {
-				ptree->m_root = pcur->m_right;
-				pcur->m_right->m_parent = NULL;
-			}
-		} else {
-			if (pcur->m_parent != NULL) {
-				pcur->m_parent->m_left = NULL;
-			}
-		}
-
+			parent->m_right = NULL;
+		} else if (parent != NULL && parent->m_left == pcur) {
+			parent->m_left = NULL;
+		}	
 		freefunc(pcur);
-		pcur = pnext;
-		pnext = rb_node_next(pcur);
+		pcur = _get_leaf(parent);
 	}
 
 

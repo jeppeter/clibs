@@ -115,12 +115,20 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 	RB_NODE* pnode;
 	int i;
 	pargs_options_t pargs = (pargs_options_t) popt;
+	int af6 = 0;
+	std::vector<PRBVAL_t> vvals;
 
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
 	init_log_level(pargs);
 	ptree = init_rb_tree(malloc_func,free_func,compare_func,destroy_val);
 	if (ptree == NULL) {
 		GETERRNO(ret);
 		goto out;
+	}
+
+	if (pargs->m_af6) {
+		af6 = 1;
 	}
 
 	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
@@ -136,6 +144,10 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 			GETERRNO(ret);
 			goto out;
 		}
+
+		if (af6) {
+			vvals.push_back(pval);
+		}
 		pval = NULL;
 	}
 
@@ -145,8 +157,30 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 			break;
 		}
 		pcur = (PRBVAL_t) rb_node_get(pnode);
-		fprintf(stdout,"value [%d:%p]\n",pcur->m_val,pcur);
+		fprintf(stdout,"value [%d:%p] %p\n",pcur->m_val,pcur,pnode);
 		pnode = rb_node_next(pnode);
+
+	}
+
+	for(i=0;i < (int) vvals.size();i++) {
+		pval = vvals.at((uint64_t)i);
+
+		pnode = rb_find(ptree,pval);
+		if (pnode == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+		DEBUG_INFO("[%d] val %d %p %p", i, pval->m_val, pval, pnode);
+
+		fprintf(stdout,"delete %p\n", pnode);
+		/*delete*/
+		if (af6) {
+			rb_delete(ptree,pnode,1);	
+		} else {
+			rb_delete(ptree,pnode,0);
+		}		
+
+		pval = NULL;
 	}
 
 	ret = 0;
@@ -154,8 +188,23 @@ out:
 	if (pval) {
 		destroy_val(pval);
 	}
-	pval = NULL;	
-	destroy_rb_tree(&ptree,0);
+	pval = NULL;
+	DEBUG_INFO("ptree %p",ptree);
+	if (af6) {
+		destroy_rb_tree(&ptree,1);	
+	} else {
+		destroy_rb_tree(&ptree,0);
+	}
+
+	while(vvals.size() > 0) {
+		pval = vvals.at(0);
+		vvals.erase(vvals.begin());
+		if(af6) {
+			free_func(pval);	
+		}
+		pval = NULL;
+	}
+	
 	SETERRNO(ret);
 	return ret;
 
