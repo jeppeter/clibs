@@ -511,7 +511,10 @@ void* __rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep)
 	RB_NODE* u = __rb_bst_replace(v);
 	RB_NODE* sibling;
 
-	int uvblack = 0;
+	int uvblack;
+
+check_uvblack:
+	uvblack = 0;
 	if ((u == NULL || u->m_color == RB_BLACK) && v->m_color == RB_BLACK ) {
 		uvblack = 1;
 	}
@@ -552,16 +555,16 @@ void* __rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep)
 			ptree->m_freefunc(u);
 		} else {
 			if (__is_on_left(v) != 0) {
-				parent->m_left = u;
+				v->m_parent->m_left = u;
 			} else {
-				parent->m_right = u;
+				v->m_parent->m_right = u;
 			}
 
 			ptree->m_freefunc(v);
-			u->m_parent = parent;
+			u->m_parent = v->m_parent;
 
 			if (uvblack != 0) {
-				__fixup_double_black(u);
+				__fixup_double_black(ptree,u);
 			} else {
 				u->m_color = RB_BLACK;
 			}
@@ -574,13 +577,17 @@ void* __rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep)
 		return pret;
 	}
 
-	/*ok this is */
-
+	/*ok this is two we check the value*/
+	v->m_value = u->m_value;
+	u->m_value = pret;
+	v = u;
+	u = __rb_bst_replace(v);
+	goto check_uvblack;
 }
 
 void* rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep)
 {
-	return __rb_delete(ptree,pnode,keep,0);
+	return __rb_delete(ptree,pnode,keep);
 }
 
 void* rb_delete2(RB_TREE* ptree, RB_NODE* pnode,int keep)
