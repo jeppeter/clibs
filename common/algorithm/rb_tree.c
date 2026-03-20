@@ -504,7 +504,7 @@ int __is_on_left(RB_NODE* node)
 
 
 
-void* __rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep,int recursive)
+void* __rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep)
 {
 	void* pret=pnode->m_value;
 	RB_NODE* v = pnode;
@@ -521,7 +521,7 @@ void* __rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep,int recursive)
 			ptree->m_root = NULL;
 		} else {
 			if (uvblack != 0) {
-				fixup_double_black(ptree,v);
+				__fixup_double_black(ptree,v);
 			} else {
 				sibling = __get_sibling(v);
 				if (sibling != NULL) {
@@ -536,13 +536,45 @@ void* __rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep,int recursive)
 			}
 		}
 
-		if (keep == 0 || recursive != 0) {
+		if (keep == 0) {
 			ptree->m_destroyfunc(pret);
 			pret = NULL;
 		}
 		ptree->m_freefunc(v);
 		return pret;
 	}
+
+	if (v->m_left == NULL || v->m_right == NULL) {
+		/*only has 1 child*/
+		if (v == ptree->m_root) {
+			v->m_value = u->m_value;
+			v->m_left = v->m_left = NULL;
+			ptree->m_freefunc(u);
+		} else {
+			if (__is_on_left(v) != 0) {
+				parent->m_left = u;
+			} else {
+				parent->m_right = u;
+			}
+
+			ptree->m_freefunc(v);
+			u->m_parent = parent;
+
+			if (uvblack != 0) {
+				__fixup_double_black(u);
+			} else {
+				u->m_color = RB_BLACK;
+			}
+		}
+
+		if (keep == 0) {
+			ptree->m_destroyfunc(pret);
+			pret = NULL;
+		}
+		return pret;
+	}
+
+	/*ok this is */
 
 }
 
