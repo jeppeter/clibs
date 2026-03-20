@@ -18,7 +18,7 @@ WINLIB_API RB_TREE* init_rb_tree(rb_malloc_func_t mallocfunc, rb_free_func_t fre
 WINLIB_API void destroy_rb_tree(RB_TREE** pptree,int keep);
 WINLIB_API RB_NODE* rb_insert(RB_TREE* ptree,void* arg);
 WINLIB_API RB_NODE* rb_first(RB_TREE* ptree);
-WINLIB_API void rb_delete(RB_TREE* ptree,RB_NODE* pnode,int keep);
+WINLIB_API void* rb_delete(RB_TREE* ptree,RB_NODE* pnode,int keep);
 WINLIB_API RB_NODE* rb_find(RB_TREE* ptree,void* arg);
 WINLIB_API void* rb_node_get(RB_NODE* pnode);
 WINLIB_API RB_NODE* rb_node_next(RB_NODE* pnode);

@@ -226,7 +226,8 @@ RB_NODE* rb_insert(RB_TREE* ptree,void* arg)
 	return node;
 }
 
-void __rb_delete_inner(RB_TREE* ptree, RB_NODE* pnode,int keep)
+
+void __rb_delete_repair(RB_TREE* ptree, RB_NODE* pnode)
 {
 	RB_NODE* parent = pnode->m_parent;
 	RB_NODE* node = pnode;
@@ -237,12 +238,14 @@ void __rb_delete_inner(RB_TREE* ptree, RB_NODE* pnode,int keep)
 	DEBUG_INFO("parent %p node %p",parent, node);
 
 
-	int isright;
+
+	int isright = -1;
 	if (node == parent->m_right) {
 		isright = 1;
 	} else {
 		isright = 0;
 	}
+	DEBUG_INFO(" ");
 
 	if (isright) {
 		parent->m_right = NULL;
@@ -250,20 +253,24 @@ void __rb_delete_inner(RB_TREE* ptree, RB_NODE* pnode,int keep)
 		parent->m_left = NULL;
 	}
 
+	DEBUG_INFO(" ");
 	goto start_balance;
 	do{
+		DEBUG_INFO(" ");
 		if (node == parent->m_right) {
 			isright = 1;
 		} else {
 			isright = 0;
 		}
 	start_balance:
+		DEBUG_INFO(" ");
 		if (isright) {
 			sibling = parent->m_left;
 		} else {
 			sibling = parent->m_right;
 		}
 
+		DEBUG_INFO("sibling %p isright %d", sibling,isright);
 		if (isright) {
 			distant_nephew = sibling->m_left;
 			close_nephew = sibling->m_right;
@@ -272,45 +279,53 @@ void __rb_delete_inner(RB_TREE* ptree, RB_NODE* pnode,int keep)
 			close_nephew = sibling->m_left;
 		}
 
+		DEBUG_INFO(" ");
 		if (sibling->m_color == RB_RED) {
 			if (isright) {
 				__rb_rotate_sub_right(ptree,parent);
 			} else {
 				__rb_rotate_sub_left(ptree,parent);
 			}
+			DEBUG_INFO(" ");
 			parent->m_color = RB_RED;
 			sibling->m_color = RB_BLACK;
 			sibling = close_nephew;
+			DEBUG_INFO(" ");
 
 			if (isright) {
 				distant_nephew = sibling->m_left;
 			} else {
 				distant_nephew = sibling->m_right;
 			}
-
+			DEBUG_INFO(" ");
 			if (distant_nephew != NULL && distant_nephew->m_color == RB_RED) {
+				DEBUG_INFO(" ");
 				goto case_6;
 			}
-
+			DEBUG_INFO(" ");
 			if (isright) {
 				close_nephew = sibling->m_right;
 			} else {
 				close_nephew = sibling->m_left;
 			}
 
+			DEBUG_INFO(" ");
 			if (close_nephew != NULL && close_nephew->m_color == RB_RED) {
 				goto case_5;
 			}
 
+			DEBUG_INFO(" ");
 			sibling->m_color = RB_RED;
 			parent->m_color = RB_BLACK;
 			goto free_out;
 		}
 
+		DEBUG_INFO(" ");
 		if (distant_nephew != NULL && distant_nephew->m_color == RB_RED) {
 			goto case_6;
 		}
 
+		DEBUG_INFO(" ");
 		if (close_nephew != NULL && close_nephew->m_color == RB_RED) {
 			goto case_5;
 		}
@@ -319,17 +334,21 @@ void __rb_delete_inner(RB_TREE* ptree, RB_NODE* pnode,int keep)
 			goto free_out;
 		}
 
+		DEBUG_INFO(" ");
 		if (parent->m_color == RB_RED) {
 			sibling->m_color = RB_RED;
 			parent->m_color = RB_BLACK;
 			goto free_out;
 		}
 
+		DEBUG_INFO(" ");
 		sibling->m_color = RB_RED;
 		node = parent;
+		DEBUG_INFO(" ");
 	} while((parent = node->m_parent) != NULL);
 
 case_5:
+	DEBUG_INFO(" ");
 	if (isright) {
 		__rb_rotate_sub_left(ptree,sibling);
 	} else {
@@ -339,9 +358,10 @@ case_5:
 	close_nephew->m_color = RB_BLACK;
 	distant_nephew = sibling;
 	sibling = close_nephew;
+	DEBUG_INFO(" ");
 
 case_6:
-
+	DEBUG_INFO(" ");
 	if (isright) {
 		__rb_rotate_sub_right(ptree,parent);
 	} else {
@@ -350,14 +370,15 @@ case_6:
 	sibling->m_color = parent->m_color;
 	parent->m_color = RB_BLACK;
 	distant_nephew->m_color = RB_BLACK;
+	DEBUG_INFO(" ");
 	goto free_out;
 
 
 free_out:
-	if (keep == 0) {
-		ptree->m_destroyfunc(pnode->m_value);
-	}
-	ptree->m_freefunc(pnode);
+	//if (keep == 0) {
+	//	ptree->m_destroyfunc(pnode->m_value);
+	//}
+	//ptree->m_freefunc(pnode);
 	return;
 }
 
@@ -429,10 +450,69 @@ void* rb_node_get(RB_NODE* pnode)
 	return pnode->m_value;
 }
 
-void rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep)
+void* rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep)
 {
-	__rb_delete_inner(ptree,pnode,keep);
-	return;
+	void* pret = NULL;
+	RB_NODE* target = NULL;
+	RB_NODE* child=NULL;
+	pret = pnode->m_value;
+
+	DEBUG_INFO("delete pnode %d", pnode);
+	if (pnode->m_left == NULL || pnode->m_right == NULL ) {
+		target = pnode;
+	} else {
+		target = rb_node_next(pnode);
+		/*swap the data*/
+		pnode->m_value = target->m_value;
+		target->m_value = NULL;
+	}
+
+	if (target->m_left == NULL) {
+		child = target->m_right;
+	} else {
+		child = target->m_left;
+	}
+
+	DEBUG_INFO(" ");
+
+	if (target->m_color == RB_BLACK) {
+		if (child->m_color == RB_RED) {
+			child->m_color = RB_BLACK;
+		} else if (target == rb_first(ptree)) {
+
+		} else {
+			DEBUG_INFO(" ");
+			__rb_delete_repair(ptree,target);		
+		}
+	} else {
+		/*no deletion*/
+	}
+
+	DEBUG_INFO(" ");
+	if (child != NULL) {
+		DEBUG_INFO(" ");
+		child->m_parent = target->m_parent;
+	}
+
+	DEBUG_INFO(" ");
+	if (target == target->m_parent->m_left) {
+		DEBUG_INFO(" ");
+		target->m_parent->m_left = child;
+	} else {
+		DEBUG_INFO(" ");
+		target->m_parent->m_right = child;
+	}
+
+	if (keep == 0) {
+		ptree->m_freefunc(pret);
+		pret = NULL;
+	}
+
+	DEBUG_INFO(" ");
+	ptree->m_freefunc(target);
+	DEBUG_INFO(" ");
+	
+	return pret;
 }
 
 RB_NODE* rb_find(RB_TREE* ptree, void*arg)
