@@ -11,7 +11,8 @@
  * all algorithm from  https://en.wikipedia.org/wiki/Red%E2%80%93black_tree
 ***********************************************/
 
-
+void __debug_node(RB_NODE* node,const char* file,int lineno,const char* fmt, ...);
+int __is_on_left(RB_NODE* x);
 /*
  * construction
  * return NULL if out of memory
@@ -191,27 +192,56 @@ RB_NODE *rb_find(RB_TREE *rbt, void *data)
  */
 void rb_rotate_left(RB_TREE *rbt, RB_NODE *x)
 {
-	RB_NODE *y;
 
-	rbt = rbt;
 
-	y = x->m_right; /* child */
+    __debug_node(x,__FILE__,__LINE__,"before leftRotate");
+    if (x->m_parent != NULL) {
+      __debug_node(x->m_parent,__FILE__,__LINE__,"parent value");
+    }
+    if (x->m_left != NULL) {
+      __debug_node(x->m_left,__FILE__,__LINE__,"left value");
+    }
+
+    if (x->m_right != NULL) {
+      __debug_node(x->m_right,__FILE__,__LINE__,"right value");
+    }
+
+
+	RB_NODE* nparent = x->m_right; /* child */
+
+	if (x == rbt->m_root) {
+		rbt->m_root = nparent;
+	}
+
+	if (x->m_parent != NULL) {
+		if (__is_on_left(x) != 0) {
+			x->m_parent->m_left = nparent;
+		} else {
+			x->m_parent->m_right = nparent;
+		}
+	}
+	nparent->m_parent = x->m_parent;
+	x->m_parent = nparent;
 
 	/* tree x */
-	x->m_right = y->m_left;
-	if (x->m_right != NULL)
-		x->m_right->m_parent = x;
+	x->m_right = nparent->m_left;
+	if (nparent->m_left != NULL)
+		nparent->m_left->m_parent = x;
 
-	/* tree y */
-	y->m_parent = x->m_parent;
-	if (x == x->m_parent->m_left)
-		x->m_parent->m_left = y;
-	else
-		x->m_parent->m_right = y;
+	nparent->m_left = x;
 
-	/* assemble tree x and tree y */
-	y->m_left = x;
-	x->m_parent = y;
+    __debug_node(x,__FILE__,__LINE__,"after leftRotate");
+    if (x->m_parent != NULL) {
+      __debug_node(x->m_parent,__FILE__,__LINE__,"parent value");
+    }
+    if (x->m_left != NULL) {
+      __debug_node(x->m_left,__FILE__,__LINE__,"left value");
+    }
+
+    if (x->m_right != NULL) {
+      __debug_node(x->m_right,__FILE__,__LINE__,"right value");
+    }
+
 	return;
 }
 
@@ -220,27 +250,54 @@ void rb_rotate_left(RB_TREE *rbt, RB_NODE *x)
  */
 void rb_rotate_right(RB_TREE *rbt, RB_NODE *x)
 {
-	RB_NODE *y;
+    __debug_node(x,__FILE__,__LINE__,"before rightRotate");
+    if (x->m_parent != NULL) {
+      __debug_node(x->m_parent,__FILE__,__LINE__,"parent value");
+    }
+    if (x->m_left != NULL) {
+      __debug_node(x->m_left,__FILE__,__LINE__,"left value");
+    }
 
-	rbt = rbt;
+    if (x->m_right != NULL) {
+      __debug_node(x->m_right,__FILE__,__LINE__,"right value");
+    }
 
-	y = x->m_left; /* child */
+
+	RB_NODE* nparent = x->m_left; /* child */
+
+	if (x == rbt->m_root) {
+		rbt->m_root = nparent;
+	}
+
+	if (x->m_parent != NULL) {
+		if (__is_on_left(x) == 0) {
+			x->m_parent->m_right = nparent;
+		} else {
+			x->m_parent->m_left = nparent;
+		}
+	}
+	nparent->m_parent = x->m_parent;
+	x->m_parent = nparent;
 
 	/* tree x */
-	x->m_left = y->m_right;
-	if (x->m_left != NULL)
-		x->m_left->m_parent = x;
+	x->m_left = nparent->m_right;
+	if (nparent->m_right != NULL)
+		nparent->m_right->m_parent = x;
 
-	/* tree y */
-	y->m_parent = x->m_parent;
-	if (x == x->m_parent->m_left)
-		x->m_parent->m_left = y;
-	else
-		x->m_parent->m_right = y;
+	nparent->m_right = x;
 
-	/* assemble tree x and tree y */
-	y->m_right = x;
-	x->m_parent = y;
+
+    __debug_node(x,__FILE__,__LINE__,"after rightRotate");
+    if (x->m_parent != NULL) {
+      __debug_node(x->m_parent,__FILE__,__LINE__,"parent value");
+    }
+    if (x->m_left != NULL) {
+      __debug_node(x->m_left,__FILE__,__LINE__,"left value");
+    }
+
+    if (x->m_right != NULL) {
+      __debug_node(x->m_right,__FILE__,__LINE__,"right value");
+    }
 	return;
 }
 
@@ -256,7 +313,7 @@ void __debug_node(RB_NODE* node,const char* file,int lineno,const char* fmt, ...
 	if (node == NULL) {
 		ret = vsnprintf_safe(&fmtstr,&fmtlen,fmt,ap);
 		if (ret >= 0) {
-			DEBUG_INFO("[%s:%d] %s NULL",file,lineno,fmtstr);
+			DEBUG_INFO("[%s:%d] NULL DEBUG_NODE %s",file,lineno,fmtstr);
 		}
 		vsnprintf_safe(&fmtstr,&fmtlen,NULL,NULL);		
 		return;
@@ -265,7 +322,7 @@ void __debug_node(RB_NODE* node,const char* file,int lineno,const char* fmt, ...
 	ival = (int*) node->m_value;
 	ret = vsnprintf_safe(&fmtstr,&fmtlen,fmt,ap);
 	if (ret >= 0) {
-		DEBUG_INFO("[%s:%d] %s %p color %s m_value %d",file,lineno, fmtstr,node, node->m_color == RB_RED ? "red" : "black", ival ? *ival : -1);	
+		DEBUG_INFO("[%s:%d] %p DEBUG_NODE  %s color %s m_value %d",file,lineno,node, fmtstr, node->m_color == RB_RED ? "RED" : "BLACK", ival ? *ival : -1);	
 	}
 	vsnprintf_safe(&fmtstr,&fmtlen,NULL,NULL);
 	return;
@@ -284,14 +341,14 @@ int __is_on_left(RB_NODE* x)
 
 RB_NODE* __get_uncle(RB_NODE* x)
 {
-	if (x == NULL || x->m_parent == NULL) {
+	if (x == NULL || x->m_parent == NULL || x->m_parent->m_parent == NULL) {
 		return NULL;
 	}
 
-	if (__is_on_left(x) != 0) {
-		return x->m_parent->m_right;
+	if (__is_on_left(x->m_parent) != 0) {
+		return x->m_parent->m_parent->m_right;
 	}
-	return x->m_parent->m_left;
+	return x->m_parent->m_parent->m_left;
 }
 
 void __swap_colors(RB_NODE* x, RB_NODE* y)
@@ -328,35 +385,51 @@ void __fixup_red_red(RB_TREE *rbt,RB_NODE* x)
 	RB_NODE* uncle = __get_uncle(x);
 
     if (parent->m_color != RB_BLACK) {
+    	__debug_node(parent,__FILE__,__LINE__," parent color != BLACK");
+    	__debug_node(uncle,__FILE__,__LINE__,"uncle check");
       if (uncle != NULL && uncle->m_color == RB_RED) {
         // uncle red, perform recoloring and recurse
         parent->m_color = RB_BLACK;
         uncle->m_color = RB_BLACK;
         grandparent->m_color = RB_RED;
+        __debug_node(grandparent,__FILE__,__LINE__,"grandparent = RED");
         __fixup_red_red(rbt,grandparent);
       } else {
         // Else perform LR, LL, RL, RR
         if (__is_on_left(parent) != 0) {
+        	__debug_node(parent,__FILE__,__LINE__," parent is on left");
           if (__is_on_left(x) != 0) {
             // for left right
+            __debug_node(x,__FILE__,__LINE__," x is on left");
             __swap_colors(parent, grandparent);
+            __debug_node(parent,__FILE__,__LINE__," parent new value");
+            __debug_node(grandparent,__FILE__,__LINE__," grandparent new value");
           } else {
+            __debug_node(parent,__FILE__,__LINE__," x is on right");
           	rb_rotate_left(rbt,parent);
           	__swap_colors(x,grandparent);
+            __debug_node(x,__FILE__,__LINE__," x new value");
+            __debug_node(grandparent,__FILE__,__LINE__," grandparent new value");            
           }
           // for left left and left right
           rb_rotate_right(rbt,grandparent);
         } else {
           if (__is_on_left(x) != 0) {
             // for right left
+            __debug_node(x,__FILE__,__LINE__," x is on left");
             rb_rotate_right(rbt,parent);
             __swap_colors(x,grandparent);
+            __debug_node(x,__FILE__,__LINE__," x new value");
+            __debug_node(grandparent,__FILE__,__LINE__," grandparent new value");            
           } else {
           	__swap_colors(parent,grandparent);
+            __debug_node(parent,__FILE__,__LINE__," parent new value");
+            __debug_node(grandparent,__FILE__,__LINE__," grandparent new value");
           }
 
           // for right right and right left
           rb_rotate_left(rbt,grandparent);
+          __debug_node(grandparent,__FILE__,__LINE__," grandparent after rotate left");
         }
       }
     }
@@ -383,6 +456,7 @@ RB_NODE *rb_insert(RB_TREE *rbt, void *data)
 
 		rbt->m_root = node;
 		node->m_color = RB_BLACK;
+		__debug_node(node,__FILE__,__LINE__,"new root");
 		return node;
 	}
 
@@ -399,14 +473,18 @@ RB_NODE *rb_insert(RB_TREE *rbt, void *data)
 	}
 	node->m_left = NULL;
 	node->m_right = NULL;
-	node->m_parent = NULL;
+	node->m_parent = temp;
 	node->m_value = data;
 	node->m_color = RB_RED;
 
+	__debug_node(node,__FILE__,__LINE__,"set parent");
+
 	if (ret < 0) {
 		temp->m_left = node;
+		__debug_node(temp,__FILE__,__LINE__,"set left");
 	} else {
 		temp->m_right = node;
+		__debug_node(temp,__FILE__,__LINE__,"set right");
 	}
 
 
@@ -447,29 +525,30 @@ void *rb_delete(RB_TREE *rbt, RB_NODE *v, int keep)
 	return NULL;
 }
 
-void rb_print_node(RB_TREE* ptree,RB_NODE* node,int tab)
+void rb_print_node(RB_TREE* ptree,FILE* fp,RB_NODE* node,int tab)
 {
 	int i;
 	for(i=0;i<tab;i++) {
-		fprintf(stdout,"    ");
+		fprintf(fp,"    ");
 	}
-	fprintf(stdout,"node %p .m_parent %p .m_left %p .m_right %p .m_color %s\n",node,node->m_parent,node->m_left,node->m_right,node->m_color == RB_RED ? "RED" : "BLACK");
+	fprintf(fp,"node %p .m_parent %p .m_left %p .m_right %p DISPLAY_NODE .m_color %s ",node,node->m_parent,node->m_left,node->m_right,node->m_color == RB_RED ? "RED" : "BLACK");
 	if (ptree->m_printfunc) {
-		ptree->m_printfunc(node->m_value,tab);
+		ptree->m_printfunc(node->m_value,fp,tab);
 	}
+	fprintf(fp,"\n");
 	if (node->m_left) {
-		rb_print_node(ptree,node->m_left,tab+1);
+		rb_print_node(ptree,fp,node->m_left,tab+1);
 	}
 	if (node->m_right) {
-		rb_print_node(ptree,node->m_right,tab+1);
+		rb_print_node(ptree,fp,node->m_right,tab+1);
 	}
 }
 
-void rb_print_tree(RB_TREE* ptree)
+void rb_print_tree(RB_TREE* ptree,FILE* fp)
 {
-	fprintf(stdout,"tree %p\n", ptree);
+	fprintf(fp,"tree %p\n", ptree);
 	if (ptree && ptree->m_printfunc) {
 		RB_NODE* root = ptree->m_root;
-		rb_print_node(ptree,root,1);
+		rb_print_node(ptree,fp,root,1);
 	}
 }

@@ -18,7 +18,7 @@ int main(int argc,char* argv[]) {
 		val = atoi(argv[i]);
 		tree.insert(val);
 		fprintf(stdout,"after insert %d\n",val);
-		tree.PrintTree(stdout);
+		tree.PrintTree(stderr);
 	}
 
 
@@ -27,7 +27,7 @@ int main(int argc,char* argv[]) {
 		val = atoi(argv[i]);
 		tree.deleteByVal(val);
 		fprintf(stdout,"after delete %d\n",val);
-		tree.PrintTree(stdout);
+		tree.PrintTree(stderr);
 	}
 
 	return 0;

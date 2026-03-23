@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define DEBUG_INFO(...) do{fprintf(stdout,"[%s:%d] ",__FILE__,__LINE__); fprintf(stdout,__VA_ARGS__); fprintf(stdout,"\n"); fflush(stdout);} while(0)
+#define DEBUG_INFO(...) do{fprintf(stderr,"[%s:%d] ",__FILE__,__LINE__); fprintf(stderr,__VA_ARGS__); fprintf(stderr,"\n"); fflush(stderr);} while(0)
 
 enum COLOR { RED, BLACK };
 
@@ -21,6 +21,7 @@ public:
   RBNode *sibling();
   void moveDown(RBNode *nParent);
   bool hasRedChild();
+  void PrintNode(const char* file,int lineno,const char* fmt,...);
 };
 
 class RBTree {

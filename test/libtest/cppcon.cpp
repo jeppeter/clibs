@@ -70,9 +70,9 @@ int compare_func(void* a,void* b)
 	PRBVAL_t pb =(PRBVAL_t)b;
 	uint64_t aaddr,baddr;
 
-	if (pa->m_val > pb->m_val) {
+	if (pa->m_val < pb->m_val) {
 		return -1;
-	} else if (pa->m_val < pb->m_val) {
+	} else if (pa->m_val > pb->m_val) {
 		return 1;
 	} else {
 		if (pa == pb) {
@@ -81,7 +81,7 @@ int compare_func(void* a,void* b)
 
 		aaddr = (uint64_t) pa;
 		baddr = (uint64_t) pb;
-		if (aaddr > baddr) {
+		if (aaddr < baddr) {
 			return -1;
 		} else {
 			return 1;
@@ -106,14 +106,11 @@ void destroy_val(void* p)
 	return;
 }
 
-void print_val(void* p,int tab)
+void print_val(void* p,FILE* fp,int tab)
 {
 	int i;
 	PRBVAL_t pval = (PRBVAL_t) p;
-	for(i=0;i<tab;i++) {
-		fprintf(stdout,"    ");
-	}
-	fprintf(stdout,".m_val %d\n", pval->m_val);
+	fprintf(fp," .m_val %d\n", pval->m_val);
 	return;
 
 	
@@ -124,7 +121,6 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 	int ret;
 	RB_TREE* ptree=NULL;
 	PRBVAL_t pval=NULL;
-	PRBVAL_t pcur=NULL;
 	RB_NODE* pnode;
 	int i;
 	pargs_options_t pargs = (pargs_options_t) popt;
@@ -158,7 +154,7 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 			goto out;
 		}
 
-		rb_print_tree(ptree);
+		rb_print_tree(ptree,stderr);
 
 		//fprintf(stdout,"pnode %p\n",pnode);
 
@@ -166,37 +162,6 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 		pval = NULL;
 	}
 
-	pnode = rb_first(ptree);
-	while(1) {
-		if (pnode == NULL) {
-			break;
-		}
-		pcur = (PRBVAL_t) rb_node_get(pnode);
-		fprintf(stdout,"value [%d:%p] %p\n",pcur->m_val,pcur,pnode);
-		pnode = rb_node_next(pnode);
-	}
-
-	for(i=0;i < (int) vvals.size();i++) {
-		pval = vvals.at((uint64_t)i);
-
-		pnode = rb_find(ptree,pval);
-		if (pnode == NULL) {
-			GETERRNO(ret);
-			DEBUG_INFO("can not find [%d]",i);
-			goto out;
-		}
-		DEBUG_INFO("[%d] val %d %p %p", i, pval->m_val, pval, pnode);
-
-		fprintf(stdout,"delete %p\n", pnode);
-		/*delete*/
-		if (af6) {
-			rb_delete(ptree,pnode,1);	
-		} else {
-			rb_delete(ptree,pnode,0);
-		}		
-
-		pval = NULL;
-	}
 
 	ret = 0;
 out:

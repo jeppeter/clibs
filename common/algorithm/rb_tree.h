@@ -22,7 +22,7 @@ WINLIB_API void* rb_delete(RB_TREE* ptree,RB_NODE* pnode,int keep);
 WINLIB_API RB_NODE* rb_find(RB_TREE* ptree,void* arg);
 WINLIB_API void* rb_node_get(RB_NODE* pnode);
 WINLIB_API RB_NODE* rb_node_next(RB_NODE* pnode);
-WINLIB_API void rb_print_tree(RB_TREE* ptree);
+WINLIB_API void rb_print_tree(RB_TREE* ptree,FILE* fp);
 
 #ifdef __cplusplus
 };

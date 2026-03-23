@@ -649,6 +649,41 @@ def appendunknown_handler(args,parser):
     return
 
 
+def filternode_handler(args,parser):
+    fileop.set_logging(args)
+    s = fileop.read_file(args.input)
+    sarr = re.split('\n',s)
+    outs = ''
+    matchexpr = re.compile('(.*)DEBUG_NODE(.*)')
+    for l in sarr:
+        l = l.rstrip('\n')
+        m = matchexpr.findall(l)
+        logging.info('m %s'%(m))
+        if m is not None and len(m) > 0 and len(m[0]) > 1:
+            outs += '%s\n'%(m[0][1])
+    fileop.write_file(outs,args.output)
+    sys.exit(0)
+
+def displaynode_handler(args,parser):
+    fileop.set_logging(args)
+    s = fileop.read_file(args.input)
+    sarr = re.split('\n',s)
+    outs = ''
+    matchexpr = re.compile('(.*)DISPLAY_NODE(.*)')
+    tabexpr = re.compile('^([\\s]+).*')
+    for l in sarr:
+        l = l.rstrip('\n')
+        m = matchexpr.findall(l)
+        logging.info('m %s'%(m))
+        if m is not None and len(m) > 0 and len(m[0]) > 1:
+            mc = tabexpr.findall(l)
+            if mc is not None and len(m) > 0:
+                logging.info('mc %s'%(mc))
+                outs += '%s%s\n'%(mc[0],m[0][1])
+    fileop.write_file(outs,args.output)
+    sys.exit(0)
+
+
 def main():
     commandline='''
     {
@@ -674,6 +709,12 @@ def main():
             "$" : "*"
         },
         "appendunknown<appendunknown_handler>##to append unknown##" : {
+            "$" : 0
+        },
+        "filternode<filternode_handler>##to filter DEBUG_NODE ##" : {
+            "$" : 0
+        },
+        "displaynode<displaynode_handler>##to filter display node##" : {
             "$" : 0
         }
     }

@@ -1,6 +1,34 @@
 #define _HAS_EXCEPTIONS 0
 #include "rbtree.h"
+#include <stdarg.h>
 
+#pragma warning(push)
+
+#if defined(_MSC_VER)
+#if _MSC_VER >= 1910
+#pragma warning(disable:5045)
+#endif
+#endif
+
+
+  void __debug_node(RBNode* node,const char* file,int lineno,const char* fmt, ...)
+  {
+    va_list ap;
+    va_start(ap,fmt);
+
+    if (node == NULL) {
+      fprintf(stderr,"[%s:%d] NULL DEBUG_NODE ",file,lineno);
+      vfprintf(stderr,fmt,ap);
+      fprintf(stderr,"\n");
+      return;
+    }
+
+    fprintf(stderr,"[%s:%d] %p DEBUG_NODE ",file,lineno,node);
+    vfprintf(stderr,fmt,ap);
+    fprintf(stderr," color %s m_value %d\n",node->color == RED ? "RED" : "BLACK", node->val);
+    return;
+
+  }
 
   RBNode::RBNode(int val) : val(val) {
     parent = left = right = NULL;
@@ -63,6 +91,17 @@
     // new parent will be node's right child
     RBNode *nParent = x->right;
 
+    __debug_node(x,__FILE__,__LINE__,"before leftRotate");
+    if (x->parent != NULL) {
+      __debug_node(x->parent,__FILE__,__LINE__,"parent value");
+    }
+    if (x->left != NULL) {
+      __debug_node(x->left,__FILE__,__LINE__,"left value");
+    }
+
+    if (x->right != NULL) {
+      __debug_node(x->right,__FILE__,__LINE__,"right value");
+    }
     // update root if current node is root
     if (x == root)
       root = nParent;
@@ -78,11 +117,37 @@
 
     // connect new parent with x
     nParent->left = x;
+
+    __debug_node(x,__FILE__,__LINE__,"after leftRotate");
+    if (x->parent != NULL) {
+      __debug_node(x->parent,__FILE__,__LINE__,"parent value");
+    }
+    if (x->left != NULL) {
+      __debug_node(x->left,__FILE__,__LINE__,"left value");
+    }
+
+    if (x->right != NULL) {
+      __debug_node(x->right,__FILE__,__LINE__,"right value");
+    }
+
   }
 
   void RBTree::rightRotate(RBNode *x) {
     // new parent will be node's left child
     RBNode *nParent = x->left;
+
+    __debug_node(x,__FILE__,__LINE__,"before rightRotate");
+    if (x->parent != NULL) {
+      __debug_node(x->parent,__FILE__,__LINE__,"parent value");
+    }
+    if (x->left != NULL) {
+      __debug_node(x->left,__FILE__,__LINE__,"left value");
+    }
+
+    if (x->right != NULL) {
+      __debug_node(x->right,__FILE__,__LINE__,"right value");
+    }
+
 
     // update root if current node is root
     if (x == root)
@@ -99,6 +164,19 @@
 
     // connect new parent with x
     nParent->right = x;
+
+    __debug_node(x,__FILE__,__LINE__,"after rightRotate");
+    if (x->parent != NULL) {
+      __debug_node(x->parent,__FILE__,__LINE__,"parent value");
+    }
+    if (x->left != NULL) {
+      __debug_node(x->left,__FILE__,__LINE__,"left value");
+    }
+
+    if (x->right != NULL) {
+      __debug_node(x->right,__FILE__,__LINE__,"right value");
+    }
+
   }
 
   void RBTree::swapColors(RBNode *x1, RBNode *x2) {
@@ -128,35 +206,51 @@
          *uncle = x->uncle();
 
     if (parent->color != BLACK) {
+      __debug_node(parent,__FILE__,__LINE__," parent color != BLACK");
+      __debug_node(uncle,__FILE__,__LINE__,"uncle check");
       if (uncle != NULL && uncle->color == RED) {
         // uncle red, perform recoloring and recurse
         parent->color = BLACK;
         uncle->color = BLACK;
         grandparent->color = RED;
+        __debug_node(grandparent,__FILE__,__LINE__,"grandparent = RED");
         fixRedRed(grandparent);
       } else {
         // Else perform LR, LL, RL, RR
         if (parent->isOnLeft()) {
+          __debug_node(parent,__FILE__,__LINE__," parent is on left");
           if (x->isOnLeft()) {
             // for left right
+            __debug_node(x,__FILE__,__LINE__," x is on left");
             swapColors(parent, grandparent);
+            __debug_node(parent,__FILE__,__LINE__," parent new value");
+            __debug_node(grandparent,__FILE__,__LINE__," grandparent new value");
           } else {
+            __debug_node(parent,__FILE__,__LINE__," x is on right");
             leftRotate(parent);
             swapColors(x, grandparent);
+            __debug_node(x,__FILE__,__LINE__," x new value");
+            __debug_node(grandparent,__FILE__,__LINE__," grandparent new value");            
           }
           // for left left and left right
           rightRotate(grandparent);
         } else {
           if (x->isOnLeft()) {
             // for right left
+            __debug_node(x,__FILE__,__LINE__," x is on left");
             rightRotate(parent);
             swapColors(x, grandparent);
+            __debug_node(x,__FILE__,__LINE__," x new value");
+            __debug_node(grandparent,__FILE__,__LINE__," grandparent new value");            
           } else {
             swapColors(parent, grandparent);
+            __debug_node(parent,__FILE__,__LINE__," parent new value");
+            __debug_node(grandparent,__FILE__,__LINE__," grandparent new value");            
           }
 
           // for right right and right left
           leftRotate(grandparent);
+          __debug_node(grandparent,__FILE__,__LINE__," grandparent after rotate left");
         }
       }
     }
@@ -362,6 +456,7 @@
       // simply insert value at root
       newRBNode->color = BLACK;
       root = newRBNode;
+      __debug_node(root,__FILE__,__LINE__,"new root");
     } else {
       RBNode *temp = search(n);
 
@@ -375,11 +470,16 @@
 
       // connect new node to correct node
       newRBNode->parent = temp;
+      __debug_node(newRBNode,__FILE__,__LINE__,"set parent");
 
-      if (n < temp->val)
+      if (n < temp->val){
         temp->left = newRBNode;
-      else
+        __debug_node(temp,__FILE__,__LINE__,"set left");
+      }
+      else {
         temp->right = newRBNode;
+        __debug_node(temp,__FILE__,__LINE__,"set right");
+      }
 
       // fix red red violation if exists
       fixRedRed(newRBNode);
@@ -413,7 +513,7 @@
     for(i=0;i<tab;i++) {
       fprintf(fp,"    ");
     }
-    fprintf(fp,"%p value %d color %s\n",node,node->val, node->color == RED ? "RED" : "BLACK");
+    fprintf(fp,"node %p .m_parent %p .m_left %p .m_right %p DISPLAY_NODE .m_color %s  .m_val %d\n",node,node->parent,node->left,node->right, node->color == RED ? "RED" : "BLACK",node->val);
 
     this->PrintNode(fp,node->left,tab + 1);
     this->PrintNode(fp,node->right,tab + 1);
@@ -425,3 +525,4 @@
     return;
   }
 
+#pragma warning(pop)
