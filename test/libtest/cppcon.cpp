@@ -145,9 +145,9 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 			goto out;
 		}
 
-		if (af6) {
-			vvals.push_back(pval);
-		}
+		//fprintf(stdout,"pnode %p\n",pnode);
+
+		vvals.push_back(pval);
 		pval = NULL;
 	}
 
@@ -159,7 +159,6 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 		pcur = (PRBVAL_t) rb_node_get(pnode);
 		fprintf(stdout,"value [%d:%p] %p\n",pcur->m_val,pcur,pnode);
 		pnode = rb_node_next(pnode);
-
 	}
 
 	for(i=0;i < (int) vvals.size();i++) {
@@ -168,6 +167,7 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 		pnode = rb_find(ptree,pval);
 		if (pnode == NULL) {
 			GETERRNO(ret);
+			DEBUG_INFO("can not find [%d]",i);
 			goto out;
 		}
 		DEBUG_INFO("[%d] val %d %p %p", i, pval->m_val, pval, pnode);
