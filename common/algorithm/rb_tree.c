@@ -9,730 +9,524 @@
 ***********************************************/
 
 
-RB_TREE* init_rb_tree(rb_malloc_func_t mallocfunc, rb_free_func_t freefunc,rb_compare_func_t comparefunc,rb_destroy_func_t destroyfunc)
+/*
+ * construction
+ * return NULL if out of memory
+ */
+RB_TREE *init_rb_tree(rb_malloc_func_t mallocfunc, rb_free_func_t freefunc,rb_compare_func_t comparefunc,rb_destroy_func_t destroyfunc)
 {
+	RB_TREE *rbt=NULL;
 	int ret;
-	struct rb_tree_st* pret= NULL;
-	if (mallocfunc == NULL || freefunc == NULL || comparefunc == NULL || destroyfunc == NULL) {
+
+	if(mallocfunc == NULL || freefunc == NULL || comparefunc == NULL || destroyfunc == NULL) {
 		ret = -CMN_EINVAL;
 		SETERRNO(ret);
 		return NULL;
 	}
 
-	pret = mallocfunc(sizeof(*pret));
-	if (pret == NULL) {
-		ret = - CMN_NOBUFS;
-		goto fail;
-	}
-
-	pret->m_mallocfunc = mallocfunc;
-	pret->m_freefunc = freefunc;
-	pret->m_comparefunc = comparefunc;
-	pret->m_destroyfunc = destroyfunc;
-	pret->m_root = NULL;
-
-	return pret;
-fail:
-	if (pret != NULL) {
-		freefunc(pret);
-	}
-	pret = NULL;
-	SETERRNO(ret);
-	return NULL;
-}
-
-
-RB_NODE* __rb_rotate_sub_left(RB_TREE* ptree,RB_NODE* psub)
-{
-	RB_NODE* sub_parent = psub->m_parent;
-	RB_NODE* new_root = psub->m_right;
-	RB_NODE* new_child = new_root->m_left;
-
-	psub->m_right = new_child;
-	if (new_child != NULL) {
-		new_child->m_parent = psub;
-	}
-
-	new_root->m_left = psub;
-	new_root->m_parent = sub_parent;
-	psub->m_parent = new_root;
-	if (sub_parent != NULL) {
-		if (psub == sub_parent->m_right) {
-			sub_parent->m_right = new_root;
-		} else {
-			sub_parent->m_left = new_root;
-		}
-	} else {
-		ptree->m_root = new_root;
-	}
-	return new_root;
-}
-
-void __replace_node(RB_TREE* ptree,RB_NODE* onode, RB_NODE* nnode)
-{
-	if (onode->m_parent == NULL) {
-		ptree->m_root = nnode;
-	} else {
-		if (onode == onode->m_parent->m_left) {
-			onode->m_parent->m_left = nnode;
-		} else {
-			onode->m_parent->m_right = nnode;
-		}
-	}
-
-	if (nnode != NULL) {
-		nnode->m_parent = onode->m_parent;
-	}
-	return;
-}
-
-
-RB_NODE* __rb_rotate_sub_right(RB_TREE* ptree,RB_NODE* psub)
-{
-	RB_NODE* sub_parent = psub->m_parent;
-	RB_NODE* new_root = psub->m_left;
-	RB_NODE* new_child = new_root->m_right;
-
-	psub->m_left = new_child;
-	if (new_child != NULL) {
-		new_child->m_parent = psub;
-	}
-
-	new_root->m_right = psub;
-	new_root->m_parent = sub_parent;
-	psub->m_parent = new_root;
-	if (sub_parent != NULL) {
-		if (psub == sub_parent->m_right) {
-			sub_parent->m_right = new_root;
-		} else {
-			sub_parent->m_left = new_root;
-		}
-	} else {
-		ptree->m_root = new_root;
-	}
-	return new_root;
-}
-
-void __rb_insert_inner(RB_TREE* ptree,RB_NODE* pnode,RB_NODE* pparent,int isright)
-{
-	RB_NODE* node = pnode;
-	RB_NODE* parent = pparent;
-	RB_NODE* grandparent;
-	RB_NODE* uncle;
-	int nowright;
-
-	node->m_color = RB_RED;
-	node->m_parent = parent;
-
-	if (parent == NULL) {
-		ptree->m_root = node;
-		return;
-	}
-
-	if (isright) {
-		parent->m_right = node;
-	} else {
-		parent->m_left = node;
-	}
-
-	do {
-		if (parent->m_color == RB_BLACK) {
-			return;
-		}
-
-		grandparent = parent->m_parent;
-		if (grandparent == NULL) {
-			parent->m_color = RB_BLACK;
-			return;
-		}
-
-		if (grandparent->m_right == parent) {
-			nowright = 1;
-		} else {
-			nowright = 0;
-		}
-
-		if (nowright) {
-			uncle = grandparent->m_left;
-		} else {
-			uncle = grandparent->m_right;
-		}
-
-		if (uncle == NULL || uncle->m_color == RB_BLACK) {
-			if ((nowright != 0 && parent->m_left == node) || (nowright == 0 && parent->m_right == node)) {
-				if (nowright) {
-					__rb_rotate_sub_right(ptree,parent);
-				} else {
-					__rb_rotate_sub_left(ptree,parent);
-				}
-				node = parent;
-				if (nowright) {
-					parent = grandparent->m_right;
-				} else {
-					parent = grandparent->m_left;
-				}
-			}
-
-			if (nowright) {
-				__rb_rotate_sub_left(ptree,parent);
-			} else {
-				__rb_rotate_sub_right(ptree,parent);
-			}
-			parent->m_color = RB_BLACK;
-			grandparent->m_color = RB_RED;
-			return;
-		}
-
-		parent->m_color = RB_BLACK;
-		uncle->m_color = RB_BLACK;
-		grandparent->m_color = RB_RED;
-		node = grandparent;
-
-
-	} while((parent = node->m_parent) != NULL);
-	return;
-}
-
-
-RB_NODE* rb_insert(RB_TREE* ptree,void* arg)
-{
-	RB_NODE* node=NULL;
-	RB_NODE* sparent=NULL;
-	RB_NODE* parent = NULL;
-	int isright = 0;
-	int ret;
-
-	/*now search for*/
-
-	sparent = ptree->m_root;
-
-	while(1) {
-		if (sparent == NULL) {
-			break;
-		}
-
-		ret = ptree->m_comparefunc(sparent->m_value,arg);
-		if (ret == 0) {
-			/*it is duplicated so free */
-			ptree->m_destroyfunc(sparent->m_value);
-			sparent->m_value = arg;
-			return sparent;
-		} else if (ret < 0) {
-			parent = sparent;
-			isright = 0;
-			sparent = parent->m_left;
-		} else if (ret > 0) {
-			parent = sparent;
-			isright = 1;
-			sparent = parent->m_right;
-		}		
-	}
-
-	node = ptree->m_mallocfunc(sizeof(*node));
-	if (node == NULL) {
+	rbt = (RB_TREE *) mallocfunc(sizeof(*rbt));
+	if (rbt == NULL){
 		ret = -CMN_NOBUFS;
 		SETERRNO(ret);
-		return NULL;
+		return NULL; /* out of memory */
 	}
 
-	node->m_color = RB_RED;
-	node->m_left = NULL;
-	node->m_right = NULL;
-	node->m_value = arg;
+	rbt->m_comparefunc = comparefunc;
+	rbt->m_destroyfunc = destroyfunc;
+	rbt->m_mallocfunc = mallocfunc;
+	rbt->m_freefunc = freefunc;
+	/* sentinel node root */
+	rbt->m_root = NULL;
 
-	__rb_insert_inner(ptree,node,parent,isright);
-	return node;
+	
+	return rbt;
 }
 
-
-void __rb_delete_repair(RB_TREE* ptree, RB_NODE* pnode)
+/*
+ * destroy node recursively
+ */
+void __destroy(RB_TREE *rbt, RB_NODE *n,int keep)
 {
-	RB_NODE* parent = pnode->m_parent;
-	RB_NODE* node = pnode;
-	RB_NODE* sibling ;
-	RB_NODE* close_nephew;
-	RB_NODE* distant_nephew;
-
-	DEBUG_INFO("parent %p node %p",parent, node);
-
-
-
-	int isright = -1;
-	if (node == parent->m_right) {
-		isright = 1;
-	} else {
-		isright = 0;
+	if (n != NULL) {
+		__destroy(rbt, n->m_left,keep);
+		__destroy(rbt, n->m_right,keep);
+		if (keep == 0) {
+			rbt->m_destroyfunc(n->m_value);
+		}
+		rbt->m_freefunc(n);
 	}
-	DEBUG_INFO(" ");
-
-	if (isright) {
-		parent->m_right = NULL;
-	} else {
-		parent->m_left = NULL;
-	}
-
-	DEBUG_INFO(" ");
-	goto start_balance;
-	do{
-		DEBUG_INFO(" ");
-		if (node == parent->m_right) {
-			isright = 1;
-		} else {
-			isright = 0;
-		}
-	start_balance:
-		DEBUG_INFO(" ");
-		if (isright) {
-			sibling = parent->m_left;
-		} else {
-			sibling = parent->m_right;
-		}
-
-		DEBUG_INFO("sibling %p isright %d", sibling,isright);
-		if (isright) {
-			distant_nephew = sibling->m_left;
-			close_nephew = sibling->m_right;
-		} else {
-			distant_nephew = sibling->m_right;
-			close_nephew = sibling->m_left;
-		}
-
-		DEBUG_INFO(" ");
-		if (sibling->m_color == RB_RED) {
-			if (isright) {
-				__rb_rotate_sub_right(ptree,parent);
-			} else {
-				__rb_rotate_sub_left(ptree,parent);
-			}
-			DEBUG_INFO(" ");
-			parent->m_color = RB_RED;
-			sibling->m_color = RB_BLACK;
-			sibling = close_nephew;
-			DEBUG_INFO(" ");
-
-			if (isright) {
-				distant_nephew = sibling->m_left;
-			} else {
-				distant_nephew = sibling->m_right;
-			}
-			DEBUG_INFO(" ");
-			if (distant_nephew != NULL && distant_nephew->m_color == RB_RED) {
-				DEBUG_INFO(" ");
-				goto case_6;
-			}
-			DEBUG_INFO(" ");
-			if (isright) {
-				close_nephew = sibling->m_right;
-			} else {
-				close_nephew = sibling->m_left;
-			}
-
-			DEBUG_INFO(" ");
-			if (close_nephew != NULL && close_nephew->m_color == RB_RED) {
-				goto case_5;
-			}
-
-			DEBUG_INFO(" ");
-			sibling->m_color = RB_RED;
-			parent->m_color = RB_BLACK;
-			goto free_out;
-		}
-
-		DEBUG_INFO(" ");
-		if (distant_nephew != NULL && distant_nephew->m_color == RB_RED) {
-			goto case_6;
-		}
-
-		DEBUG_INFO(" ");
-		if (close_nephew != NULL && close_nephew->m_color == RB_RED) {
-			goto case_5;
-		}
-
-		if (parent == NULL) {
-			goto free_out;
-		}
-
-		DEBUG_INFO(" ");
-		if (parent->m_color == RB_RED) {
-			sibling->m_color = RB_RED;
-			parent->m_color = RB_BLACK;
-			goto free_out;
-		}
-
-		DEBUG_INFO(" ");
-		sibling->m_color = RB_RED;
-		node = parent;
-		DEBUG_INFO(" ");
-	} while((parent = node->m_parent) != NULL);
-
-case_5:
-	DEBUG_INFO(" ");
-	if (isright) {
-		__rb_rotate_sub_left(ptree,sibling);
-	} else {
-		__rb_rotate_sub_right(ptree,sibling);
-	}
-	sibling->m_color = RB_RED;
-	close_nephew->m_color = RB_BLACK;
-	distant_nephew = sibling;
-	sibling = close_nephew;
-	DEBUG_INFO(" ");
-
-case_6:
-	DEBUG_INFO(" ");
-	if (isright) {
-		__rb_rotate_sub_right(ptree,parent);
-	} else {
-		__rb_rotate_sub_left(ptree,parent);
-	}
-	sibling->m_color = parent->m_color;
-	parent->m_color = RB_BLACK;
-	distant_nephew->m_color = RB_BLACK;
-	DEBUG_INFO(" ");
-	goto free_out;
-
-
-free_out:
-	//if (keep == 0) {
-	//	ptree->m_destroyfunc(pnode->m_value);
-	//}
-	//ptree->m_freefunc(pnode);
-	return;
 }
+
+/*
+ * destruction
+ */
+void destroy_rb_tree(RB_TREE **prbt,int keep)
+{
+	if (prbt != NULL && *prbt != NULL) {
+		RB_TREE* rbt = *prbt;
+		rb_free_func_t freefunc = rbt->m_freefunc;
+		__destroy(rbt, rbt->m_root,keep);
+		freefunc(rbt);
+		*prbt = NULL;
+	}
+}
+
 
 RB_NODE* rb_first(RB_TREE* ptree)
 {
-	RB_NODE* pleft = NULL;
-	RB_NODE* pcur=NULL;
-	if (ptree== NULL) {
+	RB_NODE* pcur;
+	if (ptree->m_root == NULL) {
 		return NULL;
 	}
-
 	pcur = ptree->m_root;
 
-	if (pcur == NULL) {
-		return NULL;
-	}
-	pleft = pcur->m_left;
-
 	while(1) {
-		if (pleft == NULL) {
+		if (pcur->m_left == NULL) {
 			return pcur;
 		}
-		pcur = pleft;
-		pleft = pcur->m_left;
+		pcur = pcur->m_left;
 	}
-
 	return NULL;
 }
-
-RB_NODE* rb_node_next(RB_NODE* pnode)
+/*
+ * look up
+ * return NULL if not found
+ */
+RB_NODE *rb_find(RB_TREE *rbt, void *data)
 {
-	RB_NODE* pcur;
-	RB_NODE* pnext;
-	if (pnode == NULL) {
-		return NULL;
+	RB_NODE *p;
+
+	p = rbt->m_root;
+
+	while (p != NULL) {
+		int cmp;
+		cmp = rbt->m_comparefunc(data, p->m_value);
+		if (cmp == 0)
+			return p; /* found */
+		p = cmp < 0 ? p->m_left : p->m_right;
 	}
 
+	return NULL; /* not found */
+}
 
-	if (pnode->m_right != NULL) {
-		
-		pcur = pnode->m_right;
-		pnext = pcur->m_left;
-		while(1) {
-			if (pnext == NULL) {
-				return pcur;
-			}
-			pcur = pnext;			
-			pnext = pcur->m_left;
-		}
-	}
+/*
+ * next larger
+ * return NULL if not found
+ */
+RB_NODE *rb_node_next(RB_NODE *node)
+{
+	RB_NODE *p,*curp;
 
-	if (pnode->m_parent != NULL) {
+	p = node->m_right;
+
+	if (p != NULL) {
+		/* move down until we find it */
+		for ( ; p->m_left != NULL; p = p->m_left) ;
+	} else {
+		/* move up until we find it or hit the root */
 		while(1) {
-			if (pnode->m_parent == NULL) {
+			curp = p->m_parent;
+			if (curp == NULL) {
 				return NULL;
 			}
-			if (pnode != pnode->m_parent->m_right) {
-				/*we are on the right ,so we put next*/
-				return pnode->m_parent;
+
+			if (p == curp->m_right) {
+				p = curp;
+			} else {
+				return curp;
 			}
-			pnode = pnode->m_parent;
 		}
 	}
-	return NULL;
+
+	return p;
 }
 
-void* rb_node_get(RB_NODE* pnode)
+
+/*
+ * rotate left about x
+ */
+void rb_rotate_left(RB_TREE *rbt, RB_NODE *x)
 {
-	return pnode->m_value;
+	RB_NODE *y;
+
+	rbt = rbt;
+
+	y = x->m_right; /* child */
+
+	/* tree x */
+	x->m_right = y->m_left;
+	if (x->m_right != NULL)
+		x->m_right->m_parent = x;
+
+	/* tree y */
+	y->m_parent = x->m_parent;
+	if (x == x->m_parent->m_left)
+		x->m_parent->m_left = y;
+	else
+		x->m_parent->m_right = y;
+
+	/* assemble tree x and tree y */
+	y->m_left = x;
+	x->m_parent = y;
+	return;
 }
 
-RB_NODE* __rb_bst_replace(RB_NODE* node)
+/*
+ * rotate right about x
+ */
+void rb_rotate_right(RB_TREE *rbt, RB_NODE *x)
+{
+	RB_NODE *y;
+
+	rbt = rbt;
+
+	y = x->m_left; /* child */
+
+	/* tree x */
+	x->m_left = y->m_right;
+	if (x->m_left != NULL)
+		x->m_left->m_parent = x;
+
+	/* tree y */
+	y->m_parent = x->m_parent;
+	if (x == x->m_parent->m_left)
+		x->m_parent->m_left = y;
+	else
+		x->m_parent->m_right = y;
+
+	/* assemble tree x and tree y */
+	y->m_right = x;
+	x->m_parent = y;
+	return;
+}
+
+/*
+ * rebalance after insertion
+ * RB_ROOT(rbt) is always BLACK, thus never reach beyond RB_FIRST(rbt)
+ * after insert_repair, RB_FIRST(rbt) might be RED
+ */
+void rb_insert_repair(RB_TREE *rbt, RB_NODE *current)
+{
+	RB_NODE *uncle;
+
+	do {
+		/* current node is RED and parent node is RED */
+
+		if (current->m_parent == current->m_parent->m_parent->m_left) {
+			uncle = current->m_parent->m_parent->m_right;
+			if (uncle->m_color == RB_RED) {
+				/* insertion into 4-children cluster */
+
+				/* split */
+				current->m_parent->m_color = RB_BLACK;
+				uncle->m_color = RB_BLACK;
+
+				/* send grandparent node up the tree */
+				current = current->m_parent->m_parent; /* goto loop or break */
+				current->m_color = RB_RED;
+			} else {
+				/* insertion into 3-children cluster */
+
+				/* equivalent BST */
+				if (current == current->m_parent->m_right) {
+					current = current->m_parent;
+					rb_rotate_left(rbt, current);
+				}
+
+				/* 3-children cluster has two representations */
+				current->m_parent->m_color = RB_BLACK; /* thus goto break */
+				current->m_parent->m_parent->m_color = RB_RED;
+				rb_rotate_right(rbt, current->m_parent->m_parent);
+			}
+		} else {
+			uncle = current->m_parent->m_parent->m_left;
+			if (uncle->m_color == RB_RED) {
+				/* insertion into 4-children cluster */
+
+				/* split */
+				current->m_parent->m_color = RB_BLACK;
+				uncle->m_color = RB_BLACK;
+
+				/* send grandparent node up the tree */
+				current = current->m_parent->m_parent; /* goto loop or break */
+				current->m_color = RB_RED;
+			} else {
+				/* insertion into 3-children cluster */
+
+				/* equivalent BST */
+				if (current == current->m_parent->m_left) {
+					current = current->m_parent;
+					rb_rotate_right(rbt, current);
+				}
+
+				/* 3-children cluster has two representations */
+				current->m_parent->m_color = RB_BLACK; /* thus goto break */
+				current->m_parent->m_parent->m_color = RB_RED;
+				rb_rotate_left(rbt, current->m_parent->m_parent);
+			}
+		}
+	} while (current->m_parent->m_color == RB_RED);
+}
+
+
+/*
+ * insert (or update) data
+ * return NULL if out of memory
+ */
+RB_NODE *rb_insert(RB_TREE *rbt, void *data)
+{
+	RB_NODE *current, *parent;
+	RB_NODE *new_node;
+
+	/* do a binary search to find where it should be */
+
+	current = NULL;
+	parent = rbt->m_root;
+	if (parent != NULL) {
+		current = parent->m_left;
+	}
+
+	while (current != NULL) {
+		int cmp;
+		cmp = rbt->m_comparefunc(data, current->m_value);
+		if (cmp == 0) {
+			return current; /* updated */
+		}
+
+		parent = current;
+		current = cmp < 0 ? current->m_left : current->m_right;
+	}
+
+	/* replace the termination NIL pointer with the new node pointer */
+
+	current = new_node = (RB_NODE *) rbt->m_mallocfunc(sizeof(*new_node));
+	if (current == NULL)
+		return NULL; /* out of memory */
+
+	current->m_left = current->m_right = NULL;
+	current->m_parent = parent;
+	current->m_color = RB_RED;
+	current->m_value = data;
+	
+	if (parent == rbt->m_root || rbt->m_comparefunc(data, parent->m_value) < 0)
+		parent->m_left = current;
+	else
+		parent->m_right = current;
+
+	
+	/*
+	 * insertion into a red-black tree:
+	 *   0-children root cluster (parent node is BLACK) becomes 2-children root cluster (new root node)
+	 *     paint root node BLACK, and done
+	 *   2-children cluster (parent node is BLACK) becomes 3-children cluster
+	 *     done
+	 *   3-children cluster (parent node is BLACK) becomes 4-children cluster
+	 *     done
+	 *   3-children cluster (parent node is RED) becomes 4-children cluster
+	 *     rotate, and done
+	 *   4-children cluster (parent node is RED) splits into 2-children cluster and 3-children cluster
+	 *     split, and insert grandparent node into parent cluster
+	 */
+	if (current->m_parent->m_color == RB_RED) {
+		/* insertion into 3-children cluster (parent node is RED) */
+		/* insertion into 4-children cluster (parent node is RED) */
+		rb_insert_repair(rbt, current);
+	} else {
+		/* insertion into 0-children root cluster (parent node is BLACK) */
+		/* insertion into 2-children cluster (parent node is BLACK) */
+		/* insertion into 3-children cluster (parent node is BLACK) */
+	}
+
+	/*
+	 * the root is always BLACK
+	 * insertion into 0-children root cluster or insertion into 4-children root cluster require this recoloring
+	 */
+	if (rbt->m_root) {
+		rbt->m_root->m_color = RB_BLACK;
+	}
+	
+	return new_node;
+}
+
+
+/*
+ * rebalance after deletion
+ */
+void rb_delete_repair(RB_TREE *rbt, RB_NODE *current)
+{
+	RB_NODE *sibling;
+	do {
+		if (current == current->m_parent->m_left) {
+			sibling = current->m_parent->m_right;
+
+			if (sibling->m_color == RB_RED) {
+				/* perform an adjustment (3-children parent cluster has two representations) */
+				sibling->m_color = RB_BLACK;
+				current->m_parent->m_color = RB_RED;
+				rb_rotate_left(rbt, current->m_parent);
+				sibling = current->m_parent->m_right;
+			}
+
+			/* sibling node must be BLACK now */
+
+			if (sibling->m_right->m_color == RB_BLACK && sibling->m_left->m_color == RB_BLACK) {
+				/* 2-children sibling cluster, fuse by recoloring */
+				sibling->m_color = RB_RED;
+				if (current->m_parent->m_color == RB_RED) { /* 3/4-children parent cluster */
+					current->m_parent->m_color = RB_BLACK;
+					break; /* goto break */
+				} else { /* 2-children parent cluster */
+					current = current->m_parent; /* goto loop */
+				}
+			} else {
+				/* 3/4-children sibling cluster */
+				
+				/* perform an adjustment (3-children sibling cluster has two representations) */
+				if (sibling->m_right->m_color == RB_BLACK) {
+					sibling->m_left->m_color = RB_BLACK;
+					sibling->m_color = RB_RED;
+					rb_rotate_right(rbt, sibling);
+					sibling = current->m_parent->m_right;
+				}
+
+				/* transfer by rotation and recoloring */
+				sibling->m_color = current->m_parent->m_color;
+				current->m_parent->m_color = RB_BLACK;
+				sibling->m_right->m_color = RB_BLACK;
+				rb_rotate_left(rbt, current->m_parent);
+				break; /* goto break */
+			}
+		} else {
+			sibling = current->m_parent->m_left;
+
+			if (sibling->m_color == RB_RED) {
+				/* perform an adjustment (3-children parent cluster has two representations) */
+				sibling->m_color = RB_BLACK;
+				current->m_parent->m_color = RB_RED;
+				rb_rotate_right(rbt, current->m_parent);
+				sibling = current->m_parent->m_left;
+			}
+
+			/* sibling node must be BLACK now */
+
+			if (sibling->m_right->m_color == RB_BLACK && sibling->m_left->m_color == RB_BLACK) {
+				/* 2-children sibling cluster, fuse by recoloring */
+				sibling->m_color = RB_RED;
+				if (current->m_parent->m_color == RB_RED) { /* 3/4-children parent cluster */
+					current->m_parent->m_color = RB_BLACK;
+					break; /* goto break */
+				} else { /* 2-children parent cluster */
+					current = current->m_parent; /* goto loop */
+				}
+			} else {
+				/* 3/4-children sibling cluster */
+
+				/* perform an adjustment (3-children sibling cluster has two representations) */
+				if (sibling->m_left->m_color == RB_BLACK) {
+					sibling->m_right->m_color = RB_BLACK;
+					sibling->m_color = RB_RED;
+					rb_rotate_left(rbt, sibling);
+					sibling = current->m_parent->m_left;
+				}
+
+				/* transfer by rotation and recoloring */
+				sibling->m_color = current->m_parent->m_color;
+				current->m_parent->m_color = RB_BLACK;
+				sibling->m_left->m_color = RB_BLACK;
+				rb_rotate_right(rbt, current->m_parent);
+				break; /* goto break */
+			}
+		}
+	} while (current != rbt->m_root);
+}
+
+
+/*
+ * delete node
+ * return NULL if keep is zero (already freed)
+ */
+void *rb_delete(RB_TREE *rbt, RB_NODE *node, int keep)
+{
+	RB_NODE *target, *child;
+	void *data;
+	
+	data = node->m_value;
+
+	/* choose node's in-order successor if it has two children */
+	
+	if (node->m_left == NULL || node->m_right == NULL) {
+		target = node;
+
+	} else {
+		target = rb_node_next(node); /* node->right must not be NIL, thus move down */
+
+		node->m_value = target->m_value; /* data swapped */
+
+	}
+
+	child = (target->m_left == NULL) ? target->m_right : target->m_left; /* child may be NIL */
+
+	/*
+	 * deletion from red-black tree
+	 *   4-children cluster (RED target node) becomes 3-children cluster
+	 *     done
+	 *   3-children cluster (RED target node) becomes 2-children cluster
+	 *     done
+	 *   3-children cluster (BLACK target node, RED child node) becomes 2-children cluster
+	 *     paint child node BLACK, and done
+	 *
+	 *	 2-children root cluster (BLACK target node, BLACK child node) becomes 0-children root cluster
+	 *     done
+	 *
+	 *   2-children cluster (BLACK target node, 4-children sibling cluster) becomes 3-children cluster
+	 *     transfer, and done
+	 *   2-children cluster (BLACK target node, 3-children sibling cluster) becomes 2-children cluster
+	 *     transfer, and done
+	 *
+	 *   2-children cluster (BLACK target node, 2-children sibling cluster, 3/4-children parent cluster) becomes 3-children cluster
+	 *     fuse, paint parent node BLACK, and done
+	 *   2-children cluster (BLACK target node, 2-children sibling cluster, 2-children parent cluster) becomes 3-children cluster
+	 *     fuse, and delete parent node from parent cluster
+	 */
+	if (target->m_color == RB_BLACK) {
+		if (child->m_color == RB_RED) {
+			/* deletion from 3-children cluster (BLACK target node, RED child node) */
+			child->m_color = RB_BLACK;
+		} else if (target == rbt->m_root) {
+			/* deletion from 2-children root cluster (BLACK target node, BLACK child node) */
+		} else {
+			/* deletion from 2-children cluster (BLACK target node, ...) */
+			rb_delete_repair(rbt, target);
+		}
+	} else {
+		/* deletion from 4-children cluster (RED target node) */
+		/* deletion from 3-children cluster (RED target node) */
+	}
+
+	if (child != NULL)
+		child->m_parent = target->m_parent;
+
+	if (target == target->m_parent->m_left)
+		target->m_parent->m_left = child;
+	else
+		target->m_parent->m_right = child;
+
+	rbt->m_freefunc(target);
+	
+	/* keep or discard data */
+	if (keep == 0) {
+		rbt->m_destroyfunc(data);
+		data = NULL;
+	}
+
+	return data;
+}
+
+
+void* rb_node_get(RB_NODE* node)
 {
 	if (node == NULL) {
 		return NULL;
 	}
-
-	if (node->m_left != NULL && node->m_right != NULL) {
-		return rb_node_next(node);
-	}
-	if (node->m_left != NULL) {
-		return node->m_left;
-	}
-	return node->m_right;
-}
-
-RB_NODE* __get_sibling(RB_NODE* node)
-{
-	if (node == NULL || node->m_parent == NULL) {
-		return NULL;
-	}
-	if (node == node->m_parent->m_left ) {
-		return node->m_parent->m_right;
-	}
-	return node->m_parent->m_left;
-}
-
-int __is_on_left(RB_NODE* node)
-{
-	if (node == node->m_parent->m_left) {
-		return 1;
-	}
-	return 0;
-}
-
-
-
-void* __rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep)
-{
-	void* pret=pnode->m_value;
-	RB_NODE* v = pnode;
-	RB_NODE* u = __rb_bst_replace(v);
-	RB_NODE* sibling;
-
-	int uvblack;
-
-check_uvblack:
-	uvblack = 0;
-	if ((u == NULL || u->m_color == RB_BLACK) && v->m_color == RB_BLACK ) {
-		uvblack = 1;
-	}
-
-	if (u == NULL) {
-		if (v== ptree->m_root) {
-			ptree->m_root = NULL;
-		} else {
-			if (uvblack != 0) {
-				__fixup_double_black(ptree,v);
-			} else {
-				sibling = __get_sibling(v);
-				if (sibling != NULL) {
-					sibling->m_color = RB_RED;
-				}
-			}
-
-			if (__is_on_left(v) != 0) {
-				v->m_parent->m_left = NULL;
-			} else {
-				v->m_parent->m_right = NULL;
-			}
-		}
-
-		if (keep == 0) {
-			ptree->m_destroyfunc(pret);
-			pret = NULL;
-		}
-		ptree->m_freefunc(v);
-		return pret;
-	}
-
-	if (v->m_left == NULL || v->m_right == NULL) {
-		/*only has 1 child*/
-		if (v == ptree->m_root) {
-			v->m_value = u->m_value;
-			v->m_left = v->m_left = NULL;
-			ptree->m_freefunc(u);
-		} else {
-			if (__is_on_left(v) != 0) {
-				v->m_parent->m_left = u;
-			} else {
-				v->m_parent->m_right = u;
-			}
-
-			ptree->m_freefunc(v);
-			u->m_parent = v->m_parent;
-
-			if (uvblack != 0) {
-				__fixup_double_black(ptree,u);
-			} else {
-				u->m_color = RB_BLACK;
-			}
-		}
-
-		if (keep == 0) {
-			ptree->m_destroyfunc(pret);
-			pret = NULL;
-		}
-		return pret;
-	}
-
-	/*ok this is two we check the value*/
-	v->m_value = u->m_value;
-	u->m_value = pret;
-	v = u;
-	u = __rb_bst_replace(v);
-	goto check_uvblack;
-}
-
-void* rb_delete(RB_TREE* ptree, RB_NODE* pnode,int keep)
-{
-	return __rb_delete(ptree,pnode,keep);
-}
-
-void* rb_delete2(RB_TREE* ptree, RB_NODE* pnode,int keep)
-{
-	void* pret = NULL;
-	RB_NODE* target = NULL;
-	RB_NODE* child=NULL;
-	pret = pnode->m_value;
-
-	DEBUG_INFO("delete pnode %d", pnode);
-	if (pnode->m_left == NULL || pnode->m_right == NULL ) {
-		target = pnode;
-	} else {
-		target = rb_node_next(pnode);
-		/*swap the data*/
-		pnode->m_value = target->m_value;
-		target->m_value = NULL;
-	}
-
-	if (target->m_left == NULL) {
-		child = target->m_right;
-	} else {
-		child = target->m_left;
-	}
-
-	DEBUG_INFO(" ");
-
-	if (target->m_color == RB_BLACK) {
-		if (child->m_color == RB_RED) {
-			child->m_color = RB_BLACK;
-		} else if (target == rb_first(ptree)) {
-
-		} else {
-			DEBUG_INFO(" ");
-			__rb_delete_repair(ptree,target);		
-		}
-	} else {
-		/*no deletion*/
-	}
-
-	DEBUG_INFO(" ");
-	if (child != NULL) {
-		DEBUG_INFO(" ");
-		child->m_parent = target->m_parent;
-	}
-
-	DEBUG_INFO(" ");
-	if (target == target->m_parent->m_left) {
-		DEBUG_INFO(" ");
-		target->m_parent->m_left = child;
-	} else {
-		DEBUG_INFO(" ");
-		target->m_parent->m_right = child;
-	}
-
-	if (keep == 0) {
-		ptree->m_freefunc(pret);
-		pret = NULL;
-	}
-
-	DEBUG_INFO(" ");
-	ptree->m_freefunc(target);
-	DEBUG_INFO(" ");
-	
-	return pret;
-}
-
-RB_NODE* rb_find(RB_TREE* ptree, void*arg)
-{
-	int ret;
-	RB_NODE* pnode = ptree->m_root;
-
-	while (1){
-		if (pnode == NULL) {
-			return NULL;
-		}
-
-		ret = ptree->m_comparefunc(pnode->m_value, arg);
-		if (ret == 0) {			
-			return pnode;
-		} else if (ret > 0) {
-			pnode = pnode->m_right;
-		} else {
-			pnode = pnode->m_left;
-		}
-	}
-	return NULL;
-}
-
-RB_NODE* _get_leaf(RB_NODE* pnode)
-{
-	if (pnode == NULL) {
-		return NULL;
-	}
-
-
-	while(1) {
-		if (pnode->m_left != NULL) {
-			pnode = pnode->m_left;
-		} else if (pnode->m_right != NULL) {
-			pnode = pnode->m_right;
-		} else {
-			return pnode;
-		}
-	}
-}
-
-
-void destroy_rb_tree(RB_TREE** pptree,int keep)
-{
-	if (pptree == NULL || *pptree == NULL) {
-		return;
-	}
-
-	RB_TREE* ptree = *pptree;
-	rb_free_func_t freefunc = ptree->m_freefunc;
-	rb_destroy_func_t destroyfunc = ptree->m_destroyfunc;
-	RB_NODE* pcur;
-	RB_NODE* parent;
-	int isright;
-
-	pcur = _get_leaf(ptree->m_root);
-
-	while(1) {
-		if (pcur == NULL) {
-			break;
-		}
-		if (keep == 0) {
-			destroyfunc(pcur->m_value);
-		}
-		pcur->m_value = NULL;
-		parent = pcur->m_parent;
-		isright = 0;
-		if (parent != NULL && parent->m_right == pcur) {
-			isright = 1;
-			parent->m_right = NULL;
-		} else if (parent != NULL && parent->m_left == pcur) {
-			parent->m_left = NULL;
-		}	
-		freefunc(pcur);
-		pcur = _get_leaf(parent);
-	}
-
-
-	freefunc(ptree);
-	*pptree = NULL;
-	return;
+	return node->m_value;
 }
