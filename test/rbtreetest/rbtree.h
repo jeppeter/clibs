@@ -35,16 +35,12 @@ private:
   RBNode *BSTreplace(RBNode *x);
   void deleteRBNode(RBNode *v);
   void fixDoubleBlack(RBNode *x);
-  void levelOrder(RBNode *x);
-  void inorder(RBNode *x);
 public:
 	RBTree();
 	RBNode *getRoot();
 	RBNode *search(int n);
 	void insert(int n);
 	void deleteByVal(int n);
-	void printInOrder();
-	void printLevelOrder();
 	void PrintTree(FILE* fp);
 	void PrintNode(FILE* fp, RBNode* node,int tab);
 };

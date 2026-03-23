@@ -322,44 +322,7 @@
     }
   }
 
-  // prints level order for given node
-  void RBTree::levelOrder(RBNode *x) {
-    if (x == NULL)
-      // return if node is null
-      return;
 
-    // queue for level order
-    std::queue<RBNode *> q;
-    RBNode *curr;
-
-    // push x
-    q.push(x);
-
-    while (!q.empty()) {
-      // while q is not empty
-      // dequeue
-      curr = q.front();
-      q.pop();
-
-      // print node value
-      std::cout << curr->val << " ";
-
-      // push children to queue
-      if (curr->left != NULL)
-        q.push(curr->left);
-      if (curr->right != NULL)
-        q.push(curr->right);
-    }
-  }
-
-  // prints inorder recursively
-  void RBTree::inorder(RBNode *x) {
-    if (x == NULL)
-      return;
-    inorder(x->left);
-    std::cout << x->val << " ";
-    inorder(x->right);
-  }
 
   // constructor
   // initialize root
@@ -439,25 +402,7 @@
     deleteRBNode(v);
   }
 
-  // prints inorder of the tree
-  void RBTree::printInOrder() {
-    std::cout << "Inorder: " << std::endl;
-    if (root == NULL)
-      std::cout << "Tree is empty" << std::endl;
-    else
-      inorder(root);
-    std::cout << std::endl;
-  }
 
-  // prints level order of the tree
-  void RBTree::printLevelOrder() {
-    std::cout << "Level order: " << std::endl;
-    if (root == NULL)
-      std::cout << "Tree is empty" << std::endl;
-    else
-      levelOrder(root);
-    std::cout << std::endl;
-  }
 
   void RBTree::PrintNode(FILE* fp, RBNode* node,int tab) {
     int i;
