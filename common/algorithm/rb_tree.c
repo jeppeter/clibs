@@ -513,16 +513,190 @@ RB_NODE* __bst_replace(RB_TREE* rbt,RB_NODE* x)
 	return x->m_right;
 }
 
+
+RB_NODE* __get_sibling(RB_NODE* x)
+{
+	if (x == NULL || x->m_parent == NULL) {
+		return NULL;
+	}
+
+	if (__is_on_left(x) != 0) {
+		return x->m_parent->m_right;
+	}
+	return x->m_parent->m_left;
+}
+
+int __has_red_child(RB_NODE* x)
+{
+	int ret = 0;
+	if (x != NULL) {
+		if (x->m_left != NULL && x->m_left->m_color == RB_RED) {
+			ret = 1;
+		}
+
+		if (x->m_right && x->m_right->m_color == RB_RED) {
+			ret = 1;
+		}
+	}
+	return ret;
+}
+
+void __fixup_double_black(RB_TREE* rbt,RB_NODE*x)
+{
+    if (x == rbt->m_root){
+      // Reached root
+      return;    	
+    }
+
+    RB_NODE *sibling = __get_sibling(x);
+    RB_NODE *parent = x->m_parent;
+    if (sibling == NULL) {
+      // No sibling, double black pushed up
+      __fixup_double_black(rbt,parent);
+    } else {
+      if (sibling->m_color == RB_RED) {
+        // Sibling red
+        parent->m_color = RB_RED;
+        sibling->m_color = RB_BLACK;
+        if (__is_on_left(sibling) != 0) {
+          // left case
+          rb_rotate_right(rbt,parent);
+        } else {
+          // right case
+          rb_rotate_left(rbt,parent);
+        }
+        __fixup_double_black(rbt,x);
+      } else {
+        // Sibling black
+        if (__has_red_child(sibling) != 0) {
+          // at least 1 red children
+          if (sibling->m_left != NULL && sibling->m_left->m_color == RB_RED) {
+            if (__is_on_left(sibling) != 0) {
+              // left left
+              sibling->m_left->m_color = sibling->m_color;
+              sibling->m_color = parent->m_color;
+              rb_rotate_right(rbt,parent);
+            } else {
+              // right left
+              sibling->m_left->m_color = parent->m_color;
+              rb_rotate_right(rbt,sibling);
+              rb_rotate_left(rbt,parent);
+            }
+          } else {
+            if (__is_on_left(sibling) != 0) {
+              // left right
+              sibling->m_right->m_color = parent->m_color;
+              rb_rotate_left(rbt,sibling);
+              rb_rotate_right(rbt,parent);
+            } else {
+              // right right
+              sibling->m_right->m_color = sibling->m_color;
+              sibling->m_color = parent->m_color;
+              rb_rotate_left(rbt,parent);
+            }
+          }
+          parent->m_color = RB_BLACK;
+        } else {
+          // 2 black children
+          sibling->m_color = RB_RED;
+          if (parent->m_color == RB_BLACK)
+            __fixup_double_black(rbt,parent);
+          else
+            parent->m_color = RB_BLACK;
+        }
+      }
+    }
+}
+
 /*
  * delete node
  * return NULL if keep is zero (already freed)
  */
 void *rb_delete(RB_TREE *rbt, RB_NODE *v, int keep)
 {
-	rbt = rbt;
-	v = v;
-	keep = keep;
-	return NULL;
+	void* pret=NULL;
+
+	RB_NODE* u = __bst_replace(rbt,v);
+	RB_NODE* parent;
+	int uvblack = 0;
+
+	if (v ) {
+		pret = v->m_value;
+	}
+
+
+try_again:
+	uvblack = 0;
+	if ((u == NULL || u->m_color == RB_BLACK) && v->m_color == RB_BLACK) {
+		uvblack = 1;
+	}
+	parent = v->m_parent;
+
+
+	if (u == NULL) {
+		if (v == rbt->m_root) {
+			rbt->m_root = NULL;
+		} else {
+			if (uvblack != 0) {
+				__fixup_double_black(rbt,v);
+			} else {
+				RB_NODE* sibling = __get_sibling(v);
+				if (sibling != NULL) {
+					sibling->m_color = RB_RED;
+				} 
+			}
+
+			if (__is_on_left(v) != 0) {
+				parent->m_left = NULL;
+			} else {
+				parent->m_right = NULL;
+			}
+
+		}
+		rbt->m_freefunc(v);
+		if (keep == 0) {
+			rbt->m_destroyfunc(pret);
+			pret = NULL;
+		}
+		return pret;
+	}
+
+	if (v->m_left == NULL || v->m_right == NULL) {
+		if (v == rbt->m_root) {
+			v->m_value = u->m_value;
+			v->m_left = v->m_right = NULL;
+			rbt->m_freefunc(u);
+			if (keep == 0) {
+				rbt->m_destroyfunc(pret);
+				pret = NULL;
+			}
+		} else {
+			if (__is_on_left(v) != 0) {
+				parent->m_left = u;
+			} else {
+				parent->m_right = u;
+			}
+
+			rbt->m_freefunc(v);
+			if (keep == 0) {
+				rbt->m_destroyfunc(pret);
+				pret = NULL;
+			}
+			u->m_parent = parent;
+			if (uvblack != 0) {
+				__fixup_double_black(rbt,u);
+			} else {
+				u->m_color = RB_BLACK;
+			}
+		}
+		return pret;
+	}
+
+	__swap_values(u,v);
+	v= u;
+	u = __bst_replace(rbt,v);
+	goto try_again;
+
 }
 
 void rb_print_node(RB_TREE* ptree,FILE* fp,RB_NODE* node,int tab)

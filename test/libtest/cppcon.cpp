@@ -108,8 +108,8 @@ void destroy_val(void* p)
 
 void print_val(void* p,FILE* fp,int tab)
 {
-	int i;
 	PRBVAL_t pval = (PRBVAL_t) p;
+	tab = tab;
 	fprintf(fp," .m_val %d\n", pval->m_val);
 	return;
 
@@ -121,6 +121,7 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 	int ret;
 	RB_TREE* ptree=NULL;
 	PRBVAL_t pval=NULL;
+	PRBVAL_t pret;
 	RB_NODE* pnode;
 	int i;
 	pargs_options_t pargs = (pargs_options_t) popt;
@@ -160,6 +161,25 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
 		vvals.push_back(pval);
 		pval = NULL;
+	}
+
+	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+		pval = vvals.at((uint64_t)i);
+		pnode = rb_find(ptree,pval);
+		if (pnode != NULL) {
+			if (af6) {
+				pret = (PRBVAL_t)rb_delete(ptree,pnode,1);	
+			} else {
+				pret = (PRBVAL_t)rb_delete(ptree,pnode,0);
+			}
+			
+			if (pret != pval && af6 != 0) {
+				ret = - ERROR_INVALID_PARAMETER;
+				fprintf(stderr,"can not get value %d:%p\n",pval->m_val,pval);
+				goto out;
+			}
+		}
+		rb_print_tree(ptree,stderr);
 	}
 
 
