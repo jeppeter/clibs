@@ -14,7 +14,7 @@ typedef struct rb_node_st   RB_NODE;
 extern "C" {
 #endif /* __cplusplus*/
 
-WINLIB_API RB_TREE* init_rb_tree(rb_malloc_func_t mallocfunc, rb_free_func_t freefunc,rb_compare_func_t comparefunc,rb_destroy_func_t destroyfunc);
+WINLIB_API RB_TREE* init_rb_tree(rb_malloc_func_t mallocfunc, rb_free_func_t freefunc,rb_compare_func_t comparefunc,rb_destroy_func_t destroyfunc,rb_print_func_t printfunc);
 WINLIB_API void destroy_rb_tree(RB_TREE** pptree,int keep);
 WINLIB_API RB_NODE* rb_insert(RB_TREE* ptree,void* arg);
 WINLIB_API RB_NODE* rb_first(RB_TREE* ptree);
@@ -22,6 +22,7 @@ WINLIB_API void* rb_delete(RB_TREE* ptree,RB_NODE* pnode,int keep);
 WINLIB_API RB_NODE* rb_find(RB_TREE* ptree,void* arg);
 WINLIB_API void* rb_node_get(RB_NODE* pnode);
 WINLIB_API RB_NODE* rb_node_next(RB_NODE* pnode);
+WINLIB_API void rb_print_tree(RB_TREE* ptree);
 
 #ifdef __cplusplus
 };

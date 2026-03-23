@@ -106,6 +106,19 @@ void destroy_val(void* p)
 	return;
 }
 
+void print_val(void* p,int tab)
+{
+	int i;
+	PRBVAL_t pval = (PRBVAL_t) p;
+	for(i=0;i<tab;i++) {
+		fprintf(stdout,"    ");
+	}
+	fprintf(stdout,".m_val %d\n", pval->m_val);
+	return;
+
+	
+}
+
 int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
 	int ret;
@@ -121,7 +134,7 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
 	init_log_level(pargs);
-	ptree = init_rb_tree(malloc_func,free_func,compare_func,destroy_val);
+	ptree = init_rb_tree(malloc_func,free_func,compare_func,destroy_val,print_val);
 	if (ptree == NULL) {
 		GETERRNO(ret);
 		goto out;
@@ -144,6 +157,8 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 			GETERRNO(ret);
 			goto out;
 		}
+
+		rb_print_tree(ptree);
 
 		//fprintf(stdout,"pnode %p\n",pnode);
 
