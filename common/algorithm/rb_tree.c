@@ -10,7 +10,11 @@
 /***********************************************
  * all algorithm from  https://en.wikipedia.org/wiki/Red%E2%80%93black_tree
 ***********************************************/
-
+#if 0
+#define PRINT_FUNC(fp,...) do{fprintf(fp,__VA_ARGS__);}while(0)
+#else
+#define PRINT_FUNC(fp,...) do{} while(0)
+#endif
 void __debug_node(RB_NODE* node,const char* file,int lineno,const char* fmt, ...);
 int __is_on_left(RB_NODE* x);
 /*
@@ -47,6 +51,7 @@ RB_TREE *init_rb_tree(rb_malloc_func_t mallocfunc, rb_free_func_t freefunc,rb_co
 	return rbt;
 }
 
+#if 0
 /*
  * destroy node recursively
  */
@@ -61,12 +66,14 @@ void __destroy(RB_TREE *rbt, RB_NODE *n,int keep)
 		rbt->m_freefunc(n);
 	}
 }
+#endif
 
 /*
  * destruction
  */
 void destroy_rb_tree(RB_TREE **prbt,int keep)
 {
+#if 0	
 	if (prbt != NULL && *prbt != NULL) {
 		RB_TREE* rbt = *prbt;
 		rb_free_func_t freefunc = rbt->m_freefunc;
@@ -74,6 +81,60 @@ void destroy_rb_tree(RB_TREE **prbt,int keep)
 		freefunc(rbt);
 		*prbt = NULL;
 	}
+#else
+
+	if (prbt != NULL && *prbt != NULL) {
+		RB_TREE* rbt = *prbt;
+		RB_NODE* x = rbt->m_root;
+		RB_NODE* parent;
+		rb_free_func_t freefunc  = rbt->m_freefunc;
+		void* pret;
+		int cnt = 0;
+
+		while(1) {
+			if (x == NULL) {
+				break;
+			}
+			if (x->m_left != NULL) {
+				x = x->m_left;
+				continue;
+			}
+
+			if (x->m_right != NULL) {
+				x = x->m_right;
+				continue;
+			}
+			parent = x->m_parent;
+			pret = x->m_value;
+
+			if (parent != NULL) {
+				if (__is_on_left(x) != 0) {
+					parent->m_left = NULL;
+				} else {
+					parent->m_right = NULL;
+				}
+			}
+
+			if (freefunc != NULL) {
+				freefunc(x);
+			}
+			if (keep == 0 && rbt->m_destroyfunc != NULL) {
+				rbt->m_destroyfunc(pret);
+			}
+
+			cnt += 1;
+			x = parent;
+		}
+
+		if (freefunc) {
+			freefunc(rbt);
+		}
+		*prbt = NULL;
+	}
+	return;
+#endif
+
+
 }
 
 
@@ -309,6 +370,18 @@ void rb_rotate_right(RB_TREE *rbt, RB_NODE *x)
 
 void __debug_node(RB_NODE* node,const char* file,int lineno,const char* fmt, ...)
 {
+#if 1
+	if(node){
+		node = node;
+	}
+	file = file;
+	lineno = lineno;
+	if (fmt) {
+		fmt = fmt;	
+	}
+	
+	return ;
+#else
 	int *ival;
 	char* fmtstr=NULL;
 	int fmtlen=0;
@@ -332,6 +405,7 @@ void __debug_node(RB_NODE* node,const char* file,int lineno,const char* fmt, ...
 	}
 	vsnprintf_safe(&fmtstr,&fmtlen,NULL,NULL);
 	return;
+#endif	
 }
 
 int __is_on_left(RB_NODE* x)
@@ -379,8 +453,11 @@ void __swap_values(RB_NODE* x, RB_NODE* y)
 	return;
 }
 
-void __fixup_red_red(RB_TREE *rbt,RB_NODE* x)
+void __fixup_red_red(RB_TREE *rbt,RB_NODE* node)
 {
+	RB_NODE* x = node;
+
+try_again:
 	if (x == rbt->m_root) {
 		x->m_color = RB_BLACK;
 		return;
@@ -399,7 +476,9 @@ void __fixup_red_red(RB_TREE *rbt,RB_NODE* x)
         uncle->m_color = RB_BLACK;
         grandparent->m_color = RB_RED;
         __debug_node(grandparent,__FILE__,__LINE__,"grandparent = RED");
-        __fixup_red_red(rbt,grandparent);
+        //__fixup_red_red(rbt,grandparent);
+        x = grandparent;
+        goto try_again;
       } else {
         // Else perform LR, LL, RL, RR
         if (__is_on_left(parent) != 0) {
@@ -547,8 +626,11 @@ int __has_red_child(RB_NODE* x)
 	return ret;
 }
 
-void __fixup_double_black(RB_TREE* rbt,RB_NODE*x)
+void __fixup_double_black(RB_TREE* rbt,RB_NODE*node)
 {
+	RB_NODE*x = node;
+
+try_again:
     if (x == rbt->m_root){
       // Reached root
       __debug_node(x,__FILE__,__LINE__,"x == root");
@@ -560,7 +642,9 @@ void __fixup_double_black(RB_TREE* rbt,RB_NODE*x)
     if (sibling == NULL) {
       // No sibling, double black pushed up
       __debug_node(parent,__FILE__,__LINE__,"fixDoubleBlack parent");
-      __fixup_double_black(rbt,parent);
+      //__fixup_double_black(rbt,parent);
+      x = parent;
+      goto try_again;
     } else {
       if (sibling->m_color == RB_RED) {
         // Sibling red
@@ -578,7 +662,9 @@ void __fixup_double_black(RB_TREE* rbt,RB_NODE*x)
           rb_rotate_left(rbt,parent);
         }
         __debug_node(x,__FILE__,__LINE__,"fixDoubleBlack x");
-        __fixup_double_black(rbt,x);
+        //__fixup_double_black(rbt,x);
+        x = x;
+        goto try_again;
       } else {
         // Sibling black
         if (__has_red_child(sibling) != 0) {
@@ -630,7 +716,9 @@ void __fixup_double_black(RB_TREE* rbt,RB_NODE*x)
           sibling->m_color = RB_RED;
           if (parent->m_color == RB_BLACK){
           	__debug_node(parent,__FILE__,__LINE__,"fixDoubleBlack parent");
-            __fixup_double_black(rbt,parent);
+            //__fixup_double_black(rbt,parent);
+            x = parent;
+            goto try_again;
           }
           else{
           	__debug_node(parent,__FILE__,__LINE__,"parent color BLACK");
@@ -757,13 +845,13 @@ void rb_print_node(RB_TREE* ptree,FILE* fp,RB_NODE* node,int tab)
 		return;
 	}
 	for(i=0;i<tab;i++) {
-		fprintf(fp,"    ");
+		PRINT_FUNC(fp,"    ");
 	}
-	fprintf(fp,"node %p .m_parent %p .m_left %p .m_right %p DISPLAY_NODE .m_color %s ",node,node->m_parent,node->m_left,node->m_right,node->m_color == RB_RED ? "RED" : "BLACK");
+	PRINT_FUNC(fp,"node %p .m_parent %p .m_left %p .m_right %p DISPLAY_NODE .m_color %s ",node,node->m_parent,node->m_left,node->m_right,node->m_color == RB_RED ? "RED" : "BLACK");
 	if (ptree->m_printfunc) {
 		ptree->m_printfunc(node->m_value,fp,tab);
 	}
-	fprintf(fp,"\n");
+	PRINT_FUNC(fp,"\n");
 	if (node->m_left) {
 		rb_print_node(ptree,fp,node->m_left,tab+1);
 	}
@@ -774,7 +862,7 @@ void rb_print_node(RB_TREE* ptree,FILE* fp,RB_NODE* node,int tab)
 
 void rb_print_tree(RB_TREE* ptree,FILE* fp)
 {
-	fprintf(fp,"tree %p\n", ptree);
+	PRINT_FUNC(fp,"tree %p\n", ptree);
 	if (ptree && ptree->m_printfunc) {
 		RB_NODE* root = ptree->m_root;
 		rb_print_node(ptree,fp,root,1);
