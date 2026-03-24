@@ -15,6 +15,7 @@
 #else
 #define PRINT_FUNC(fp,...) do{} while(0)
 #endif
+
 void __debug_node(RB_NODE* node,const char* file,int lineno,const char* fmt, ...);
 int __is_on_left(RB_NODE* x);
 /*
@@ -245,7 +246,6 @@ RB_NODE *rb_find(RB_TREE *rbt, void *data)
 		if (cmp == 0){
 			return p; /* found */
 		}
-		DEBUG_INFO("data %p p->m_value %p cmp %d",data,p->m_value, cmp);
 		p = cmp < 0 ? p->m_left : p->m_right;
 	}
 
@@ -782,13 +782,11 @@ try_again:
 			}
 
 		}
-		DEBUG_INFO(" ");
 		rbt->m_freefunc(v);
 		if (keep == 0) {
 			rbt->m_destroyfunc(pret);
 			pret = NULL;
 		}
-		DEBUG_INFO("pret %p", pret);
 		return pret;
 	}
 
