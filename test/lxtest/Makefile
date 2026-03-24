@@ -11,7 +11,7 @@ include ../../baseop.mak
 LXTEST_SRCS= main.cpp pingcap.cpp pingtotal.cpp
 LXTEST_OFILES=$(patsubst %.cpp,%.o,${LXTEST_SRCS})
 
-INCLUDE_CFLAGS= -I${TOPDIR}/uxlib -I${TOPDIR}/common -I${TOPDIR}/common/jsonlib -I${TOPDIR}/common/extargslib -I${TOPDIR}/common/cryptutil
+INCLUDE_CFLAGS= -I${TOPDIR}/uxlib -I${TOPDIR}/common -I${TOPDIR}/common/jsonlib -I${TOPDIR}/common/extargslib -I${TOPDIR}/common/cryptutil -I${TOPDIR}/common/algorithm
 
 #$(info "SRCDIR ${SRCDIR} $(MAKEFILE_LIST)")
 ifeq (${STATICLIB},)
@@ -28,11 +28,12 @@ all:dynamic
 dynamic:lxtest
 
 ifeq (${CROSS_LIBRARAY_PATH},)
-lxtest:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -lextargs -ljson -luxlib -lcryptutil -llzma,"LINK    $@")
+lxtest:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so ${DYNAMICDIR}/libalgorithm.so
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -lextargs -ljson -luxlib -lcryptutil -llzma -lalgorithm,"LINK    $@")
+
 else
-lxtest:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -L${CROSS_LIBRARAY_PATH} -lextargs -ljson -luxlib -lcryptutil -llzma,"LINK    $@")	
+lxtest:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so ${DYNAMICDIR}/libalgorithm.so
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -L${CROSS_LIBRARAY_PATH} -lextargs -ljson -luxlib -lcryptutil -llzma -lalgorithm,"LINK    $@")	
 endif
 
 ${DYNAMICDIR}/libuxlib.so:
@@ -47,6 +48,9 @@ ${DYNAMICDIR}/libjson.so:
 ${DYNAMICDIR}/libcryptutil.so:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/cryptutil all,"GEN     libcryptutil.so")
 
+${DYNAMICDIR}/libalgorithm.so:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/algorithm all,"GEN     libalgorithm.so")
+
 else
 
 all:static
@@ -54,11 +58,11 @@ all:static
 static:lxtest_static
 
 ifeq (${CROSS_LIBRARAY_PATH},)
-lxtest_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -lextargs -ljson -luxlib -lcryptutil -llzma,"LINK    $@")
+lxtest_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a ${STATICDIR}/libalgorithm.a
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -lextargs -ljson -luxlib -lcryptutil -llzma -lalgorithm,"LINK    $@")
 else
-lxtest_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -L${CROSS_LIBRARAY_PATH} -lextargs -ljson -luxlib -lcryptutil -llzma,"LINK    $@")
+lxtest_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a ${STATICDIR}/libalgorithm.a
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -L${CROSS_LIBRARAY_PATH} -lextargs -ljson -luxlib -lcryptutil -llzma -lalgorithm,"LINK    $@")
 endif
 
 
@@ -74,6 +78,8 @@ ${STATICDIR}/libjson.a:
 ${STATICDIR}/libcryptutil.a:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/cryptutil all,"GEN     libcryptutil.a")
 
+${STATICDIR}/libalgorithm.a:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/algorithm all,"GEN     libalgorithm.a")
 
 endif
 
@@ -102,8 +108,11 @@ clean_uxlib:
 clean_cryptutil:
 	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/cryptutil clean,"CLEAN   cryptutil")
 
+clean_algorithm:
+	$(call call_exec,${MAKE} ${MAKE_PRINT_FLAG} -C ${TOPDIR}/common/algorithm clean,"CLEAN   algorithm")
 
-clean:clean_extargslib clean_uxlib clean_json clean_cryptutil
+
+clean:clean_extargslib clean_uxlib clean_json clean_cryptutil clean_algorithm
 	$(call call_exec,${RM} -f lxtest lxtest_static, "RM      lxtest")
 	$(call call_exec,${RM} -f args_options.cpp,"RM      args_options.cpp")
 	$(call call_exec,${RM} -f ${LXTEST_OFILES}, "RM      *.o")
