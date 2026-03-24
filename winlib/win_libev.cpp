@@ -12,6 +12,8 @@
 #pragma warning(disable:4577)
 
 #include <vector>
+#include <map>
+#include <rb_tree.h>
 
 #pragma warning(pop)
 
@@ -47,8 +49,9 @@ typedef struct __libev_win_ev{
     uint64_t m_guid;
     HANDLE *m_pwaits;
     HANDLE m_htmevt[1];
-    std::vector<plibev_evt_timer_t> *m_ptimers;
-    std::vector<plibev_evt_call_t> *m_pcallers;
+    std::map<uint64_t,plibev_evt_timer_t> *m_ptimers;
+    std::map<HANDLE,plibev_evt_call_t> *m_pcallers;
+    RB_TREE* m_rbtimer;
 } libev_win_ev_t,*plibev_win_ev_t;
 
 
@@ -86,10 +89,15 @@ void __free_winev(plibev_win_ev_t* ppev)
 {
     if (ppev && *ppev) {
         plibev_win_ev_t pev = *ppev;
+
+        /*we do not free the timers*/
+        destroy_rb_tree(&(pev->m_rbtimer),1);
+
         if (pev->m_ptimers != NULL) {
             while(pev->m_ptimers->size() > 0) {
-                plibev_evt_timer_t ptimer = pev->m_ptimers->at(0);
-                pev->m_ptimers->erase(pev->m_ptimers->begin());
+                auto iter = pev->m_ptimers->begin();
+                plibev_evt_timer_t ptimer = iter->second;
+                pev->m_ptimers->erase(iter);
                 __free_winev_timer(&ptimer);
                 ptimer = NULL;
             }
@@ -99,8 +107,9 @@ void __free_winev(plibev_win_ev_t* ppev)
 
         if (pev->m_pcallers != NULL) {
             while(pev->m_pcallers->size() > 0) {
-                plibev_evt_call_t pcall = pev->m_pcallers->at(0);
-                pev->m_pcallers->erase(pev->m_pcallers->begin());
+                auto iter = pev->m_pcallers->begin();
+                plibev_evt_call_t pcall = iter->second;
+                pev->m_pcallers->erase(iter);
                 __free_winev_call(&pcall);                
             }
             delete pev->m_pcallers;
@@ -126,6 +135,59 @@ void __free_winev(plibev_win_ev_t* ppev)
     return ;
 }
 
+void* timer_malloc_func(size_t size)
+{
+    return malloc(size);
+}
+
+void timer_free_func(void* ptr)
+{
+    free(ptr);
+    return;
+}
+
+int timer_compare_func(void* a, void* b)
+{
+    plibev_evt_timer_t pa= (plibev_evt_timer_t)a;
+    plibev_evt_timer_t pb = (plibev_evt_timer_t)b;
+    uint64_t aaddr,baddr;
+    uint64_t atick=0 ,btick=0;
+
+    atick = pa->m_startticks + pa->m_interval;
+    btick = pb->m_startticks + pb->m_interval;
+
+    if (atick < btick) {
+        return -1;
+    } else if (atick > btick) {
+        return 1;
+    } else {
+
+        aaddr = (uint64_t)((addr_t)pa);
+        baddr = (uint64_t)((addr_t)pb);
+        if (aaddr < baddr) {
+            return -1;
+        } else if (aaddr > baddr) {
+            return 1;
+        }
+    }
+    return 0;    
+}
+
+void timer_destroy_func(void* a)
+{
+    /*we can not call this*/
+    ASSERT_IF(a == NULL);
+    return;
+}
+
+void timer_print_func(void* arg,FILE* fp,int tab)
+{
+    fp = fp;
+    arg = arg;
+    tab = tab;
+    return;
+}
+
 plibev_win_ev_t __alloc_winev()
 {
     plibev_win_ev_t pev = NULL;
@@ -148,8 +210,15 @@ plibev_win_ev_t __alloc_winev()
         goto fail;
     }
 
-    pev->m_ptimers = new std::vector<plibev_evt_timer_t>();
-    pev->m_pcallers = new std::vector<plibev_evt_call_t>();
+    pev->m_rbtimer = init_rb_tree(timer_malloc_func,timer_free_func,timer_compare_func,timer_destroy_func,timer_print_func);
+    if (pev->m_rbtimer == NULL) {
+        GETERRNO(ret);
+        ERROR_INFO("cannot create rbtimer");
+        goto fail;
+    }
+
+    pev->m_ptimers = new std::map<uint64_t,plibev_evt_timer_t>();
+    pev->m_pcallers = new std::map<HANDLE,plibev_evt_call_t>();
     return pev;
 fail:
     __free_winev(&pev);
@@ -202,6 +271,7 @@ int libev_insert_timer(void* pevmain,uint64_t* pguid,libev_timer_callback_t pfun
     plibev_evt_timer_t ptimer = NULL;
     int ret;
     plibev_win_ev_t pev = (plibev_win_ev_t) pevmain;
+    RB_NODE* node=NULL;
 
     if (pguid == NULL || pfunc == NULL || timemills == 0 || pev == NULL)  {
         ret = -ERROR_INVALID_PARAMETER;
@@ -217,7 +287,14 @@ int libev_insert_timer(void* pevmain,uint64_t* pguid,libev_timer_callback_t pfun
 
     pev->m_guid += 1;
     ptimer->m_guid = pev->m_guid;
-    pev->m_ptimers->push_back(ptimer);
+
+    node = rb_insert(pev->m_rbtimer,ptimer);
+    if (node == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pev->m_ptimers->insert({pev->m_guid,ptimer});
     ptimer = NULL;
 
     *pguid = pev->m_guid;
@@ -303,7 +380,7 @@ int libev_insert_handle(void* pevmain,HANDLE hd,libev_evt_callback_t pfunc,void*
     pev->m_pwaits[pev->m_waitnum] = hd;
     pev->m_waitnum += 1;
 
-    pev->m_pcallers->push_back(pcall);
+    pev->m_pcallers->insert({hd,pcall});
     ASSERT_IF(pev->m_waitnum == pev->m_pcallers->size());
     ASSERT_IF(pev->m_waitnum <= pev->m_waitsize);
     return (int)pev->m_pcallers->size();
@@ -317,6 +394,7 @@ fail:
     return ret;
 }
 
+#if 0
 int __find_evt_call(plibev_win_ev_t pev,HANDLE hd)
 {
     unsigned int i;
@@ -352,11 +430,11 @@ int __find_evt_timer(plibev_win_ev_t pev, uint64_t guid)
     }
     return -1;    
 }
+#endif
 
 int libev_remove_timer(void* pevmain,uint64_t guid)
 {
     plibev_win_ev_t pev = (plibev_win_ev_t) pevmain;
-    int fidx=-1;
     int ret;
 
     if (pev == NULL || guid == 0) {
@@ -365,13 +443,20 @@ int libev_remove_timer(void* pevmain,uint64_t guid)
         return ret;
     }
 
-    fidx = __find_evt_timer(pev,guid);
-    if (fidx < 0) {
+    auto iter = pev->m_ptimers->find(guid);
+    if (iter == pev->m_ptimers->end()) {
+        /* nothing to find*/
         return 0;
     }
 
-    plibev_evt_timer_t ptimer = pev->m_ptimers->at((uint64_t)fidx);
-    pev->m_ptimers->erase(pev->m_ptimers->begin() + fidx);
+
+    plibev_evt_timer_t ptimer = iter->second;
+
+    RB_NODE* node = rb_find(pev->m_rbtimer,ptimer);
+    if (node != NULL) {
+        rb_delete(pev->m_rbtimer,node,1);
+    }
+    pev->m_ptimers->erase(iter);
     __free_winev_timer(&ptimer);
     return 1;
 }
@@ -384,27 +469,37 @@ int libev_remove_handle(void* pevmain,HANDLE hd)
     HANDLE* ptmp =NULL;
     int i;
 
+
     if (pev == NULL || hd == NULL) {
         ret = -ERROR_INVALID_PARAMETER;
         SETERRNO(ret);
         return ret;
     }
 
-    fidx = __find_evt_call(pev,hd);
-    if (fidx < 0) {
+    auto iter = pev->m_pcallers->find(hd);
+    if (iter == pev->m_pcallers->end()) {
         return 0;
     }
 
+
     //DEBUG_INFO("remove handle %p",hd);
 
-    plibev_evt_call_t pcall = pev->m_pcallers->at((uint64_t)fidx);
-    pev->m_pcallers->erase(pev->m_pcallers->begin() + fidx);
+    plibev_evt_call_t pcall = iter->second;
+    pev->m_pcallers->erase(iter);
     __free_winev_call(&pcall);
-
     if (pev->m_pwaits != NULL) {
-        for(i=fidx;i<(int)(pev->m_waitnum-1);i++) {
+        fidx = -1;
+        for(i=0;i<(int)(pev->m_waitnum);i++) {
             //DEBUG_INFO("[%d] %p => %p",i,pev->m_pwaits[i],pev->m_pwaits[i+1]);
-            pev->m_pwaits[i] = pev->m_pwaits[i+1];
+            if (fidx < 0) {
+                if (pev->m_pwaits[i] == hd)  {
+                    fidx = i;
+                    continue;
+                }                
+            } else {
+                /*to put the handle*/
+                pev->m_pwaits[i-1] = pev->m_pwaits[i];
+            }
         }
         pev->m_pwaits[pev->m_waitnum-1] = NULL;
         pev->m_waitnum -= 1;
@@ -434,6 +529,8 @@ int libev_remove_handle(void* pevmain,HANDLE hd)
             }
         }
     }
+
+
     ASSERT_IF(pev->m_pcallers->size() == pev->m_waitnum);
     ASSERT_IF(pev->m_waitnum <= pev->m_waitsize );
 
@@ -453,15 +550,17 @@ void libev_break_winev_loop(void* pevmain)
 int __get_max_mills(plibev_win_ev_t pev, int maxmills)
 {
     int retmills = maxmills;
-    unsigned int i;
     int ret;
-    uint64_t cticks = get_current_ticks();
-    for(i=0;i<pev->m_ptimers->size();i++) {
-        plibev_evt_timer_t ptimer = pev->m_ptimers->at(i);
+    RB_NODE* node = rb_first(pev->m_rbtimer);
+    if (node != NULL) {
+        /* now we should give */
+        uint64_t cticks = get_current_ticks();
+        plibev_evt_timer_t ptimer = (plibev_evt_timer_t)rb_node_get(node);
         ret = need_wait_times(ptimer->m_startticks,cticks,(int)ptimer->m_interval);
         if (ret < 0) {
             return 1;
         }
+
         if (ret < retmills) {
             retmills = ret;
         }
@@ -479,7 +578,6 @@ int libev_winev_loop(void* pevmain)
     std::vector<uint64_t> timerguids;
     DWORD dret;
     HANDLE hd;
-    int fidx=-1;
     unsigned int i;
     uint64_t cticks;
     plibev_evt_timer_t  ptimer;
@@ -507,9 +605,10 @@ int libev_winev_loop(void* pevmain)
                 hd = pev->m_htmevt[0];
             }
             //DEBUG_INFO("[%d]hd %p",dret,hd);
-            fidx = __find_evt_call(pev,hd);
-            if (fidx >= 0) {
-                plibev_evt_call_t pcall = pev->m_pcallers->at((uint64_t)fidx);
+            auto iter = pev->m_pcallers->find(hd);
+
+            if (iter != pev->m_pcallers->end()) {
+                plibev_evt_call_t pcall = iter->second;
                 //DEBUG_INFO("pcall->m_func %p",pcall->m_func);
                 ret = pcall->m_func(pcall->m_handle,normal_event,pev,pcall->m_args);
                 //DEBUG_INFO("pcall->m_func %p ret %d",pcall->m_func, ret);
@@ -525,20 +624,29 @@ int libev_winev_loop(void* pevmain)
         } 
         /*now to check for the timer*/
         timerguids.clear();
-        for(i=0;i<pev->m_ptimers->size();i++) {
+        RB_NODE* node = rb_first(pev->m_rbtimer);
+        while(1) {
+            if (node == NULL) {
+                break;
+            }
+
             cticks = get_current_ticks();
-            ptimer = pev->m_ptimers->at(i);
+            ptimer = (plibev_evt_timer_t)rb_node_get(node);
             ret = need_wait_times(ptimer->m_startticks,cticks,(int)ptimer->m_interval);
             if (ret < 0) {
                 /*we add timer*/
                 timerguids.push_back(ptimer->m_guid);
+            } else {
+                /*no timers*/
+                break;
             }
+            node = rb_node_next(node);
         }
 
         for(i=0;i<timerguids.size();i++) {
-            fidx = __find_evt_timer(pev,timerguids.at(i));
-            if (fidx >= 0) {
-                ptimer = pev->m_ptimers->at((uint64_t)fidx);
+            auto iter = pev->m_ptimers->find(timerguids.at((uint64_t)i));
+            if (iter != pev->m_ptimers->end()) {
+                ptimer = iter->second;
                 //DEBUG_INFO("call ptimer %p", ptimer->m_func);
                 ret = ptimer->m_func(timerguids.at(i),timer_event,pev,ptimer->m_args);
                 //DEBUG_INFO("call ptimer %p ret %d", ptimer->m_func, ret);
@@ -552,17 +660,25 @@ int libev_winev_loop(void* pevmain)
         //DEBUG_INFO("find timers update");
         /*now to make running again*/
         for(i=0;i<timerguids.size();i++) {
-            fidx = __find_evt_timer(pev,timerguids.at(i));
-            if (fidx >= 0) {
-                ptimer = pev->m_ptimers->at((uint64_t)fidx);
+            auto iter = pev->m_ptimers->find(timerguids.at((uint64_t)i));
+            if (iter != pev->m_ptimers->end()) {
+                ptimer = iter->second;
+                node = rb_find(pev->m_rbtimer,ptimer);
+                if (node != NULL) {
+                    /*to get the timer*/
+                    rb_delete(pev->m_rbtimer,node,1);
+                }
                 if (ptimer->m_conti == 0) {
-                    //DEBUG_INFO("remove timer %d 0x%llx", fidx, ptimer->m_guid);
-                    pev->m_ptimers->erase(pev->m_ptimers->begin()+fidx);
+                    pev->m_ptimers->erase(iter);
                     __free_winev_timer(&ptimer);
                 } else {
-                    /*to make the next one*/
-                    //DEBUG_INFO("update timer %d 0x%llx", fidx, ptimer->m_guid);
                     ptimer->m_startticks = get_current_ticks();
+                    node = rb_insert(pev->m_rbtimer,ptimer);
+                    if (node == NULL) {
+                        GETERRNO(ret);
+                        ERROR_INFO("can not insert timer %lld", ptimer->m_guid);
+                        goto fail;
+                    }
                 }
             }
         }
