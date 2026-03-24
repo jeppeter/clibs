@@ -598,6 +598,9 @@
     },
     "rbtest<rbtest_handler>##values ... to test rbtest##" : {
         "$" : "+"
+    },
+    "rbrand<rbrand_handler>##maxnum num to random do##" : {
+        "$" : "*"
     }
 
 

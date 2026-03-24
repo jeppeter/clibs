@@ -102,13 +102,19 @@ RB_NODE *rb_node_next(RB_NODE *node)
 {
 	RB_NODE *p,*curp;
 
+	if (node == NULL) {
+		return NULL;
+	}
+
 	p = node->m_right;
 
 	if (p != NULL) {
 		/* move down until we find it */
-		for ( ; p->m_left != NULL; p = p->m_left) ;
+		for ( ; p->m_left != NULL; p = p->m_left) {}
+
 	} else {
 		/* move up until we find it or hit the root */
+		p = node;
 		while(1) {
 			curp = p->m_parent;
 			if (curp == NULL) {
@@ -545,6 +551,7 @@ void __fixup_double_black(RB_TREE* rbt,RB_NODE*x)
 {
     if (x == rbt->m_root){
       // Reached root
+      __debug_node(x,__FILE__,__LINE__,"x == root");
       return;    	
     }
 
@@ -552,57 +559,83 @@ void __fixup_double_black(RB_TREE* rbt,RB_NODE*x)
     RB_NODE *parent = x->m_parent;
     if (sibling == NULL) {
       // No sibling, double black pushed up
+      __debug_node(parent,__FILE__,__LINE__,"fixDoubleBlack parent");
       __fixup_double_black(rbt,parent);
     } else {
       if (sibling->m_color == RB_RED) {
         // Sibling red
+        __debug_node(parent,__FILE__,__LINE__,"parent set color RED");
         parent->m_color = RB_RED;
+        __debug_node(sibling,__FILE__,__LINE__,"sibling set color BLACK");
         sibling->m_color = RB_BLACK;
         if (__is_on_left(sibling) != 0) {
           // left case
+          __debug_node(parent,__FILE__,__LINE__,"parent rightRotate");
           rb_rotate_right(rbt,parent);
         } else {
           // right case
+          __debug_node(parent,__FILE__,__LINE__,"parent leftRotate");
           rb_rotate_left(rbt,parent);
         }
+        __debug_node(x,__FILE__,__LINE__,"fixDoubleBlack x");
         __fixup_double_black(rbt,x);
       } else {
         // Sibling black
         if (__has_red_child(sibling) != 0) {
           // at least 1 red children
+          __debug_node(sibling,__FILE__,__LINE__,"hasRedChild");
           if (sibling->m_left != NULL && sibling->m_left->m_color == RB_RED) {
             if (__is_on_left(sibling) != 0) {
               // left left
+              __debug_node(sibling,__FILE__,__LINE__,"sibling color fixup");
               sibling->m_left->m_color = sibling->m_color;
+              __debug_node(sibling,__FILE__,__LINE__,"sibling parent color set");
               sibling->m_color = parent->m_color;
+              __debug_node(parent,__FILE__,__LINE__,"rightRotate parent");
               rb_rotate_right(rbt,parent);
             } else {
               // right left
+              __debug_node(sibling,__FILE__,__LINE__,"sibling color fixup");
               sibling->m_left->m_color = parent->m_color;
+              __debug_node(sibling,__FILE__,__LINE__,"rightRotate sibling");
               rb_rotate_right(rbt,sibling);
+              __debug_node(parent,__FILE__,__LINE__,"leftRotate parent");
               rb_rotate_left(rbt,parent);
             }
           } else {
+          	__debug_node(sibling,__FILE__,__LINE__,"check sibling isOnLeft");
             if (__is_on_left(sibling) != 0) {
               // left right
+              __debug_node(sibling,__FILE__,__LINE__,"sibling right color set");
               sibling->m_right->m_color = parent->m_color;
+              __debug_node(sibling,__FILE__,__LINE__,"leftRotate sibling");
               rb_rotate_left(rbt,sibling);
+              __debug_node(parent,__FILE__,__LINE__,"rightRotate parent");
               rb_rotate_right(rbt,parent);
             } else {
               // right right
+              __debug_node(sibling,__FILE__,__LINE__,"sibling right color set");
               sibling->m_right->m_color = sibling->m_color;
+              __debug_node(sibling,__FILE__,__LINE__,"sibling color parent set");
               sibling->m_color = parent->m_color;
+              __debug_node(parent,__FILE__,__LINE__,"leftRotate parent");
               rb_rotate_left(rbt,parent);
             }
           }
+          __debug_node(parent,__FILE__,__LINE__,"parent color BLACK");
           parent->m_color = RB_BLACK;
         } else {
           // 2 black children
+          __debug_node(sibling,__FILE__,__LINE__,"sibling color RED");
           sibling->m_color = RB_RED;
-          if (parent->m_color == RB_BLACK)
+          if (parent->m_color == RB_BLACK){
+          	__debug_node(parent,__FILE__,__LINE__,"fixDoubleBlack parent");
             __fixup_double_black(rbt,parent);
-          else
+          }
+          else{
+          	__debug_node(parent,__FILE__,__LINE__,"parent color BLACK");
             parent->m_color = RB_BLACK;
+          }
         }
       }
     }
@@ -626,43 +659,54 @@ void *rb_delete(RB_TREE *rbt, RB_NODE *v, int keep)
 
 
 try_again:
+	__debug_node(v,__FILE__,__LINE__,"v node");
+	__debug_node(u,__FILE__,__LINE__,"u node");
 	uvblack = 0;
 	if ((u == NULL || u->m_color == RB_BLACK) && v->m_color == RB_BLACK) {
 		uvblack = 1;
 	}
 	parent = v->m_parent;
+	__debug_node(parent,__FILE__,__LINE__,"parent node");
 
 
 	if (u == NULL) {
 		if (v == rbt->m_root) {
+			__debug_node(v,__FILE__,__LINE__,"root clear");
 			rbt->m_root = NULL;
 		} else {
 			if (uvblack != 0) {
+				__debug_node(v,__FILE__,__LINE__,"fixDoubleBlack");
 				__fixup_double_black(rbt,v);
 			} else {
 				RB_NODE* sibling = __get_sibling(v);
 				if (sibling != NULL) {
+					__debug_node(sibling,__FILE__,__LINE__,"sibling color set");
 					sibling->m_color = RB_RED;
 				} 
 			}
 
 			if (__is_on_left(v) != 0) {
+				__debug_node(v,__FILE__,__LINE__,"leftset");
 				parent->m_left = NULL;
 			} else {
+				__debug_node(v,__FILE__,__LINE__,"rightset");
 				parent->m_right = NULL;
 			}
 
 		}
+		DEBUG_INFO(" ");
 		rbt->m_freefunc(v);
 		if (keep == 0) {
 			rbt->m_destroyfunc(pret);
 			pret = NULL;
 		}
+		DEBUG_INFO("pret %p", pret);
 		return pret;
 	}
 
 	if (v->m_left == NULL || v->m_right == NULL) {
 		if (v == rbt->m_root) {
+			__debug_node(v,__FILE__,__LINE__,"v set right left clear");
 			v->m_value = u->m_value;
 			v->m_left = v->m_right = NULL;
 			rbt->m_freefunc(u);
@@ -672,8 +716,10 @@ try_again:
 			}
 		} else {
 			if (__is_on_left(v) != 0) {
+				__debug_node(u,__FILE__,__LINE__,"parent left = u");
 				parent->m_left = u;
 			} else {
+				__debug_node(u,__FILE__,__LINE__,"parent right = u");
 				parent->m_right = u;
 			}
 
@@ -682,17 +728,22 @@ try_again:
 				rbt->m_destroyfunc(pret);
 				pret = NULL;
 			}
+			__debug_node(u,__FILE__,__LINE__,"u set parent");
 			u->m_parent = parent;
 			if (uvblack != 0) {
+				__debug_node(u,__FILE__,__LINE__,"fixDoubleBlack");
 				__fixup_double_black(rbt,u);
 			} else {
+				__debug_node(u,__FILE__,__LINE__,"u set black");
 				u->m_color = RB_BLACK;
 			}
 		}
 		return pret;
 	}
 
+	__debug_node(u,__FILE__,__LINE__,"swapValues");
 	__swap_values(u,v);
+	__debug_node(u,__FILE__,__LINE__,"recursive");
 	v= u;
 	u = __bst_replace(rbt,v);
 	goto try_again;
@@ -702,6 +753,9 @@ try_again:
 void rb_print_node(RB_TREE* ptree,FILE* fp,RB_NODE* node,int tab)
 {
 	int i;
+	if (node == NULL) {
+		return;
+	}
 	for(i=0;i<tab;i++) {
 		fprintf(fp,"    ");
 	}

@@ -288,31 +288,40 @@
   void RBTree::deleteRBNode(RBNode *v) {
     RBNode *u = BSTreplace(v);
 
+    __debug_node(v,__FILE__,__LINE__,"v node");
+    __debug_node(u,__FILE__,__LINE__,"u node");
+
     // True when u and v are both black
     bool uvBlack = ((u == NULL || u->color == BLACK) && (v->color == BLACK));
     RBNode *parent = v->parent;
+    __debug_node(parent,__FILE__,__LINE__,"parent node");
 
     if (u == NULL) {
       // u is NULL therefore v is leaf
       if (v == root) {
         // v is root, making root null
+        __debug_node(v,__FILE__,__LINE__,"root clear");
         root = NULL;
       } else {
         if (uvBlack) {
           // u and v both black
           // v is leaf, fix double black at v
+          __debug_node(v,__FILE__,__LINE__,"fixDoubleBlack");
           fixDoubleBlack(v);
         } else {
           // u or v is red
           if (v->sibling() != NULL)
             // sibling is not null, make it red"
+            __debug_node(v->sibling(),__FILE__,__LINE__,"sibling color set");
             v->sibling()->color = RED;
         }
 
         // delete v from the tree
         if (v->isOnLeft()) {
+          __debug_node(v,__FILE__,__LINE__,"leftset");
           parent->left = NULL;
         } else {
+          __debug_node(v,__FILE__,__LINE__,"rightset");
           parent->right = NULL;
         }
       }
@@ -324,23 +333,29 @@
       // v has 1 child
       if (v == root) {
         // v is root, assign the value of u to v, and delete u
+        __debug_node(v,__FILE__,__LINE__,"v set right left clear");
         v->val = u->val;
         v->left = v->right = NULL;
         delete u;
       } else {
         // Detach v from tree and move u up
         if (v->isOnLeft()) {
+          __debug_node(u,__FILE__,__LINE__,"parent left = u");
           parent->left = u;
         } else {
+          __debug_node(u,__FILE__,__LINE__,"parent right = u");
           parent->right = u;
         }
         delete v;
+        __debug_node(u,__FILE__,__LINE__,"u set parent");
         u->parent = parent;
         if (uvBlack) {
           // u and v both black, fix double black at u
+          __debug_node(u,__FILE__,__LINE__,"fixDoubleBlack");
           fixDoubleBlack(u);
         } else {
           // u or v red, color u black
+          __debug_node(u,__FILE__,__LINE__,"u set black");
           u->color = BLACK;
         }
       }
@@ -348,69 +363,99 @@
     }
 
     // v has 2 children, swap values with successor and recurse
+    __debug_node(u,__FILE__,__LINE__,"swapValues");
     swapValues(u, v);
+    __debug_node(u,__FILE__,__LINE__,"recursive");
     deleteRBNode(u);
   }
 
   void RBTree::fixDoubleBlack(RBNode *x) {
-    if (x == root)
+    if (x == root){
       // Reached root
+      __debug_node(x,__FILE__,__LINE__,"x == root");
       return;
+    }
 
     RBNode *sibling = x->sibling(), *parent = x->parent;
     if (sibling == NULL) {
       // No sibling, double black pushed up
+      __debug_node(parent,__FILE__,__LINE__,"fixDoubleBlack parent");
       fixDoubleBlack(parent);
     } else {
       if (sibling->color == RED) {
         // Sibling red
+        __debug_node(parent,__FILE__,__LINE__,"parent set color RED");
         parent->color = RED;
+        __debug_node(sibling,__FILE__,__LINE__,"sibling set color BLACK");
         sibling->color = BLACK;
         if (sibling->isOnLeft()) {
           // left case
+          __debug_node(parent,__FILE__,__LINE__,"parent rightRotate");
           rightRotate(parent);
         } else {
           // right case
+          __debug_node(parent,__FILE__,__LINE__,"parent leftRotate");
           leftRotate(parent);
         }
+        __debug_node(x,__FILE__,__LINE__,"fixDoubleBlack x");
         fixDoubleBlack(x);
       } else {
         // Sibling black
         if (sibling->hasRedChild()) {
           // at least 1 red children
+          __debug_node(sibling,__FILE__,__LINE__,"hasRedChild");
           if (sibling->left != NULL && sibling->left->color == RED) {
             if (sibling->isOnLeft()) {
               // left left
+              __debug_node(sibling,__FILE__,__LINE__,"sibling color fixup");
               sibling->left->color = sibling->color;
+              __debug_node(sibling,__FILE__,__LINE__,"sibling parent color set");
               sibling->color = parent->color;
+              __debug_node(parent,__FILE__,__LINE__,"rightRotate parent");
               rightRotate(parent);
             } else {
               // right left
+              __debug_node(sibling,__FILE__,__LINE__,"sibling color fixup");
               sibling->left->color = parent->color;
+              __debug_node(sibling,__FILE__,__LINE__,"rightRotate sibling");
               rightRotate(sibling);
+              __debug_node(parent,__FILE__,__LINE__,"leftRotate parent");
               leftRotate(parent);
             }
           } else {
+            __debug_node(sibling,__FILE__,__LINE__,"check sibling isOnLeft");
             if (sibling->isOnLeft()) {
               // left right
+              __debug_node(sibling,__FILE__,__LINE__,"sibling right color set");
               sibling->right->color = parent->color;
+              __debug_node(sibling,__FILE__,__LINE__,"leftRotate sibling");
               leftRotate(sibling);
+              __debug_node(parent,__FILE__,__LINE__,"rightRotate parent");
               rightRotate(parent);
             } else {
               // right right
+              __debug_node(sibling,__FILE__,__LINE__,"sibling right color set");
               sibling->right->color = sibling->color;
+              __debug_node(sibling,__FILE__,__LINE__,"sibling color parent set");
               sibling->color = parent->color;
+              __debug_node(parent,__FILE__,__LINE__,"leftRotate parent");
               leftRotate(parent);
             }
           }
+          __debug_node(parent,__FILE__,__LINE__,"parent color BLACK");
           parent->color = BLACK;
         } else {
           // 2 black children
+          __debug_node(sibling,__FILE__,__LINE__,"sibling color RED");
           sibling->color = RED;
-          if (parent->color == BLACK)
+          if (parent->color == BLACK){
+            __debug_node(parent,__FILE__,__LINE__,"fixDoubleBlack parent");
             fixDoubleBlack(parent);
-          else
+          }
+          else{
+            __debug_node(parent,__FILE__,__LINE__,"parent color BLACK");
             parent->color = BLACK;
+          }
         }
       }
     }

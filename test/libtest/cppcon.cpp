@@ -123,10 +123,11 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 	PRBVAL_t pval=NULL;
 	PRBVAL_t pret;
 	RB_NODE* pnode;
+	int curval;
 	int i;
 	pargs_options_t pargs = (pargs_options_t) popt;
 	int af6 = 0;
-	std::vector<PRBVAL_t> vvals;
+	std::map<int,PRBVAL_t> mapvals;
 
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
@@ -143,7 +144,11 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
 	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
 		DEBUG_INFO("insert %s", parsestate->leftargs[i]);
-		pval = alloc_val(atoi(parsestate->leftargs[i]));
+		curval = atoi(parsestate->leftargs[i]);
+		if (curval < 0) {
+			continue;
+		}
+		pval = alloc_val(curval);
 		if (pval == NULL) {
 			GETERRNO(ret);
 			goto out;
@@ -158,28 +163,42 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 		rb_print_tree(ptree,stderr);
 
 		//fprintf(stdout,"pnode %p\n",pnode);
-
-		vvals.push_back(pval);
+		mapvals.insert({curval,pval});
 		pval = NULL;
 	}
 
 	for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
-		pval = vvals.at((uint64_t)i);
+		curval = atoi(parsestate->leftargs[i]);
+		if (curval > 0) {
+			continue;
+		}
+		auto iter = mapvals.find(-curval);
+		if (iter == mapvals.end()) {
+			ret = - ERROR_INVALID_PARAMETER;
+			fprintf(stderr,"can not find %d value\n",-curval);
+			goto out;
+		}
+		pval = iter->second;
+		ERROR_INFO("pval %p",pval);
 		pnode = rb_find(ptree,pval);
 		if (pnode != NULL) {
-			if (af6) {
-				pret = (PRBVAL_t)rb_delete(ptree,pnode,1);	
-			} else {
-				pret = (PRBVAL_t)rb_delete(ptree,pnode,0);
-			}
+			ret = - ERROR_INVALID_PARAMETER;
+			fprintf(stderr,"can not find %d\n", -curval);
+			goto out;
+		}
+		if (af6) {
+			pret = (PRBVAL_t)rb_delete(ptree,pnode,1);	
+		} else {
+			pret = (PRBVAL_t)rb_delete(ptree,pnode,0);
+		}
 			
-			if (pret != pval && af6 != 0) {
-				ret = - ERROR_INVALID_PARAMETER;
-				fprintf(stderr,"can not get value %d:%p\n",pval->m_val,pval);
-				goto out;
-			}
+		if (pret != pval && af6 != 0) {
+			ret = - ERROR_INVALID_PARAMETER;
+			fprintf(stderr,"can not get value %d:%p\n",pval->m_val,pval);
+			goto out;
 		}
 		rb_print_tree(ptree,stderr);
+		pval = NULL;
 	}
 
 
@@ -196,18 +215,194 @@ out:
 		destroy_rb_tree(&ptree,0);
 	}
 
-	while(vvals.size() > 0) {
-		pval = vvals.at(0);
-		vvals.erase(vvals.begin());
-		if(af6) {
-			free_func(pval);	
+	while(mapvals.size() > 0) {
+		auto iter = mapvals.begin();
+		pval = iter->second;
+		mapvals.erase(iter);
+		if (af6) {
+			free_func(pval);
 		}
 		pval = NULL;
 	}
 	
 	SETERRNO(ret);
 	return ret;
+}
+
+
+int rbrand_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+	int ret;
+	RB_TREE* ptree=NULL;
+	PRBVAL_t pval=NULL;
+	PRBVAL_t pret;
+	RB_NODE* pnode,*pprev;
+	int i,curval,cpos;
+	pargs_options_t pargs = (pargs_options_t) popt;
+	int af6 = 0;
+	std::vector<int> vvals;
+	std::map<int,PRBVAL_t> mapvals;
+	int maxnum=100;
+	int times=10;
+
+	REFERENCE_ARG(argc);
+	REFERENCE_ARG(argv);
+	init_log_level(pargs);
+	ptree = init_rb_tree(malloc_func,free_func,compare_func,destroy_val,print_val);
+	if (ptree == NULL) {
+		GETERRNO(ret);
+		goto out;
+	}
+
+	if (pargs->m_af6) {
+		af6 = 1;
+	}
+
+	if (parsestate->leftargs && parsestate->leftargs[0]) {
+		maxnum = atoi(parsestate->leftargs[0]);
+		if (parsestate->leftargs && parsestate->leftargs[1]) {
+			times = atoi(parsestate->leftargs[1]);
+		}
+	}
+
+	if(maxnum < (times*2)) {
+		fprintf(stderr,"times %d * 2 > maxnum %d\n", times,maxnum);
+		ret = - ERROR_INVALID_PARAMETER;
+		goto out;
+	}
+
+	/*to init rand seed*/
+	srand((unsigned int)time(NULL));
+
+	while ((int)vvals.size() < times) {
+		curval = (((int)((double)rand() * RAND_MAX)) % maxnum);
+		auto positer = mapvals.find(curval);
+		if (positer != mapvals.end() || curval == 0) {
+			continue;
+		}
+
+		fprintf(stderr,"insert [%d]\n", curval);
+		pval = alloc_val(curval);
+		if (pval == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+
+		mapvals.insert({curval,pval});
+
+		pnode = rb_insert(ptree,pval);
+		if (pnode == NULL) {
+			GETERRNO(ret);
+			goto out;
+		}
+
+		vvals.push_back(curval);
+		pval = NULL;
+	}
+
+	while(vvals.size() != 0) {
+		cpos = (((int)((double)rand() * RAND_MAX)) % (int)vvals.size());
+		curval = vvals.at((uint64_t)cpos);
+		fprintf(stderr,"delete [%d]\n",curval);
+		auto citer = mapvals.find(curval);
+		if (citer == mapvals.end()) {
+			ret = - ERROR_INVALID_PARAMETER;
+			fprintf(stderr,"can not find %d\n",curval);
+			goto out;
+		}
+		pval = citer->second;
+		pnode = rb_find(ptree,pval);
+		if (pnode == NULL) {
+			ret = - ERROR_INVALID_PARAMETER;
+			fprintf(stderr,"can not find [%d] for node\n",curval);
+			goto out;
+		}
+		if (af6) {
+			pret =(PRBVAL_t) rb_delete(ptree,pnode,1);	
+		} else {
+			pret = (PRBVAL_t)rb_delete(ptree,pnode,0);
+		}
+		pnode = NULL;
+		
+		if (af6 != 0 && (pret != pval)) {
+			ret =  - ERROR_INVALID_PARAMETER;
+			fprintf(stderr,"can not match pret %p pval %p\n",pret,pval);
+			pval = NULL;
+			goto out;
+		}
+
+		mapvals.erase(citer);
+		vvals.erase(vvals.begin() + cpos);
+
+		if (af6) {
+			free_func(pval);
+		}
+		pval = NULL;
+
+		fprintf(stderr,"check [%d]\n",curval);
+		if (vvals.size() > 0) {
+			i = 0;
+			pnode = rb_first(ptree);
+			while((i+1)< (int)vvals.size()) {
+				PRBVAL_t aval,bval;
+				if (pnode == NULL) {
+					ret = - ERROR_INVALID_PARAMETER;
+					fprintf(stderr,"cannot find %d size",i);
+					goto out;
+				}
+
+				pprev = pnode;
+				pnode = rb_node_next(pprev);
+				if (pnode == NULL) {
+					ret = - ERROR_INVALID_PARAMETER;
+					fprintf(stderr,"can not get pnode\n");
+					goto out;
+				}
+
+				aval = (PRBVAL_t)rb_node_get(pprev);
+				bval = (PRBVAL_t) rb_node_get(pnode);
+
+				ret = compare_func(aval, bval);
+				if (ret >= 0) {
+					ret = - ERROR_INVALID_PARAMETER;
+					fprintf(stderr,"%d:%p >= %d:%p\n", aval->m_val,aval,bval->m_val,bval);
+					goto out;
+				}
+
+				i += 1;
+			}
+		}
+	}
 
 
 
+	ret = 0;
+out:
+	if (pval) {
+		destroy_val(pval);
+	}
+	pval = NULL;
+	DEBUG_INFO("ptree %p",ptree);
+	if (af6) {
+		destroy_rb_tree(&ptree,1);	
+	} else {
+		destroy_rb_tree(&ptree,0);
+	}
+
+	while(vvals.size() > 0) {
+		vvals.erase(vvals.begin());
+	}
+
+	while(mapvals.size() > 0) {
+		auto iter = mapvals.begin();
+		PRBVAL_t pcc = iter->second;
+		mapvals.erase(iter);
+		if (af6) {
+			free_func(pcc);
+		}
+		pcc = NULL;
+	}
+	
+	SETERRNO(ret);
+	return ret;
 }
