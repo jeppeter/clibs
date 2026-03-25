@@ -146,6 +146,9 @@
     },
     "backtrace2<backtrace2_handler>##[stackidx] to query stackidx default 0##" : {
         "$" : "*"
+    },
+    "sigfd<sigfd_handler>##signum ... to make signalfd ##" : {
+        "$" : "+"
     }
 
 }
