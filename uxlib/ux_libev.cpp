@@ -339,7 +339,7 @@ int add_uxev_timer(void* pev1, int interval, int conti, uint64_t* ptimeid, evt_c
 	int ret;
 	pux_timer_callback_t ptimer = NULL;
 	pux_ev_t pev = (pux_ev_t) pev1;
-	RB_NODE* node=NULL;
+	RB_NODE* node=NULL,*node2=NULL;
 
 
 	if (callback == NULL || interval <= 0) {
@@ -379,31 +379,26 @@ int add_uxev_timer(void* pev1, int interval, int conti, uint64_t* ptimeid, evt_c
 		goto fail;
 	}
 
-	node = rb_insert(pev->m_timercall,ptimer);
-	if (node == NULL) {
+	node2 = rb_insert(pev->m_timercall,ptimer);
+	if (node2 == NULL) {
 		GETERRNO(ret);
 		goto fail;
 	}
 	ptimer = NULL;
+	node = NULL;
+	node2 = NULL;
 	pev->m_timernum += 1;
 
 	return 1;
 fail:
-	if (ptimer != NULL) {
-		if (pev->m_timerguid != NULL) {
-			node = rb_find(pev->m_timerguid,ptimer);
-			if (node != NULL) {
-				rb_delete(pev->m_timerguid,node,1);
-			}			
-		}
-
-		if (pev->m_timercall != NULL) {
-			node = rb_find(pev->m_timercall,ptimer);
-			if (node != NULL) {
-				rb_delete(pev->m_timercall,node,1);
-			}
-		}
+	if (node != NULL) {
+		rb_delete(pev->m_timerguid,node,1);
 	}
+	node = NULL;
+	if (node2 != NULL) {
+		rb_delete(pev->m_timercall,node2,1);
+	}
+	node2 = NULL;
 	__free_uxtimer_callback(&ptimer);
 	SETERRNO(ret);
 	return ret;
@@ -464,12 +459,20 @@ int del_uxev_timer(void* pev1, uint64_t timerid)
 	if (pfind == NULL) {
 		return 0;
 	}
-	node2 = rb_find(pev->m_timercall,pfind);
-	if (node2 == NULL) {
-		ERROR_INFO("can not find %d in timercall",timerid);
-	} else {		
-		/*we not delete pfind*/
-		rb_delete(pev->m_timercall, node2,1);
+
+	node = rb_find(pev->m_timerguid,pfind);
+	if (node == NULL) {
+		ERROR_INFO("can not find %lld assert", pfind->m_timerid);
+		return 0;
+	}
+	if (pev->m_timercall != NULL) {
+		node2 = rb_find(pev->m_timercall,pfind);
+		if (node2 == NULL) {
+			ERROR_INFO("can not find %d in timercall",timerid);
+		} else {		
+			/*we not delete pfind*/
+			rb_delete(pev->m_timercall, node2,1);
+		}		
 	}
 
 	/*we not delete ptimer*/
@@ -814,18 +817,20 @@ int __get_max_wait_mills(pux_ev_t pev, int maxmills)
 	RB_NODE* node;
 	pux_timer_callback_t ptimer=NULL;
 
-
-	node = rb_first(pev->m_timercall);
-	if (node != NULL) {
-		ptimer = (pux_timer_callback_t) rb_node_get(node);
-		retv = time_left(ptimer->m_starttime, ptimer->m_interval);
-		if (retv <= 0) {
-			/*we need one time*/
-			retmills = 1;
-		} else if (retv < retmills) {
-			retmills = retv;
-		}
+	if (pev->m_timercall != NULL) {
+		node = rb_first(pev->m_timercall);
+		if (node != NULL) {
+			ptimer = (pux_timer_callback_t) rb_node_get(node);
+			retv = time_left(ptimer->m_starttime, ptimer->m_interval);
+			if (retv <= 0) {
+				/*we need one time*/
+				retmills = 1;
+			} else if (retv < retmills) {
+				retmills = retv;
+			}
+		}		
 	}
+
 
 	//DEBUG_INFO("retmills %d",retmills);
 	return retmills;
@@ -878,10 +883,8 @@ int loop_uxev(void* pev1)
 		}
 	}
 
-
-
 	while (pev->m_exited == 0) {
-		DEBUG_INFO("pev->m_exited %d",pev->m_exited);
+		//DEBUG_INFO("pev->m_exited %d",pev->m_exited);
 		/*for most at 30 seconds*/
 		waitmills = __get_max_wait_mills(pev, 30000);
 		//DEBUG_INFO("waitmills %d",waitmills);
@@ -929,6 +932,7 @@ int loop_uxev(void* pev1)
 			if (ptimerids) {
 				free(ptimerids);
 			}
+
 			ptimerids = NULL;
 			if (timercnt > 0) {
 				ptimerids = (uint64_t*)malloc(sizeof(*ptimerids) * timercnt);
@@ -940,7 +944,11 @@ int loop_uxev(void* pev1)
 		}
 
 		timenum = 0;
-		node = rb_first(pev->m_timercall);
+		if (pev->m_timercall != NULL) {
+			node = rb_first(pev->m_timercall);	
+		} else {
+			node = NULL;
+		}	
 		while(timenum < timercnt) {
 			if (node == NULL) {
 				break;
@@ -955,7 +963,6 @@ int loop_uxev(void* pev1)
 			timenum += 1;
 			node = rb_node_next(node);
 		}
-
 
 
 		if (uuidcnt > 0) {
@@ -1001,18 +1008,19 @@ int loop_uxev(void* pev1)
 					del_uxev_timer(pev1, ptimer->m_timerid);
 				} else {
 					/*we start next cycle*/
+					if (pev->m_timercall != NULL) {
+						node = rb_find(pev->m_timercall,ptimer);
+						if (node != NULL) {
+							rb_delete(pev->m_timercall,node,1);
+						}
 
-					node = rb_find(pev->m_timercall,ptimer);
-					if (node != NULL) {
-						rb_delete(pev->m_timercall,node,1);
-					}
-
-					/*to modified the compare index ,so reinsert it*/
-					ptimer->m_starttime = get_cur_ticks();
-					node = rb_insert(pev->m_timercall,ptimer);
-					if (node == NULL) {
-						GETERRNO(ret);
-						goto fail;
+						/*to modified the compare index ,so reinsert it*/
+						ptimer->m_starttime = get_cur_ticks();
+						node = rb_insert(pev->m_timercall,ptimer);
+						if (node == NULL) {
+							GETERRNO(ret);
+							goto fail;
+						}						
 					}
 				}
 			}
