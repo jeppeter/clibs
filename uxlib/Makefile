@@ -20,8 +20,8 @@ else
 COMMON_LDFLAGS:= -lpthread
 endif
 
-INCLUDE_BASE_CFLAGS = -I${TOPDIR}/uxlib
-INCLUDE_BASE_CXXFLAGS = -I${TOPDIR}/uxlib
+INCLUDE_BASE_CFLAGS = -I${TOPDIR}/uxlib -I${TOPDIR}/common/algorithm -I${TOPDIR}/common
+INCLUDE_BASE_CXXFLAGS = -I${TOPDIR}/uxlib -I${TOPDIR}/common/algorithm -I${TOPDIR}/common
 INCLUDE_BASE_LDFLAGS= -L${TOPDIR}/uxlib
 INCLUDE_BASE_LIBFLAGS= -luxlib
 

@@ -9,6 +9,7 @@
 
 /***********************************************
  * all algorithm from  https://en.wikipedia.org/wiki/Red%E2%80%93black_tree
+ * for the code in https://www.geeksforgeeks.org/dsa/deletion-in-red-black-tree/
 ***********************************************/
 #if 0
 #define PRINT_FUNC(fp,...) do{fprintf(fp,__VA_ARGS__);}while(0)
