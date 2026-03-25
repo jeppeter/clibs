@@ -911,17 +911,18 @@ int loop_uxev(void* pev1)
 			}
 		}
 
-		timenum = 0;
 		if (timercnt < pev->m_timernum) {
 			timercnt = pev->m_timernum;
 			if (ptimerids) {
 				free(ptimerids);
 			}
 			ptimerids = NULL;
-			ptimerids = (uint64_t*)malloc(sizeof(*ptimerids) * timercnt);
-			if (ptimerids == NULL) {
-				GETERRNO(ret);
-				goto fail;
+			if (timercnt > 0) {
+				ptimerids = (uint64_t*)malloc(sizeof(*ptimerids) * timercnt);
+				if (ptimerids == NULL) {
+					GETERRNO(ret);
+					goto fail;
+				}				
 			}
 		} else if (timercnt > (pev->m_timernum >> 1))  {
 			timercnt = pev->m_timernum;
@@ -929,10 +930,12 @@ int loop_uxev(void* pev1)
 				free(ptimerids);
 			}
 			ptimerids = NULL;
-			ptimerids = (uint64_t*)malloc(sizeof(*ptimerids) * timercnt);
-			if (ptimerids == NULL) {
-				GETERRNO(ret);
-				goto fail;
+			if (timercnt > 0) {
+				ptimerids = (uint64_t*)malloc(sizeof(*ptimerids) * timercnt);
+				if (ptimerids == NULL) {
+					GETERRNO(ret);
+					goto fail;
+				}				
 			}
 		}
 
@@ -945,7 +948,7 @@ int loop_uxev(void* pev1)
 			ptimer = (pux_timer_callback_t) rb_node_get(node);
 			timeleft = time_left(ptimer->m_starttime,ptimer->m_interval);
 			if (timeleft > 0) {
-				/*nothing to handle*/
+				/*not timed ,so break*/
 				break;
 			}
 			ptimerids[timenum] = ptimer->m_timerid;
