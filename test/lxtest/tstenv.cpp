@@ -68,6 +68,32 @@ int sigfd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
         fprintf(stdout,"signo %d\n",siginfo.ssi_signo);
     }
 
+
+    ret = sigprocmask(SIG_UNBLOCK,&sigmaskv,NULL);
+    if (ret <0){
+        GETERRNO(ret);
+        fprintf(stderr,"sigprocmask error %d\n", ret);
+        goto out;
+    }
+
+
+    ret = epoll_wait(efd,&evt,1,100000);
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr,"epoll_wait error %d\n", ret);
+        goto out;
+    } else if (ret > 0) {
+        ret = read(sigfd,&siginfo,sizeof(siginfo));
+        if (ret < (int)sizeof(siginfo) ) {
+            GETERRNO(ret);
+            fprintf(stderr,"read error %d\n" , ret);
+            goto out;
+        }
+
+        fprintf(stdout,"signo %d\n",siginfo.ssi_signo);
+    }
+
+
     ret = 0;
 out:
     if (efd >= 0) {
@@ -82,4 +108,10 @@ out:
 
 	SETERRNO(ret);
 	return ret;
+}
+
+
+int getaddrinfoa_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int signum=-1;   
 }
