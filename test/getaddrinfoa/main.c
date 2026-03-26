@@ -124,7 +124,7 @@ static void test_onresolve(void *context, int result, struct addrinfo *info)
     
 
     printf("completed value %d\n", atomic_load(&state->all_state->completed));
-    if(atomic_fetch_add(&state->all_state->completed,1) == 1)
+    if(atomic_fetch_add(&state->all_state->completed,1) == 2)
     {
         sem_post(&state->all_state->semaphore);
     }

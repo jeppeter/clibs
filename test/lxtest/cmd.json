@@ -149,9 +149,6 @@
     },
     "sigfd<sigfd_handler>##signum ... to make signalfd ##" : {
         "$" : "+"
-    },
-    "getaddrinfoa<getaddrinfoa_handler>##signum dnsnames ... to get dnsnames##" : {
-        "$" : "+"
     }
 
 }
