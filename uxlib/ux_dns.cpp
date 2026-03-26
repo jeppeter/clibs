@@ -1,5 +1,7 @@
 #include <ux_dns.h>
 
+#define  UX_DNS_QUERY_MAGIC   0xace0782a
+
 typedef struct __dns_query {
 	uint32_t m_magic;
 	int m_evtfd;
@@ -75,4 +77,26 @@ void __free_dns_query(PDNS_QUERY_t* ppqry)
 		*ppqry = NULL;
 	}
 	return;
+}
+
+PDNS_QUERY_t __alloc_dns_query(int aftype)
+{
+	PDNS_QUERY_t pqry = NULL;
+
+	pqry = (PDNS_QUERY_t) malloc(sizeof(*pqry));
+	if (pqry == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	memset(pqry,0,sizeof(*pqry));
+	pqry->m_exited = 1;
+	pqry->m_magic = UX_DNS_QUERY_MAGIC;
+	
+
+	return pqry;
+fail:
+	__free_dns_query(&pqry);
+	SETERRNO(ret);
+	return NULL;
 }
