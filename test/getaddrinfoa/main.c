@@ -1,8 +1,8 @@
-#define _GNU_SOURCE
+//#define _GNU_SOURCE
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdatomic.h>
+//#include <stdatomic.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
@@ -25,7 +25,7 @@ static void async_getaddrinfo_complete(union sigval context)
 {
     struct async_getaddrinfo_state *state = (struct async_getaddrinfo_state *)context.sival_ptr;
     
-    atomic_thread_fence(memory_order_acquire);
+    //atomic_thread_fence(memory_order_acquire);
 
     //pthread_mutex_lock(&st_sigmutex);
     
@@ -44,7 +44,7 @@ static void async_getaddrinfo_complete(union sigval context)
 
 static int async_getaddrinfo(const char *name, const char *service, const struct addrinfo *hints, void (*callback)(void*, int, struct addrinfo*), void *context)
 {
-    struct async_getaddrinfo_state *state = malloc(sizeof(struct async_getaddrinfo_state));
+    struct async_getaddrinfo_state *state = (struct async_getaddrinfo_state*)malloc(sizeof(struct async_getaddrinfo_state));
 
     //pthread_mutex_lock(&st_sigmutex);
 
@@ -61,7 +61,7 @@ static int async_getaddrinfo(const char *name, const char *service, const struct
     state->callback = callback;
     state->context = context;
 
-    atomic_thread_fence(memory_order_release);
+    //atomic_thread_fence(memory_order_release);
 
     //pthread_mutex_unlock(&st_sigmutex);
 
@@ -123,12 +123,12 @@ static void test_onresolve(void *context, int result, struct addrinfo *info)
     }
     
 
-    printf("completed value %d\n", atomic_load(&state->all_state->completed));
-    if(atomic_fetch_add(&state->all_state->completed,1) == 2)
+    //printf("completed value %d\n", atomic_load(&state->all_state->completed));
+    //if(atomic_fetch_add(&state->all_state->completed,1) == 2)
     {
         sem_post(&state->all_state->semaphore);
     }
-    printf("completed after value %d\n", atomic_load(&state->all_state->completed));
+    //printf("completed after value %d\n", atomic_load(&state->all_state->completed));
     //state->all_state->completed += 1;
     //if (state->all_state->completed == 1) {
     //    sem_post(&(state->all_state->semaphore));
@@ -141,12 +141,16 @@ int main(void)
     sem_init(&state.semaphore, 0, 0);
     state.completed = 0;
 
-    struct addrinfo hints =
-    {
-        .ai_family = AF_UNSPEC,
-        .ai_protocol = IPPROTO_TCP,
-        .ai_socktype = SOCK_STREAM
-    };
+    struct addrinfo hints ;
+
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_protocol = IPPROTO_TCP;
+    hints.ai_socktype = SOCK_STREAM;
+    //{
+    //    .ai_family = AF_UNSPEC,
+    //    .ai_protocol = IPPROTO_TCP,
+    //    .ai_socktype = SOCK_STREAM
+    //};
 
     pthread_mutex_init(&st_sigmutex,NULL);
 

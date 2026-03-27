@@ -3,10 +3,10 @@
 all:getaddrinfoa
 
 getaddrinfoa:main.o
-	gcc -Wall -o $@ $^ -lanl -lpthread
+	g++ -Wall -o $@ $^ -lanl -lpthread
 
 main.o:main.c
-	gcc -Wall -c $< -o $@
+	g++ -Wall -c $< -o $@
 
 clean:
 	rm -f getaddrinfoa *.o
