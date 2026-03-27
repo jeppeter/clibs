@@ -8,7 +8,7 @@ endif
 include ../../baseop.mak
 
 
-LXTEST_SRCS= main.cpp pingcap.cpp pingtotal.cpp dnscap.cpp
+LXTEST_SRCS= main.cpp pingcap.cpp pingtotal.cpp dnscap.cpp dnstotal.cpp
 LXTEST_OFILES=$(patsubst %.cpp,%.o,${LXTEST_SRCS})
 
 INCLUDE_CFLAGS= -I${TOPDIR}/uxlib -I${TOPDIR}/common -I${TOPDIR}/common/jsonlib -I${TOPDIR}/common/extargslib -I${TOPDIR}/common/cryptutil -I${TOPDIR}/common/algorithm
