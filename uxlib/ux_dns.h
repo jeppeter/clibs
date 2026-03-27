@@ -9,6 +9,7 @@ void* start_dns_query(int aftype,const char* name, char* portstr);
 void free_dns_query(void** ppdnsqry);
 int is_dns_query_completed(void* pdnsqry);
 int dns_query_get_complete_evt(void* pdnsqry);
+int dns_query_get_error_code(void* pdnsqry,int *perror);
 int dns_query_get_result(void* pdnsqry,int idx,char** ppstr, int *psize);
 
 #ifdef __cplusplus

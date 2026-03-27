@@ -319,6 +319,11 @@ int dns_query_get_result(void* pdnsqry,int idx,char** ppstr, int *psize)
 	char* buffer= NULL;
 	int bsize = 4;
 
+	if (pqry == NULL || idx < 0) {
+		snprintf_safe(ppstr,psize,NULL);
+		return 0;
+	}
+
 
 	if (pqry->m_magic == UX_DNS_QUERY_MAGIC && pqry->m_exited != 0) {
 		struct addrinfo* curinfo;
@@ -380,4 +385,17 @@ fail:
 	bsize = 0;
 	SETERRNO(ret);
 	return ret;
+}
+
+int dns_query_get_error_code(void* pdnsqry,int *perror)
+{
+	PDNS_QUERY_t pqry = (PDNS_QUERY_t) pdnsqry;
+	int ret = 0;
+
+	if (pqry != NULL && pqry->m_magic == UX_DNS_QUERY_MAGIC && perror != NULL && pqry->m_exited != 0) {
+		*perror = pqry->m_errorcode;
+		ret = 1;
+	}
+	return ret;
+
 }

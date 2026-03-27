@@ -8,7 +8,7 @@ endif
 include ../../baseop.mak
 
 
-LXTEST_SRCS= main.cpp pingcap.cpp pingtotal.cpp
+LXTEST_SRCS= main.cpp pingcap.cpp pingtotal.cpp dnscap.cpp
 LXTEST_OFILES=$(patsubst %.cpp,%.o,${LXTEST_SRCS})
 
 INCLUDE_CFLAGS= -I${TOPDIR}/uxlib -I${TOPDIR}/common -I${TOPDIR}/common/jsonlib -I${TOPDIR}/common/extargslib -I${TOPDIR}/common/cryptutil -I${TOPDIR}/common/algorithm
@@ -29,11 +29,11 @@ dynamic:lxtest
 
 ifeq (${CROSS_LIBRARAY_PATH},)
 lxtest:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so ${DYNAMICDIR}/libalgorithm.so
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -lextargs -ljson -luxlib -lcryptutil -llzma -lalgorithm,"LINK    $@")
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -lextargs -ljson -luxlib -lcryptutil -llzma -lalgorithm -lanl,"LINK    $@")
 
 else
 lxtest:${LXTEST_OFILES} ${DYNAMICDIR}/libuxlib.so ${DYNAMICDIR}/libextargs.so ${DYNAMICDIR}/libjson.so ${DYNAMICDIR}/libcryptutil.so ${DYNAMICDIR}/libalgorithm.so
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -L${CROSS_LIBRARAY_PATH} -lextargs -ljson -luxlib -lcryptutil -llzma -lalgorithm,"LINK    $@")	
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES} -L${DYNAMICDIR} -L${CROSS_LIBRARAY_PATH} -lextargs -ljson -luxlib -lcryptutil -llzma -lalgorithm -lanl,"LINK    $@")	
 endif
 
 ${DYNAMICDIR}/libuxlib.so:
@@ -59,10 +59,10 @@ static:lxtest_static
 
 ifeq (${CROSS_LIBRARAY_PATH},)
 lxtest_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a ${STATICDIR}/libalgorithm.a
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -lextargs -ljson -luxlib -lcryptutil -llzma -lalgorithm,"LINK    $@")
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -lextargs -ljson -luxlib -lcryptutil -llzma -lalgorithm -lanl,"LINK    $@")
 else
 lxtest_static:${LXTEST_OFILES} ${STATICDIR}/libuxlib.a ${STATICDIR}/libextargs.a ${STATICDIR}/libjson.a ${STATICDIR}/libcryptutil.a ${STATICDIR}/libalgorithm.a
-	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -L${CROSS_LIBRARAY_PATH} -lextargs -ljson -luxlib -lcryptutil -llzma -lalgorithm,"LINK    $@")
+	$(call call_exec,${LINK} ${LDFLAGS} -o $@ ${LXTEST_OFILES}  -L${STATICDIR} -L${CROSS_LIBRARAY_PATH} -lextargs -ljson -luxlib -lcryptutil -llzma -lalgorithm -lanl,"LINK    $@")
 endif
 
 
