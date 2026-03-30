@@ -318,6 +318,8 @@ int dns_query_get_result(void* pdnsqry,int idx,char** ppstr, int *psize)
 	const char* pret = NULL;
 	char* buffer= NULL;
 	int bsize = 4;
+	struct sockaddr_in* paddr= NULL;
+	struct sockaddr_in6* paddr6 = NULL;
 
 	if (pqry == NULL || idx < 0) {
 		snprintf_safe(ppstr,psize,NULL);
@@ -342,24 +344,37 @@ int dns_query_get_result(void* pdnsqry,int idx,char** ppstr, int *psize)
 							goto fail;
 						}
 						memset(buffer,0,bsize);
-
-						pret = inet_ntop(pqry->m_aftype,(struct sockaddr*) curinfo->ai_addr,buffer,bsize);	
-						if (pret != NULL) {
-							res = snprintf_safe(ppstr,psize,"%s",pret);
-							if (res < 0) {
-								GETERRNO(ret);
+						if (curinfo->ai_addr->sa_family == pqry->m_aftype) {
+							if (pqry->m_aftype == AF_INET) {
+								paddr = (struct sockaddr_in*) curinfo->ai_addr;
+								//DEBUG_BUFFER_FMT(paddr,sizeof(*paddr), "ai_addr AF_INET");
+								pret = inet_ntop(pqry->m_aftype,&(paddr->sin_addr),buffer,bsize);
+							} else {
+								paddr6 = (struct sockaddr_in6*) curinfo->ai_addr;
+								//DEBUG_BUFFER_FMT(paddr6,sizeof(*paddr6), "ai_addr AF_INET6");
+								pret = inet_ntop(pqry->m_aftype,&(paddr6->sin6_addr),buffer,bsize);
+							}
+							if (pret != NULL) {
+								//DEBUG_BUFFER_FMT(buffer,bsize,"to get size");
+								res = snprintf_safe(ppstr,psize,"%s",pret);
+								if (res < 0) {
+									GETERRNO(ret);
+									goto fail;
+								}
+								ret = 1;
+								goto succ;
+							}
+							GETERRNO(res);
+							if (res != -ENOSPC) {
+								ret = res;
+								ERROR_INFO("can not get buffer error %d", res);
 								goto fail;
 							}
-							ret = 1;
-							goto succ;
-						} 
-						GETERRNO(res);
-						if (res != -ENOSPC) {
-							ret = res;
-							ERROR_INFO("can not get buffer error %d", res);
-							goto fail;
-						}
-						bsize <<= 1;
+							bsize <<= 1;
+						} else {
+							/*not matched ,so break;*/
+							break;
+						}						
 					}					
 				}
 
