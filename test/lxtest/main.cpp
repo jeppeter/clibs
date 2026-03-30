@@ -39,6 +39,10 @@
 #include <base64_code.h>
 
 #include "pingtotal.h"
+#include "dnstotal.h"
+
+#include <vector>
+#include <map>
 
 typedef struct __args_options {
     int m_verbose;
@@ -53,6 +57,7 @@ typedef struct __args_options {
     int m_csbits;
     int m_times;
     int m_nexttime;
+    int m_af6;
     char** m_logfiles;
 } args_options_t, *pargs_options_t;
 
@@ -104,6 +109,7 @@ int procmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int backtrace2_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sigfd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sockaddrsize_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
