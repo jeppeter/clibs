@@ -58,7 +58,7 @@ TcpingCap::TcpingCap(int aftype,const char* ipstr,const char* portstr,void* pev,
 	this->__reset_parameter();
 
 
-	this->m_evthd = NULL;
+	this->m_evthd = -1;
 	this->m_inserthd = 0;
 
 	this->m_tmoutguid = 0;
@@ -75,7 +75,7 @@ void TcpingCap::__remove_evthd()
 {
 	int ret;
 	if (this->m_inserthd != 0) {
-		ret = libev_remove_handle(this->m_evmain,this->m_evthd);
+		ret = delete_uxev_callback(this->m_evmain,this->m_evthd);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("remove [%s:%d] evthd %x error %d",this->m_ipstr.c_str(),this->m_port,this->m_evthd, ret);
@@ -89,7 +89,7 @@ void TcpingCap::__remove_tmout()
 {
 	int ret;
 	if (this->m_tmoutok != 0) {
-		ret = libev_remove_timer(this->m_evmain,this->m_tmoutguid);
+		ret = del_uxev_timer(this->m_evmain,this->m_tmoutguid);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("remove [%s:%d] tmout 0x%llx error %d", this->m_ipstr.c_str(),this->m_port, this->m_tmoutguid,ret);
@@ -104,7 +104,7 @@ void TcpingCap::__remove_tmnextout()
 {
 	int ret;
 	if (this->m_tmnextok != 0) {
-		ret = libev_remove_timer(this->m_evmain,this->m_tmnextguid);
+		ret = del_uxev_timer(this->m_evmain,this->m_tmnextguid);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("remove [%s:%d] tmnext 0x%llx error %d", this->m_ipstr.c_str(),this->m_port, this->m_tmnextguid,ret);
@@ -135,7 +135,7 @@ void TcpingCap::__release_resource()
 	this->__remove_events();
 
 	free_socket(&this->m_sock);
-	this->m_evthd = NULL;
+	this->m_evthd = -1;
 }
 
 TcpingCap::~TcpingCap(void)
@@ -160,7 +160,7 @@ int TcpingCap::__insert_tmnextout()
 	int ret;
 	if (this->m_tmnextok == 0) {
 		this->m_tmnextguid = 0;
-		ret = libev_insert_timer(this->m_evmain,&this->m_tmnextguid,TcpingCap::tcping_timeout,this,(uint32_t)this->m_nexttime,0);
+		ret = add_uxev_timer(this->m_evmain,this->m_nexttime,0,&this->m_tmnextguid,TcpingCap::tcping_timeout,this);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -180,7 +180,7 @@ int TcpingCap::__insert_tmout()
 	int ret;
 	if(this->m_tmoutok == 0) {
 		this->m_tmoutguid = 0;
-		ret = libev_insert_timer(this->m_evmain,&this->m_tmoutguid,TcpingCap::tcping_timeout,this,(uint32_t)this->m_timeout,0);
+		ret = add_uxev_timer(this->m_evmain,this->m_timeout,0,&this->m_tmoutguid,TcpingCap::tcping_timeout,this);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -199,7 +199,7 @@ int TcpingCap::__insert_evthd()
 {
 	int ret;
 	if(this->m_inserthd == 0) {
-		ret = libev_insert_handle(this->m_evmain,this->m_evthd,TcpingCap::tcping_callback,this);
+		ret = add_uxev_callback(this->m_evmain,this->m_evthd,READ_EVENT,TcpingCap::tcping_callback,this);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -275,7 +275,7 @@ int TcpingCap::__collect_value()
 	uint64_t val;
 	int ret;
 	std::string tstr;
-	uint64_t cticks = get_current_ticks();
+	uint64_t cticks = get_cur_ticks();
 
 	DEBUG_INFO("error %d", this->m_error);
 	if (this->m_error != 0) {
@@ -315,7 +315,7 @@ int TcpingCap::__switch_to_next_wait()
 	this->__remove_tmout();
 	free_socket(&this->m_sock);
 	this->m_startticks = 0;
-	this->m_evthd = NULL;
+	this->m_evthd = -1;
 	this->m_error = 0;
 
 	ret = this->__insert_tmnextout();
@@ -345,10 +345,10 @@ int TcpingCap::__start_tcping()
 	int completed = 0;
 	this->__remove_tmnextout();
 	this->__remove_evthd();
-	this->m_evthd = NULL;
+	this->m_evthd = -1;
 	free_socket(&this->m_sock);
 
-	this->m_startticks = get_current_ticks();
+	this->m_startticks = get_cur_ticks();
 	this->m_error = 0;
 	this->m_sock = connect_tcp_socket((char*)this->m_ipstr.c_str(),this->m_port,NULL,0,0);
 	if (this->m_sock == NULL) {
@@ -356,7 +356,7 @@ int TcpingCap::__start_tcping()
 		this->m_error = 1;
 	} else {
 		this->m_evthd = get_tcp_connect_handle(this->m_sock);
-		if (this->m_evthd == NULL) {
+		if (this->m_evthd < 0) {
 			completed = 1;
 		}
 	}
@@ -391,7 +391,7 @@ int TcpingCap::start()
 	int ret;
 	int completed = 0;
 	if (this->m_evmain == NULL) {
-		ret  = -ERROR_INVALID_PARAMETER;
+		ret  = -EINVAL;
 		SETERRNO(ret);
 		return ret;
 	}
@@ -413,7 +413,7 @@ int TcpingCap::start()
 
 
 	} else {
-		ASSERT_IF(this->m_evthd != NULL);
+		ASSERT_IF(this->m_evthd >= 0);
 		ret = this->__switch_to_start();
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -454,12 +454,11 @@ fail:
 	return ret;	
 }
 
-int TcpingCap::__handle_evt(HANDLE hd,libev_enum_event_t event)
+int TcpingCap::__handle_evt(int hd,int event)
 {
 	int ret;
 	int completed = 0;
 
-	REFERENCE_ARG(event);
 	if (this->m_evthd == hd) {
 		ASSERT_IF(this->m_sock != NULL);
 
@@ -480,7 +479,7 @@ int TcpingCap::__handle_evt(HANDLE hd,libev_enum_event_t event)
 
 			ret = this->__inc_and_check_times_over();
 			if (ret != 0) {
-				ret = - ERROR_ARITHMETIC_OVERFLOW;
+				ret = - EOVERFLOW;
 				goto fail;
 			}			
 		}
@@ -503,22 +502,21 @@ int TcpingCap::__inc_and_check_times_over()
 }
 
 
-int TcpingCap::tcping_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void* args)
+int TcpingCap::tcping_callback(void* pev,uint64_t fd,int event,void* arg)
 {
 	int ret;
-	TcpingCap* pThis = (TcpingCap*) args;
-	REFERENCE_ARG(pevmain);
-	ret = pThis->__handle_evt(hd,event);
+	TcpingCap* pThis = (TcpingCap*) arg;
+	ret = pThis->__handle_evt(fd,event);
 	if (ret < 0) {
 		delete pThis;
 	}
 	return 0;
 }
 
-int TcpingCap::__handle_timeout(uint64_t guid, libev_enum_event_t event)
+int TcpingCap::__handle_timeout(uint64_t guid, int event)
 {
 	int ret;
-	REFERENCE_ARG(event);
+
 	if (this->m_tmoutok != 0 && this->m_tmoutguid == guid) {
 		/*we remove this before call back*/
 		this->m_error = 1;
@@ -530,8 +528,8 @@ int TcpingCap::__handle_timeout(uint64_t guid, libev_enum_event_t event)
 
 		ret = this->__inc_and_check_times_over();
 		if (ret != 0) {
-			ret = - ERROR_ARITHMETIC_OVERFLOW;
-			ERROR_INFO("ERROR_ARITHMETIC_OVERFLOW");
+			ret = - EOVERFLOW;
+			ERROR_INFO("EOVERFLOW");
 			goto fail;
 		}
 
@@ -548,8 +546,8 @@ int TcpingCap::__handle_timeout(uint64_t guid, libev_enum_event_t event)
 
 			ret = this->__inc_and_check_times_over();
 			if (ret != 0) {
-				ret = - ERROR_ARITHMETIC_OVERFLOW;
-				ERROR_INFO("ERROR_ARITHMETIC_OVERFLOW");
+				ret = - EOVERFLOW;
+				ERROR_INFO("EOVERFLOW");
 				goto fail;
 			}
 
@@ -582,8 +580,8 @@ int TcpingCap::__handle_timeout(uint64_t guid, libev_enum_event_t event)
 
 			ret = this->__inc_and_check_times_over();
 			if (ret != 0) {
-				ret = - ERROR_ARITHMETIC_OVERFLOW;
-				ERROR_INFO("ERROR_ARITHMETIC_OVERFLOW");
+				ret = - EOVERFLOW;
+				ERROR_INFO("EOVERFLOW");
 				goto fail;
 			}
 		}
@@ -597,11 +595,10 @@ fail:
 	return ret;	
 }
 
-int TcpingCap::tcping_timeout(uint64_t guid,libev_enum_event_t event,void* pevmain,void* args)
+int TcpingCap::tcping_timeout(void* pev,uint64_t guid,int event,void* arg)
 {
 	int ret;
-	REFERENCE_ARG(pevmain);
-	TcpingCap* pThis = (TcpingCap*) args;
+	TcpingCap* pThis = (TcpingCap*) arg;
 	ret = pThis->__handle_timeout(guid,event);
 	if (ret < 0) {
 		delete pThis;

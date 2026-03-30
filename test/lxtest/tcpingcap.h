@@ -72,7 +72,7 @@ private:
 	int m_nexttime;
 
 
-	HANDLE m_evthd;
+	int m_evthd;
 	uint64_t m_tmoutguid;
 	uint64_t m_tmnextguid;
 	uint64_t m_startticks;

@@ -1,7 +1,10 @@
 #include <ux_time_op.h>
+#include <ux_strop.h>
 #include <limits.h>
 #include <time.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 
 uint64_t get_cur_ticks()
 {
@@ -78,4 +81,133 @@ int sched_out(int mills)
 		return ret;
 	}
 	return 0;
+}
+
+int tm_to_str(struct tm* ptm, char** ppstr, int *psize)
+{
+    if (ptm == NULL) {
+        return snprintf_safe(ppstr,psize,NULL);
+    }
+
+    return snprintf_safe(ppstr,psize,"%04d-%02d-%02d %02d:%02d:%02d",ptm->tm_year + 1900 ,ptm->tm_mon+1,ptm->tm_mday,ptm->tm_hour,ptm->tm_min,ptm->tm_sec);
+}
+
+
+#define SKIP_NUM(ptr)                                                                             \
+do{                                                                                               \
+    while(1) {                                                                                    \
+        if ((*ptr)< '0' || (*ptr) > '9') {                                                        \
+            break;                                                                                \
+        }                                                                                         \
+        ptr ++;                                                                                   \
+    }                                                                                             \
+}while(0)
+
+#define MATCH_CHAR(ptr,ch)                                                                        \
+do{                                                                                               \
+    if ((*ptr) != ch) {                                                                           \
+        ret = -EINVAL;                                                                            \
+        goto fail;                                                                                \
+    }                                                                                             \
+    ptr ++;                                                                                       \
+}while(0)
+
+int tm_from_str(char* str, struct tm* ptm)
+{
+    int ret;
+    char* pcurptr=NULL;
+    struct tm *psettm=NULL;
+    if (str == NULL || ptm == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    psettm = (struct tm*)malloc(sizeof(*psettm));
+    if (psettm == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    pcurptr = str;
+
+    memset(psettm, 0, sizeof(*psettm));
+    psettm->tm_year = atoi(pcurptr);
+    psettm->tm_year -= 1900;
+    SKIP_NUM(pcurptr);
+    MATCH_CHAR(pcurptr,'-');
+    psettm->tm_mon = atoi(pcurptr);
+    psettm->tm_mon -= 1;
+    if (psettm->tm_mon < 0) {
+        ret =-EINVAL;
+        goto fail;
+    }
+    SKIP_NUM(pcurptr);
+    MATCH_CHAR(pcurptr,'-');
+    psettm->tm_mday = atoi(pcurptr);
+    SKIP_NUM(pcurptr);
+
+    while(1) {
+        if (*pcurptr != ' ') {
+            break;
+        }
+        pcurptr ++;
+    }
+
+    psettm->tm_hour = atoi(pcurptr);
+    SKIP_NUM(pcurptr);
+    MATCH_CHAR(pcurptr,':');
+
+    psettm->tm_min = atoi(pcurptr);
+    SKIP_NUM(pcurptr);
+    MATCH_CHAR(pcurptr,':');
+
+    psettm->tm_sec = atoi(pcurptr);
+
+    memcpy(ptm,psettm,sizeof(*psettm));
+    if (psettm) {
+        free(psettm);
+    }
+    psettm = NULL;
+    return 0;
+fail:
+    if (psettm) {
+        free(psettm);
+    }
+    psettm = NULL;
+
+    SETERRNO(ret);
+    return ret;
+}
+
+int tm_to_time(struct tm* ptm, time_t* ptime)
+{
+    int ret;
+    if (ptm == NULL || ptime == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+    *ptime = mktime(ptm);
+    return 0;
+}
+
+int time_to_tm(time_t* ptime,struct tm *ptm)
+{
+    int ret;
+    struct tm* pret=NULL;
+
+    if (ptm == NULL || ptime == NULL) {
+        ret = -EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    pret = localtime_r(ptime,ptm);
+    if (pret == NULL) {
+        GETERRNO(ret);
+        SETERRNO(ret);
+        return ret;
+    }
+    return 0;
 }
