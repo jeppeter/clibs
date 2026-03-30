@@ -20,6 +20,7 @@
 typedef struct __sock_data_priv {
 	uint32_t m_magic;
 	int m_type;
+	int m_aftype;
 	char* m_peeraddr;
 	char* m_selfaddr;
 	int m_peerport;
@@ -33,7 +34,7 @@ typedef struct __sock_data_priv {
 	int m_inrd;
 	int m_inwr;
 
-	struct sockaddr m_accaddr;
+	struct sockaddr_in6 m_accaddr;
 	uint8_t* m_prdptr;
 	int m_rdleft;
 	uint8_t* m_pwrptr;
@@ -88,6 +89,8 @@ void __free_socket(psock_data_priv_t* pptcp)
 		psock->m_inrd = 0;
 		psock->m_inwr = 0;
 
+		psock->m_aftype = 0;
+
 		free(psock);
 		*pptcp = NULL;
 	}
@@ -113,6 +116,7 @@ psock_data_priv_t __alloc_sock_priv(int typeval, char* ipaddr, int port)
 	psock->m_accsock = -1;
 	psock->m_magic = SOCKET_DATA_MAGIC;
 	psock->m_type = typeval;
+	psock->m_aftype = 0;
 	if (psock->m_type == SOCKET_SERVER_TYPE) {
 		if (ipaddr != NULL) {
 			psock->m_selfaddr = strdup(ipaddr);
@@ -146,24 +150,41 @@ fail:
 int __get_sock_name(psock_data_priv_t psock)
 {
 	int ret;
-	struct sockaddr saddr;
+	struct sockaddr *saddr=NULL;
 	struct sockaddr_in* paddr = NULL;
+	struct sockaddr_in6* paddr6 = NULL;
 	socklen_t slen;
 	const char* pret = NULL;
-	slen = sizeof(saddr);
-	ret = getsockname(psock->m_sock, &saddr, &slen);
+
+	slen = sizeof(struct sockaddr_in6);
+	saddr = (struct sockaddr*)malloc(slen);
+	if (saddr == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = getsockname(psock->m_sock, saddr, &slen);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("getsockname [%s:%d] error[%d]", psock->m_peeraddr, psock->m_peerport, ret);
 		goto fail;
 	}
 
-	paddr = (struct sockaddr_in*)&saddr;
-	if (saddr.sa_family != AF_INET) {
+	if (saddr->sa_family != AF_INET && saddr->sa_family != AF_INET6) {
 		ret = -EINVAL;
-		ERROR_INFO("getsockname [%s:%d] sin_family[%d] != AF_INET[%d]", psock->m_peeraddr, psock->m_peerport,
-		           saddr.sa_family, AF_INET);
+		ERROR_INFO("getsockname [%s:%d] sin_family[%d] not valid", psock->m_peeraddr, psock->m_peerport,
+		           saddr->sa_family);
 		goto fail;
+	}
+
+	if (psock->m_aftype != 0 && psock->m_aftype != saddr->sa_family) {
+		ret = -EINVAL;
+		ERROR_INFO("aftype %d != sa_family %d", psock->m_aftype, saddr->sa_family);
+		goto fail;
+	}
+
+	if (psock->m_aftype == 0) {
+		psock->m_aftype = saddr->sa_family;
 	}
 
 	if (psock->m_selfaddr == NULL) {
@@ -174,17 +195,36 @@ int __get_sock_name(psock_data_priv_t psock)
 		}
 	}
 	memset(psock->m_selfaddr, 0, IPADDR_LENGTH);
-	pret = inet_ntop(AF_INET, &(paddr->sin_addr), psock->m_selfaddr, IPADDR_LENGTH - 1);
+	if (saddr->sa_family == AF_INET) {		
+		paddr = (struct sockaddr_in*)saddr;
+		pret = inet_ntop(saddr->sa_family, &(paddr->sin_addr), psock->m_selfaddr, IPADDR_LENGTH - 1);
+	} else {
+		paddr6 = (struct sockaddr_in6*) saddr;
+		pret = inet_ntop(saddr->sa_family, &(paddr6->sin6_addr), psock->m_selfaddr, IPADDR_LENGTH - 1);
+	}
+	
 	if (pret == NULL) {
 		GETERRNO(ret);
 		ERROR_INFO("inet_ntop [%s:%d] error[%d]", psock->m_peeraddr, psock->m_peerport, ret);
 		goto fail;
 	}
-	psock->m_selfport = ntohs(paddr->sin_port);
 
-
+	if (saddr->sa_family == AF_INET) {
+		psock->m_selfport = ntohs(paddr->sin_port);	
+	} else {
+		psock->m_selfport = ntohs(paddr6->sin6_port);
+	}
+	
+	if (saddr) {
+		free(saddr);
+	}
+	saddr = NULL;
 	return 0;
 fail:
+	if (saddr) {
+		free(saddr);
+	}
+	saddr = NULL;
 	SETERRNO(ret);
 	return ret;
 }
@@ -192,24 +232,39 @@ fail:
 int __get_peer_name(psock_data_priv_t psock)
 {
 	int ret;
-	struct sockaddr saddr;
-	struct sockaddr_in* paddr;
+	struct sockaddr *saddr=NULL;
+	struct sockaddr_in* paddr=NULL;
+	struct sockaddr_in6* paddr6=NULL;
 	socklen_t slen;
 	const char* pret = NULL;
-	slen = sizeof(saddr);
-	ret = getpeername(psock->m_sock, &saddr, &slen);
+	slen = sizeof(struct sockaddr_in6);
+	saddr = (struct sockaddr*)malloc(slen);
+	if (saddr == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = getpeername(psock->m_sock, saddr, &slen);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("getpeername [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
 		goto fail;
 	}
 
-	paddr = (struct sockaddr_in*) &saddr;
-	if (paddr->sin_family != AF_INET) {
+	if (saddr->sa_family != AF_INET && saddr->sa_family != AF_INET6) {
 		ret = -EINVAL;
-		ERROR_INFO("getpeername [%s:%d] sin_family[%d] != AF_INET[%d]", psock->m_selfaddr, psock->m_selfport,
-		           paddr->sin_family, AF_INET);
+		ERROR_INFO("saddr->sa_family %d not valid", saddr->sa_family);
 		goto fail;
+	}
+
+	if (psock->m_aftype != 0 && psock->m_aftype != saddr->sa_family) {
+		ret = -EINVAL;
+		ERROR_INFO("aftype %d != sa_family %d", psock->m_aftype, saddr->sa_family);
+		goto fail;
+	}
+
+	if (psock->m_aftype == 0) {
+		psock->m_aftype = saddr->sa_family;
 	}
 
 	if (psock->m_peeraddr == NULL) {
@@ -220,29 +275,84 @@ int __get_peer_name(psock_data_priv_t psock)
 		}
 	}
 	memset(psock->m_peeraddr, 0 , IPADDR_LENGTH);
-	pret = inet_ntop(AF_INET, &(paddr->sin_addr), psock->m_peeraddr, IPADDR_LENGTH - 1);
+
+	if (saddr->sa_family == AF_INET) {
+		paddr = (struct sockaddr_in*) saddr;
+		pret = inet_ntop(AF_INET, &(paddr->sin_addr), psock->m_peeraddr, IPADDR_LENGTH - 1);
+	} else {
+		paddr6 = (struct sockaddr_in6*) saddr;
+		pret = inet_ntop(AF_INET6, &(paddr6->sin6_addr), psock->m_peeraddr, IPADDR_LENGTH - 1);
+	}
+
 	if (pret == NULL) {
 		GETERRNO(ret);
 		ERROR_INFO("inet_ntop [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport, ret);
 		goto fail;
 	}
-	psock->m_peerport = ntohs(paddr->sin_port);
+
+	if (saddr->sa_family == AF_INET) {
+		psock->m_peerport = ntohs(paddr->sin_port);	
+	} else {
+		psock->m_peerport = ntohs(paddr6->sin6_port);
+	}
+	
+	if (saddr) {
+		free(saddr);
+	}
+	saddr = NULL;
 
 	return 0;
+fail:
+	if (saddr) {
+		free(saddr);
+	}
+	saddr = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int __format_saddr(const char* ipaddr,int port, struct sockaddr* saddr,int addrlen)
+{
+	struct sockaddr_in* paddr = NULL;
+	struct sockaddr_in6* paddr6 = NULL;
+	int aftype = AF_INET;
+	int ret;
+	int retlen = sizeof(struct sockaddr_in);
+
+	paddr = (struct sockaddr_in*) saddr;
+	ret = inet_pton(aftype,ipaddr,&(paddr->sin_addr));
+	if (ret <= 0) {
+		aftype = AF_INET6;
+		paddr6 = (struct sockaddr_in6*) saddr;
+		ret = inet_pton(aftype,ipaddr,&(paddr6->sin6_addr));
+		if (ret <= 0) {
+			GETERRNO(ret);
+			ERROR_INFO("inet_pton [%s] error %d", ipaddr, ret);
+			goto fail;
+		}
+		paddr6->sin6_port = ntohs(port);
+		paddr6->sin6_family = aftype;
+		retlen = sizeof(struct sockaddr_in6);
+	} else {
+		paddr->sin_family = AF_INET;
+		paddr->sin_port = ntohs(port);
+	}
+
+	return retlen;
 fail:
 	SETERRNO(ret);
 	return ret;
 }
+
 
 void* connect_tcp_socket(const char* ipaddr, int port, const char* bindip, int bindport, int connected)
 {
 	psock_data_priv_t psock = NULL;
 	int ret;
 	int flags;
-	struct sockaddr saddr;
-	struct sockaddr_in *paddr;
+	struct sockaddr *saddr=NULL;
 	int error;
-	socklen_t errlen;
+	socklen_t errlen,slen;
 	int inconn = 0;
 	fd_set rfd;
 
@@ -257,7 +367,21 @@ void* connect_tcp_socket(const char* ipaddr, int port, const char* bindip, int b
 		goto fail;
 	}
 
-	psock->m_sock = socket(AF_INET, SOCK_STREAM, 0);
+	slen = sizeof(struct sockaddr_in6);
+	saddr = (struct sockaddr*)malloc(slen);
+	if (saddr == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	memset(saddr, 0, slen);
+	ret = __format_saddr(ipaddr,port,saddr, slen);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	psock->m_aftype = saddr->sa_family;
+
+	psock->m_sock = socket(psock->m_aftype, SOCK_STREAM, 0);
 	if (psock->m_sock < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("cannot socket error[%d]", ret);
@@ -289,19 +413,15 @@ void* connect_tcp_socket(const char* ipaddr, int port, const char* bindip, int b
 		}
 		psock->m_selfport = bindport;
 
-		/*now bind address*/
-		memset(&saddr, 0, sizeof(saddr));
-		paddr = (struct sockaddr_in*)&saddr;
-		paddr->sin_family = AF_INET;
-		ret = inet_pton(AF_INET, bindip, &(paddr->sin_addr));
-		if (ret <= 0) {
+
+		ret= __format_saddr(bindip,bindport,saddr,slen);
+		if (ret < 0) {
 			GETERRNO(ret);
-			ERROR_INFO("can not change [%s] to sin_addr [%d]", bindip, ret);
 			goto fail;
 		}
-		paddr->sin_port = htons(bindport);
+		errlen = ret;
 
-		ret = bind(psock->m_sock, &saddr, sizeof(*paddr));
+		ret = bind(psock->m_sock, saddr, errlen);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("bind [%s:%d] error[%d]", psock->m_selfaddr, psock->m_selfport , ret);
@@ -320,19 +440,15 @@ void* connect_tcp_socket(const char* ipaddr, int port, const char* bindip, int b
 		}
 	}
 
-	memset(&saddr, 0, sizeof(saddr));
-	paddr = (struct sockaddr_in*)&saddr;
-	paddr->sin_family = AF_INET;
-	ret = inet_pton(AF_INET, ipaddr, &(paddr->sin_addr));
-	if (ret <= 0) {
+	ret = __format_saddr(ipaddr,port,saddr,slen);
+	if (ret < 0) {
 		GETERRNO(ret);
-		ERROR_INFO("can not change [%s] to bind addr [%d]", ipaddr, ret);
 		goto fail;
 	}
-	paddr->sin_port = htons(port);
+	errlen = ret;
 	inconn = 0;
 	DEBUG_INFO(" ");
-	ret = connect(psock->m_sock, &saddr, sizeof(*paddr));
+	ret = connect(psock->m_sock, saddr, errlen);
 	if (ret < 0) {
 		GETERRNO(ret);
 		DEBUG_INFO("connect ret %d",ret);
@@ -382,9 +498,21 @@ void* connect_tcp_socket(const char* ipaddr, int port, const char* bindip, int b
 		}
 	}
 
+	if (saddr) {
+		free(saddr);
+	}
+	saddr = NULL;
+	slen = 0;
+
 	psock->m_inconn = inconn;
 	return psock;
 fail:
+	if (saddr) {
+		free(saddr);
+	}
+	saddr = NULL;
+	slen = 0;
+
 	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;
@@ -456,7 +584,7 @@ int __accept_inner(psock_data_priv_t psock)
 	socklen_t slen;
 	ASSERT_IF(psock->m_accsock < 0);
 	slen = sizeof(psock->m_accaddr);
-	ret = accept(psock->m_sock, &(psock->m_accaddr), &slen);
+	ret = accept(psock->m_sock, (struct sockaddr*)&(psock->m_accaddr), &slen);
 	if (ret < 0) {
 		GETERRNO(ret);
 		if (ret != -EAGAIN && ret != -EWOULDBLOCK) {
@@ -481,8 +609,8 @@ void* bind_tcp_socket(const char* ipaddr, int port, int backlog)
 	int ret;
 	int flags ;
 	int opt;
-	struct sockaddr saddr;
-	struct sockaddr_in* paddr;
+	struct sockaddr* saddr=NULL;
+	socklen_t slen,errlen;
 
 	if (ipaddr == NULL || port < 1 || port >= (1 << 16)) {
 		ret = -EINVAL;
@@ -496,7 +624,24 @@ void* bind_tcp_socket(const char* ipaddr, int port, int backlog)
 		goto fail;
 	}
 
-	psock->m_sock = socket(AF_INET, SOCK_STREAM, 0);
+	slen = sizeof(struct sockaddr_in6);
+	saddr = (struct sockaddr*)malloc(slen);
+	if (saddr == NULL) {
+		GETERRNO(ret);
+		goto fail;
+	}
+
+	ret = __format_saddr(ipaddr,port,saddr,slen);
+	if (ret < 0) {
+		GETERRNO(ret);
+		goto fail;
+	}
+	errlen = ret;
+
+	psock->m_aftype = saddr->sa_family;
+
+
+	psock->m_sock = socket(psock->m_aftype, SOCK_STREAM, 0);
 	if (psock->m_sock < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("socket server[%s:%d] error[%d]", ipaddr, port, ret);
@@ -528,18 +673,8 @@ void* bind_tcp_socket(const char* ipaddr, int port, int backlog)
 		goto fail;
 	}
 
-	memset(&saddr, 0, sizeof(saddr));
-	paddr = (struct sockaddr_in*)&saddr;
-	paddr->sin_family = AF_INET;
-	ret = inet_pton(AF_INET, ipaddr, &(paddr->sin_addr));
-	if (ret <= 0) {
-		GETERRNO(ret);
-		ERROR_INFO("inet_pton [%s:%d] error[%d]", ipaddr, port, ret);
-		goto fail;
-	}
-	paddr->sin_port = htons(port);
 
-	ret = bind(psock->m_sock, &saddr, sizeof(*paddr));
+	ret = bind(psock->m_sock, saddr, errlen);
 	if (ret < 0) {
 		GETERRNO(ret);
 		ERROR_INFO("bind [%s:%d] error[%d]", ipaddr, port, ret);
@@ -559,8 +694,20 @@ void* bind_tcp_socket(const char* ipaddr, int port, int backlog)
 		goto fail;
 	}
 
+	if (saddr != NULL) {
+		free(saddr);
+	}
+	saddr = NULL;
+	slen = 0;
+
 	return psock;
 fail:
+	if (saddr != NULL) {
+		free(saddr);
+	}
+	saddr = NULL;
+	slen = 0;
+
 	__free_socket(&psock);
 	SETERRNO(ret);
 	return NULL;

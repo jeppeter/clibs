@@ -91,3 +91,14 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int sockaddrsize_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    fprintf(stdout,"sizeof(struct sockaddr) %ld sizeof(struct sockaddr_in) %ld sizeof(struct sockaddr_in6) %ld\n",
+        sizeof(struct sockaddr),
+        sizeof(struct sockaddr_in), 
+        sizeof(struct sockaddr_in6));
+
+    SETERRNO(0);
+    return 0;
+}

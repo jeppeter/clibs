@@ -149,6 +149,9 @@
     },
     "sigfd<sigfd_handler>##signum ... to make signalfd ##" : {
         "$" : "+"
+    },
+    "sockaddrsize<sockaddrsize_handler>#to display size of sockaddr_in and sockaddr_in6###" : {
+        "$" : 0
     }
 
 }

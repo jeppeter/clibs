@@ -103,6 +103,7 @@ int logtst_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int procmap_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int backtrace2_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sigfd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int sockaddrsize_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
