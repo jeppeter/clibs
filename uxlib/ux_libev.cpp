@@ -344,6 +344,7 @@ int add_uxev_timer(void* pev1, int interval, int conti, uint64_t* ptimeid, evt_c
 
 	if (callback == NULL || interval <= 0) {
 		ret = -EINVAL;
+		ERROR_INFO("callback %p interval %d", callback, interval);
 		SETERRNO(ret);
 		return ret;
 	}
@@ -352,6 +353,7 @@ int add_uxev_timer(void* pev1, int interval, int conti, uint64_t* ptimeid, evt_c
 		pev->m_timerguid = init_rb_tree(malloc_func,free_func,timer_guid_compare,timer_destroy_func,NULL);
 		if (pev->m_timerguid == NULL) {
 			GETERRNO(ret);
+			ERROR_INFO(" ");
 			goto fail;
 		}
 	}
@@ -360,6 +362,7 @@ int add_uxev_timer(void* pev1, int interval, int conti, uint64_t* ptimeid, evt_c
 		pev->m_timercall = init_rb_tree(malloc_func,free_func,timer_tick_compare,timer_destroy_func,NULL);
 		if (pev->m_timercall == NULL) {
 			GETERRNO(ret);
+			ERROR_INFO(" ");
 			goto fail;
 		}
 	}
@@ -367,6 +370,7 @@ int add_uxev_timer(void* pev1, int interval, int conti, uint64_t* ptimeid, evt_c
 	ptimer = __alloc_uxtimer(interval, conti, callback, arg);
 	if (ptimer == NULL) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	}
 
@@ -376,14 +380,20 @@ int add_uxev_timer(void* pev1, int interval, int conti, uint64_t* ptimeid, evt_c
 	node = rb_insert(pev->m_timerguid, ptimer);
 	if (node == NULL) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	}
 
 	node2 = rb_insert(pev->m_timercall,ptimer);
 	if (node2 == NULL) {
 		GETERRNO(ret);
+		ERROR_INFO(" ");
 		goto fail;
 	}
+	if (ptimeid != NULL) {
+		*ptimeid = ptimer->m_timerid;
+	}
+
 	ptimer = NULL;
 	node = NULL;
 	node2 = NULL;

@@ -223,3 +223,200 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int exit_hd_notify(void* pev,uint64_t fd,int event,void* arg)
+{
+    break_uxev(pev);
+    return 0;
+}
+
+int __split_time(const char* pname, std::string& name,std::string& ports)
+{
+    std::string ns = pname;
+    size_t sidx;
+    ports = "";
+    name = "";
+
+    sidx = ns.find(',');
+    if (sidx == std::string::npos) {
+        name = pname;
+    } else {
+        name = ns.substr(0,sidx);
+        ports = ns.substr(sidx+1,ns.length() - sidx-1);
+    }
+    DEBUG_INFO("name %s ports %s",name.c_str(),ports.c_str());
+    return 0;    
+}
+
+
+int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    int ret;
+    int exithd=-1;
+    TcpingTotal* ptotal = NULL;
+    void* pev=NULL;
+    int times;
+    int nexttime = 5000;
+    int timeout;
+    int aftype = AF_INET;
+    DnsTotal* pdns= NULL;
+    std::string name;
+    std::string ports;
+    std::map<std::string,std::vector<std::string> > ipres;
+    std::vector<std::string> iperrs;
+    int i;
+
+
+    init_log_verbose(pargs);
+
+    times = pargs->m_times;
+    timeout = pargs->m_timeout;
+    if (timeout == 0) {
+        timeout = 5000;
+    }
+    if (pargs->m_nexttime != 0) {
+        nexttime = pargs->m_nexttime;    
+    }
+    
+
+    if (pargs->m_af6) {
+        aftype = AF_INET6;
+    }
+
+    ret = init_socket();
+    if (ret < 0) {
+        GETERRNO(ret);
+        fprintf(stderr, "cannot init_socket [%d]\n", ret);
+        goto out;
+    }
+
+
+    pev = init_uxev(0);
+    if (pev == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    exithd = init_sighandler();
+    if (exithd < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    /*now first to give the total*/
+    pdns = new DnsTotal(pev,5000);
+
+    for(i=0;parsestate->leftargs&& parsestate->leftargs[i];i+=1) {
+        ret = pdns->start_dns(aftype,parsestate->leftargs[i]);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+    ret =  add_uxev_callback(pev, exithd, READ_EVENT, exit_hd_notify, NULL);
+    if (ret < 0) {
+        GETERRNO(ret);
+        ERROR_INFO(" ");
+        goto out;
+    }
+
+
+    if (pdns->get_dns_query() != 0) {
+        ret = loop_uxev(pev);
+        if (ret < 0) {
+            GETERRNO(ret);
+            DEBUG_INFO(" ");
+            goto out;
+        }
+    }
+
+    DEBUG_INFO(" ");
+
+    ret = pdns->get_result(ipres);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    DEBUG_INFO(" ");
+
+    ret = pdns->get_errors(iperrs);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    DEBUG_INFO(" ");
+
+    delete pdns;
+    pdns = NULL;
+
+    free_uxev(&pev);
+
+    pev = init_uxev(0);
+    if (pev == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+
+    DEBUG_INFO("ipres size %lld", ipres.size());
+    ptotal = new TcpingTotal(pev,times,timeout,nexttime);
+    for(std::map<std::string,std::vector<std::string> >::iterator iter = ipres.begin(); iter != ipres.end(); ++ iter) {
+        DEBUG_INFO(" ");
+        if (iter->second.size() > 0) {
+            std::string cstr = iter->second.at(0);
+            size_t sidx = cstr.find(';',0);
+            if (sidx != std::string::npos) {
+                cstr = cstr.substr(0,sidx);
+            }
+            DEBUG_INFO("cstr [%s]", cstr.c_str());
+            ret = __split_time(cstr.c_str(),name,ports);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto out;
+            }
+            ret = ptotal->start_tcping(aftype,name.c_str(),(char*)ports.c_str());
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto out;
+            }
+        }
+    }
+
+
+
+    if (ptotal->get_tasks() != 0) {
+
+        ret =  add_uxev_callback(pev, exithd, READ_EVENT, exit_hd_notify, NULL);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO(" ");
+            goto out;
+        }
+
+        ret = loop_uxev(pev);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+    ret = 0;
+out:
+    if (ptotal) {
+        delete ptotal;
+    }
+    ptotal = NULL;
+
+    if (pdns) {
+        delete pdns;
+    }
+    pdns = NULL;
+
+    free_uxev(&pev);
+
+    SETERRNO(ret);
+    return ret;
+}

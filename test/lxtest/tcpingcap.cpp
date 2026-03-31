@@ -295,7 +295,6 @@ int TcpingCap::__collect_value()
 		goto fail;
 	}
 
-
 	this->m_tcpingval.push_back(tstr);
 
 	return 0;
@@ -321,6 +320,7 @@ int TcpingCap::__switch_to_next_wait()
 	ret = this->__insert_tmnextout();
 	if (ret < 0) {
 		GETERRNO(ret);
+		ERROR_INFO("ret %d", ret);
 		goto fail;
 	}
 
@@ -344,6 +344,7 @@ int TcpingCap::__start_tcping()
 {
 	int completed = 0;
 	this->__remove_tmnextout();
+	this->__remove_tmout();
 	this->__remove_evthd();
 	this->m_evthd = -1;
 	free_socket(&this->m_sock);
@@ -360,6 +361,7 @@ int TcpingCap::__start_tcping()
 			completed = 1;
 		}
 	}
+
 	return completed;
 }
 
@@ -449,6 +451,7 @@ int TcpingCap::__collect_and_switch_next()
 		goto fail;
 	}
 
+	return 0;
 fail:
 	SETERRNO(ret);
 	return ret;	

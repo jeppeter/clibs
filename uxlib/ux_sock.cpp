@@ -447,7 +447,7 @@ void* connect_tcp_socket(const char* ipaddr, int port, const char* bindip, int b
 	}
 	errlen = ret;
 	inconn = 0;
-	DEBUG_INFO(" ");
+
 	ret = connect(psock->m_sock, saddr, errlen);
 	if (ret < 0) {
 		GETERRNO(ret);

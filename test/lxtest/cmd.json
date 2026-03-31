@@ -156,6 +156,9 @@
     },
     "dnsqry<dnsqry_handler>##domainname ... to query domain##" : {
         "$" : "+"
+    },
+    "tcping<tcping_handler>##[www.name.com,33]... to tcping##" : {
+        "$" : "+"
     }
 
 }

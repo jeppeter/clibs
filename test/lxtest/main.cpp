@@ -40,6 +40,7 @@
 
 #include "pingtotal.h"
 #include "dnstotal.h"
+#include "tcpingtotal.h"
 
 #include <vector>
 #include <map>
@@ -110,6 +111,7 @@ int backtrace2_handler(int argc, char* argv[], pextargs_state_t parsestate, void
 int sigfd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sockaddrsize_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \
