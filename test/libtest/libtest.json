@@ -575,6 +575,9 @@
     },
     "icmpping<icmpping_handler>##ip... to ping ips##" : {
         "$" : "+"
+    },
+    "rmdir<rmdir_handler>##dir ... to remove_directory##" : {
+        "$" : "+"
     }
 
 }

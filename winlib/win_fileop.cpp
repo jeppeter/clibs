@@ -871,10 +871,151 @@ fail:
     return ret;
 }
 
+int __inner_rmdir(const char* dir)
+{
+    int ret;
+    char** ppfiles = NULL, **ppdirs=NULL;
+    int fsize=0,dsize=0;
+    int flen=0,dlen=0;
+    int cnt = 0;
+    int i;
+    int res;
+    char* curfile=NULL;
+    int cursize=0;
+
+    if (exist_dir(dir) == 0) {
+        return 0;
+    }
+
+    ret = get_dir_items((char*)dir,&ppfiles,&fsize,&flen,&ppdirs,&dsize,&dlen,0);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    for(i=0;i<dlen;i++) {
+        ret = snprintf_safe(&curfile,&cursize,"%s\\%s",dir,ppdirs[i]);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        ret = __inner_rmdir(curfile);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        cnt += ret;
+    }
+
+
+    /*now first to delete all files*/
+    for(i=0;i<flen;i++) {
+        ret = snprintf_safe(&curfile,&cursize,"%s\\%s",dir,ppfiles[i]);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        ret = delete_file(curfile);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto fail;
+        }
+        cnt += 1;
+    }
+
+    res = RemoveDirectoryA(dir);
+    if (res != 0) {
+        GETERRNO(ret);
+        if (exist_dir(dir) != 0) {
+            ERROR_INFO("RemoveDirectoryA [%s] error %d %d", dir, res,ret);
+            goto fail;            
+        }
+    }
+    cnt += 1;
+
+
+    snprintf_safe(&curfile,&cursize,NULL);
+    get_dir_items(NULL,&ppfiles,&fsize,&flen,&ppdirs,&dsize,&dlen,0);
+    return cnt;
+fail:
+    snprintf_safe(&curfile,&cursize,NULL);
+    get_dir_items(NULL,&ppfiles,&fsize,&flen,&ppdirs,&dsize,&dlen,0);
+    SETERRNO(ret);
+    return ret;    
+}
+
 int remove_directory(const char* dir)
 {
-    int ret = -ERROR_NOT_SUPPORTED;
-    REFERENCE_ARG(dir);
+    return __inner_rmdir(dir);
+}
+
+int remove_directory2(const char* dir)
+{
+    int ret,res;
+    char* pstarname = NULL;
+    int starsize=0;
+    SHFILEOPSTRUCTW* pshop=NULL;
+    wchar_t* ptdir=NULL;
+    int tdirsize=0;
+
+    pshop= (SHFILEOPSTRUCTW*)malloc(sizeof(*pshop));
+    if (pshop == NULL) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    ret = snprintf_safe(&pstarname,&starsize,"%s\\*",dir);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+    DEBUG_INFO("pstarname [%s]", pstarname);
+
+    ret = AnsiToUnicode(pstarname,&ptdir,&tdirsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    memset(pshop,0,sizeof(*pshop));
+    pshop->hwnd = NULL;
+    pshop->wFunc = FO_DELETE;
+    pshop->pFrom = ptdir;
+    pshop->pTo = NULL;
+    pshop->fFlags = FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_SILENT;
+    pshop->fAnyOperationsAborted  = FALSE;
+    pshop->lpszProgressTitle  = NULL;
+    pshop->hNameMappings  = NULL;
+
+    res= SHFileOperationW(pshop);
+    if (res != 0) {
+        GETERRNO(ret);
+        ERROR_INFO("rmdir [%s] error %d [%d]",dir, res,ret);
+        goto fail;
+    }
+
+    res = RemoveDirectoryA(dir);
+    if (res != 0) {
+        GETERRNO(ret);
+        ERROR_INFO("RemoveDirectoryA [%s] error %d [%d]",dir,res,ret);
+        goto fail;
+    }
+
+    AnsiToUnicode(NULL,&ptdir,&tdirsize);
+    snprintf_safe(&pstarname,&starsize,NULL);
+    if (pshop) {
+        free(pshop);
+    }
+    pshop = NULL;
+    return 0;
+fail:
+
+    AnsiToUnicode(NULL,&ptdir,&tdirsize);
+    snprintf_safe(&pstarname,&starsize,NULL);
+    if (pshop) {
+        free(pshop);
+    }
+    pshop = NULL;
     SETERRNO(ret);
     return ret;   
 }
@@ -1986,7 +2127,7 @@ int exist_dir(const char* dname)
     fattr = GetFileAttributes(tdname);
     if (fattr == INVALID_FILE_ATTRIBUTES) {
         GETERRNO(ret);
-        ERROR_INFO("[%s] can not get [%d]",dname,ret);
+        //ERROR_INFO("[%s] can not get [%d]",dname,ret);
         goto fail;
     }
 

@@ -672,3 +672,30 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+int rmdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int i;
+    int ret;
+    pargs_options_t pargs = (pargs_options_t)popt;
+    char* dname=NULL;
+
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
+
+    init_log_level(pargs);
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i];i++) {
+        dname = parsestate->leftargs[i];
+        ret = remove_directory(dname);
+        if (ret <0) {
+            GETERRNO(ret);
+            fprintf(stderr,"remove_directory [%s] error %d\n", dname, ret);
+            goto out;
+        }
+        fprintf(stdout,"remove_directory [%s] succ\n", dname);
+    }
+    ret = 0;
+out:
+    SETERRNO(ret);
+    return ret;
+}

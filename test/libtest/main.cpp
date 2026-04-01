@@ -331,6 +331,7 @@ int chdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int ansitouni_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int unitoansi_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int rmdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
