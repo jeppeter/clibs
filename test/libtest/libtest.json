@@ -601,6 +601,9 @@
     },
     "rbrand<rbrand_handler>##maxnum num to random do##" : {
         "$" : "*"
+    },
+    "rmdir<rmdir_handler>##dir ... to remove_directory##" : {
+        "$" : "+"
     }
 
 
