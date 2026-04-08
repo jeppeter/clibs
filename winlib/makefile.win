@@ -76,7 +76,7 @@ OBJECTS = $(LIB_OBJECTS)
 all:$(STATICDIR)\$(STATICLIB_FILE)
 
 
-$(STATICLIB_FILE): $(OBJECTS)
+$(STATICLIB_FILE): $(OBJECTS) 
     $(QUIETCMD)$(AR) $(ARFLAGS) -out:$@ $(OBJECTS)
 
 !ELSE
@@ -84,12 +84,12 @@ $(STATICLIB_FILE): $(OBJECTS)
 all:$(DYNAMICDIR)\$(SHAREDLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE)
 
 
-$(STATICLIB_FILE): $(OBJECTS)
+$(STATICLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\algorithm.lib
     $(QUIETCMD)$(AR) $(ARFLAGS) /DEF -out:$@ $(OBJECTS)
 
 
-$(SHAREDLIB_FILE): $(OBJECTS)
-    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS)
+$(SHAREDLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\algorithm.dll
+    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(DYNAMICDIR)\algorithm.lib
 
 !ENDIF
 
@@ -100,8 +100,8 @@ $(STATICLIB_FILE): $(OBJECTS)
     $(QUIETCMD)$(AR) $(ARFLAGS) /DEF -out:$@ $(OBJECTS)
 
 
-$(SHAREDLIB_FILE): $(OBJECTS)
-    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS)
+$(SHAREDLIB_FILE): $(OBJECTS) $(DYNAMICDIR)\algorithm.dll
+    $(QUIETCMD)$(LD) $(LDFLAGS) -dll -out:$@ $(OBJECTS) $(DYNAMICDIR)\algorithm.lib
 
 !ENDIF
 
@@ -121,11 +121,24 @@ $(DYNAMICDIR):
 $(DYNAMICDIR)\$(STATICLIB_FILE):$(STATICLIB_FILE) $(DYNAMICDIR)
     $(QUIETCMD)$(CP) $(STATICLIB_FILE) $(DYNAMICDIR)\$(STATICLIB_FILE)
 
+$(STATICDIR)\algorithm.lib:
+    $(QUIETCMD)cd $(TOPDIR)\common\algorithm && $(MAKE) $(MAKE_LOGO_FLAGS) /f makefile.win STATICLIB=1 all && cd "$(CURDIR)"
+
+
+$(DYNAMICDIR)\algorithm.dll:
+    $(QUIETCMD)cd $(TOPDIR)\common\algorithm && $(MAKE) $(MAKE_LOGO_FLAGS) /f makefile.win STATICLIB=0 all && cd "$(CURDIR)"
+
+
+
+
 .cpp.obj:
     $(QUIETCMD)$(CC) $(CFLAGS) -c -Fo$@ $<
 
 
-clean:
+clean_algorithm:
+    $(QUIETCMD)cd $(TOPDIR)\common\algorithm && $(MAKE) $(MAKE_LOGO_FLAGS) /f makefile.win clean && cd "$(CURDIR)"
+
+clean: clean_algorithm
     $(QUIETCMD)$(RM) *.pdb *.idb *.ilk *.exp 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(OBJECTS) 2>NUL || echo ""
     $(QUIETCMD)$(RM) $(STATICLIB_FILE) $(SHAREDLIB_FILE) 2>NUL || echo ""
