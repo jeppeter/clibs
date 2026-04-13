@@ -90,7 +90,7 @@ void __free_dns_query(PDNS_QUERY_t* ppdnsqry)
 		}
 
 		if (pdnsqry->m_infores) {
-			FreeAddrInfoEx(pdnsqry->m_infores);
+			FreeAddrInfoExW(pdnsqry->m_infores);
 		}
 		pdnsqry->m_infores = NULL;
 
