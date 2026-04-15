@@ -13,12 +13,20 @@
 #pragma warning(push)
 #pragma warning(disable:5045)
 
+#include <vector>
+#include <map>
 
-class CLASSIMPORT ExpClass {
+
+class  ExpClass {
 public:
-	ExpClass();
-	virtual ~ExpClass();
-	int print_hello(char* name);
+	CLASSIMPORT ExpClass();
+	CLASSIMPORT virtual ~ExpClass();
+	CLASSIMPORT int print_hello(char* name);
+	CLASSIMPORT int put_i(int i);
+	CLASSIMPORT int put_map_i(int i, int j);
+private:
+	std::vector<int> m_vis;
+	std::map<int,int> m_mis;
 };
 #pragma warning(pop)
 
