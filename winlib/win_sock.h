@@ -6,7 +6,7 @@
 #pragma warning(disable:4005)
 #pragma warning(disable:4668)
 #pragma warning(disable:4820)
-
+#pragma warning(disable:4514)
 
 #include <WinSock2.h>
 #include <WS2tcpip.h>

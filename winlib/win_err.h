@@ -17,6 +17,8 @@
 
 #define SETERRNO(ret)       _set_error(ret)
 
+#pragma warning(push)
+#pragma warning(disable:4514)
 __forceinline void _set_error(int ret)
 {
 	DWORD dret = (DWORD)ret;
@@ -26,6 +28,7 @@ __forceinline void _set_error(int ret)
 	SetLastError(dret);
 	return;
 }
+#pragma warning(pop)
 
 
 #define GETERRNO(__ret)                                       \
