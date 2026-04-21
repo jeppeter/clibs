@@ -54,8 +54,8 @@ private:
 	int m_level;
 	int m_fmtflag;
 	int m_maxfiles;
-	uint64_t m_size;
 	int m_type;
+	uint64_t m_size;
 };
 
 class WINLIB_API OutputCfg
