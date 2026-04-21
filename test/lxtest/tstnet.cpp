@@ -1,4 +1,12 @@
 
+int exit_hd_notify(void* pev,uint64_t fd,int event,void* arg)
+{
+    DEBUG_INFO(" ");
+    break_uxev(pev);
+    return 0;
+}
+
+
 int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {
     PingTotal* ptotal = NULL;
@@ -16,8 +24,6 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     int aftype = AF_INET;
     int i;
 
-    REFERENCE_ARG(argc);
-    REFERENCE_ARG(argv);
 
     init_log_verbose(pargs);
  
@@ -52,7 +58,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         goto out;
     }
 
-    ret= libev_insert_handle(pev,exithd,exit_hd_notify,NULL);
+    ret= add_uxev_callback(pev,exithd,READ_EVENT,exit_hd_notify,NULL);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
@@ -69,7 +75,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     }
 
     if (pdns->get_dns_query() != 0) {
-        ret = libev_winev_loop(pev);
+        ret = loop_uxev(pev);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
@@ -86,16 +92,16 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     delete pdns;
     pdns = NULL;
 
-    libev_free_winev(&pev);
+    free_uxev(&pev);
 
-    pev = libev_init_winev();
+    pev = init_uxev(0);
     if (pev == NULL) {
         GETERRNO(ret);
-        fprintf(stderr,"can not libev_init_winev %d", ret);
+        fprintf(stderr,"can not init_uxev %d", ret);
         goto out;
     }
 
-    ret= libev_insert_handle(pev,exithd,exit_hd_notify,NULL);
+    ret= add_uxev_callback(pev,exithd,READ_EVENT,exit_hd_notify,NULL);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
@@ -106,7 +112,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     for(auto iter = dnsres.begin() ; iter != dnsres.end(); ++ iter) {
         auto vvec = iter->second;
         if (vvec.size() == 0) {
-            ret = - ERROR_INVALID_PARAMETER;
+            ret = - EINVAL;
             fprintf(stderr,"[%s] dns 0",iter->first.c_str());
             goto out;
         }
@@ -118,7 +124,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     }
 
     if (ptotal->get_tasks() != 0) {
-        ret = libev_winev_loop(pev);
+        ret = loop_uxev(pev);
         DEBUG_INFO("loop ret %d", ret);
         if (ret < 0) {
             GETERRNO(ret);
@@ -162,7 +168,7 @@ out:
     }
     ptotal = NULL;
 
-    libev_free_winev(&pev);
+    free_uxev(&pev);
     SETERRNO(ret);
     return ret;
 }
@@ -297,12 +303,6 @@ out:
     free_uxev(&pev);
     SETERRNO(ret);
     return ret;
-}
-
-int exit_hd_notify(void* pev,uint64_t fd,int event,void* arg)
-{
-    break_uxev(pev);
-    return 0;
 }
 
 int __split_time(const char* pname, std::string& name,std::string& ports)

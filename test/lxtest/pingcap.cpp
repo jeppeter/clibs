@@ -2,7 +2,7 @@
 #include "pingcap.h"
 #include <ux_output_debug.h>
 #include <ux_err.h>
-#include <ux_time.h>
+#include <ux_time_op.h>
 #include <ux_strop.h>
 
 #include <time.h>
@@ -22,8 +22,8 @@ PingCap::PingCap(int pingtype,const char* ip,int times,int timeout,int nexttime,
 	this->m_timeout = timeout;
 	this->m_nexttime = nexttime;
 
-	this->m_rdevt = NULL;
-	this->m_wrevt = NULL;
+	this->m_rdfd = -1;
+	this->m_wrfd = -1;
 	this->m_tmoutguid = 0;
 	this->m_tmnextguid = 0;
 
@@ -89,7 +89,7 @@ void PingCap::__remove_tmout()
 {
 	int ret;
 	if (this->m_inserttmout != 0) {
-		ret= libev_remove_timer(this->m_evmain,this->m_tmoutguid);
+		ret= del_uxev_timer(this->m_evmain,this->m_tmoutguid);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("remove tmout [%s] error %d", this->m_ip.c_str(), ret);
@@ -104,7 +104,7 @@ void PingCap::__remove_tmnext()
 {
 	int ret;
 	if (this->m_inserttmnext != 0) {
-		ret= libev_remove_timer(this->m_evmain,this->m_tmnextguid);
+		ret= del_uxev_timer(this->m_evmain,this->m_tmnextguid);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("remove tmnext [%s] error %d", this->m_ip.c_str(), ret);
@@ -119,10 +119,10 @@ void PingCap::__remove_rd()
 {
 	int ret;
 	if (this->m_insertrd != 0) {
-		ret= libev_remove_handle(this->m_evmain,this->m_rdevt);
+		ret= delete_uxev_callback(this->m_evmain,this->m_rdfd);
 		if (ret < 0) {
 			GETERRNO(ret);
-			ERROR_INFO("remove rdevt [%s] error %d", this->m_ip.c_str(), ret);
+			ERROR_INFO("remove rdfd [%s] error %d", this->m_ip.c_str(), ret);
 		}
 		this->m_insertrd = 0;
 	}
@@ -133,10 +133,10 @@ void PingCap::__remove_wr()
 {
 	int ret;
 	if (this->m_insertwr != 0) {
-		ret= libev_remove_handle(this->m_evmain,this->m_wrevt);
+		ret= delete_uxev_callback(this->m_evmain,this->m_wrfd);
 		if (ret < 0) {
 			GETERRNO(ret);
-			ERROR_INFO("remove wrevt [%s] error %d", this->m_ip.c_str(), ret);
+			ERROR_INFO("remove wrfd [%s] error %d", this->m_ip.c_str(), ret);
 		}
 		this->m_insertwr = 0;
 	}
@@ -148,7 +148,7 @@ int PingCap::__insert_tmout()
 {
 	int ret;
 	if (this->m_inserttmout == 0) {
-		ret= libev_insert_timer(this->m_evmain,&this->m_tmoutguid,PingCap::ping_timeout,this,(uint32_t)this->m_timeout,0);
+		ret= add_uxev_timer(this->m_evmain,this->m_timeout,0,&this->m_tmoutguid,PingCap::ping_timeout,this);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("insert tmout [%s] error %d", this->m_ip.c_str(), ret);
@@ -168,7 +168,7 @@ int PingCap::__insert_tmnext()
 {
 	int ret;
 	if (this->m_inserttmnext == 0) {
-		ret= libev_insert_timer(this->m_evmain,&this->m_tmnextguid,PingCap::ping_timeout,this,(uint32_t)this->m_nexttime,0);
+		ret= add_uxev_timer(this->m_evmain,this->m_nexttime,0,&this->m_tmnextguid,PingCap::ping_timeout,this);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("insert tmnext [%s] error %d", this->m_ip.c_str(), ret);
@@ -188,7 +188,7 @@ int PingCap::__insert_rd()
 {
 	int ret;
 	if (this->m_insertrd == 0) {
-		ret= libev_insert_handle(this->m_evmain,this->m_rdevt,PingCap::ping_callback,this);
+		ret= add_uxev_callback(this->m_evmain,this->m_rdfd,PingCap::ping_callback,this);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("insert rdevt [%s] error %d", this->m_ip.c_str(), ret);
