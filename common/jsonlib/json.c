@@ -295,8 +295,10 @@ jvalue *jvalue_read(const char *json, unsigned int *size)
   if (p == 0 || *p == 0) return 0;
   /* skip the utf-8 bom */
   if (((*p & 0xFF) == 0xEF) &&
-      ((p+1) && (*(p+1) & 0xFF) == 0xBB) &&
-      ((p+2) && (*(p+2) & 0xFF) == 0xBF)) {
+      //((p+1) && (*(p+1) & 0xFF) == 0xBB) &&
+      //((p+2) && (*(p+2) & 0xFF) == 0xBF)) {
+      (*(p+1) & 0xFF) == 0xBB && 
+      (*(p+2) & 0xFF) == 0xBF){
     p += 3;
   }
   pp = parse_json_value(&value, 0, p);

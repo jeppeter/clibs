@@ -188,7 +188,7 @@ int PingCap::__insert_rd()
 {
 	int ret;
 	if (this->m_insertrd == 0) {
-		ret= add_uxev_callback(this->m_evmain,this->m_rdfd,PingCap::ping_callback,this);
+		ret= add_uxev_callback(this->m_evmain,this->m_rdfd,READ_EVENT,PingCap::ping_callback,this);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("insert rdevt [%s] error %d", this->m_ip.c_str(), ret);
@@ -204,7 +204,7 @@ int PingCap::__insert_wr()
 {
 	int ret;
 	if (this->m_insertwr == 0) {
-		ret= libev_insert_handle(this->m_evmain,this->m_wrevt,PingCap::ping_callback,this);
+		ret= add_uxev_callback(this->m_evmain,this->m_wrfd,WRITE_EVENT,PingCap::ping_callback,this);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("insert wrevt [%s] error %d", this->m_ip.c_str(), ret);
@@ -225,8 +225,8 @@ void PingCap::__release_resource()
 	this->__remove_wr();
 
 	free_ping_sock(&this->m_sock);
-	this->m_rdevt = NULL;
-	this->m_wrevt = NULL;
+	this->m_rdfd = -1;
+	this->m_wrfd = -1;
 	this->m_pingval.clear();
 	return;
 }
@@ -342,8 +342,8 @@ int PingCap::__restart()
 	this->__remove_tmout();
 	this->__remove_tmnext();
 
-	this->m_wrevt = NULL;
-	this->m_rdevt = NULL;
+	this->m_wrfd = -1;
+	this->m_rdfd = -1;
 
 	ret = send_ping_request(this->m_sock, this->m_ip.c_str());
 	if (ret < 0) {
@@ -367,9 +367,11 @@ int PingCap::__restart()
 				completed = 1;
 			}
 		} else {
-			this->m_rdevt = get_ping_read_evt(this->m_sock);
-			if (this->m_rdevt == NULL) {
-				ret = - ERROR_INVALID_PARAMETER;
+			if (this->m_rdfd < 0) {
+				this->m_rdfd = get_ping_evt(this->m_sock);
+			}			
+			if (this->m_rdfd < 0) {
+				ret = - EINVAL;
 				ERROR_INFO("can not get rdevt for [%s]", this->m_ip.c_str());
 				goto fail;
 			}
@@ -385,9 +387,12 @@ int PingCap::__restart()
 			}
 		}
 	} else {
-		this->m_wrevt = get_ping_write_evt(this->m_sock);
-		if (this->m_wrevt == NULL) {
-			ret = - ERROR_INVALID_PARAMETER;
+		if (this->m_wrfd < 0 ){
+			this->m_wrfd =  get_ping_evt(this->m_sock);
+		}
+
+		if (this->m_wrfd < 0) {
+			ret = - EINVAL;
 			ERROR_INFO("can not get wrevt for [%s]", this->m_ip.c_str());
 			goto fail;
 		}
@@ -414,7 +419,7 @@ int PingCap::start()
 	int ret;
 	int completed = 0;
 	if (this->m_ip.length() == 0) {
-		ret = -ERROR_INVALID_PARAMETER;
+		ret = - EINVAL;
 		goto fail;
 	}
 
@@ -455,12 +460,12 @@ int PingCap::get_result(std::string& vstr)
 	return ret;
 }
 
-int PingCap::_callback_func(HANDLE hd)
+int PingCap::_callback_func(int fd,int event)
 {
 	int ret;
 	int completed = 0;
 	uint64_t val;
-	if (hd == this->m_wrevt) {
+	if (fd == this->m_wrfd && event == WRITE_EVENT) {
 		ASSERT_IF(this->m_sock != NULL);
 		ret = ping_complete_write(this->m_sock);
 		if (ret < 0) {
@@ -485,9 +490,13 @@ int PingCap::_callback_func(HANDLE hd)
 					completed = 1;
 				}
 			} else {
-				this->m_rdevt = get_ping_read_evt(this->m_sock);
-				if (this->m_rdevt == NULL) {
+				if (this->m_rdfd < 0) {
+					this->m_rdfd = get_ping_evt(this->m_sock);
+				}
+
+				if (this->m_rdfd < 0) {
 					GETERRNO(ret);
+					ERROR_INFO("cannot get rdfd %d",ret);
 					goto fail;
 				}
 
@@ -498,8 +507,9 @@ int PingCap::_callback_func(HANDLE hd)
 				}
 			}
 		}
-	} else if (hd == this->m_rdevt) {
+	} else if (fd == this->m_rdfd && event == READ_EVENT) {
 		ASSERT_IF(this->m_sock != NULL);
+		this->__remove_rd();
 		ret = ping_complete_read(this->m_sock);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -521,9 +531,11 @@ int PingCap::_callback_func(HANDLE hd)
 					completed = 1;
 				}
 			} else {
-				ret = - ERROR_INVALID_PARAMETER;
-				ERROR_INFO("recv ping response on [%s]", this->m_ip.c_str());
-				goto fail;
+				ret = this->__insert_rd();
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
 			}
 		}
 	}
@@ -533,13 +545,11 @@ fail:
 	return ret;
 }
 
-int PingCap::ping_callback(HANDLE hd,libev_enum_event_t event,void* pevmain,void* args)
+int PingCap::ping_callback(void* pev,uint64_t fd,int event,void* arg)
 {
-	PingCap* pThis = (PingCap*) args;
+	PingCap* pThis = (PingCap*) arg;
 	int ret;
-	REFERENCE_ARG(pevmain);
-	REFERENCE_ARG(event);
-	ret = pThis->_callback_func(hd);
+	ret = pThis->_callback_func(fd,event);
 	if (ret < 0 || ret > 0) {
 		DEBUG_INFO("before del %p", pThis);
 		delete pThis;
@@ -582,13 +592,11 @@ fail:
 	return ret;
 }
 
-int PingCap::ping_timeout(uint64_t guid,libev_enum_event_t event,void* pevmain,void* args)
+int PingCap::ping_timeout(void* pev,uint64_t fd,int event,void* arg)
 {
-	PingCap* pThis = (PingCap*) args;
+	PingCap* pThis = (PingCap*) arg;
 	int ret;
-	REFERENCE_ARG(event);
-	REFERENCE_ARG(pevmain);
-	ret = pThis->__timeout(guid);
+	ret = pThis->__timeout(fd);
 	if (ret < 0 || ret > 0) {
 		delete pThis;
 	}

@@ -138,9 +138,11 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         goto out;
     }
 
-    fprintf(stdout,"%-20s %-10s\n","IP","AVERAGE");
+    //fprintf(stdout,"%-20s %-10s\n","IP","AVERAGE");
+    fprintf(stdout,"%20s %10s\n","IP","AVERAGE");
     for(auto iter = meanres.begin() ; iter != meanres.end(); ++ iter) {
-        fprintf(stdout,"%-20s %-05f\n", iter->first.c_str(),iter->second);
+        //fprintf(stdout,"%-20s %-05f\n", iter->first.c_str(),iter->second);
+        fprintf(stdout,"%20s %05f\n", iter->first.c_str(),iter->second);
     }  
 
     fprintf(stdout,"\n");
@@ -151,9 +153,11 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         goto out;
     }
 
-    fprintf(stdout,"%-20s %-10s\n", "IP","SUCC RATIO");
+    //fprintf(stdout,"%-20s %-10s\n", "IP","SUCC RATIO");
+    fprintf(stdout,"%20s %10s\n", "IP","SUCC RATIO");
     for(auto iter = failres.begin() ; iter != failres.end(); ++ iter) {
-        fprintf(stdout,"%-20s %-05f\n", iter->first.c_str(),iter->second);
+        //fprintf(stdout,"%-20s %-05f\n", iter->first.c_str(),iter->second);
+        fprintf(stdout,"%20s %05f\n", iter->first.c_str(),iter->second);
     }
 
     ret = 0;

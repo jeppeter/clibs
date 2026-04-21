@@ -1,7 +1,8 @@
 #include "pingtotal.h"
 #include <ux_err.h>
 #include <ux_libev.h>
-#include <ux_time.h>
+#include <ux_time_op.h>
+#include <ux_output_debug.h>
 
 
 
@@ -61,7 +62,7 @@ void PingTotal::notify_event(void* ptr,ev_combo_event_t event)
 		pcap = NULL;
 		if (this->m_deleted == 0 && this->m_ips.size() == 0 && this->m_evmain != NULL) {
 			DEBUG_INFO("loop break");
-			libev_break_winev_loop(this->m_evmain);
+			break_uxev(this->m_evmain);
 		}
 	} else if (event == get_result_event) {
 		this->__get_info(pcap,name);		
@@ -106,7 +107,7 @@ int PingTotal::__get_single_info(std::string& name, std::string& vstr)
 	for(cnt=0;cnt < 3;cnt += 1) {
 		np = vstr.find(';',np + 1);
 		if (np == std::string::npos) {
-			ret = - ERROR_INVALID_PARAMETER;
+			ret = - EINVAL;
 			ERROR_INFO("[%d]can not parse [%s]",cnt, vstr.c_str());
 			goto fail;
 		}
@@ -255,7 +256,7 @@ int PingTotal::get_mean(std::map<std::string,double>& res)
 		} else {
 			auto citer = this->m_iptotal.find(name);
 			if (citer == this->m_iptotal.end()) {
-				ret = - ERROR_INVALID_PARAMETER;
+				ret = - EINVAL;
 				ERROR_INFO("can not find [%s] for iptotal", name.c_str());
 				goto fail;
 			}
@@ -282,7 +283,7 @@ int PingTotal::get_succ_ratio(std::map<std::string,double>& res)
 		std::string name = iter->first;
 		auto citer = this->m_ipfail.find(name);
 		if (citer == this->m_ipfail.end()) {
-			ret = - ERROR_INVALID_PARAMETER;
+			ret = - EINVAL;
 			ERROR_INFO("can not find [%s] for ipfail", name.c_str());
 			goto fail;
 		}
