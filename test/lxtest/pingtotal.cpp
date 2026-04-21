@@ -1,490 +1,311 @@
-#include <ux_output_debug.h>
-#include <ux_err.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/epoll.h>
-#include <unistd.h>
-
 #include "pingtotal.h"
+#include <ux_err.h>
+#include <ux_libev.h>
+#include <ux_time.h>
 
 
-PingTotal::PingTotal(int timeout,int nexttime,int times,int verbose)
+
+PingTotal::PingTotal(int timeout,int nexttime,int times, void* pev)
 {
-	this->m_verbose = verbose;
+	this->m_ipcnt.clear();
+	this->m_ipfail.clear();
+	this->m_iptotal.clear();
+	this->m_ips.clear();
+	this->m_evmain = pev;
 	this->m_timeout = timeout;
 	this->m_nexttime = nexttime;
 	this->m_times = times;
-	this->m_vec = NULL;
-	this->m_ipvec = NULL;
-	this->m_findmap = NULL;
+
+	this->m_deleted = 0;
+}
+
+void PingTotal::__release_resource()
+{
+	while(this->m_ips.size() != 0) {
+		auto iter = this->m_ips.begin();
+		PingCap* pcap = iter->first;
+		this->m_ips.erase(iter);
+		delete pcap;
+		pcap = NULL;
+	}
+
+	this->m_ipcnt.clear();
+	this->m_ipfail.clear();
+	this->m_iptotal.clear();
 }
 
 PingTotal::~PingTotal()
 {
-	if (this->m_findmap) {
-		this->m_findmap->clear();
-		delete this->m_findmap;
-	}
-	this->m_findmap = NULL;
-	if (this->m_ipvec) {
-		while(this->m_ipvec->size() > 0) {
-			char* ip = this->m_ipvec->at(0);
-			this->m_ipvec->erase(this->m_ipvec->begin());
-			free(ip);
-		}
-		delete this->m_ipvec;
-	}
-	this->m_ipvec = NULL;
+	DEBUG_INFO("~PingTotal");
+	this->m_deleted = 1;
+	this->__release_resource();
 
-	if (this->m_vec) {
-		while(this->m_vec->size() > 0) {
-			PingCap* p = this->m_vec->at(0);
-			this->m_vec->erase(this->m_vec->begin());
-			delete p;
-			p = NULL;
-		}
-		delete this->m_vec;
-	}
-	this->m_vec = NULL;
+	this->m_evmain = NULL;
 
+	this->m_deleted = 0;
 }
 
-
-int PingTotal::add_host(const char* ip)
+void PingTotal::notify_event(void* ptr,ev_combo_event_t event)
 {
-	PingCap* pv=NULL;
+	auto iter = this->m_ips.find((PingCap*)ptr);
+	if (iter == this->m_ips.end()) {
+		return;
+	}
+
+	PingCap* pcap = iter->first;
+	std::string name = iter->second;
+
+	if (event == remove_event) {
+		/*we do not delete this object ,for it will delete outside this*/
+		this->m_ips.erase(iter);
+		pcap = NULL;
+		if (this->m_deleted == 0 && this->m_ips.size() == 0 && this->m_evmain != NULL) {
+			DEBUG_INFO("loop break");
+			libev_break_winev_loop(this->m_evmain);
+		}
+	} else if (event == get_result_event) {
+		this->__get_info(pcap,name);		
+	}
+	return;
+}
+
+int PingTotal::set_timeout(int timeout)
+{
 	int ret;
-	char* newip=NULL;
-	if (this->m_vec == NULL) {
-		this->m_vec = new std::vector<PingCap*>();
-	}
-
-	if (this->m_ipvec == NULL) {
-		this->m_ipvec = new std::vector<char*>();
-	}
-
-	ASSERT_IF(this->m_ipvec->size() == this->m_vec->size());
-
-	newip = strdup(ip);
-	if (newip == NULL) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	pv = new PingCap(ip,this->m_timeout,this->m_nexttime,this->m_times);
-	ret = pv->set_verbose(this->m_verbose);
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	ret = pv->start();
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	this->m_vec->push_back(pv);
-	this->m_ipvec->push_back(newip);
-	pv = NULL;
-	newip = NULL;
-	return 1;
-fail:
-	if (newip) {
-		free(newip);
-	}
-	newip = NULL;
-
-	if (pv) {
-		delete pv;
-	}
-	pv = NULL;
-	SETERRNO(ret);
+	ret = this->m_timeout;
+	this->m_timeout = timeout;
 	return ret;
 }
 
-PingCap* PingTotal::__find_pingcap(int fd)
-{	
-	PingCap* retv= NULL;
-	if (this->m_findmap) {
-		std::map<int,PingCap*>::iterator res;
-		res= this->m_findmap->find(fd);
-		if (res != this->m_findmap->end()) {
-			retv = res->second;
-		}
-	}
-	return retv;
-}
-
-int PingTotal::__remove_pingcap(int fd)
+int PingTotal::set_nexttime(int nextime)
 {
-	int ret = 0;
-
-	if (this->m_findmap) {
-		std::map<int,PingCap*>::iterator res;
-		res= this->m_findmap->find(fd);
-		if (res != this->m_findmap->end()) {
-			/*we remove it*/
-			this->m_findmap->erase(res);
-			ret=1;
-		}
-
-	}
-
+	int ret;
+	ret = this->m_nexttime;
+	this->m_nexttime = nextime;
 	return ret;
 }
 
-int PingTotal::__insert_pingcap(int fd,PingCap* pv)
-{
-	if (this->m_findmap == NULL) {
-		this->m_findmap = new std::map<int,PingCap*>();
-	}
-	//this->m_findmap->insert({fd,pv});
-	this->m_findmap->insert(std::pair<int,PingCap*>(fd,pv));
-	return 0;
-}
-
-int PingTotal::get_mean(int idx, char** ppipstr,uint64_t* pval)
+int PingTotal::set_times(int times)
 {
 	int ret;
-	PingCap* pv=NULL;
-	uint64_t cval;
-	char* newstr=NULL;
-
-	if (idx < 0) {
-		if (ppipstr && *ppipstr) {
-			free(*ppipstr);
-			*ppipstr = NULL;
-		}
-		if (pval) {
-			*pval = 0;
-		}
-		return 0;
-	}
-
-	if (ppipstr == NULL || pval == NULL) {
-		ret = -EINVAL;
-		SETERRNO(ret);
-		return ret;
-	}
-
-	if (this->m_ipvec == NULL || (int)this->m_ipvec->size() <= idx) {
-		return 0;
-	}
-	pv = this->m_vec->at((uint64_t)idx);
-	newstr = this->m_ipvec->at((uint64_t)idx);
-	ret = pv->get_mean_result(cval);
-
-	if (ret < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-	if (ppipstr && *ppipstr) {
-		free(*ppipstr);
-		*ppipstr = NULL;
-	}
-
-	*ppipstr = strdup(newstr);
-	if (*ppipstr == NULL) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	*pval = cval;
-	return 1;
-fail:
-	SETERRNO(ret);
+	ret = this->m_times;
+	this->m_times = times;
 	return ret;
 }
 
-int PingTotal::__min2(int a, int b)
+int PingTotal::__get_single_info(std::string& name, std::string& vstr)
 {
-	int retval = a;
-	if (b < a) {
-		retval = b;
-	}
-	return retval;
-}
-
-
-#define REMOVE_EVT(epollfd, fd)                                                                   \
-do{                                                                                               \
-	struct epoll_event _evt;                                                                      \
-	int __ret;                                                                                    \
-	memset(&_evt,0,sizeof(_evt));                                                                 \
-	_evt.events = 0;                                                                              \
-	_evt.events |= EPOLLIN;                                                                       \
-	_evt.events |= EPOLLOUT;                                                                      \
-	_evt.events |= EPOLLERR;                                                                      \
-	__ret = epoll_ctl(epollfd,EPOLL_CTL_DEL,fd,&_evt);                                            \
-	if (__ret < 0) {                                                                              \
-		GETERRNO(ret);                                                                            \
-		if (ret != -ENOENT){                                                                      \
-			DEBUG_INFO("remove [%d] error %d errno %d", fd, __ret, ret);                          \
-			goto fail;                                                                            \
-		}                                                                                         \
-	}                                                                                             \
-}while(0)
-
-#define  ADD_EVT(epollfd, fd2,mode)                                                               \
-do{                                                                                               \
-	struct epoll_event _evt;                                                                      \
-	int __ret;                                                                                    \
-	memset(&_evt,0,sizeof(_evt));                                                                 \
-	_evt.data.fd = fd2;                                                                           \
-	_evt.events = 0;                                                                              \
-	if ((mode & READ_MODE) != 0) {                                                                \
-		_evt.events |= EPOLLIN;                                                                   \
-	}                                                                                             \
-	if ((mode & WRITE_MODE) != 0) {                                                               \
-		_evt.events |= EPOLLOUT;                                                                  \
-	}                                                                                             \
-	__ret = epoll_ctl(epollfd,EPOLL_CTL_ADD,fd2,&_evt);                                           \
-	if (__ret < 0) {                                                                              \
-		GETERRNO(ret);                                                                            \
-		DEBUG_INFO("add [%d] error %d errno %d", fd2, __ret ,ret);                                \
-		goto fail;                                                                                \
-	}                                                                                             \
-} while(0)
-
-char* __get_event(int event)
-{
-	static char envstr[256];
-	char* ptr = envstr;
-	int leftsize = sizeof(envstr);
-	int addsize = 0;
+	size_t np=0;
+	std::string hxstr;
 	int ret;
-	if ((event & EPOLLIN) != 0) {
-		ret= snprintf(ptr,leftsize,"EPOLLIN");
-		leftsize -= ret;
-		ptr += ret;
-		addsize += ret;
-	}
+	int cnt;
+	uint64_t val;
+	char* pendptr;
 
-	if ((event & EPOLLOUT) != 0) {
-		if (addsize > 0) {
-			ret = snprintf(ptr,leftsize,"|");
-			leftsize -= ret;
-			ptr += ret;
-			addsize += ret;
-		}
-		ret = snprintf(ptr,leftsize,"EPOLLOUT");
-		leftsize -= ret;
-		ptr += ret;
-		addsize += ret;
-	}
-
-	if ((event & EPOLLERR) != 0) {
-		if (addsize > 0) {
-			ret = snprintf(ptr,leftsize,"|");
-			leftsize -= ret;
-			ptr += ret;
-			addsize += ret;
-		}
-		ret = snprintf(ptr,leftsize,"EPOLLERR");
-		leftsize -= ret;
-		ptr += ret;
-		addsize += ret;		
-	}
-	return envstr;
-}
-
-int PingTotal::loop(int exithd)
-{
-	int ret;
-	int maxtime;
-	PingCap* pv,*newpv;
-	int nextones=0;
-	int i;
-	int mode;
-	int timeval;
-	int timeout=0;
-	int epollfd = -1;
-	struct epoll_event* waitevt=NULL;
-	int maxevt=5;
-	int retevt;
-	int waitnum;
-	int fd;
-	epollfd = epoll_create1(0);
-	if (epollfd < 0) {
-		GETERRNO(ret);
-		goto fail;
-	}
-	DEBUG_INFO("epollfd [%d] exithd [%d]" ,epollfd, exithd);
-
-	ADD_EVT(epollfd,exithd,READ_MODE);
-
-	waitevt = (struct epoll_event*) malloc(sizeof(*waitevt) * maxevt);
-	if (waitevt == NULL) {
-		GETERRNO(ret);
-		goto fail;
-	}
-
-
-	while(1) {
-		maxtime = this->m_timeout;
-		nextones = 0;
-		waitnum = 1;
-
-		for(i=0;i < (int)this->m_vec->size();i ++) {
-			pv = this->m_vec->at(i);
-			/*we remove the fd for it will not set*/
-			fd = pv->get_sock_evt();
-			REMOVE_EVT(epollfd, fd);
-	get_next_mode:
-			timeout = 0;
-			mode = pv->get_mode();
-			if ((mode & COMPLETE_MODE) != 0) {
-				continue;
-			}
-			if ((mode & START_MODE) != 0 || (mode & EXPIRE_MODE) != 0) {
-				if ((mode & EXPIRE_MODE) != 0) {
-					timeout = 1;
-				}
-				/*because we restart ,so we should remove it first and we remove the pingcap*/
-				fd = pv->get_sock_evt();
-				REMOVE_EVT(epollfd, fd);
-				this->__remove_pingcap(fd);
-
-				ret = pv->restart(timeout);
-				if (ret < 0) {
-					GETERRNO(ret);
-					goto fail;
-				}
-				goto get_next_mode;
-			}
-
-			if ((mode & READ_MODE) != 0 || (mode & WRITE_MODE) != 0) {
-				fd = pv->get_sock_evt();
-				REMOVE_EVT(epollfd,fd);
-				ADD_EVT(epollfd,fd,mode);
-				newpv=  this->__find_pingcap(fd);
-				waitnum += 1;
-				if (newpv == NULL) {
-					this->__insert_pingcap(fd,pv);
-				}				
-			}
-
-
-
-			if ((mode & NEXT_MODE) != 0) {
-				nextones += 1;
-				timeval = pv->get_next_expire();
-				maxtime = this->__min2(timeval,maxtime);
-			}
-		}
-
-		if (waitnum == 1) {
-			if (nextones == 0) {
-				break;
-			}
-		}
-
-		DEBUG_INFO("epollfd %d waitnum %d maxtime %d",epollfd, waitnum, maxtime);
-		memset(waitevt,0, sizeof(*waitevt) * maxevt);
-		ret= epoll_wait(epollfd,waitevt,maxevt,maxtime);
-		if (ret > 0) {
-			retevt = ret;
-			for(i=0;i<retevt;i++) {
-				pv = this->__find_pingcap(waitevt[i].data.fd);
-				if (pv != NULL) {
-					if ((waitevt[i].events & EPOLLIN) != 0) {
-						ret = pv->complete_read_evt();
-						if (ret < 0) {
-							GETERRNO(ret);
-							ERROR_INFO(" ");
-							goto fail;
-						}
-					}
-
-					if ((waitevt[i].events & EPOLLOUT) != 0) {
-						ret = pv->complete_write_evt();
-						if (ret < 0) {
-							GETERRNO(ret);
-							ERROR_INFO(" ");
-							goto fail;
-						}
-					}
-				} else if (waitevt[i].data.fd == exithd) {
-					break;
-				}
-			}
-		} else if (ret == 0) {
-			continue;
-		} else {
-			GETERRNO(ret);
-			ERROR_INFO("epoll_wait error %d", ret);
+	/*format PINGCAP;192.168.3.11;2020-10-01 12:20:20;0x11;*/
+	for(cnt=0;cnt < 3;cnt += 1) {
+		np = vstr.find(';',np + 1);
+		if (np == std::string::npos) {
+			ret = - ERROR_INVALID_PARAMETER;
+			ERROR_INFO("[%d]can not parse [%s]",cnt, vstr.c_str());
 			goto fail;
 		}
 	}
 
-	if (epollfd >= 0) {
-		close(epollfd);
-	}
-	epollfd = -1;
-	if (waitevt) {
-		free(waitevt);
-	}
-	waitevt = NULL;
+	/*to skip ;0x*/
+	hxstr = vstr.substr(np + 3, vstr.length() - np - 3);
+	val = std::strtoull(hxstr.c_str(),&pendptr,16);
+	DEBUG_INFO("[%s] val 0x%llx", vstr.c_str(),val);
 
-	return 1;
+	if (val == MAX_TIME_VALUE) {
+		auto iter = this->m_ipcnt.find(name);
+		std::string bname = name;
+		if (iter == this->m_ipcnt.end()) {
+			DEBUG_INFO("ipcnt [%s] cnt 0", bname.c_str());
+			this->m_ipcnt.insert({bname,(uint64_t)0});
+		} 
+
+		auto citer = this->m_ipfail.find(name);
+		if (citer == this->m_ipfail.end()) {
+			DEBUG_INFO("ipfail [%s] cnt 0", bname.c_str());
+			this->m_ipfail.insert({name,(uint64_t)1});
+		} else {
+			citer->second += 1;
+			DEBUG_INFO("ipfail [%s] %lld", bname.c_str(), citer->second);
+		}
+
+		auto biter = this->m_iptotal.find(name);
+		if (biter == this->m_iptotal.end()) {
+			DEBUG_INFO("iptotal [%s] 0.0", bname.c_str());
+			this->m_iptotal.insert({name,0.0});
+		}	
+	} else {
+		auto iter = this->m_ipcnt.find(name);
+		if (iter == this->m_ipcnt.end()) {
+			DEBUG_INFO("[%s] ipcnt 1", name.c_str());
+			this->m_ipcnt.insert({name,(uint64_t)1});
+		}  else {
+			iter->second += 1;
+			DEBUG_INFO("[%s] ipcnt %lld", name.c_str(), iter->second);
+		}
+
+		auto citer = this->m_ipfail.find(name);
+		if (citer == this->m_ipfail.end()) {
+			DEBUG_INFO("[%s] ipfail 0", name.c_str());
+			this->m_ipfail.insert({name,(uint64_t)0});
+		}
+
+		auto biter = this->m_iptotal.find(name);
+		double iv = (double) val;
+		if (biter == this->m_iptotal.end()) {
+			DEBUG_INFO("[%s] iptotal %f", name.c_str(), iv);
+			this->m_iptotal.insert({name,iv});
+		} else {
+			biter->second += iv;
+			DEBUG_INFO("[%s] iptotal %f", name.c_str(), biter->second);
+		}
+	}
+	return 0;
 fail:
-	if (epollfd >= 0) {
-		close(epollfd);
-	}
-	epollfd = -1;
-	if (waitevt) {
-		free(waitevt);
-	}
-	waitevt = NULL;
 	SETERRNO(ret);
 	return ret;
 }
 
-int PingTotal::get_succ_ratio(int idx, char** ppipstr,double* pratio)
+int PingTotal::__get_info(PingCap* pcap, std::string& name)
 {
+	std::string vstr;
 	int ret;
-	double rd;
-	PingCap* pv=NULL;
-	char* newstr=NULL;
-	if (idx < 0) {
-		if (ppipstr && *ppipstr) {
-			free(*ppipstr);
-			*ppipstr = NULL;
+	int cnt=0;
+
+	while(1) {
+		ret = pcap->get_result(vstr);
+		if (ret == 0) {
+			break;
 		}
-		if (pratio) {
-			*pratio = 0.0;
+
+		ret = this->__get_single_info(name,vstr);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
 		}
-		return 0;
+		cnt += 1;
 	}
+	
+	return cnt;
+fail:
+	SETERRNO(ret);
+	return ret;
 
-	if (ppipstr == NULL || pratio == NULL) {
-		ret = -EINVAL;
-		SETERRNO(ret);
-		return ret;
-	}
+}
 
-	if (this->m_ipvec == NULL || (int)this->m_ipvec->size() <= idx) {
-		return 0;
-	}
-	pv = this->m_vec->at((uint64_t)idx);
-	newstr = this->m_ipvec->at((uint64_t)idx);
-	rd = pv->get_succ_ratio();
+int PingTotal::add_host(int aftype,const char* ip)
+{
+	PingCap* pcap=NULL;
+	int ret;
+	std::string name;
+	int completed = 0;
 
-	if (ppipstr && *ppipstr) {
-		free(*ppipstr);
-		*ppipstr = NULL;
-	}
-
-	*ppipstr = strdup(newstr);
-	if (*ppipstr == NULL) {
+	pcap = new PingCap(aftype,ip,this->m_times,this->m_timeout,this->m_nexttime,this->m_evmain,this);
+	ret = pcap->start();
+	if (ret < 0) {
 		GETERRNO(ret);
 		goto fail;
+	} else if (ret > 0) {
+		/*now we should get the filters*/
+		name = ip;
+		ret = this->__get_info(pcap,name);
+		if (ret < 0) {
+			GETERRNO(ret);
+			goto fail;
+		}
+		delete pcap;
+		pcap = NULL;
+		completed = 1;
+	} else {
+		/*now to give the map*/
+		name = ip;
+		this->m_ips.insert({pcap,name});
+		pcap = NULL;
 	}
-	*pratio = rd;
-	return 1;
+
+	if (pcap) {
+		delete pcap;
+	}
+	pcap = NULL;
+
+	return completed;
+fail:
+	if (pcap) {
+		delete pcap;
+	}
+	pcap = NULL;
+	SETERRNO(ret);
+	return ret;
+}
+
+int PingTotal::get_mean(std::map<std::string,double>& res)
+{
+	int ret;
+	int cnt=0;
+
+	for(auto iter = this->m_ipcnt.begin(); iter != this->m_ipcnt.end(); ++ iter,cnt += 1) {
+		std::string name = iter->first;
+		if (iter->second == 0) {
+			res.insert({name,0.0});
+		} else {
+			auto citer = this->m_iptotal.find(name);
+			if (citer == this->m_iptotal.end()) {
+				ret = - ERROR_INVALID_PARAMETER;
+				ERROR_INFO("can not find [%s] for iptotal", name.c_str());
+				goto fail;
+			}
+
+			double cval = (double)(citer->second) / (double)(iter->second);
+			DEBUG_INFO("insert [%s] %f / %f %f", name.c_str(), (double)citer->second, (double)iter->second, cval);
+			res.insert({name,cval});
+		}
+	}
+
+	return cnt;
 fail:
 	SETERRNO(ret);
 	return ret;
 }
 
+
+int PingTotal::get_succ_ratio(std::map<std::string,double>& res)
+{
+	int ret;
+	int cnt = 0;
+	for(auto iter = this->m_ipcnt.begin(); iter != this->m_ipcnt.end() ; ++ iter, cnt += 1) {
+		uint64_t succcnt = iter->second;
+		std::string name = iter->first;
+		auto citer = this->m_ipfail.find(name);
+		if (citer == this->m_ipfail.end()) {
+			ret = - ERROR_INVALID_PARAMETER;
+			ERROR_INFO("can not find [%s] for ipfail", name.c_str());
+			goto fail;
+		}
+
+		uint64_t failcnt = citer->second;
+
+		if (failcnt == 0) {
+			res.insert({name,1.0});
+		} else if (succcnt == 0) {
+			res.insert({name,0.0});
+		} else {
+			double cval = (double)succcnt / (double)(succcnt + failcnt);
+			res.insert({name,cval});
+		}
+	}
+
+	return cnt;
+fail:
+	SETERRNO(ret);
+	return ret;
+}
+
+int PingTotal::get_tasks()
+{
+	return (int) this->m_ips.size();
+}

@@ -3,18 +3,21 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 {
     PingTotal* ptotal = NULL;
     int ret;
-    int idx;
     pargs_options_t pargs = (pargs_options_t) popt;
     int timeout= pargs->m_timeout;
     int nexttime = pargs->m_nexttime;
     int times = pargs->m_times;
-    char* ipstr =NULL;
-    uint64_t cval = 0;
-    int exithd= -1;
-    double ratio = 0.0;
+    int exithd=-1;
+    std::map<std::string,double> meanres;
+    std::map<std::string,double> failres;
+    std::map<std::string,std::vector<std::string>> dnsres;
+    void* pev = NULL;
+    DnsTotal* pdns=NULL;
+    int aftype = AF_INET;
+    int i;
 
-    //REFERENCE_ARG(argc);
-    //REFERENCE_ARG(argv);
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
 
     init_log_verbose(pargs);
  
@@ -25,13 +28,14 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         goto out;
     }
 
-    if (timeout == 0) {
+    if(timeout == 0) {
         timeout = 5000;
     }
 
-    if (nexttime == 0) {
-    	nexttime = 1000;
+    if (pargs->m_af6) {
+        aftype = AF_INET6;
     }
+
 
     DEBUG_INFO(" ");
 
@@ -41,53 +45,124 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
         goto out;
     }
 
-
-    ptotal = new PingTotal(timeout,nexttime,times,1);
-    DEBUG_INFO(" ");
-
-    for(idx=0;parsestate->leftargs && parsestate->leftargs[idx];idx++) {
-        DEBUG_INFO("[%d] [%s]", idx,parsestate->leftargs[idx]);
-        ret = ptotal->add_host(parsestate->leftargs[idx]);
-        if (ret < 0) {
-            GETERRNO(ret);
-            DEBUG_INFO("ret %d", ret);
-            goto out;
-        }
+    pev = init_uxev(0);
+    if (pev == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not libev_init_winev %d", ret);
+        goto out;
     }
 
-    ret=  ptotal->loop(exithd);
+    ret= libev_insert_handle(pev,exithd,exit_hd_notify,NULL);
     if (ret < 0) {
         GETERRNO(ret);
         goto out;
     }
 
-    idx = 0;
-    while(1) {
-        ret = ptotal->get_mean(idx,&ipstr,&cval);
-        if (ret == 0) {
-            break;
-        }
+    pdns = new DnsTotal(pev,timeout);
 
-        ratio = 0.0;
-        ret = ptotal->get_succ_ratio(idx,&ipstr,&ratio);
+    for(i=0;parsestate->leftargs && parsestate->leftargs[i]; i++) {
+        ret = pdns->start_dns(aftype,parsestate->leftargs[i]);
         if (ret < 0) {
             GETERRNO(ret);
             goto out;
         }
-#if __SIZEOF_POINTER__ == 8
-        printf("%s mean %ld %f\n",ipstr,cval, ratio);
-#else
-        printf("%s mean %lld %f\n",ipstr,cval, ratio);
-#endif
-        idx += 1;
     }
+
+    if (pdns->get_dns_query() != 0) {
+        ret = libev_winev_loop(pev);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }        
+    }
+
+
+    ret = pdns->get_result(dnsres);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    delete pdns;
+    pdns = NULL;
+
+    libev_free_winev(&pev);
+
+    pev = libev_init_winev();
+    if (pev == NULL) {
+        GETERRNO(ret);
+        fprintf(stderr,"can not libev_init_winev %d", ret);
+        goto out;
+    }
+
+    ret= libev_insert_handle(pev,exithd,exit_hd_notify,NULL);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    ptotal = new PingTotal(timeout, nexttime,times, pev);
+
+    for(auto iter = dnsres.begin() ; iter != dnsres.end(); ++ iter) {
+        auto vvec = iter->second;
+        if (vvec.size() == 0) {
+            ret = - ERROR_INVALID_PARAMETER;
+            fprintf(stderr,"[%s] dns 0",iter->first.c_str());
+            goto out;
+        }
+        ret = ptotal->add_host(aftype,vvec[0].c_str());
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+    if (ptotal->get_tasks() != 0) {
+        ret = libev_winev_loop(pev);
+        DEBUG_INFO("loop ret %d", ret);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+    ret = ptotal->get_mean(meanres);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    fprintf(stdout,"%-20s %-10s\n","IP","AVERAGE");
+    for(auto iter = meanres.begin() ; iter != meanres.end(); ++ iter) {
+        fprintf(stdout,"%-20s %-05f\n", iter->first.c_str(),iter->second);
+    }  
+
+    fprintf(stdout,"\n");
+
+    ret = ptotal->get_succ_ratio(failres);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    fprintf(stdout,"%-20s %-10s\n", "IP","SUCC RATIO");
+    for(auto iter = failres.begin() ; iter != failres.end(); ++ iter) {
+        fprintf(stdout,"%-20s %-05f\n", iter->first.c_str(),iter->second);
+    }
+
     ret = 0;
 out:
+
+    if (pdns) {
+        delete pdns;
+    }
+    pdns = NULL;
     if (ptotal) {
-        ptotal->get_mean(-1,&ipstr,&cval);
         delete ptotal;
     }
     ptotal = NULL;
+
+    libev_free_winev(&pev);
     SETERRNO(ret);
     return ret;
 }
