@@ -26,7 +26,8 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
 
     init_log_verbose(pargs);
- 
+
+
     ret = init_socket();
     if (ret < 0) {
         GETERRNO(ret);
@@ -36,6 +37,10 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
     if(timeout == 0) {
         timeout = 5000;
+    }
+
+    if (nexttime == 0) {
+        nexttime = 3000;
     }
 
     if (pargs->m_af6) {

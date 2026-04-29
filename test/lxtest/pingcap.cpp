@@ -22,15 +22,14 @@ PingCap::PingCap(int pingtype,const char* ip,int times,int timeout,int nexttime,
 	this->m_timeout = timeout;
 	this->m_nexttime = nexttime;
 
-	this->m_rdfd = -1;
-	this->m_wrfd = -1;
+	this->m_sockfd = -1;
 	this->m_tmoutguid = 0;
 	this->m_tmnextguid = 0;
 
 	this->m_inserttmout = 0;
 	this->m_inserttmnext = 0;
-	this->m_insertrd = 0;
-	this->m_insertwr = 0;
+	this->m_insertsock = 0;
+	this->m_sockevent = WRITE_EVENT;
 
 	this->m_evmain = pev;
 	this->m_combo = pcombo;
@@ -115,30 +114,17 @@ void PingCap::__remove_tmnext()
 	return;
 }
 
-void PingCap::__remove_rd()
+void PingCap::__remove_sock()
 {
 	int ret;
-	if (this->m_insertrd != 0) {
-		ret= delete_uxev_callback(this->m_evmain,this->m_rdfd);
+	if (this->m_insertsock != 0) {
+		ASSERT_IF(this->m_sockfd >= 0);
+		ret= delete_uxev_callback(this->m_evmain,this->m_sockfd);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("remove rdfd [%s] error %d", this->m_ip.c_str(), ret);
 		}
-		this->m_insertrd = 0;
-	}
-	return;
-}
-
-void PingCap::__remove_wr()
-{
-	int ret;
-	if (this->m_insertwr != 0) {
-		ret= delete_uxev_callback(this->m_evmain,this->m_wrfd);
-		if (ret < 0) {
-			GETERRNO(ret);
-			ERROR_INFO("remove wrfd [%s] error %d", this->m_ip.c_str(), ret);
-		}
-		this->m_insertwr = 0;
+		this->m_insertsock = 0;
 	}
 	return;
 }
@@ -184,32 +170,34 @@ fail:
 	return ret;
 }
 
-int PingCap::__insert_rd()
+int PingCap::__insert_sock_rd()
 {
 	int ret;
-	if (this->m_insertrd == 0) {
-		ret= add_uxev_callback(this->m_evmain,this->m_rdfd,READ_EVENT,PingCap::ping_callback,this);
+	if (this->m_insertsock == 0) {
+		ASSERT_IF(this->m_sockfd >= 0);
+		ret= add_uxev_callback(this->m_evmain,this->m_sockfd,READ_EVENT,PingCap::ping_callback,this);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("insert rdevt [%s] error %d", this->m_ip.c_str(), ret);
 		}
-		this->m_insertrd = 1;
+		this->m_insertsock = 1;
 	} else {
 		ERROR_INFO("already insert [%s] rdevt", this->m_ip.c_str());
 	}
 	return 0;
 }
 
-int PingCap::__insert_wr()
+int PingCap::__insert_sock_wr()
 {
 	int ret;
-	if (this->m_insertwr == 0) {
-		ret= add_uxev_callback(this->m_evmain,this->m_wrfd,WRITE_EVENT,PingCap::ping_callback,this);
+	if (this->m_insertsock == 0) {
+		ASSERT_IF(this->m_sockfd >= 0);
+		ret= add_uxev_callback(this->m_evmain,this->m_sockfd,WRITE_EVENT,PingCap::ping_callback,this);
 		if (ret < 0) {
 			GETERRNO(ret);
 			ERROR_INFO("insert wrevt [%s] error %d", this->m_ip.c_str(), ret);
 		}
-		this->m_insertwr = 1;
+		this->m_insertsock = 1;
 	} else {
 		ERROR_INFO("already insert [%s] wrevt", this->m_ip.c_str());
 	}
@@ -221,12 +209,10 @@ void PingCap::__release_resource()
 {
 	this->__remove_tmout();
 	this->__remove_tmnext();
-	this->__remove_rd();
-	this->__remove_wr();
+	this->__remove_sock();
 
 	free_ping_sock(&this->m_sock);
-	this->m_rdfd = -1;
-	this->m_wrfd = -1;
+	this->m_sockfd = -1;
 	this->m_pingval.clear();
 	return;
 }
@@ -312,8 +298,7 @@ int PingCap::__collect_value_and_next(uint64_t val)
 	this->m_pingval.push_back(tstr);
 
 	/*now to remove the values*/
-	this->__remove_rd();
-	this->__remove_wr();
+	this->__remove_sock();
 	this->__remove_tmout();
 
 	ret = this->__insert_tmnext();
@@ -337,13 +322,11 @@ int PingCap::__restart()
 	uint64_t val;
 
 	ASSERT_IF(this->m_sock != NULL);
-	this->__remove_wr();
-	this->__remove_rd();
+	this->__remove_sock();
 	this->__remove_tmout();
 	this->__remove_tmnext();
 
-	this->m_wrfd = -1;
-	this->m_rdfd = -1;
+	this->m_sockfd = -1;
 
 	ret = send_ping_request(this->m_sock, this->m_ip.c_str());
 	if (ret < 0) {
@@ -367,15 +350,15 @@ int PingCap::__restart()
 				completed = 1;
 			}
 		} else {
-			if (this->m_rdfd < 0) {
-				this->m_rdfd = get_ping_evt(this->m_sock);
+			if (this->m_sockfd < 0) {
+				this->m_sockfd = get_ping_evt(this->m_sock);
 			}			
-			if (this->m_rdfd < 0) {
+			if (this->m_sockfd < 0) {
 				ret = - EINVAL;
 				ERROR_INFO("can not get rdevt for [%s]", this->m_ip.c_str());
 				goto fail;
 			}
-			ret = this->__insert_rd();
+			ret = this->__insert_sock_rd();
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
@@ -387,16 +370,16 @@ int PingCap::__restart()
 			}
 		}
 	} else {
-		if (this->m_wrfd < 0 ){
-			this->m_wrfd =  get_ping_evt(this->m_sock);
+		if (this->m_sockfd < 0 ){
+			this->m_sockfd =  get_ping_evt(this->m_sock);
 		}
 
-		if (this->m_wrfd < 0) {
+		if (this->m_sockfd < 0) {
 			ret = - EINVAL;
 			ERROR_INFO("can not get wrevt for [%s]", this->m_ip.c_str());
 			goto fail;
 		}
-		ret = this->__insert_wr();
+		ret = this->__insert_sock_wr();
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto fail;
@@ -465,78 +448,71 @@ int PingCap::_callback_func(int fd,int event)
 	int ret;
 	int completed = 0;
 	uint64_t val;
-	if (fd == this->m_wrfd && event == WRITE_EVENT) {
-		ASSERT_IF(this->m_sock != NULL);
-		ret = ping_complete_write(this->m_sock);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail;
-		} else if (ret > 0) {
-			this->__remove_wr();
-			ret = recv_ping_response(this->m_sock,&val);
+
+	if (fd == this->m_sockfd) {
+		/*we make the next one*/
+		this->__remove_sock();
+		if (event == WRITE_EVENT) {
+			ret = ping_complete_write(this->m_sock);
 			if (ret < 0) {
 				GETERRNO(ret);
 				goto fail;
 			} else if (ret > 0) {
-				/*now */
-				ret = this->__collect_value_and_next(val);
+				ret = recv_ping_response(this->m_sock,&val);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
-				}
+				} else if (ret > 0) {
+					/*now */
+					ret = this->__collect_value_and_next(val);
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
 
-				ret = this->__inc_and_check_next();
-				if (ret != 0) {
-					completed = 1;
-				}
-			} else {
-				if (this->m_rdfd < 0) {
-					this->m_rdfd = get_ping_evt(this->m_sock);
-				}
-
-				if (this->m_rdfd < 0) {
-					GETERRNO(ret);
-					ERROR_INFO("cannot get rdfd %d",ret);
-					goto fail;
-				}
-
-				ret = this->__insert_rd();
-				if (ret < 0) {
-					GETERRNO(ret);
-					goto fail;
+					ret = this->__inc_and_check_next();
+					if (ret != 0) {
+						completed = 1;
+					}
+				} else {
+					ret = this->__insert_sock_rd();
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
 				}
 			}
-		}
-	} else if (fd == this->m_rdfd && event == READ_EVENT) {
-		ASSERT_IF(this->m_sock != NULL);
-		this->__remove_rd();
-		ret = ping_complete_read(this->m_sock);
-		if (ret < 0) {
-			GETERRNO(ret);
-			goto fail; 
-		} else if (ret > 0) {
-			ret = recv_ping_response(this->m_sock,&val);
+		} else if (event == READ_EVENT) {
+			ASSERT_IF(this->m_sock != NULL);
+			ret = ping_complete_read(this->m_sock);
 			if (ret < 0) {
 				GETERRNO(ret);
-				goto fail;
+				goto fail; 
 			} else if (ret > 0) {
-				ret = this->__collect_value_and_next(val);
+				ret = recv_ping_response(this->m_sock,&val);
 				if (ret < 0) {
 					GETERRNO(ret);
 					goto fail;
-				}
+				} else if (ret > 0) {
+					ret = this->__collect_value_and_next(val);
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
 
-				ret=  this->__inc_and_check_next();
-				if (ret != 0) {
-					completed = 1;
-				}
-			} else {
-				ret = this->__insert_rd();
-				if (ret < 0) {
-					GETERRNO(ret);
-					goto fail;
+					ret=  this->__inc_and_check_next();
+					if (ret != 0) {
+						completed = 1;
+					}
+				} else {
+					ret = this->__insert_sock_rd();
+					if (ret < 0) {
+						GETERRNO(ret);
+						goto fail;
+					}
 				}
 			}
+
 		}
 	}
 	return completed;

@@ -29,13 +29,12 @@ private:
 
 	void __remove_tmout();
 	void __remove_tmnext();
-	void __remove_rd();
-	void __remove_wr();
+	void __remove_sock();
 
 	int __insert_tmout();
 	int __insert_tmnext();
-	int __insert_rd();
-	int __insert_wr();
+	int __insert_sock_rd();
+	int __insert_sock_wr();
 
 	void __call_remove();
 	void __call_notify();
@@ -61,13 +60,12 @@ private:
 	int m_nexttime;
 	int m_curtime;
 
-	int m_rdfd;
-	int m_wrfd;
+	int m_sockfd;
 	uint64_t m_tmoutguid;
 	uint64_t m_tmnextguid;
 
-	int m_insertrd;
-	int m_insertwr;
+	int m_insertsock;
+	int m_sockevent;
 	int m_inserttmout;
 	int m_inserttmnext;
 
