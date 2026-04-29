@@ -75,6 +75,7 @@ void TcpingCap::__remove_evthd()
 {
 	int ret;
 	if (this->m_inserthd != 0) {
+		ASSERT_IF(this->m_evthd >= 0);
 		ret = delete_uxev_callback(this->m_evmain,this->m_evthd);
 		if (ret < 0) {
 			GETERRNO(ret);
@@ -199,6 +200,7 @@ int TcpingCap::__insert_evthd()
 {
 	int ret;
 	if(this->m_inserthd == 0) {
+		ASSERT_IF(this->m_evthd >= 0);
 		ret = add_uxev_callback(this->m_evmain,this->m_evthd,READ_EVENT,TcpingCap::tcping_callback,this);
 		if (ret < 0) {
 			GETERRNO(ret);
