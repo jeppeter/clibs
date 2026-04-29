@@ -527,9 +527,20 @@ int PingCap::_callback_func(HANDLE hd)
 					completed = 1;
 				}
 			} else {
-				ret = - ERROR_INVALID_PARAMETER;
-				ERROR_INFO("recv ping response on [%s]", this->m_ip.c_str());
-				goto fail;
+#if 0
+				/*we must make timeout so do this*/				
+				ERROR_INFO("recv ping response error on [%s]", this->m_ip.c_str());
+				ret = this->__collect_value_and_next(MAX_TIME_VALUE);
+				if (ret < 0) {
+					GETERRNO(ret);
+					goto fail;
+				}
+
+				ret = this->__inc_and_check_next();
+				if (ret != 0) {
+					completed = 1;
+				}
+#endif		
 			}
 		}
 	}
