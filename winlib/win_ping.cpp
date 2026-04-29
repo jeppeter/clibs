@@ -638,7 +638,7 @@ int __filter_ping_header(PPING_SOCK_t psock,uint64_t* pval)
 		if (picmphdr->icmp_type == ICMPV4_ECHO_REPLY_TYPE && picmphdr->icmp_code == ICMPV4_ECHO_REPLY_CODE) {
 			pbuf = (uint64_t*) (psock->m_rcvbuf + sizeof(IPV4_HDR) + sizeof(ICMP_HDR));
 			if (*pbuf == psock->m_sndticks && psock->m_indent == ntohs(picmphdr->icmp_id) && psock->m_seq == picmphdr->icmp_sequence) {
-				DEBUG_BUFFER_FMT(psock->m_rcvbuf,psock->m_rcvlen, "rcvlen");
+				DEBUG_BUFFER_FMT(psock->m_rcvbuf,psock->m_rcvlen, "%s rcvlen m_sndticks 0x%llx m_indent 0x%x m_seq 0x%x", __get_ip_name(psock), psock->m_sndticks,psock->m_indent, psock->m_seq);
 				*pval = *pbuf;
 				return 1;
 			}
@@ -654,7 +654,7 @@ int __filter_ping_header(PPING_SOCK_t psock,uint64_t* pval)
 			if (psock->m_indent == ntohs(p6req->icmp6_echo_id) && psock->m_seq == p6req->icmp6_echo_sequence) {
 				pbuf = (uint64_t*)(psock->m_rcvbuf + sizeof(ICMPV6_HDR) + sizeof(ICMPV6_ECHO_REQUEST));
 				if ( *pbuf == psock->m_sndticks) {
-					DEBUG_BUFFER_FMT(psock->m_rcvbuf,psock->m_rcvlen,"rcvlen");
+					DEBUG_BUFFER_FMT(psock->m_rcvbuf,psock->m_rcvlen,"%s rcvlen m_sndticks 0x%llx",__get_ip_name(psock), psock->m_sndticks);
 					*pval = *pbuf;
 					return 1;					
 				}
@@ -662,7 +662,7 @@ int __filter_ping_header(PPING_SOCK_t psock,uint64_t* pval)
 		}
 
 	}
-	DEBUG_BUFFER_FMT(psock->m_rcvbuf,psock->m_rcvlen,"not valid rcvlen");
+	DEBUG_BUFFER_FMT(psock->m_rcvbuf,psock->m_rcvlen,"not valid rcvlen %s m_sndticks 0x%llx m_indent 0x%x m_seq 0x%x", __get_ip_name(psock), psock->m_sndticks, psock->m_indent,psock->m_seq);
 	return 0;
 
 }
@@ -727,7 +727,7 @@ int recv_ping_response(void* psock1,uint64_t* pval)
 				goto fail;
 			}
 			psock->m_inrcv = 1;
-			DEBUG_INFO("inrcv = 1");
+			DEBUG_INFO("inrcv = 1 %s", __get_ip_name(psock));
 		} else {
 			psock->m_rcvlen = (int)bytercv;
 			goto get_complete_read;
