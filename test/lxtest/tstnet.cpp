@@ -18,7 +18,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
     int exithd=-1;
     std::map<std::string,double> meanres;
     std::map<std::string,double> failres;
-    std::map<std::string,std::vector<std::string>> dnsres;
+    std::map<std::string,std::vector<std::string> > dnsres;
     void* pev = NULL;
     DnsTotal* pdns=NULL;
     int aftype = AF_INET;
@@ -109,8 +109,8 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
     ptotal = new PingTotal(timeout, nexttime,times, pev);
 
-    for(auto iter = dnsres.begin() ; iter != dnsres.end(); ++ iter) {
-        auto vvec = iter->second;
+    for(std::map<std::string,std::vector<std::string> >::iterator iter = dnsres.begin() ; iter != dnsres.end(); ++ iter) {
+        std::vector<std::string> vvec = iter->second;
         if (vvec.size() == 0) {
             ret = - EINVAL;
             fprintf(stderr,"[%s] dns 0",iter->first.c_str());
@@ -140,7 +140,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
     //fprintf(stdout,"%-20s %-10s\n","IP","AVERAGE");
     fprintf(stdout,"%20s %10s\n","IP","AVERAGE");
-    for(auto iter = meanres.begin() ; iter != meanres.end(); ++ iter) {
+    for(std::map<std::string,double>::iterator iter = meanres.begin() ; iter != meanres.end(); ++ iter) {
         //fprintf(stdout,"%-20s %-05f\n", iter->first.c_str(),iter->second);
         fprintf(stdout,"%20s %05f\n", iter->first.c_str(),iter->second);
     }  
@@ -155,7 +155,7 @@ int icmpping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* 
 
     //fprintf(stdout,"%-20s %-10s\n", "IP","SUCC RATIO");
     fprintf(stdout,"%20s %10s\n", "IP","SUCC RATIO");
-    for(auto iter = failres.begin() ; iter != failres.end(); ++ iter) {
+    for(std::map<std::string,double>::iterator iter = failres.begin() ; iter != failres.end(); ++ iter) {
         //fprintf(stdout,"%-20s %-05f\n", iter->first.c_str(),iter->second);
         fprintf(stdout,"%20s %05f\n", iter->first.c_str(),iter->second);
     }

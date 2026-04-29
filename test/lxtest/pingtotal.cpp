@@ -23,7 +23,7 @@ PingTotal::PingTotal(int timeout,int nexttime,int times, void* pev)
 void PingTotal::__release_resource()
 {
 	while(this->m_ips.size() != 0) {
-		auto iter = this->m_ips.begin();
+		std::map<PingCap*,std::string>::iterator iter = this->m_ips.begin();
 		PingCap* pcap = iter->first;
 		this->m_ips.erase(iter);
 		delete pcap;
@@ -48,7 +48,7 @@ PingTotal::~PingTotal()
 
 void PingTotal::notify_event(void* ptr,ev_combo_event_t event)
 {
-	auto iter = this->m_ips.find((PingCap*)ptr);
+	std::map<PingCap*,std::string>::iterator iter = this->m_ips.find((PingCap*)ptr);
 	if (iter == this->m_ips.end()) {
 		return;
 	}
@@ -115,52 +115,57 @@ int PingTotal::__get_single_info(std::string& name, std::string& vstr)
 
 	/*to skip ;0x*/
 	hxstr = vstr.substr(np + 3, vstr.length() - np - 3);
-	val = std::strtoull(hxstr.c_str(),&pendptr,16);
+	val = strtoull(hxstr.c_str(),&pendptr,16);
 	DEBUG_INFO("[%s] val 0x%llx", vstr.c_str(),val);
 
 	if (val == MAX_TIME_VALUE) {
-		auto iter = this->m_ipcnt.find(name);
+		std::map<std::string,uint64_t>::iterator iter = this->m_ipcnt.find(name);
 		std::string bname = name;
 		if (iter == this->m_ipcnt.end()) {
 			DEBUG_INFO("ipcnt [%s] cnt 0", bname.c_str());
-			this->m_ipcnt.insert({bname,(uint64_t)0});
+			this->m_ipcnt.insert(std::pair<std::string,uint64_t>(bname,(uint64_t)0));
 		} 
 
-		auto citer = this->m_ipfail.find(name);
+		std::map<std::string,uint64_t>::iterator citer = this->m_ipfail.find(name);
 		if (citer == this->m_ipfail.end()) {
 			DEBUG_INFO("ipfail [%s] cnt 0", bname.c_str());
-			this->m_ipfail.insert({name,(uint64_t)1});
+			//this->m_ipfail.insert({name,(uint64_t)1});
+			this->m_ipfail.insert(std::pair<std::string,uint64_t>(bname,(uint64_t)1));
 		} else {
 			citer->second += 1;
 			DEBUG_INFO("ipfail [%s] %lld", bname.c_str(), citer->second);
 		}
 
-		auto biter = this->m_iptotal.find(name);
+		std::map<std::string,double>::iterator biter = this->m_iptotal.find(name);
 		if (biter == this->m_iptotal.end()) {
 			DEBUG_INFO("iptotal [%s] 0.0", bname.c_str());
-			this->m_iptotal.insert({name,0.0});
+			//this->m_iptotal.insert({name,0.0});
+			this->m_iptotal.insert(std::pair<std::string,double>(name,0.0));
 		}	
 	} else {
-		auto iter = this->m_ipcnt.find(name);
+		std::map<std::string,uint64_t>::iterator iter = this->m_ipcnt.find(name);
 		if (iter == this->m_ipcnt.end()) {
 			DEBUG_INFO("[%s] ipcnt 1", name.c_str());
-			this->m_ipcnt.insert({name,(uint64_t)1});
+			//this->m_ipcnt.insert({name,(uint64_t)1});
+			this->m_ipcnt.insert(std::pair<std::string,uint64_t>(name,(uint64_t)1));
 		}  else {
 			iter->second += 1;
 			DEBUG_INFO("[%s] ipcnt %lld", name.c_str(), iter->second);
 		}
 
-		auto citer = this->m_ipfail.find(name);
+		std::map<std::string,uint64_t>::iterator citer = this->m_ipfail.find(name);
 		if (citer == this->m_ipfail.end()) {
 			DEBUG_INFO("[%s] ipfail 0", name.c_str());
-			this->m_ipfail.insert({name,(uint64_t)0});
+			//this->m_ipfail.insert({name,(uint64_t)0});
+			this->m_ipfail.insert(std::pair<std::string,uint64_t>(name,(uint64_t)0));
 		}
 
-		auto biter = this->m_iptotal.find(name);
+		std::map<std::string,double>::iterator biter = this->m_iptotal.find(name);
 		double iv = (double) val;
 		if (biter == this->m_iptotal.end()) {
 			DEBUG_INFO("[%s] iptotal %f", name.c_str(), iv);
-			this->m_iptotal.insert({name,iv});
+			//this->m_iptotal.insert({name,iv});
+			this->m_iptotal.insert(std::pair<std::string,double>(name,iv));
 		} else {
 			biter->second += iv;
 			DEBUG_INFO("[%s] iptotal %f", name.c_str(), biter->second);
@@ -225,7 +230,8 @@ int PingTotal::add_host(int aftype,const char* ip)
 	} else {
 		/*now to give the map*/
 		name = ip;
-		this->m_ips.insert({pcap,name});
+		//this->m_ips.insert({pcap,name});
+		this->m_ips.insert(std::pair<PingCap*,std::string>(pcap,name));
 		pcap = NULL;
 	}
 
@@ -249,12 +255,13 @@ int PingTotal::get_mean(std::map<std::string,double>& res)
 	int ret;
 	int cnt=0;
 
-	for(auto iter = this->m_ipcnt.begin(); iter != this->m_ipcnt.end(); ++ iter,cnt += 1) {
+	for(std::map<std::string,uint64_t>::iterator iter = this->m_ipcnt.begin(); iter != this->m_ipcnt.end(); ++ iter,cnt += 1) {
 		std::string name = iter->first;
 		if (iter->second == 0) {
-			res.insert({name,0.0});
+			//res.insert({name,0.0});
+			res.insert(std::pair<std::string,double>(name,0.0));
 		} else {
-			auto citer = this->m_iptotal.find(name);
+			std::map<std::string,double>::iterator citer = this->m_iptotal.find(name);
 			if (citer == this->m_iptotal.end()) {
 				ret = - EINVAL;
 				ERROR_INFO("can not find [%s] for iptotal", name.c_str());
@@ -263,7 +270,8 @@ int PingTotal::get_mean(std::map<std::string,double>& res)
 
 			double cval = (double)(citer->second) / (double)(iter->second);
 			DEBUG_INFO("insert [%s] %f / %f %f", name.c_str(), (double)citer->second, (double)iter->second, cval);
-			res.insert({name,cval});
+			//res.insert({name,cval});
+			res.insert(std::pair<std::string,double>(name,cval));
 		}
 	}
 
@@ -278,10 +286,10 @@ int PingTotal::get_succ_ratio(std::map<std::string,double>& res)
 {
 	int ret;
 	int cnt = 0;
-	for(auto iter = this->m_ipcnt.begin(); iter != this->m_ipcnt.end() ; ++ iter, cnt += 1) {
+	for(std::map<std::string,uint64_t>::iterator iter = this->m_ipcnt.begin(); iter != this->m_ipcnt.end() ; ++ iter, cnt += 1) {
 		uint64_t succcnt = iter->second;
 		std::string name = iter->first;
-		auto citer = this->m_ipfail.find(name);
+		std::map<std::string,uint64_t>::iterator citer = this->m_ipfail.find(name);
 		if (citer == this->m_ipfail.end()) {
 			ret = - EINVAL;
 			ERROR_INFO("can not find [%s] for ipfail", name.c_str());
@@ -291,12 +299,15 @@ int PingTotal::get_succ_ratio(std::map<std::string,double>& res)
 		uint64_t failcnt = citer->second;
 
 		if (failcnt == 0) {
-			res.insert({name,1.0});
+			//res.insert({name,1.0});
+			res.insert(std::pair<std::string,double>(name,1.0));
 		} else if (succcnt == 0) {
-			res.insert({name,0.0});
+			//res.insert({name,0.0});
+			res.insert(std::pair<std::string,double>(name,0.0));
 		} else {
 			double cval = (double)succcnt / (double)(succcnt + failcnt);
-			res.insert({name,cval});
+			//res.insert({name,cval});
+			res.insert(std::pair<std::string,double>(name,cval));
 		}
 	}
 
