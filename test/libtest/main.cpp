@@ -96,6 +96,7 @@
 #include "pingtotal.h"
 #include "dnstotal.h"
 #include "tcpingtotal.h"
+#include "sqlite3_def.h"
 
 
 #pragma warning(pop)
@@ -118,6 +119,7 @@ typedef struct __args_options {
     char* m_pipename;
     char* m_rsafile;
     char* m_aesfile;
+    char* m_sqldllfile,
     int m_verbose;
     int m_timeout;
     int m_bufsize;
@@ -133,7 +135,7 @@ typedef struct __args_options {
     int m_times;
     int m_af6;
     int m_nexttime;
-    int m_reserv1;
+    int m_sqlrdonly;
 } args_options_t, *pargs_options_t;
 
 #pragma comment(lib,"user32.lib")
@@ -346,6 +348,7 @@ int ivtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int rbrand_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int rmdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int sql3exec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
@@ -769,6 +772,7 @@ void close_ctrlc_handle()
 #include "tstuser.cpp"
 #include "cppcon.cpp"
 #include "cpptest.cpp"
+#include "sqltst.cpp"
 
 int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
 {

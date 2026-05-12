@@ -20,6 +20,8 @@
     "disabledb<m_disabledb>" : false,
     "af6<m_af6>" : false,
     "exlogs<m_exlogs>##name;type;level;fmtflag;size;maxfiles##" : [],
+    "sqldllfile<m_sqldllfile>" : ".\\sqlite3.dll",
+    "sqlrdonly<m_sqlrdonly>" : false,
     "mktemp<mktemp_handler>" : {
         "$" : "+"
     },
@@ -604,6 +606,9 @@
     },
     "rmdir<rmdir_handler>##dir ... to remove_directory##" : {
         "$" : "+"
+    },
+    "sql3exec<sql3exec_handler>##dbfile sql to execute dbfile with sql##" : {
+        "$" : 2
     }
 
 
