@@ -119,7 +119,7 @@ typedef struct __args_options {
     char* m_pipename;
     char* m_rsafile;
     char* m_aesfile;
-    char* m_sqldllfile,
+    char* m_sqldllfile;
     int m_verbose;
     int m_timeout;
     int m_bufsize;
