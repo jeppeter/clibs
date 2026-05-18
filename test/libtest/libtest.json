@@ -609,6 +609,9 @@
     },
     "sql3exec<sql3exec_handler>##dbfile sql to execute dbfile with sql##" : {
         "$" : 2
+    },
+    "sql3prepare<sql3prepare_handler>##dbfile sql bindtxt ... to bind text##" : {
+        "$" : "+"
     }
 
 

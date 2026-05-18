@@ -349,6 +349,7 @@ int rbtest_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 int rbrand_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int rmdir_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int sql3exec_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int sql3prepare_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define PIPE_NONE                0
