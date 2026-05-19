@@ -15,6 +15,16 @@ typedef struct _sqlite3_func {
 	sqlite3_bind_text_func_t m_bindtextfunc;
 	sqlite3_step_func_t m_stepfunc;
 	sqlite3_finalize_func_t m_finalizefunc;
+
+	sqlite3_column_count_func_t m_colcountfunc;
+	sqlite3_column_type_func_t m_coltypefunc;
+	sqlite3_column_text_func_t m_coltextfunc;
+	sqlite3_column_double_func_t m_coldblfunc;
+	sqlite3_column_int_func_t m_colintfunc;
+	sqlite3_column_int64_func_t m_colint64func;
+	sqlite3_column_blob_func_t m_colblobfunc;
+	sqlite3_column_bytes_func_t m_colbytesfunc;
+
 } sqlite3_func_t,*psqlite3_func_t;
 
 void free_sqlite3_func(psqlite3_func_t* ppfunc)
@@ -75,6 +85,15 @@ psqlite3_func_t init_sqlite3_func(char* dllfile)
 	GET_FUNC(pfunc,"sqlite3_bind_text",m_bindtextfunc,sqlite3_bind_text_func_t);
 	GET_FUNC(pfunc,"sqlite3_step",m_stepfunc,sqlite3_step_func_t);
 	GET_FUNC(pfunc,"sqlite3_finalize",m_finalizefunc,sqlite3_finalize_func_t);
+
+	GET_FUNC(pfunc,"sqlite3_column_count",m_colcountfunc,sqlite3_column_count_func_t);
+	GET_FUNC(pfunc,"sqlite3_column_type",m_coltypefunc,sqlite3_column_type_func_t);
+	GET_FUNC(pfunc,"sqlite3_column_text",m_coltextfunc,sqlite3_column_text_func_t);
+	GET_FUNC(pfunc,"sqlite3_column_double",m_coldblfunc,sqlite3_column_double_func_t);
+	GET_FUNC(pfunc,"sqlite3_column_int",m_colintfunc,sqlite3_column_int_func_t);
+	GET_FUNC(pfunc,"sqlite3_column_int64",m_colint64func,sqlite3_column_int64_func_t);
+	GET_FUNC(pfunc,"sqlite3_column_blob",m_colblobfunc,sqlite3_column_blob_func_t);
+	GET_FUNC(pfunc,"sqlite3_column_bytes",m_colbytesfunc,sqlite3_column_bytes_func_t);
 
 
 	return pfunc;
@@ -290,7 +309,7 @@ int prepare_args(psqlite3_func_t pfunc,sqlite3_stmt* stmt,int index,char* sqlstm
 		lret = pfunc->m_bindintfunc(stmt,index,val);
 		if (lret != SQLITE_OK) {
 			GETERRNO(ret);
-			ERROR_INFO("bind [%s] error %d %d", sqlstmt,lret,ret);
+			ERROR_INFO("bind [%s].[%d] index [%d] error %d %d", sqlstmt,val,index,lret,ret);
 			goto fail;
 		}
 	} else if (_strnicmp(sqlstmt,"int64:",6) == 0) {
@@ -307,7 +326,7 @@ int prepare_args(psqlite3_func_t pfunc,sqlite3_stmt* stmt,int index,char* sqlstm
 		lret = pfunc->m_bindint64func(stmt,index,val64);
 		if (lret != SQLITE_OK) {
 			GETERRNO(ret);
-			ERROR_INFO("bind [%s] error %d %d", sqlstmt,lret,ret);
+			ERROR_INFO("bind [%s].[%lld] index[%d] error %d %d", sqlstmt,val64, index,lret,ret);
 			goto fail;
 		}
 	} else if (_strnicmp(sqlstmt,"blob:",5) == 0) {
@@ -322,7 +341,7 @@ int prepare_args(psqlite3_func_t pfunc,sqlite3_stmt* stmt,int index,char* sqlstm
 		lret = pfunc->m_bindblobfunc(stmt,index,pbuf,retlen,SQLITE_TRANSIENT);
 		if (lret != SQLITE_OK) {
 			GETERRNO(ret);
-			ERROR_INFO("bind [%s] error %d %d", sqlstmt,lret,ret);
+			ERROR_INFO("bind [%s] index[%d] error %d %d", sqlstmt,index,lret,ret);
 			goto fail;
 		}
 
@@ -338,7 +357,7 @@ int prepare_args(psqlite3_func_t pfunc,sqlite3_stmt* stmt,int index,char* sqlstm
 		lret = pfunc->m_bindblob64func(stmt,index,pbuf,retlen,SQLITE_TRANSIENT);
 		if (lret != SQLITE_OK) {
 			GETERRNO(ret);
-			ERROR_INFO("bind [%s] error %d %d", sqlstmt,lret,ret);
+			ERROR_INFO("bind [%s] index [%d] error %d %d", sqlstmt,index,lret,ret);
 			goto fail;
 		}
 	} else if (_strnicmp(sqlstmt,"text:",5) == 0) {
@@ -346,7 +365,7 @@ int prepare_args(psqlite3_func_t pfunc,sqlite3_stmt* stmt,int index,char* sqlstm
 		lret = pfunc->m_bindtextfunc(stmt,index,curptr,-1,SQLITE_TRANSIENT);
 		if (lret != SQLITE_OK) {
 			GETERRNO(ret);
-			ERROR_INFO("bind [%s] error %d %d", sqlstmt,lret,ret);
+			ERROR_INFO("bind [%s] index [%d] error %d %d", sqlstmt,index,lret,ret);
 			goto fail;
 		}
 	} else if (_strnicmp(sqlstmt,"null:",5) == 0) {
@@ -362,7 +381,7 @@ int prepare_args(psqlite3_func_t pfunc,sqlite3_stmt* stmt,int index,char* sqlstm
 		lret = pfunc->m_binddoublefunc(stmt,index,dval);
 		if (lret != SQLITE_OK) {
 			GETERRNO(ret);
-			ERROR_INFO("bind [%s] error %d %d", sqlstmt,lret,ret);
+			ERROR_INFO("bind [%s] index[%d] error %d %d", sqlstmt,index,lret,ret);
 			goto fail;
 		}
 	} else {
@@ -387,10 +406,18 @@ int sql3prepare_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 	sqlite3* pdb= NULL;
 	char* dbfile = NULL;
 	char* sqlstmt=NULL;
-	int i;
+	int i,j;
 	pargs_options_t pargs = (pargs_options_t) popt;
 	sqlite3_stmt* stmt = NULL;
 	int flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+	int ltype;
+	int lcount;
+	sqlite3_int64 iv64;
+	unsigned char* pb=NULL;
+	int nbytes;
+	char* pt;
+	double dv;
+	int totalv=0;
 
 	REFERENCE_ARG(argc);
 	REFERENCE_ARG(argv);
@@ -444,13 +471,14 @@ int sql3prepare_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 
 	for(i=2;parsestate->leftargs && parsestate->leftargs[i] ;i ++) {
 		sqlstmt = parsestate->leftargs[i];
-		ret = prepare_args(pfunc,stmt,i-2,sqlstmt);
+		ret = prepare_args(pfunc,stmt,i-1,sqlstmt);
 		if (ret < 0) {
 			GETERRNO(ret);
 			goto out;
 		}
 	}
 
+	totalv = 0;
 	while(1) {
 		lret = pfunc->m_stepfunc(stmt);
 		if (lret == SQLITE_DONE) {
@@ -461,6 +489,40 @@ int sql3prepare_handler(int argc, char* argv[], pextargs_state_t parsestate, voi
 			ERROR_INFO("step error %d %d", lret,ret);
 			goto out;
 		}
+
+		lcount = pfunc->m_colcountfunc(stmt);
+		fprintf(stdout,"[%d]", totalv);
+		for (i=0;i<lcount;i++) {
+			ltype = pfunc->m_coltypefunc(stmt,i);
+			if (ltype == SQLITE_INTEGER) {
+				iv64 = pfunc->m_colint64func(stmt,i);
+				fprintf(stdout," %lld[0x%llx]",iv64,iv64);
+			} else if (ltype == SQLITE_FLOAT) {
+				dv = pfunc->m_coldblfunc(stmt,i);
+				fprintf(stdout," %f",dv);
+			} else if (ltype == SQLITE_TEXT) {
+				pt = (char*)pfunc->m_coltextfunc(stmt,i);
+				fprintf(stdout, " %s",pt);
+			} else if (ltype == SQLITE_BLOB) {
+				pb = (unsigned char*)pfunc->m_colblobfunc(stmt,i);
+				nbytes = pfunc->m_colbytesfunc(stmt,i);
+				fprintf(stdout," ");
+				for(j=0;j<nbytes;j+= 1) {
+					if (j > 0) {
+						fprintf(stdout,",");
+					}
+					fprintf(stdout,"0x%02x",pb[j]);
+				}
+			} else if (ltype == SQLITE_NULL) {
+				fprintf(stdout," null");
+			} else {
+				ret = - ERROR_INVALID_PARAMETER;
+				ERROR_INFO("[%d].[%d].ltype %d not support",totalv,i, ltype);
+				goto out;
+			}
+		}
+		fprintf(stdout,"\n");
+		totalv += 1;
 	}
 
 	fprintf(stdout,"[%s] [%s]", dbfile,parsestate->leftargs[1]);

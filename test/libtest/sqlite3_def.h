@@ -74,6 +74,14 @@ typedef long long int sqlite3_int64;
 #define SQLITE_DONE        101  /* sqlite3_step() has finished executing */
 /* end-of-error-codes */
 
+
+#define SQLITE_INTEGER  1
+#define SQLITE_FLOAT    2
+#define SQLITE_BLOB     4
+#define SQLITE_NULL     5
+#define SQLITE_TEXT     3
+
+
 typedef int (*sqlite3_open_v2_func_t)(const char *filename,   /* Database filename (UTF-8) */sqlite3 **ppDb,         /* OUT: SQLite db handle */int flags,              /* Flags */const char *zVfs        /* Name of VFS module to use */);
 typedef int (*sqlite3_exec_func_t)(sqlite3* db,                                  /* An open database */const char *sql,                           /* SQL to be evaluated */int (*callback)(void*,int,char**,char**),  /* Callback function */void *,                                    /* 1st argument to callback */char **errmsg                              /* Error msg written here */);
 typedef int (*sqlite3_close_func_t)(sqlite3*);
@@ -89,6 +97,15 @@ typedef int (*sqlite3_bind_text_func_t)(sqlite3_stmt*,int,const char*,int,void(*
 
 typedef int (*sqlite3_step_func_t)(sqlite3_stmt*);
 typedef int (*sqlite3_finalize_func_t)(sqlite3_stmt*);
+
+typedef int (*sqlite3_column_count_func_t)(sqlite3_stmt*);
+typedef int (*sqlite3_column_type_func_t)(sqlite3_stmt*,int);
+typedef unsigned char* (*sqlite3_column_text_func_t)(sqlite3_stmt*,int);
+typedef double (*sqlite3_column_double_func_t)(sqlite3_stmt*,int);
+typedef int (*sqlite3_column_int_func_t)(sqlite3_stmt*,int);
+typedef sqlite3_int64 (*sqlite3_column_int64_func_t)(sqlite3_stmt*,int);
+typedef void* (*sqlite3_column_blob_func_t)(sqlite3_stmt*,int);
+typedef int (*sqlite3_column_bytes_func_t)(sqlite3_stmt*,int);
 
 
 #ifdef __cplusplus
