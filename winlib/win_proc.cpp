@@ -4261,12 +4261,20 @@ fail:
   do{                                                                                             \
     char* _ansiname=NULL;                                                                         \
     int _ansisize=0;                                                                              \
-    ret = TcharToAnsi(pproc->szExeFile,&_ansiname,&_ansisize);                                    \
-    if (ret < 0) {                                                                                \
-        GETERRNO(ret);                                                                            \
-        goto fail;                                                                                \
+    int _matched = 0;                                                                             \
+    if (procname != NULL) {                                                                       \
+	    ret = TcharToAnsi(pproc->szExeFile,&_ansiname,&_ansisize);                                \
+	    if (ret < 0) {                                                                            \
+	        GETERRNO(ret);                                                                        \
+	        goto fail;                                                                            \
+	    }                                                                                         \
+	    if (_stricmp(_ansiname,procname) == 0) {                                                  \
+	    	_matched = 1;                                                                         \
+		}                                                                                         \
+    } else {                                                                                      \
+    	_matched = 1;                                                                             \
     }                                                                                             \
-    if (_stricmp(_ansiname,procname) == 0) {                                                      \
+    if (_matched != 0) {                                                                           \
         if (retsize <= retlen || pretpids == NULL) {                                              \
             if (retsize <= retlen) {                                                              \
                 retsize <<= 1;                                                                    \
@@ -4405,6 +4413,130 @@ fail:
 	}
 	pretpids = NULL;
 	retsize = 0;
+	SETERRNO(ret);
+	return ret;
+}
+
+
+int enum_proc(int freed,int** pppids,int *psize)
+{
+	int ret;
+	int retlen=0;
+	int* pretpids= NULL;
+	int retsize=0;
+	int *ptmppids = NULL;
+	int numhdl = 0;
+	HANDLE hd=INVALID_HANDLE_VALUE;
+	LPPROCESSENTRY32 pproc=  NULL;
+	BOOL bret;
+	char* procname = NULL;
+	if (freed) {
+		if (pppids && *pppids) {
+			free(*pppids);
+			*pppids = NULL;
+		}
+
+		if (psize) {
+			*psize = 0;
+		}
+
+		return 0;
+	}
+
+	if (pppids == NULL || psize == NULL) {
+		ret = - ERROR_INVALID_PARAMETER;
+		SETERRNO(ret);
+		return ret;
+	}
+
+	pretpids = *pppids;
+	retsize = *psize;
+
+
+	hd = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+	if (hd == INVALID_HANDLE_VALUE) {
+		GETERRNO(ret);
+		ERROR_INFO("can not create process snapshot error[%d]", ret);
+		goto fail;
+	}
+
+	pproc = (LPPROCESSENTRY32) malloc(sizeof(*pproc));
+	if (pproc == NULL) {
+		GETERRNO(ret);
+		ERROR_INFO("alloc [%d] error[%d]", sizeof(*pproc) , ret);
+		goto fail;
+	}
+	memset(pproc, 0, sizeof(*pproc));
+	pproc->dwSize = sizeof(*pproc);
+
+
+	bret = Process32First(hd, pproc);
+	if (!bret) {
+		GETERRNO(ret);
+		if (ret == -ERROR_NO_MORE_FILES ) {
+			goto succ;
+		}
+		ERROR_INFO("get first process snapshot error[%d]", ret);
+		goto fail;
+	}
+	CHECK_PROC_PID();
+
+	while (1) {
+		memset(pproc, 0, sizeof(*pproc));
+		pproc->dwSize = sizeof(*pproc);
+		bret = Process32Next(hd, pproc);
+		if (!bret) {
+			GETERRNO(ret);
+			if (ret == -ERROR_NO_MORE_FILES) {
+				break;
+			}
+			ERROR_INFO("can not get proc snapshot at [%d] error[%d]", numhdl, ret);
+			goto fail;
+		}
+
+		CHECK_PROC_PID();
+	}
+
+
+succ:
+	if (pproc) {
+		free(pproc);
+	}
+	pproc = NULL;
+
+	if (hd != INVALID_HANDLE_VALUE) {
+		CloseHandle(hd);
+	}
+	hd = INVALID_HANDLE_VALUE;
+
+	if (ptmppids) {
+		free(ptmppids);
+	}
+	ptmppids = NULL;
+
+	if (*pppids != NULL && *pppids != pretpids) {
+		free(*pppids);
+	}
+	*pppids = pretpids;
+	*psize = retsize;
+
+	return retlen;
+fail:
+	if (pretpids && pretpids != *pppids) {
+		free(pretpids);
+	}
+	pretpids = NULL;
+
+	if (pproc) {
+		free(pproc);
+	}
+	pproc = NULL;
+
+	if (hd != INVALID_HANDLE_VALUE) {
+		CloseHandle(hd);
+	}
+	hd = INVALID_HANDLE_VALUE;
+
 	SETERRNO(ret);
 	return ret;
 }

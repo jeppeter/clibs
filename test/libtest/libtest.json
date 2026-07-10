@@ -229,6 +229,9 @@
     "mksvc<mksvc_handler>##svcbin [svcname] [svcdesc] [svcstart]  to create service##"  :{
         "$" : "+"
     },
+    "findmod<findmod_handler>##[modname] ... to find module in the process and dump the pid##" : {
+        "$" : "*"
+    },
     "listmod<listmod_handler>##procid [modname]... list module information##" : {
         "$" : "*"
     },

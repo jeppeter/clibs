@@ -226,6 +226,7 @@ int version_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
 int mkdrv_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int mksvc_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int listmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int findmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int getprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int addprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int delprn_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);

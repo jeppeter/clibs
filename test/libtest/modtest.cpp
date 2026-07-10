@@ -83,3 +83,45 @@ out:
     SETERRNO(ret);
     return ret;
 }
+
+
+int findmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    int ret;
+    int idx = 0;
+    int lastidx = 0;
+    int procid = 0;
+    char* modname = NULL;
+    int maxlen = 0;
+    int *procpids = NULL;
+    int pidsize=0;
+    int pidlen=0;
+    int i;
+    pmod_info_t pinfo = NULL;
+    int infosize = 0;
+    int infolen = 0;
+    pargs_options_t pargs = (pargs_options_t) popt;
+
+
+
+    init_log_level(pargs);
+
+    /*now first to get pids*/
+    ret = enum_proc(0,&procpids,&pidsize);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    pidlen = ret;
+
+    /*now first to get */
+
+
+out:
+    get_module_info(-1,NULL,&pinfo,&infosize);
+    infolen = 0;
+    enum_proc(1,&procpids,&pidsize);
+    pidlen = 0;
+    return ret;
+}
