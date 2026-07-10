@@ -4022,8 +4022,8 @@ do{                                                                             
         GETERRNO(ret);                                                                            \
         goto fail;                                                                                \
     }                                                                                             \
-    /*DEBUG_INFO("[%d]modname [%s] base [%p] modsize[0x%x]", numhdl, pmodname,  */                \
-    /*           pmod->modBaseAddr, pmod->modBaseSize); */                                        \
+    DEBUG_INFO("[%d]modname [%s] base [%p] modsize[0x%x]", numhdl, pmodname,                      \
+               pmod->modBaseAddr, pmod->modBaseSize);                                             \
     pcur = strrchr(pmodname, '\\');                                                               \
     if (pcur) {                                                                                   \
         pcur ++;                                                                                  \
