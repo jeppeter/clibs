@@ -4022,15 +4022,16 @@ do{                                                                             
         GETERRNO(ret);                                                                            \
         goto fail;                                                                                \
     }                                                                                             \
-    DEBUG_INFO("[%d]modname [%s] base [%p] modsize[0x%x]", numhdl, pmodname,                      \
-               pmod->modBaseAddr, pmod->modBaseSize);                                             \
+    /*DEBUG_INFO("[%d]modname [%s] base [%p] modsize[0x%x]", numhdl, pmodname,  */                \
+    /*           pmod->modBaseAddr, pmod->modBaseSize); */                                        \
     pcur = strrchr(pmodname, '\\');                                                               \
     if (pcur) {                                                                                   \
         pcur ++;                                                                                  \
     } else {                                                                                      \
         pcur = pmodname;                                                                          \
     }                                                                                             \
-    DEBUG_INFO("name [%s] pcur [%s]", name, pcur);                                                \
+    DEBUG_INFO("strlen(%s) = %d _stricmp(%s,%s) = %d",name,strlen(name), name,                    \
+    	pcur,_stricmp(pcur, name) );                                                              \
     if ( (int)strlen(name) == 0 || _stricmp(pcur, name) == 0) {                                   \
         if (pretinfo == NULL || retsize < (int)((retlen + 1) * sizeof(*pretinfo))) {              \
             if (retsize < (int)((retlen + 1) * sizeof(*pretinfo))) {                              \
@@ -4140,7 +4141,6 @@ int get_module_info(int procid, const char* name, pmod_info_t *ppinfo, int *psiz
 	MOD_INFO_HANDLE();
 
 	while (1) {
-		DEBUG_INFO("proc[%d] numhdl %d", procid,numhdl);
 		memset(pmod, 0, sizeof(*pmod));
 		pmod->dwSize = sizeof(*pmod);
 		bret = Module32Next(hd, pmod);

@@ -130,6 +130,9 @@ int findmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
             modname = parsestate->leftargs[idx];
             for(jdx=0;jdx < pidlen;jdx += 1) {
                 if (procpids[jdx] != 0) {
+                    if (infosize > 0 && pinfo != NULL) {
+                        memset(pinfo,0,(size_t)infosize);
+                    }
                     ret = get_module_info(procpids[jdx],modname,&pinfo,&infosize);
                     if (ret < 0) {
                         GETERRNO(ret);
@@ -139,7 +142,7 @@ int findmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
                         }
                         continue;
                     }
-                    infolen = ret;
+                    infolen = ret / (int)sizeof(*pinfo);
                     for(kdx = 0; kdx < infolen;kdx += 1) {
                         if ((int)strlen(pinfo[kdx].m_modfullname) > maxlen) {
                             maxlen = (int)strlen(pinfo[kdx].m_modfullname);
@@ -152,6 +155,9 @@ int findmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     } else {
         for(jdx=0;jdx < pidlen;jdx += 1) {
             if (procpids[jdx] != 0) {
+                if (infosize > 0 && pinfo != NULL) {
+                    memset(pinfo,0,(size_t)infosize);
+                }
                 ret = get_module_info(procpids[jdx],"",&pinfo,&infosize);
                 if (ret < 0) {
                     GETERRNO(ret);
@@ -161,7 +167,7 @@ int findmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
                     }
                     continue;
                 }
-                infolen = ret;
+                infolen = ret / (int)sizeof(*pinfo);
                 for(kdx = 0; kdx < infolen;kdx += 1) {
                     if ((int)strlen(pinfo[kdx].m_modfullname) > maxlen) {
                         maxlen = (int)strlen(pinfo[kdx].m_modfullname);
@@ -178,6 +184,9 @@ int findmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
             modname = parsestate->leftargs[idx];
             for(jdx=0;jdx < pidlen;jdx += 1) {
                 if (procpids[jdx] != 0) {
+                    if (infosize > 0 && pinfo != NULL) {
+                        memset(pinfo,0,(size_t)infosize);
+                    }
                     ret = get_module_info(procpids[jdx],modname,&pinfo,&infosize);
                     if (ret < 0) {
                         GETERRNO(ret);
@@ -187,7 +196,7 @@ int findmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
                         }
                         continue;
                     }
-                    infolen = ret;
+                    infolen = ret / (int)sizeof(*pinfo);
                     for(kdx = 0; kdx < infolen;kdx += 1) {
                         fprintf(stdout, "proc %05d %-*s %p %d\n",procpids[jdx], maxlen, pinfo[kdx].m_modfullname, pinfo[kdx].m_pimgbase,
                                 pinfo[kdx].m_modsize);
@@ -198,6 +207,9 @@ int findmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     } else {
         for(jdx=0;jdx < pidlen;jdx += 1) {
             if (procpids[jdx] != 0) {
+                if (infosize > 0 && pinfo != NULL) {
+                    memset(pinfo,0,(size_t)infosize);
+                }
                 ret = get_module_info(procpids[jdx],"",&pinfo,&infosize);
                 if (ret < 0) {
                     GETERRNO(ret);
@@ -207,7 +219,7 @@ int findmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
                     }
                     continue;
                 }
-                infolen = ret;
+                infolen = ret / (int)sizeof(*pinfo);
                 for(kdx = 0; kdx < infolen;kdx += 1) {
                     fprintf(stdout, "proc %05d %-*s %p %d\n",procpids[jdx], maxlen, pinfo[kdx].m_modfullname, pinfo[kdx].m_pimgbase,
                             pinfo[kdx].m_modsize);
