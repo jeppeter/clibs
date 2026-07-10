@@ -90,38 +90,138 @@ int findmod_handler(int argc, char* argv[], pextargs_state_t parsestate, void* p
     int ret;
     int idx = 0;
     int lastidx = 0;
-    int procid = 0;
     char* modname = NULL;
     int maxlen = 0;
     int *procpids = NULL;
     int pidsize=0;
     int pidlen=0;
-    int i;
     pmod_info_t pinfo = NULL;
     int infosize = 0;
     int infolen = 0;
+    int jdx,kdx;
     pargs_options_t pargs = (pargs_options_t) popt;
 
 
+    REFERENCE_ARG(argc);
+    REFERENCE_ARG(argv);
 
     init_log_level(pargs);
 
+    DEBUG_INFO(" ");
+
     /*now first to get pids*/
-    ret = enum_proc(0,&procpids,&pidsize);
+    ret = list_proc("",&procpids,&pidsize);
     if (ret < 0) {
         GETERRNO(ret);
+        fprintf(stderr,"list_proc error %d\n",ret);
         goto out;
     }
+
+    DEBUG_INFO(" ");
 
     pidlen = ret;
 
     /*now first to get */
+    for(lastidx = 0 ; parsestate->leftargs && parsestate->leftargs[lastidx];lastidx += 1) {
+    }
 
+    if (lastidx > 0) {
+        for(idx=0;parsestate->leftargs && parsestate->leftargs[idx];idx += 1) {
+            modname = parsestate->leftargs[idx];
+            for(jdx=0;jdx < pidlen;jdx += 1) {
+                if (procpids[jdx] != 0) {
+                    ret = get_module_info(procpids[jdx],modname,&pinfo,&infosize);
+                    if (ret < 0) {
+                        GETERRNO(ret);
+                        if (ret != -ERROR_ACCESS_DENIED) {
+                            fprintf(stderr,"get_module_info [%d] modname %s error %d\n",procpids[jdx],modname,ret);
+                            goto out;                            
+                        }
+                        continue;
+                    }
+                    infolen = ret;
+                    for(kdx = 0; kdx < infolen;kdx += 1) {
+                        if ((int)strlen(pinfo[kdx].m_modfullname) > maxlen) {
+                            maxlen = (int)strlen(pinfo[kdx].m_modfullname);
+                        }                    
+                    }
+
+                }
+            }
+        }
+    } else {
+        for(jdx=0;jdx < pidlen;jdx += 1) {
+            if (procpids[jdx] != 0) {
+                ret = get_module_info(procpids[jdx],"",&pinfo,&infosize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    if (ret != - ERROR_ACCESS_DENIED) {
+                        fprintf(stderr,"get_module_info [%d] error %d\n",procpids[jdx],ret);
+                        goto out;                        
+                    }
+                    continue;
+                }
+                infolen = ret;
+                for(kdx = 0; kdx < infolen;kdx += 1) {
+                    if ((int)strlen(pinfo[kdx].m_modfullname) > maxlen) {
+                        maxlen = (int)strlen(pinfo[kdx].m_modfullname);
+                    }                    
+                }
+            }
+        }
+    }
+
+
+
+    if (lastidx > 0) {
+        for(idx=0;parsestate->leftargs && parsestate->leftargs[idx];idx += 1) {
+            modname = parsestate->leftargs[idx];
+            for(jdx=0;jdx < pidlen;jdx += 1) {
+                if (procpids[jdx] != 0) {
+                    ret = get_module_info(procpids[jdx],modname,&pinfo,&infosize);
+                    if (ret < 0) {
+                        GETERRNO(ret);
+                        if (ret != -ERROR_ACCESS_DENIED) {
+                            fprintf(stderr,"get_module_info [%d] modname %s error %d\n",procpids[jdx],modname,ret);
+                            goto out;                            
+                        }
+                        continue;
+                    }
+                    infolen = ret;
+                    for(kdx = 0; kdx < infolen;kdx += 1) {
+                        fprintf(stdout, "proc %05d %-*s %p %d\n",procpids[jdx], maxlen, pinfo[kdx].m_modfullname, pinfo[kdx].m_pimgbase,
+                                pinfo[kdx].m_modsize);
+                    }
+                }
+            }
+        }
+    } else {
+        for(jdx=0;jdx < pidlen;jdx += 1) {
+            if (procpids[jdx] != 0) {
+                ret = get_module_info(procpids[jdx],"",&pinfo,&infosize);
+                if (ret < 0) {
+                    GETERRNO(ret);
+                    if (ret != - ERROR_ACCESS_DENIED) {
+                        fprintf(stderr,"get_module_info [%d] error %d\n",procpids[jdx],ret);
+                        goto out;                        
+                    }
+                    continue;
+                }
+                infolen = ret;
+                for(kdx = 0; kdx < infolen;kdx += 1) {
+                    fprintf(stdout, "proc %05d %-*s %p %d\n",procpids[jdx], maxlen, pinfo[kdx].m_modfullname, pinfo[kdx].m_pimgbase,
+                            pinfo[kdx].m_modsize);
+                }
+            }
+        }
+    }
+
+    ret = 0;
 
 out:
     get_module_info(-1,NULL,&pinfo,&infosize);
     infolen = 0;
-    enum_proc(1,&procpids,&pidsize);
+    list_proc(NULL,&procpids,&pidsize);
     pidlen = 0;
     return ret;
 }

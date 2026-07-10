@@ -4055,8 +4055,10 @@ do{                                                                             
                   pmodname, sizeof(pretinfo[retlen].m_modfullname));                              \
         pretinfo[retlen].m_pimgbase =  pmod->modBaseAddr;                                         \
         pretinfo[retlen].m_modsize = pmod->modBaseSize;                                           \
+        DEBUG_INFO("insert [%d] m_modfullname[%s] m_pimgbase 0x%p m_modsize 0x%x",                \
+        	retlen,pretinfo[retlen].m_modfullname,pretinfo[retlen].m_pimgbase,                    \
+        	pretinfo[retlen].m_modsize);                                                          \
         retlen ++;                                                                                \
-        DEBUG_INFO("insert [%d]", retlen);                                                        \
     }                                                                                             \
     numhdl ++;                                                                                    \
 }while(0)
@@ -4100,10 +4102,11 @@ int get_module_info(int procid, const char* name, pmod_info_t *ppinfo, int *psiz
 	pretinfo = *ppinfo;
 	retsize = *psize;
 
+	SETERRNO(0);
 	hproc = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ ,FALSE,(DWORD)procid);
 	if (hproc == NULL || hproc == INVALID_HANDLE_VALUE) {
 		GETERRNO(ret);
-		ERROR_INFO("cannot open %d process query",procid);
+		ERROR_INFO("cannot open %d process query %d",procid,ret);
 		goto fail;
 	}
 
@@ -4122,6 +4125,7 @@ int get_module_info(int procid, const char* name, pmod_info_t *ppinfo, int *psiz
 	}
 	memset(pmod, 0, sizeof(*pmod));
 	pmod->dwSize = sizeof(*pmod);
+	DEBUG_INFO("pmod->dwSize %d", pmod->dwSize);
 
 	bret = Module32First(hd, pmod);
 	if (!bret) {
@@ -4136,6 +4140,7 @@ int get_module_info(int procid, const char* name, pmod_info_t *ppinfo, int *psiz
 	MOD_INFO_HANDLE();
 
 	while (1) {
+		DEBUG_INFO("proc[%d] numhdl %d", procid,numhdl);
 		memset(pmod, 0, sizeof(*pmod));
 		pmod->dwSize = sizeof(*pmod);
 		bret = Module32Next(hd, pmod);
@@ -4181,7 +4186,6 @@ succ:
 
 	return (int)(retlen * sizeof(*pretinfo));
 fail:
-	
 
 	if (pfullname) {
 		free(pfullname);
@@ -4262,7 +4266,7 @@ fail:
     char* _ansiname=NULL;                                                                         \
     int _ansisize=0;                                                                              \
     int _matched = 0;                                                                             \
-    if (procname != NULL) {                                                                       \
+    if (procname != NULL && strlen(procname) > 0) {                                               \
 	    ret = TcharToAnsi(pproc->szExeFile,&_ansiname,&_ansisize);                                \
 	    if (ret < 0) {                                                                            \
 	        GETERRNO(ret);                                                                        \
@@ -4418,128 +4422,6 @@ fail:
 }
 
 
-int enum_proc(int freed,int** pppids,int *psize)
-{
-	int ret;
-	int retlen=0;
-	int* pretpids= NULL;
-	int retsize=0;
-	int *ptmppids = NULL;
-	int numhdl = 0;
-	HANDLE hd=INVALID_HANDLE_VALUE;
-	LPPROCESSENTRY32 pproc=  NULL;
-	BOOL bret;
-	char* procname = NULL;
-	if (freed) {
-		if (pppids && *pppids) {
-			free(*pppids);
-			*pppids = NULL;
-		}
-
-		if (psize) {
-			*psize = 0;
-		}
-
-		return 0;
-	}
-
-	if (pppids == NULL || psize == NULL) {
-		ret = - ERROR_INVALID_PARAMETER;
-		SETERRNO(ret);
-		return ret;
-	}
-
-	pretpids = *pppids;
-	retsize = *psize;
-
-
-	hd = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-	if (hd == INVALID_HANDLE_VALUE) {
-		GETERRNO(ret);
-		ERROR_INFO("can not create process snapshot error[%d]", ret);
-		goto fail;
-	}
-
-	pproc = (LPPROCESSENTRY32) malloc(sizeof(*pproc));
-	if (pproc == NULL) {
-		GETERRNO(ret);
-		ERROR_INFO("alloc [%d] error[%d]", sizeof(*pproc) , ret);
-		goto fail;
-	}
-	memset(pproc, 0, sizeof(*pproc));
-	pproc->dwSize = sizeof(*pproc);
-
-
-	bret = Process32First(hd, pproc);
-	if (!bret) {
-		GETERRNO(ret);
-		if (ret == -ERROR_NO_MORE_FILES ) {
-			goto succ;
-		}
-		ERROR_INFO("get first process snapshot error[%d]", ret);
-		goto fail;
-	}
-	CHECK_PROC_PID();
-
-	while (1) {
-		memset(pproc, 0, sizeof(*pproc));
-		pproc->dwSize = sizeof(*pproc);
-		bret = Process32Next(hd, pproc);
-		if (!bret) {
-			GETERRNO(ret);
-			if (ret == -ERROR_NO_MORE_FILES) {
-				break;
-			}
-			ERROR_INFO("can not get proc snapshot at [%d] error[%d]", numhdl, ret);
-			goto fail;
-		}
-
-		CHECK_PROC_PID();
-	}
-
-
-succ:
-	if (pproc) {
-		free(pproc);
-	}
-	pproc = NULL;
-
-	if (hd != INVALID_HANDLE_VALUE) {
-		CloseHandle(hd);
-	}
-	hd = INVALID_HANDLE_VALUE;
-
-	if (ptmppids) {
-		free(ptmppids);
-	}
-	ptmppids = NULL;
-
-	if (*pppids != NULL && *pppids != pretpids) {
-		free(*pppids);
-	}
-	*pppids = pretpids;
-	*psize = retsize;
-
-	return retlen;
-fail:
-	if (pretpids && pretpids != *pppids) {
-		free(pretpids);
-	}
-	pretpids = NULL;
-
-	if (pproc) {
-		free(pproc);
-	}
-	pproc = NULL;
-
-	if (hd != INVALID_HANDLE_VALUE) {
-		CloseHandle(hd);
-	}
-	hd = INVALID_HANDLE_VALUE;
-
-	SETERRNO(ret);
-	return ret;
-}
 
 
 #define CHECK_FP_OUT(fp,...)                                                                      \
