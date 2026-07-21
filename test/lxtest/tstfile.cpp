@@ -2162,6 +2162,7 @@ int pipemeter_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     int infd = -1;
     int outfd = -1;
     int ret;
+    int wlen = 0;
 
 
     init_log_verbose(pargs);
@@ -2174,6 +2175,9 @@ int pipemeter_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
         }
     }
 
+    if (bufsize < (int)val) {
+        bufsize = (int)val;
+    }
 
     pbuf = (unsigned char*)malloc(bufsize);
     if (pbuf == NULL) {
@@ -2199,17 +2203,27 @@ int pipemeter_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
 
         inlen = ret;
         totalval += ret;
-
-        ret = write(outfd,pbuf,inlen);
-        if (ret < 0) {
-            GETERRNO(ret);
-            ERROR_INFO("write error %d", ret);
-            goto out;
+        wlen = 0;
+        while (wlen < inlen) {
+            ret = write(outfd,&pbuf[wlen],inlen-wlen);
+            if (ret < 0) {
+                GETERRNO(ret);
+                ERROR_INFO("write error %d", ret);
+                goto out;
+            }
+            wlen += ret;
         }
+
 
         if ((lastval / val) != (totalval / val)) {
             if (outlen > 0) {
                 DEBUG_INFO("outlen %d",outlen);
+                for(i=0;i<outlen;i+= 1) {
+                    fprintf(stderr,"\b");
+                }
+                for(i=0;i<outlen;i+= 1) {
+                    fprintf(stderr," ");
+                }
                 for(i=0;i<outlen;i+= 1) {
                     fprintf(stderr,"\b");
                 }
@@ -2233,6 +2247,12 @@ int pipemeter_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
     }
 
     if (outlen > 0) {
+        for(i=0;i<outlen;i+= 1) {
+            fprintf(stderr,"\b");
+        }
+        for(i=0;i<outlen;i+= 1) {
+            fprintf(stderr," ");
+        }
         for(i=0;i<outlen;i+= 1) {
             fprintf(stderr,"\b");
         }
