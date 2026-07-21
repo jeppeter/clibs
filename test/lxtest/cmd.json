@@ -159,6 +159,9 @@
     },
     "tcping<tcping_handler>##[www.name.com,33]... to tcping##" : {
         "$" : "+"
+    },
+    "pipemeter<pipemeter_handler>##[size] to debug size##" : {
+        "$" : "?"
     }
 
 }

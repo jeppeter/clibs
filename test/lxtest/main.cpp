@@ -112,6 +112,7 @@ int sigfd_handler(int argc, char* argv[], pextargs_state_t parsestate, void* pop
 int sockaddrsize_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int dnsqry_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 int tcping_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
+int pipemeter_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt);
 
 
 #define  GET_OPT_TYPE(num, desc, typeof)                                          \

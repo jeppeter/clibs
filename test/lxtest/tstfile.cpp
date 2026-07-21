@@ -2097,3 +2097,160 @@ int logtst_handler(int argc, char* argv[], pextargs_state_t parsestate, void* po
 
     return 0;
 }
+
+
+int get_readable_size(char* pstr, uint64_t* pval)
+{
+    int ret;
+    char* pendptr=NULL;
+
+    if (pstr == NULL || pval == NULL) {
+        ret = - EINVAL;
+        SETERRNO(ret);
+        return ret;
+    }
+
+    *pval = 0;
+
+    ret = parse_number(pstr,pval,&pendptr);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto fail;
+    }
+
+    if (pendptr == NULL || *pendptr == '\0') {
+        *pval = *pval;
+    } else if (*pendptr == 'k' || *pendptr == 'K') {
+        *pval *= 1024;
+    } else if (*pendptr == 'm' || *pendptr == 'M') {
+        *pval *= 1024;
+        *pval *= 1024;
+    } else if (*pendptr == 'g' || *pendptr == 'G') {
+        *pval *= 1024;
+        *pval *= 1024;
+        *pval *= 1024;        
+    } else if (*pendptr == 't' || *pendptr == 'T') {
+        *pval *= 1024;
+        *pval *= 1024;
+        *pval *= 1024;
+        *pval *= 1024;
+    } else {
+        ERROR_INFO("not valid [%s]", pstr);
+        ret = - EINVAL;
+        goto fail;
+    }
+
+    return 0;
+fail:
+    SETERRNO(ret);
+    return ret;
+}
+
+int pipemeter_handler(int argc, char* argv[], pextargs_state_t parsestate, void* popt)
+{
+    pargs_options_t pargs = (pargs_options_t) popt;
+    uint64_t val = 1024 * 1024;
+    int i;
+    uint64_t lastval = 0;
+    uint64_t totalval = 0;
+    unsigned char* pbuf = NULL;
+    char* poutstr = NULL;
+    int outlen = 0;
+    int outsize = 0;
+    int inlen;
+    int bufsize= 1024* 1024;
+    int infd = -1;
+    int outfd = -1;
+    int ret;
+
+
+    init_log_verbose(pargs);
+
+    if (parsestate->leftargs && parsestate->leftargs[0]) {
+        ret = get_readable_size(parsestate->leftargs[0],&val);
+        if (ret < 0) {
+            GETERRNO(ret);
+            goto out;
+        }
+    }
+
+
+    pbuf = (unsigned char*)malloc(bufsize);
+    if (pbuf == NULL) {
+        GETERRNO(ret);
+        goto out;
+    }
+
+    infd = fileno(stdin);
+    outfd = fileno(stdout);
+
+    fprintf(stderr,"\n");
+    fflush(stderr);
+
+    while(1) {
+        ret = read(infd, pbuf,bufsize);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("read error %d",ret);
+            goto out;
+        } else if (ret == 0) {
+            break;
+        }
+
+        inlen = ret;
+        totalval += ret;
+
+        ret = write(outfd,pbuf,inlen);
+        if (ret < 0) {
+            GETERRNO(ret);
+            ERROR_INFO("write error %d", ret);
+            goto out;
+        }
+
+        if ((lastval / val) != (totalval / val)) {
+            if (outlen > 0) {
+                DEBUG_INFO("outlen %d",outlen);
+                for(i=0;i<outlen;i+= 1) {
+                    fprintf(stderr,"\b");
+                }
+                fflush(stderr);
+            }
+
+            ret = snprintf_safe(&poutstr,&outsize,"stream %ld[0x%lx]",totalval,totalval);
+            if (ret < 0) {
+                GETERRNO(ret);
+                goto out;
+            }
+            outlen = strlen(poutstr);
+            fprintf(stderr,"%s",poutstr);
+            fflush(stderr);
+        }
+        lastval = totalval;
+        if (pargs->m_timeout > 0) {
+            sched_out(pargs->m_timeout);
+        }
+
+    }
+
+    if (outlen > 0) {
+        for(i=0;i<outlen;i+= 1) {
+            fprintf(stderr,"\b");
+        }
+        fflush(stderr);
+    }
+    ret = snprintf_safe(&poutstr,&outsize,"stream %ld[0x%lx]",totalval,totalval);
+    if (ret < 0) {
+        GETERRNO(ret);
+        goto out;
+    }
+    fprintf(stderr,"%s\n",poutstr);
+
+    ret = 0;
+out:
+    if (pbuf) {
+        free(pbuf);
+    }
+    pbuf = NULL;
+    SETERRNO(ret);
+    return ret;
+}
