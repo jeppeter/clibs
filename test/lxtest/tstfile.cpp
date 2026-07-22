@@ -2238,11 +2238,11 @@ int pipemeter_handler(int argc, char* argv[], pextargs_state_t parsestate, void*
             outlen = strlen(poutstr);
             fprintf(stderr,"%s",poutstr);
             fflush(stderr);
+            if (pargs->m_timeout > 0) {
+                sched_out(pargs->m_timeout);
+            }
         }
         lastval = totalval;
-        if (pargs->m_timeout > 0) {
-            sched_out(pargs->m_timeout);
-        }
 
     }
 
