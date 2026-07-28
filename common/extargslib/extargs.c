@@ -1867,7 +1867,7 @@ popt_cmd_t find_cmd(popt_cmd_t pmaincmd, const char* subcmd)
         goto out;
     }
 
-    pdotchar = strchr(subcmd, '.');
+    pdotchar = (char*)strchr(subcmd, (int)'.');
     if (pdotchar != NULL) {
         if (pmaincmd->m_subcmds != NULL) {
             firstnamesize = (int) ((uintptr_t)pdotchar - (uintptr_t)subcmd + 1);
@@ -3558,7 +3558,7 @@ int set_env_args_prefix(popt_cmd_t pmaincmd, pparse_state_t pstate, void* popt, 
                 break;
             }
             /*with underscore we will not append */
-            phiphenchar = strchr(pcuropt->m_longopt, '-');
+            phiphenchar = (char*)strchr(pcuropt->m_longopt, '-');
             if (phiphenchar != NULL) {
                 ret = snprintf_safe(&penvkey, &envkeysize, "%s", pcuropt->m_longopt);
             } else {
